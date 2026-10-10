@@ -207,6 +207,22 @@ class DocumentUploadIT {
     }
 
     @Test
+    @DisplayName("a file whose content contradicts its name never enters the inbox")
+    void rejectedContentDoesNotEnterTheInbox() throws Exception {
+        Session session = signIn("reject");
+        byte[] script = "#!/bin/sh\necho nicht wirklich ein PDF\n".getBytes(StandardCharsets.UTF_8);
+
+        MvcResult result = upload(session, "Rechnung.pdf", script, 422);
+        assertThat(result.getResponse().getContentAsString()).contains("FILE_REJECTED");
+
+        // Nothing was recorded, and the inbox stayed empty for this tenant.
+        String listing = mockMvc.perform(get("/api/v1/documents").cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(listing).contains("\"totalElements\":0");
+    }
+
+    @Test
     @DisplayName("upload without a session is rejected")
     void uploadRequiresAuthentication() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "x.pdf", "application/pdf",

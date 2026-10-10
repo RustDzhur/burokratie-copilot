@@ -56,6 +56,11 @@ public class DocumentBlob {
     @Column(name = "quarantined", nullable = false)
     private boolean quarantined = true;
 
+    /** Verdict and structural details of the security check; never contains file content. */
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(name = "scan_details", columnDefinition = "jsonb", nullable = false)
+    private java.util.Map<String, Object> scanDetails = java.util.Map.of();
+
     @Column(name = "encryption", nullable = false, length = 30)
     private String encryption = "none";
 
@@ -122,6 +127,14 @@ public class DocumentBlob {
 
     public String getEncryption() {
         return encryption;
+    }
+
+    public java.util.Map<String, Object> getScanDetails() {
+        return scanDetails;
+    }
+
+    public void setScanDetails(java.util.Map<String, Object> scanDetails) {
+        this.scanDetails = scanDetails == null ? java.util.Map.of() : scanDetails;
     }
 
     public Instant getCreatedAt() {

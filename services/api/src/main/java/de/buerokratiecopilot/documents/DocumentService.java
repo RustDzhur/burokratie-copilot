@@ -21,6 +21,8 @@ import de.buerokratiecopilot.documents.domain.DocumentBlob;
 import de.buerokratiecopilot.documents.domain.DocumentSource;
 import de.buerokratiecopilot.documents.domain.DocumentStatusMachine;
 import de.buerokratiecopilot.documents.domain.DocumentVersion;
+import de.buerokratiecopilot.documents.security.FileScanResult;
+import de.buerokratiecopilot.documents.security.FileSecurityScanner;
 import de.buerokratiecopilot.shared.config.BurokratieProperties;
 import de.buerokratiecopilot.shared.context.RequestContext;
 import de.buerokratiecopilot.shared.error.ApiException;
@@ -64,11 +66,12 @@ public class DocumentService {
     private final OutboxWriter outbox;
     private final AuditService auditService;
     private final BurokratieProperties properties;
+    private final FileSecurityScanner securityScanner;
 
     public DocumentService(DocumentRepository documents, DocumentBlobRepository blobs,
                            DocumentVersionRepository versions, DocumentSourceRepository sources,
                            BlobStore blobStore, OutboxWriter outbox, AuditService auditService,
-                           BurokratieProperties properties) {
+                           BurokratieProperties properties, FileSecurityScanner securityScanner) {
         this.documents = documents;
         this.blobs = blobs;
         this.versions = versions;
@@ -77,6 +80,7 @@ public class DocumentService {
         this.outbox = outbox;
         this.auditService = auditService;
         this.properties = properties;
+        this.securityScanner = securityScanner;
     }
 
     /** Result of a received document: either a new document or a recognised duplicate. */
@@ -107,6 +111,22 @@ public class DocumentService {
 
         BlobStore.StoredBlob stored = storeBlob(tenantId, file, declaredType);
 
+        // The security check runs on the stored bytes before anything else may touch them. A file
+        // whose content contradicts its type is removed again so no unusable object stays behind.
+        FileScanResult scan = scanStoredContent(tenantId, file, declaredType, stored);
+        if (scan.isRejected()) {
+            blobStore.delete(stored.storageKey());
+            auditService.record(AuditService.AuditEntry
+                    .builder(AuditEvent.Category.DOCUMENT, "DOCUMENT_REJECTED")
+                    .tenant(tenantId)
+                    .entity("documents", null, originalFilename)
+                    .description("Rejected by the file security check: " + scan.reason())
+                    .severity(AuditEvent.Severity.WARNING)
+                    .result(AuditEvent.Result.FAILURE)
+                    .build());
+            throw new ApiException(ErrorCode.FILE_REJECTED, scan.reason());
+        }
+
         Optional<Document> existing = documents
                 .findFirstByTenantIdAndContentHashAndDeletedAtIsNull(tenantId, stored.contentHash());
 
@@ -125,14 +145,25 @@ public class DocumentService {
             document.setDuplicateOfDocumentId(original.getId());
             log.info("Document {} is a duplicate of {}", document.getId(), original.getId());
         }
+        else if (scan.requiresReview()) {
+            // A structurally implausible file (for example an archive with an extreme expansion
+            // ratio) is never processed automatically; a human decides what to do with it.
+            document.setProcessingStatus(Document.ProcessingStatus.REVIEW_REQUIRED);
+            document.setReviewStatus(Document.ReviewStatus.PENDING);
+        }
         documents.save(document);
 
         DocumentBlob blob = new DocumentBlob(UUID.randomUUID(), tenantId, stored.storageKey(),
                 stored.backend(), stored.sizeBytes(), stored.contentHash(), declaredType);
-        // No malware scanner is configured in this deployment. Saying "clean" would be a lie, so the
-        // state is recorded as SKIPPED ("not checked") and an operator can see which files were never
-        // scanned. Content based validation and scanning are task B-003.
+        // The structural check passed, but no antivirus component is configured in this deployment.
+        // "Not checked for malware" is recorded as SKIPPED rather than CLEAN, so an operator can see
+        // which files were never scanned instead of believing they were found harmless.
         blob.markScanSkipped();
+        blob.setScanDetails(Map.of(
+                "structuralVerdict", scan.verdict().name(),
+                "detectedContentType", String.valueOf(scan.detectedContentType()),
+                "malwareChecked", false,
+                "scanner", "structural"));
         blobs.save(blob);
 
         DocumentVersion version = new DocumentVersion(UUID.randomUUID(), document.getId(), tenantId, 1,
@@ -239,6 +270,18 @@ public class DocumentService {
 
     /** Record of the received file in the object store. */
     public record Download(String filename, String contentType, long sizeBytes, InputStream content) {
+    }
+
+    /** Runs the structural security check over the bytes that were just stored. */
+    private FileScanResult scanStoredContent(UUID tenantId, MultipartFile file, String contentType,
+                                             BlobStore.StoredBlob stored) {
+        try (InputStream content = blobStore.retrieve(stored.storageKey())) {
+            return securityScanner.scan(content, stored.sizeBytes(), file.getOriginalFilename(), contentType);
+        }
+        catch (IOException ex) {
+            throw new de.buerokratiecopilot.shared.storage.BlobStorageException(
+                    "The stored file could not be checked", ex);
+        }
     }
 
     private BlobStore.StoredBlob storeBlob(UUID tenantId, MultipartFile file, String contentType) {
