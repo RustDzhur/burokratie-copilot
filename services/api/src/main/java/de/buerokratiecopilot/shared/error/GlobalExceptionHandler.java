@@ -123,6 +123,25 @@ public class GlobalExceptionHandler {
         return simple(ErrorCode.OPTIMISTIC_LOCK, request, locale);
     }
 
+    @ExceptionHandler(de.buerokratiecopilot.shared.storage.BlobStorageException.class)
+    public ResponseEntity<ApiErrorResponse> handleStorageFailure(
+            de.buerokratiecopilot.shared.storage.BlobStorageException ex, HttpServletRequest request,
+            Locale locale) {
+        // The object store is an external dependency: an operator has to look at it, the client only
+        // needs to know that the file could not be stored or read.
+        log.error("Object storage failure on {}: {}", request.getRequestURI(), ex.getMessage());
+        return simple(ErrorCode.DEPENDENCY_UNAVAILABLE, request, locale);
+    }
+
+    @ExceptionHandler(de.buerokratiecopilot.documents.domain.InvalidDocumentStatusTransition.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidTransition(
+            de.buerokratiecopilot.documents.domain.InvalidDocumentStatusTransition ex,
+            HttpServletRequest request, Locale locale) {
+        return ResponseEntity.status(ErrorCode.INVALID_STATE_TRANSITION.status())
+                .body(ApiErrorResponse.of(ErrorCode.INVALID_STATE_TRANSITION.name(), ex.getMessage(),
+                        correlationId(), request.getRequestURI()));
+    }
+
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ApiErrorResponse> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex,
                                                                    HttpServletRequest request, Locale locale) {

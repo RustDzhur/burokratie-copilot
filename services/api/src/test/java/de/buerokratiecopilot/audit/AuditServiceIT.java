@@ -50,7 +50,9 @@ class AuditServiceIT {
     void recordsTenantAndRequestMetadata() {
         Tenant tenant = fixtures.createCompany();
         UUID tenantId = tenant.getId();
-        UUID userId = fixtures.createUser("audit-owner@example.de").getId();
+        // A fixed address would collide with the previous run: the database is reused between runs.
+        UUID userId = fixtures.createUser(
+                "audit-owner-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de").getId();
 
         AuditEvent saved = RequestContext.runAs(tenantId, () -> {
             RequestContext.setUserId(userId);

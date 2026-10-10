@@ -25,15 +25,13 @@ import org.junit.jupiter.api.Test;
  */
 class FlywayMigrationIT {
 
-    private static final String URL = "jdbc:postgresql://%s:%s/%s".formatted(
-            env("BC_TEST_DB_HOST", "localhost"),
-            env("BC_TEST_DB_PORT", "5432"),
-            env("BC_TEST_DB_NAME", "burokratie_test"));
-    private static final String USER = env("BC_TEST_DB_USER", "burokratie");
-    private static final String PASSWORD = env("BC_TEST_DB_PASSWORD", "burokratie_dev_password");
+    private static final String URL = de.buerokratiecopilot.support.MigrationTestDatabase.url();
+    private static final String USER = de.buerokratiecopilot.support.MigrationTestDatabase.user();
+    private static final String PASSWORD = de.buerokratiecopilot.support.MigrationTestDatabase.password();
 
     @BeforeAll
     static void resetSchema() throws Exception {
+        de.buerokratiecopilot.support.MigrationTestDatabase.ensureExists();
         try (Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
              Statement statement = connection.createStatement()) {
             statement.execute("DROP SCHEMA IF EXISTS public CASCADE");

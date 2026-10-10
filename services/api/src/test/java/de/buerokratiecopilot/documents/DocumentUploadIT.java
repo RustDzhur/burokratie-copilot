@@ -1,0 +1,217 @@
+package de.buerokratiecopilot.documents;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
+
+import jakarta.servlet.http.Cookie;
+
+import com.jayway.jsonpath.JsonPath;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+import de.buerokratiecopilot.documents.domain.Document;
+import de.buerokratiecopilot.identity.UserRepository;
+import de.buerokratiecopilot.identity.domain.User;
+import de.buerokratiecopilot.shared.context.RequestContext;
+
+/**
+ * End-to-end verification of document receipt (spec §28.3 scenario 2 and 4, §6.2, §9.1).
+ *
+ * <p>The test uploads real bytes through the real HTTP stack: the file is written to the object
+ * store, hashed, recorded in PostgreSQL and announced through the outbox. The assertions cover the
+ * stored metadata, duplicate detection and tenant isolation — the three properties that make the
+ * inbox trustworthy.</p>
+ */
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+class DocumentUploadIT {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private UserRepository users;
+
+    @Autowired
+    private DocumentRepository documents;
+
+    /** A small but real PDF header so the stored bytes are recognisable. */
+    private static byte[] invoicePdf(String marker) {
+        return ("%PDF-1.7\n% " + marker + "\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n")
+                .getBytes(StandardCharsets.UTF_8);
+    }
+
+    private record Session(Cookie cookie, String tenantId) {
+    }
+
+    private Session signIn(String prefix) throws Exception {
+        String email = prefix + "-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de";
+        MvcResult registration = mockMvc.perform(post("/api/v1/auth/register").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s","password":"EinSicheresPasswort-2026!",
+                                 "displayName":"Dokumente Test","accountType":"COMPANY"}
+                                """.formatted(email)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String body = registration.getResponse().getContentAsString();
+        String userId = JsonPath.read(body, "$.userId");
+        String tenantId = JsonPath.read(body, "$.tenantId");
+
+        RequestContext.runAs(UUID.fromString(tenantId), () -> {
+            User user = users.findById(UUID.fromString(userId)).orElseThrow();
+            user.markEmailVerified(java.time.Instant.now());
+            user.setStatus(User.Status.ACTIVE);
+            return users.save(user);
+        });
+
+        MvcResult login = mockMvc.perform(post("/api/v1/auth/login").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s","password":"EinSicheresPasswort-2026!"}
+                                """.formatted(email)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        return new Session(login.getResponse().getCookie("bc_session"), tenantId);
+    }
+
+    private MvcResult upload(Session session, String filename, byte[] content, int expectedStatus)
+            throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", filename, "application/pdf", content);
+        return mockMvc.perform(multipart("/api/v1/documents").file(file).with(csrf())
+                        .cookie(session.cookie()))
+                .andExpect(status().is(expectedStatus))
+                .andReturn();
+    }
+
+    @Test
+    @DisplayName("an uploaded document is stored, hashed and recorded in the inbox")
+    void uploadCreatesDocumentWithMetadata() throws Exception {
+        Session session = signIn("upload");
+        byte[] content = invoicePdf("rechnung-1");
+
+        MvcResult result = upload(session, "Rechnung 2026-001.pdf", content, 201);
+        String body = result.getResponse().getContentAsString();
+
+        assertThat(JsonPath.<Boolean>read(body, "$.duplicate")).isFalse();
+        assertThat(JsonPath.<String>read(body, "$.document.processingStatus")).isEqualTo("RECEIVED");
+        assertThat(JsonPath.<String>read(body, "$.document.originalFilename"))
+                .isEqualTo("Rechnung 2026-001.pdf");
+        assertThat(JsonPath.<Integer>read(body, "$.document.sizeBytes")).isEqualTo(content.length);
+
+        String documentId = JsonPath.read(body, "$.document.id");
+        Document stored = documents.findById(UUID.fromString(documentId)).orElseThrow();
+
+        assertThat(stored.getContentHash()).hasSize(64).matches("[0-9a-f]{64}");
+        assertThat(stored.getCurrentVersion()).isEqualTo(1);
+        assertThat(stored.getSource()).isEqualTo(Document.Source.UPLOAD);
+        assertThat(stored.getTenantId()).isEqualTo(UUID.fromString(session.tenantId()));
+        assertThat(stored.getDuplicateOfDocumentId()).isNull();
+
+        // The stored bytes are reachable and identical.
+        byte[] downloaded = mockMvc.perform(get("/api/v1/documents/{id}/content", documentId)
+                        .cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+        assertThat(downloaded).isEqualTo(content);
+    }
+
+    @Test
+    @DisplayName("uploading the same content twice is reported as a duplicate, not as a new document")
+    void duplicateContentIsDetected() throws Exception {
+        Session session = signIn("dupe");
+        byte[] content = invoicePdf("identisch");
+
+        String firstId = JsonPath.read(upload(session, "Rechnung.pdf", content, 201)
+                .getResponse().getContentAsString(), "$.document.id");
+
+        MvcResult second = upload(session, "Rechnung-kopie.pdf", content, 201);
+        String body = second.getResponse().getContentAsString();
+
+        assertThat(JsonPath.<Boolean>read(body, "$.duplicate")).isTrue();
+        assertThat(JsonPath.<String>read(body, "$.duplicateOf")).isEqualTo(firstId);
+        assertThat(JsonPath.<String>read(body, "$.document.processingStatus")).isEqualTo("DUPLICATE");
+        assertThat(JsonPath.<String>read(body, "$.document.duplicateOfDocumentId")).isEqualTo(firstId);
+    }
+
+    @Test
+    @DisplayName("a document of another tenant does not exist from this session's point of view")
+    void crossTenantAccessIsRefused() throws Exception {
+        Session tenantA = signIn("tenant-a");
+        Session tenantB = signIn("tenant-b");
+
+        String documentOfA = JsonPath.read(
+                upload(tenantA, "geheim.pdf", invoicePdf("a-only"), 201)
+                        .getResponse().getContentAsString(),
+                "$.document.id");
+
+        // The owner sees it.
+        mockMvc.perform(get("/api/v1/documents/{id}", documentOfA).cookie(tenantA.cookie()))
+                .andExpect(status().isOk());
+
+        // Another tenant gets 404, not 403: even the existence of the identifier stays hidden.
+        mockMvc.perform(get("/api/v1/documents/{id}", documentOfA).cookie(tenantB.cookie()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+
+        mockMvc.perform(get("/api/v1/documents/{id}/content", documentOfA).cookie(tenantB.cookie()))
+                .andExpect(status().isNotFound());
+
+        // And the listing of the other tenant does not contain it.
+        String listing = mockMvc.perform(get("/api/v1/documents").cookie(tenantB.cookie()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(listing).doesNotContain(documentOfA);
+    }
+
+    @Test
+    @DisplayName("an impossible status change is refused instead of corrupting the pipeline")
+    void invalidStatusTransitionIsRefused() throws Exception {
+        Session session = signIn("status");
+        String documentId = JsonPath.read(
+                upload(session, "dok.pdf", invoicePdf("status"), 201)
+                        .getResponse().getContentAsString(),
+                "$.document.id");
+
+        // RECEIVED -> COMPLETED skips the whole pipeline and must not be possible.
+        mockMvc.perform(post("/api/v1/documents/{id}/status", documentId)
+                        .param("status", "COMPLETED").with(csrf()).cookie(session.cookie()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_STATE_TRANSITION"));
+
+        // The valid next step works.
+        mockMvc.perform(post("/api/v1/documents/{id}/status", documentId)
+                        .param("status", "QUARANTINED").with(csrf()).cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.processingStatus").value("QUARANTINED"));
+    }
+
+    @Test
+    @DisplayName("upload without a session is rejected")
+    void uploadRequiresAuthentication() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", "x.pdf", "application/pdf",
+                invoicePdf("anonymous"));
+        mockMvc.perform(multipart("/api/v1/documents").file(file).with(csrf()))
+                .andExpect(status().isUnauthorized());
+    }
+}
