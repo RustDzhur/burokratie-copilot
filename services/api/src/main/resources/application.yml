@@ -128,6 +128,15 @@ burokratie:
     encryption:
       # Base64 32-byte AES key. MUST be provided in production.
       key-base64: ${BC_ENCRYPTION_KEY:}
+    malware-scanner:
+      # none | clamav-cli
+      # Without a scanner every uploaded file is recorded as "not checked" - never as clean.
+      # With clamav-cli the scanner is verified at startup and the application refuses to start
+      # if it cannot be executed, so an unusable antivirus never turns into silent upload errors.
+      type: ${BC_MALWARE_SCANNER:none}
+      executable-path: ${BC_CLAMAV_PATH:clamscan}
+      timeout: ${BC_MALWARE_SCAN_TIMEOUT:PT2M}
+      spool-directory: ${BC_MALWARE_SCAN_SPOOL:}
   storage:
     # local-fs | s3
     type: ${BC_STORAGE_TYPE:local-fs}

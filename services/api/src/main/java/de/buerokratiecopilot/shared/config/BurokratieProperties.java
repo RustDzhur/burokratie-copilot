@@ -66,6 +66,7 @@ public class BurokratieProperties {
         private final Login login = new Login();
         private final Mfa mfa = new Mfa();
         private final Encryption encryption = new Encryption();
+        private final MalwareScanner malwareScanner = new MalwareScanner();
 
         public String getPublicBaseUrl() {
             return publicBaseUrl;
@@ -93,6 +94,10 @@ public class BurokratieProperties {
 
         public Encryption getEncryption() {
             return encryption;
+        }
+
+        public MalwareScanner getMalwareScanner() {
+            return malwareScanner;
         }
 
         public static class Session {
@@ -216,6 +221,51 @@ public class BurokratieProperties {
 
             public void setRecoveryCodeCount(int recoveryCodeCount) {
                 this.recoveryCodeCount = recoveryCodeCount;
+            }
+        }
+
+        /**
+         * Antivirus component (spec §21.2). {@code none} is a legitimate configuration, but then the
+         * platform records files as "not checked" instead of pretending they were scanned.
+         */
+        public static class MalwareScanner {
+
+            /** {@code none} or {@code clamav-cli}. */
+            private String type = "none";
+            private String executablePath = "clamscan";
+            private Duration timeout = Duration.ofMinutes(2);
+            private String spoolDirectory = "";
+
+            public String getType() {
+                return type;
+            }
+
+            public void setType(String type) {
+                this.type = type;
+            }
+
+            public String getExecutablePath() {
+                return executablePath;
+            }
+
+            public void setExecutablePath(String executablePath) {
+                this.executablePath = executablePath;
+            }
+
+            public Duration getTimeout() {
+                return timeout;
+            }
+
+            public void setTimeout(Duration timeout) {
+                this.timeout = timeout;
+            }
+
+            public String getSpoolDirectory() {
+                return spoolDirectory;
+            }
+
+            public void setSpoolDirectory(String spoolDirectory) {
+                this.spoolDirectory = spoolDirectory;
             }
         }
 

@@ -23,6 +23,7 @@ import de.buerokratiecopilot.documents.domain.DocumentStatusMachine;
 import de.buerokratiecopilot.documents.domain.DocumentVersion;
 import de.buerokratiecopilot.documents.security.FileScanResult;
 import de.buerokratiecopilot.documents.security.FileSecurityScanner;
+import de.buerokratiecopilot.documents.security.MalwareScanner;
 import de.buerokratiecopilot.shared.config.BurokratieProperties;
 import de.buerokratiecopilot.shared.context.RequestContext;
 import de.buerokratiecopilot.shared.error.ApiException;
@@ -67,11 +68,13 @@ public class DocumentService {
     private final AuditService auditService;
     private final BurokratieProperties properties;
     private final FileSecurityScanner securityScanner;
+    private final MalwareScanner malwareScanner;
 
     public DocumentService(DocumentRepository documents, DocumentBlobRepository blobs,
                            DocumentVersionRepository versions, DocumentSourceRepository sources,
                            BlobStore blobStore, OutboxWriter outbox, AuditService auditService,
-                           BurokratieProperties properties, FileSecurityScanner securityScanner) {
+                           BurokratieProperties properties, FileSecurityScanner securityScanner,
+                           MalwareScanner malwareScanner) {
         this.documents = documents;
         this.blobs = blobs;
         this.versions = versions;
@@ -81,6 +84,7 @@ public class DocumentService {
         this.auditService = auditService;
         this.properties = properties;
         this.securityScanner = securityScanner;
+        this.malwareScanner = malwareScanner;
     }
 
     /** Result of a received document: either a new document or a recognised duplicate. */
@@ -111,9 +115,24 @@ public class DocumentService {
 
         BlobStore.StoredBlob stored = storeBlob(tenantId, file, declaredType);
 
-        // The security check runs on the stored bytes before anything else may touch them. A file
-        // whose content contradicts its type is removed again so no unusable object stays behind.
+        // The security checks run on the stored bytes before anything else may touch them. A file
+        // whose content contradicts its type, or that carries malware, is removed again so no
+        // unusable object stays behind.
         FileScanResult scan = scanStoredContent(tenantId, file, declaredType, stored);
+        MalwareScanner.Scan malware = scanForMalware(file, declaredType, stored);
+        if (malware.verdict() == MalwareScanner.Verdict.INFECTED) {
+            blobStore.delete(stored.storageKey());
+            auditService.record(AuditService.AuditEntry
+                    .builder(AuditEvent.Category.DOCUMENT, "DOCUMENT_MALWARE_DETECTED")
+                    .tenant(tenantId)
+                    .entity("documents", null, originalFilename)
+                    .description("Malware detected by " + malware.engine() + ": " + malware.signature())
+                    .severity(AuditEvent.Severity.CRITICAL)
+                    .result(AuditEvent.Result.FAILURE)
+                    .build());
+            throw new ApiException(ErrorCode.FILE_REJECTED,
+                    "The file was rejected because malware was detected in it");
+        }
         if (scan.isRejected()) {
             blobStore.delete(stored.storageKey());
             auditService.record(AuditService.AuditEntry
@@ -155,15 +174,16 @@ public class DocumentService {
 
         DocumentBlob blob = new DocumentBlob(UUID.randomUUID(), tenantId, stored.storageKey(),
                 stored.backend(), stored.sizeBytes(), stored.contentHash(), declaredType);
-        // The structural check passed, but no antivirus component is configured in this deployment.
-        // "Not checked for malware" is recorded as SKIPPED rather than CLEAN, so an operator can see
-        // which files were never scanned instead of believing they were found harmless.
-        blob.markScanSkipped();
-        blob.setScanDetails(Map.of(
-                "structuralVerdict", scan.verdict().name(),
-                "detectedContentType", String.valueOf(scan.detectedContentType()),
-                "malwareChecked", false,
-                "scanner", "structural"));
+        // The persisted status reflects the malware check, because that is the question an operator
+        // asks about a stored file. "No scanner configured" is recorded as SKIPPED and a scanner
+        // failure as FAILED - neither of them is ever reported as CLEAN.
+        switch (malware.verdict()) {
+            case CLEAN -> blob.markClean();
+            case FAILED -> blob.markScanFailed(malware.details());
+            case NOT_CHECKED -> blob.markScanSkipped();
+            case INFECTED -> blob.markInfected();
+        }
+        blob.setScanDetails(scanDetails(scan, malware));
         blobs.save(blob);
 
         DocumentVersion version = new DocumentVersion(UUID.randomUUID(), document.getId(), tenantId, 1,
@@ -270,6 +290,40 @@ public class DocumentService {
 
     /** Record of the received file in the object store. */
     public record Download(String filename, String contentType, long sizeBytes, InputStream content) {
+    }
+
+    /** Runs the malware check over the bytes that were just stored. */
+    private MalwareScanner.Scan scanForMalware(MultipartFile file, String contentType,
+                                               BlobStore.StoredBlob stored) {
+        if (!malwareScanner.isAvailable()) {
+            return MalwareScanner.Scan.notChecked(malwareScanner.name());
+        }
+        try (InputStream content = blobStore.retrieve(stored.storageKey())) {
+            return malwareScanner.scan(content, stored.sizeBytes(), file.getOriginalFilename());
+        }
+        catch (IOException ex) {
+            // The file stays quarantined: an unreadable file was not checked.
+            return MalwareScanner.Scan.failed(malwareScanner.name(), "The stored file could not be read");
+        }
+    }
+
+    /** Diagnostics of both checks; never contains file content. */
+    private static Map<String, Object> scanDetails(FileScanResult structural, MalwareScanner.Scan malware) {
+        Map<String, Object> details = new java.util.LinkedHashMap<>();
+        details.put("structuralVerdict", structural.verdict().name());
+        details.put("detectedContentType", String.valueOf(structural.detectedContentType()));
+        details.put("malwareVerdict", malware.verdict().name());
+        details.put("malwareEngine", malware.engine());
+        details.put("malwareChecked", malware.verdict() == MalwareScanner.Verdict.CLEAN);
+        if (malware.signature() != null) {
+            details.put("malwareSignature", malware.signature());
+        }
+        if (structural.details() != null) {
+            details.put("archiveEntries", structural.details().archiveEntries());
+            details.put("archiveUncompressedBytes", structural.details().archiveUncompressedBytes());
+            details.put("archiveCompressionRatio", structural.details().compressionRatio());
+        }
+        return details;
     }
 
     /** Runs the structural security check over the bytes that were just stored. */
