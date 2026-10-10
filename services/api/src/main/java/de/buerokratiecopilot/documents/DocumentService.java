@@ -20,7 +20,9 @@ import de.buerokratiecopilot.documents.domain.Document;
 import de.buerokratiecopilot.documents.domain.DocumentBlob;
 import de.buerokratiecopilot.documents.domain.DocumentSource;
 import de.buerokratiecopilot.documents.domain.DocumentStatusMachine;
+import de.buerokratiecopilot.documents.domain.DocumentProcessingStep;
 import de.buerokratiecopilot.documents.domain.DocumentVersion;
+import de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline;
 import de.buerokratiecopilot.documents.security.FileScanResult;
 import de.buerokratiecopilot.documents.security.FileSecurityScanner;
 import de.buerokratiecopilot.documents.security.MalwareScanner;
@@ -69,12 +71,13 @@ public class DocumentService {
     private final BurokratieProperties properties;
     private final FileSecurityScanner securityScanner;
     private final MalwareScanner malwareScanner;
+    private final DocumentProcessingPipeline pipeline;
 
     public DocumentService(DocumentRepository documents, DocumentBlobRepository blobs,
                            DocumentVersionRepository versions, DocumentSourceRepository sources,
                            BlobStore blobStore, OutboxWriter outbox, AuditService auditService,
                            BurokratieProperties properties, FileSecurityScanner securityScanner,
-                           MalwareScanner malwareScanner) {
+                           MalwareScanner malwareScanner, DocumentProcessingPipeline pipeline) {
         this.documents = documents;
         this.blobs = blobs;
         this.versions = versions;
@@ -85,6 +88,7 @@ public class DocumentService {
         this.properties = properties;
         this.securityScanner = securityScanner;
         this.malwareScanner = malwareScanner;
+        this.pipeline = pipeline;
     }
 
     /** Result of a received document: either a new document or a recognised duplicate. */
@@ -194,6 +198,20 @@ public class DocumentService {
                 document.getSource());
         source.setRawMetadata(Map.of("declaredContentType", String.valueOf(file.getContentType())));
         sources.save(source);
+
+        // The upload path already performed three pipeline steps; recording them keeps the pipeline
+        // history complete instead of starting with a gap.
+        pipeline.recordCompletedStep(document.getId(), version.getId(),
+                DocumentProcessingStep.Step.SECURITY_SCAN,
+                Map.of("structuralVerdict", scan.verdict().name(),
+                        "malwareVerdict", malware.verdict().name(),
+                        "malwareEngine", malware.engine()));
+        pipeline.recordCompletedStep(document.getId(), version.getId(), DocumentProcessingStep.Step.HASH,
+                Map.of("contentHash", stored.contentHash(), "algorithm", "SHA-256"));
+        pipeline.recordCompletedStep(document.getId(), version.getId(),
+                DocumentProcessingStep.Step.DUPLICATE_CHECK,
+                Map.of("duplicate", duplicate,
+                        "originalDocumentId", duplicate ? String.valueOf(document.getDuplicateOfDocumentId()) : ""));
 
         outbox.publish(new DomainEvent(
                 duplicate ? "document.duplicate_detected" : "document.received",
