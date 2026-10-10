@@ -85,12 +85,15 @@ public class SecurityConfiguration {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    de.buerokratiecopilot.identity.auth.SessionService sessionService,
+                                                   de.buerokratiecopilot.shared.idempotency.IdempotencyService idempotencyService,
                                                    MembershipAuthorityResolver authorityResolver,
                                                    ObjectMapper objectMapper,
                                                    org.springframework.context.MessageSource messageSource,
                                                    BurokratieProperties properties) throws Exception {
         SessionAuthenticationFilter sessionAuthenticationFilter =
                 new SessionAuthenticationFilter(sessionService, authorityResolver, properties);
+        de.buerokratiecopilot.shared.idempotency.IdempotencyFilter idempotencyFilter =
+                new de.buerokratiecopilot.shared.idempotency.IdempotencyFilter(idempotencyService, objectMapper);
 
         http
                 .csrf(csrf -> csrf
@@ -129,7 +132,10 @@ public class SecurityConfiguration {
                 // before it would be replaced by an empty context and every request would be
                 // treated as anonymous.
                 .addFilterAfter(sessionAuthenticationFilter,
-                        org.springframework.security.web.context.SecurityContextHolderFilter.class);
+                        org.springframework.security.web.context.SecurityContextHolderFilter.class)
+                // Idempotency needs the authenticated tenant, so it runs right after the session
+                // filter and before any request reaches a controller.
+                .addFilterAfter(idempotencyFilter, SessionAuthenticationFilter.class);
 
         return http.build();
     }
