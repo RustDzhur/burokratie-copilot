@@ -1,0 +1,23 @@
+/* Full-page status screens (404, error boundary). */
+
+.page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-8);
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-3xl);
+}
+
+.text {
+  margin: 0;
+  color: var(--color-text-muted);
+  max-width: 52ch;
+}

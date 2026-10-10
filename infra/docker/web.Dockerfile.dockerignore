@@ -1,0 +1,62 @@
+# =============================================================================
+#  Build context exclusions for infra/docker/web.Dockerfile
+# =============================================================================
+#  The build context is the REPOSITORY ROOT. Only apps/web/** is copied into the
+#  build stage; everything else is excluded so that the context stays small and
+#  no secret, blob store or backend artefact can leak into the frontend image.
+#
+#  BuildKit (default since Docker 23) picks up `<dockerfile>.dockerignore`
+#  automatically. On an ancient builder that only understands the root
+#  `.dockerignore`, the root file covers the same ground.
+# =============================================================================
+
+# --- secrets: must never enter a build context -------------------------------
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+secrets/
+**/secrets/
+*.pem
+*.key
+*.p12
+*.jks
+infra/nginx/certs/
+
+# --- version control / editor ------------------------------------------------
+.git
+.git/**
+.gitignore
+.gitattributes
+.idea/
+.vscode/
+.DS_Store
+**/.DS_Store
+
+# --- build output (rebuilt inside the image) ---------------------------------
+**/target/
+**/build/
+**/out/
+**/dist/
+**/coverage/
+**/.turbo/
+
+# --- dependencies are installed inside the image from the lockfile -----------
+**/node_modules/
+**/.pnpm-store/
+
+# --- runtime state and backups ----------------------------------------------
+infra/backups/
+infra/data/
+**/*.log
+logs/
+
+# --- other deliverables: not needed to build the frontend --------------------
+services/
+tests/
+docs/
+README.md
+infra/docker-compose*.yml
+infra/docker/api.Dockerfile

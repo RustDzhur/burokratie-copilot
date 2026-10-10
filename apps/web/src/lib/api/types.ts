@@ -1,0 +1,368 @@
+/**
+ * Data transfer objects shared with the backend.
+ *
+ * These types describe the JSON contract the web client expects. Field names
+ * follow the API style (camelCase, ISO-8601 timestamps). Where docs/task.md only
+ * defines the PostgreSQL model (§19) and the endpoint groups (§20), the shape
+ * below is the proposed contract; the backend is the single source of truth and
+ * can be generated from OpenAPI later without touching the components.
+ *
+ * Unknown enum values never break a screen: every status has a `…Meta` lookup
+ * with a fallback (see `src/lib/format/status.ts`).
+ */
+
+export type IsoDateTime = string;
+export type IsoDate = string;
+
+export type DocumentStatus =
+  'received' | 'processing' | 'needs_review' | 'processed' | 'failed' | 'archived';
+
+export type DocumentChannel = 'upload' | 'email' | 'scan' | 'api' | 'mobile';
+
+export interface DocumentSummary {
+  readonly id: string;
+  readonly title: string;
+  readonly documentType: string;
+  readonly status: DocumentStatus;
+  readonly channel: DocumentChannel;
+  readonly senderName?: string | null;
+  readonly receivedAt: IsoDateTime;
+  readonly confidence?: number | null;
+  readonly retentionUntil?: IsoDate | null;
+  readonly legalHold?: boolean;
+  readonly ownerName?: string | null;
+  readonly pageCount?: number | null;
+  readonly sizeBytes?: number | null;
+}
+
+export interface ExtractedField {
+  readonly name: string;
+  readonly label: string;
+  readonly value?: string | null;
+  readonly confidence: number;
+  /** Human-readable evidence, e.g. "Seite 1, Zeile 12". */
+  readonly source?: string | null;
+  readonly confirmed?: boolean;
+}
+
+export interface DocumentRelation {
+  readonly kind: 'case' | 'contract' | 'contact' | 'invoice' | 'task';
+  readonly id: string;
+  readonly label: string;
+}
+
+export interface DocumentHistoryEntry {
+  readonly id: string;
+  readonly at: IsoDateTime;
+  readonly actor: string;
+  readonly action: string;
+  readonly result: 'success' | 'failure' | 'denied';
+}
+
+export interface DocumentDetail extends DocumentSummary {
+  readonly checksum?: string | null;
+  readonly mimeType?: string | null;
+  readonly uploadedBy?: string | null;
+  readonly fields?: readonly ExtractedField[];
+  readonly relations?: readonly DocumentRelation[];
+  readonly history?: readonly DocumentHistoryEntry[];
+  readonly previewAvailable?: boolean;
+  readonly processingError?: string | null;
+}
+
+export type CaseStatus = 'open' | 'in_progress' | 'waiting' | 'closed';
+
+export interface CaseSummary {
+  readonly id: string;
+  readonly reference: string;
+  readonly title: string;
+  readonly status: CaseStatus;
+  readonly caseType?: string | null;
+  readonly documentCount: number;
+  readonly updatedAt: IsoDateTime;
+  readonly nextDeadline?: IsoDate | null;
+  readonly responsibleName?: string | null;
+  readonly missingDocuments?: boolean;
+}
+
+export type TaskStatus = 'todo' | 'doing' | 'blocked' | 'done';
+export type TaskPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export interface TaskSummary {
+  readonly id: string;
+  readonly title: string;
+  readonly status: TaskStatus;
+  readonly priority: TaskPriority;
+  readonly dueDate?: IsoDate | null;
+  readonly assigneeName?: string | null;
+  readonly caseReference?: string | null;
+  readonly overdue?: boolean;
+}
+
+export type ContractStatus = 'draft' | 'active' | 'expiring' | 'ended';
+
+export interface ContractSummary {
+  readonly id: string;
+  readonly partner: string;
+  readonly contractType: string;
+  readonly status: ContractStatus;
+  readonly startDate?: IsoDate | null;
+  readonly endDate?: IsoDate | null;
+  readonly noticePeriod?: string | null;
+  readonly noticeDeadline?: IsoDate | null;
+  readonly value?: number | null;
+  readonly currency?: string | null;
+}
+
+export type InvoiceStatus = 'draft' | 'review' | 'approved' | 'paid' | 'overdue';
+export type InvoiceDirection = 'incoming' | 'outgoing';
+
+export interface InvoiceSummary {
+  readonly id: string;
+  readonly number: string;
+  readonly counterparty: string;
+  readonly direction: InvoiceDirection;
+  readonly status: InvoiceStatus;
+  readonly amount: number;
+  readonly currency: string;
+  readonly issueDate?: IsoDate | null;
+  readonly dueDate?: IsoDate | null;
+  readonly eRechnung?: boolean;
+}
+
+export type PaymentStatus = 'unmatched' | 'matched' | 'suggested' | 'ignored';
+
+export interface PaymentSummary {
+  readonly id: string;
+  readonly bookingDate: IsoDate;
+  readonly counterparty: string;
+  readonly amount: number;
+  readonly currency: string;
+  readonly reference?: string | null;
+  readonly status: PaymentStatus;
+  readonly suggestion?: string | null;
+}
+
+export type ContactType = 'person' | 'organisation' | 'authority';
+
+export interface ContactSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly contactType: ContactType;
+  readonly email?: string | null;
+  readonly phone?: string | null;
+  readonly city?: string | null;
+  readonly updatedAt: IsoDateTime;
+}
+
+export type MailStatus = 'new' | 'processed' | 'needs_reply';
+export type MailFolder = 'inbox' | 'sent' | 'drafts' | 'archive';
+
+export interface MailMessageSummary {
+  readonly id: string;
+  readonly subject: string;
+  readonly from: string;
+  readonly folder: MailFolder;
+  readonly status: MailStatus;
+  readonly receivedAt: IsoDateTime;
+  readonly attachmentCount: number;
+}
+
+export interface TemplateSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly templateType: string;
+  readonly status: 'draft' | 'published';
+  readonly updatedAt: IsoDateTime;
+  readonly body?: string | null;
+  readonly placeholders?: readonly string[];
+}
+
+export type AutomationStatus = 'active' | 'paused' | 'error' | 'draft';
+
+export interface AutomationSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly trigger: string;
+  readonly status: AutomationStatus;
+  readonly lastRunAt?: IsoDateTime | null;
+  readonly lastRunResult?: 'success' | 'failed' | 'running' | null;
+  readonly runsLast30Days?: number | null;
+}
+
+export type IntegrationStatus = 'connected' | 'disconnected' | 'error' | 'pending';
+
+export interface IntegrationSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly category: 'bank' | 'mail' | 'storage' | 'calendar' | 'device' | 'identity';
+  readonly status: IntegrationStatus;
+  readonly lastSyncAt?: IsoDateTime | null;
+  readonly configurationRequired?: boolean;
+  readonly description?: string | null;
+}
+
+export interface DeviceSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly kind: 'scanner' | 'multifunction' | 'bridge';
+  readonly online: boolean;
+  readonly lastSeenAt?: IsoDateTime | null;
+}
+
+export type MemberRole = 'owner' | 'admin' | 'member' | 'accountant' | 'auditor';
+export type MemberStatus = 'active' | 'invited' | 'disabled';
+
+export interface MemberSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly email: string;
+  readonly role: MemberRole;
+  readonly status: MemberStatus;
+  readonly lastActiveAt?: IsoDateTime | null;
+  readonly documentCount?: number | null;
+}
+
+export interface CalendarEvent {
+  readonly id: string;
+  readonly title: string;
+  readonly date: IsoDate;
+  readonly endDate?: IsoDate | null;
+  readonly type: 'deadline' | 'appointment' | 'reminder';
+  readonly caseReference?: string | null;
+  readonly allDay?: boolean;
+}
+
+export interface ReportSeriesPoint {
+  readonly period: string;
+  readonly value: number;
+}
+
+export interface ReportResult {
+  readonly type: string;
+  readonly period: string;
+  readonly generatedAt: IsoDateTime;
+  readonly kpis: Readonly<Record<string, number>>;
+  readonly series: readonly ReportSeriesPoint[];
+}
+
+export interface ArchiveEntry {
+  readonly id: string;
+  readonly title: string;
+  readonly archivedAt?: IsoDateTime | null;
+  readonly retentionUntil?: IsoDate | null;
+  readonly legalHold: boolean;
+  readonly status: 'retention_active' | 'retention_expired' | 'unknown';
+}
+
+export type NotificationCategory =
+  'task' | 'deadline' | 'mail' | 'review' | 'approval' | 'integration' | 'automation' | 'archive';
+
+export interface NotificationSummary {
+  readonly id: string;
+  readonly title: string;
+  readonly body?: string | null;
+  readonly category: NotificationCategory;
+  readonly channels: readonly ('in_app' | 'email' | 'push')[];
+  readonly read: boolean;
+  readonly receivedAt: IsoDateTime;
+  readonly link?: string | null;
+}
+
+export type AuditResult = 'success' | 'failure' | 'denied';
+
+export interface AuditEntry {
+  readonly id: string;
+  readonly timestamp: IsoDateTime;
+  readonly actor: string;
+  readonly action: string;
+  readonly objectType: string;
+  readonly objectLabel: string;
+  readonly result: AuditResult;
+  readonly correlationId?: string | null;
+  readonly ipAddress?: string | null;
+}
+
+export interface DashboardSummary {
+  readonly generatedAt: IsoDateTime;
+  readonly counts: Readonly<Record<string, number>>;
+  readonly activity: readonly {
+    readonly id: string;
+    readonly at: IsoDateTime;
+    readonly actor: string;
+    readonly summary: string;
+    readonly target?: string | null;
+  }[];
+  readonly automationStatus: readonly {
+    readonly status: AutomationStatus;
+    readonly count: number;
+  }[];
+  readonly integrationStatus: readonly {
+    readonly status: IntegrationStatus;
+    readonly count: number;
+  }[];
+}
+
+export interface ReviewItem {
+  readonly documentId: string;
+  readonly title: string;
+  readonly senderName?: string | null;
+  readonly receivedAt: IsoDateTime;
+  readonly fields: readonly ExtractedField[];
+  readonly possibleDuplicateOf?: string | null;
+}
+
+export interface AssistantSource {
+  readonly documentId: string;
+  readonly title: string;
+  readonly page?: number | null;
+}
+
+export interface AssistantAnswer {
+  readonly answer: string;
+  readonly sources: readonly AssistantSource[];
+  readonly model: string;
+  readonly correlationId?: string | null;
+  readonly disclaimerRequired?: boolean;
+}
+
+export interface SessionUser {
+  readonly id: string;
+  readonly name: string;
+  readonly email: string;
+  readonly roles: readonly MemberRole[];
+  readonly workspaceId: string;
+  readonly workspaceName: string;
+  readonly workspaceType: 'private' | 'family' | 'company';
+  readonly avatarUrl?: string | null;
+}
+
+export interface SessionInfo {
+  readonly id: string;
+  readonly device: string;
+  readonly location?: string | null;
+  readonly lastActiveAt: IsoDateTime;
+  readonly current: boolean;
+}
+
+export interface SecuritySettings {
+  readonly mfaEnabled: boolean;
+  readonly passwordChangedAt?: IsoDateTime | null;
+  readonly sessions: readonly SessionInfo[];
+  readonly policy: Readonly<Record<string, string | number | boolean>>;
+}
+
+export interface NotificationPreferences {
+  readonly categories: Readonly<Record<NotificationCategory, 'immediate' | 'digest' | 'off'>>;
+  readonly channels: Readonly<Record<'in_app' | 'email' | 'push', boolean>>;
+}
+
+export interface AccessibilityPreferences {
+  readonly theme?: 'light' | 'dark' | 'system';
+  readonly contrast?: 'normal' | 'high';
+  readonly textScale?: number;
+  readonly motion?: 'auto' | 'reduced';
+  readonly effects?: 'full' | 'reduced';
+  readonly colorCues?: 'off' | 'patterns';
+  readonly density?: 'comfortable' | 'compact';
+}

@@ -1,0 +1,55 @@
+# =============================================================================
+#  Docker build-context excludes (root)
+# =============================================================================
+#  The images are built with the REPOSITORY ROOT as context (see
+#  infra/docker-compose.yml), because the backend image needs services/api and
+#  the frontend image needs apps/web.
+#
+#  BuildKit prefers the Dockerfile-specific files
+#      infra/docker/api.Dockerfile.dockerignore
+#      infra/docker/web.Dockerfile.dockerignore
+#  which carry the same rules; this file is the fallback for builders that only
+#  read `.dockerignore` from the context root. If you change one, change both.
+#
+#  Rationale: a build context is uploaded to the daemon and is readable by every
+#  build step. `.env` files, TLS keys and database backups must never end up
+#  there (spec §21) — and excluding build output keeps the context small.
+# =============================================================================
+
+# --- secrets -----------------------------------------------------------------
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+secrets/
+**/secrets/
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+infra/nginx/certs/
+
+# --- version control / editor ------------------------------------------------
+.git
+.git/**
+.idea/
+.vscode/
+.DS_Store
+**/.DS_Store
+
+# --- build output (rebuilt inside the image) ---------------------------------
+**/target/
+**/.next/
+**/node_modules/
+**/.pnpm-store/
+**/.turbo/
+**/coverage/
+
+# --- runtime state and backups ----------------------------------------------
+infra/backups/
+infra/data/
+**/*.log
+logs/

@@ -1,0 +1,375 @@
+/* Form primitives: field wrapper, input, textarea, select, checkbox, radio,
+   switch, search. Every control has a visible label, a hint slot, an error slot
+   linked by aria-describedby, and a visible focus ring. */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+/* Required marker is decorative CSS so the label's accessible name stays clean. */
+.label[data-required]::after {
+  content: ' *';
+  color: var(--color-danger-text);
+}
+
+.hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-subtle);
+  margin: 0;
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-danger-text);
+  margin: 0;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  position: relative;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  transition:
+    border-color var(--motion-duration-fast) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-standard),
+    background-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.control-sm {
+  min-height: var(--control-height-sm);
+}
+
+.control-md {
+  min-height: var(--control-height-md);
+}
+
+.control-lg {
+  min-height: var(--control-height-lg);
+}
+
+.control:focus-within {
+  border-color: var(--color-focus-ring);
+  box-shadow: var(--shadow-focus);
+}
+
+.control:hover:not(:focus-within) {
+  border-color: var(--color-text-subtle);
+}
+
+.fieldInvalid .control {
+  border-color: var(--color-danger);
+}
+
+.leadingIcon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-subtle);
+  padding-inline-start: var(--space-3);
+}
+
+.trailingSlot {
+  display: inline-flex;
+  align-items: center;
+  padding-inline-end: var(--space-2);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: var(--font-size-md);
+  padding: 0 var(--space-3);
+  min-height: inherit;
+  border-radius: var(--radius-md);
+}
+
+.inputWithLeading {
+  padding-inline-start: 0;
+}
+
+.input::placeholder {
+  color: var(--color-text-subtle);
+  opacity: 1;
+}
+
+.input:focus {
+  outline: none;
+}
+
+.input:disabled {
+  color: var(--color-text-subtle);
+  cursor: not-allowed;
+}
+
+.control:has(.input:disabled) {
+  background-color: var(--color-surface-2);
+  opacity: 0.75;
+}
+
+.textarea {
+  padding: var(--space-3);
+  line-height: var(--line-height-normal);
+  resize: vertical;
+  font-family: var(--font-sans);
+}
+
+.selectWrap {
+  position: relative;
+}
+
+.select {
+  appearance: none;
+  padding-inline-end: var(--space-8);
+  cursor: pointer;
+}
+
+.selectCaret {
+  position: absolute;
+  inset-inline-end: var(--space-3);
+  display: inline-flex;
+  color: var(--color-text-subtle);
+  pointer-events: none;
+}
+
+.clearButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  color: var(--color-text-subtle);
+}
+
+.clearButton:hover {
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text);
+}
+
+/* ---- Choice controls ---------------------------------------------------- */
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.choiceBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.choiceLabel {
+  font-size: var(--font-size-md);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.choiceDescription {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-subtle);
+  margin: 0;
+}
+
+.checkboxInput {
+  appearance: none;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--radius-xs);
+  background-color: var(--color-surface);
+  cursor: pointer;
+  position: relative;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-ease-standard),
+    border-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+input[type='radio'].checkboxInput {
+  border-radius: 50%;
+}
+
+.checkboxInput:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+
+.checkboxInput:checked {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.checkboxInput:checked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: var(--color-text-on-accent);
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4.5 12.5 9.5 17.5 19.5 6.5' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-size: 80%;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4.5 12.5 9.5 17.5 19.5 6.5' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  -webkit-mask-size: 80%;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+}
+
+input[type='radio'].checkboxInput:checked::after {
+  content: '';
+  inset: 5px;
+  border-radius: 50%;
+  background-color: var(--color-text-on-accent);
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+.checkboxInput:indeterminate::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 2px;
+  background-color: var(--color-text-on-accent);
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+.checkboxInput:checked,
+.checkboxInput:indeterminate {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.checkboxInput:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.checkboxInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fieldset {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.legend {
+  padding-inline: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.choiceColumn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.choiceRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+/* ---- Switch ------------------------------------------------------------- */
+.switch {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.switchTrack {
+  flex: none;
+  position: relative;
+  width: 44px;
+  height: 26px;
+  margin-top: 2px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--color-border-strong);
+  background-color: var(--color-surface-2);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-ease-standard),
+    border-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.switchTrack:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.switchOn {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.switchThumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--motion-duration-base) var(--motion-ease-emphasized);
+}
+
+.switchOn .switchThumb {
+  transform: translateX(18px);
+}
+
+.switchTrack:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.switchBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.switchLabel {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+/* Non-colour cue for the switch state in colour-vision-friendly mode */
+[data-color-cues='patterns'] .switchOn .switchThumb::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background-color: var(--color-accent);
+}

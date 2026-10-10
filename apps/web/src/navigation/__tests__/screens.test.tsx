@@ -1,0 +1,102 @@
+import { describe, expect, it, vi } from 'vitest';
+import { renderWithProviders, screen, within } from '@/test/render';
+import { Sidebar } from '@/components/app/sidebar';
+import { navSections, screens, sidebarScreens, findScreenByPath, getScreen } from '../screens';
+import { catalogues } from '@/i18n/messages';
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/cases',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
+  useParams: () => ({}),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+describe('screen registry', () => {
+  it('covers all 30 screens required by the specification', () => {
+    // §5.2.2 (registration and sign-in) is four routes, hence 33 in total.
+    expect(screens).toHaveLength(33);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(33);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(33);
+  });
+
+  it('puts every workspace screen into a sidebar section', () => {
+    const sectionIds = new Set(navSections.map((section) => section.id));
+    for (const screen of screens) {
+      if (screen.section !== null) {
+        expect(sectionIds.has(screen.section)).toBe(true);
+      }
+    }
+    expect(sidebarScreens).toHaveLength(26);
+  });
+
+  it('has a German, English and Russian title for every screen', () => {
+    for (const screen of screens) {
+      for (const locale of ['de', 'en', 'ru'] as const) {
+        const value = catalogues[locale].nav[screen.titleKey];
+        expect(value, `${locale}:${screen.titleKey}`).toBeTruthy();
+      }
+    }
+  });
+
+  it('uses absolute paths starting with a slash', () => {
+    for (const screen of screens) {
+      expect(screen.href.startsWith('/')).toBe(true);
+    }
+  });
+
+  it('resolves the active screen from a pathname, preferring the longest match', () => {
+    expect(findScreenByPath('/dashboard')?.id).toBe('dashboard');
+    expect(findScreenByPath('/dashboard/')?.id).toBe('dashboard');
+    expect(findScreenByPath('/documents/abc-123')?.id).toBe('documents');
+    expect(findScreenByPath('/unknown-route')).toBeUndefined();
+    expect(findScreenByPath('/')?.id).toBe('landing');
+  });
+
+  it('exposes screens by id', () => {
+    expect(getScreen('audit').href).toBe('/audit');
+    expect(() => getScreen('nope' as never)).toThrow();
+  });
+});
+
+describe('Sidebar', () => {
+  it('renders a labelled navigation landmark with all sections and screens', () => {
+    renderWithProviders(<Sidebar collapsed={false} onToggleCollapse={() => undefined} />);
+
+    const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
+    // 26 workspace screens plus the brand link back to the dashboard.
+    expect(within(nav).getAllByRole('link')).toHaveLength(27);
+
+    for (const section of navSections) {
+      expect(within(nav).getByText(catalogues.de.nav[section.labelKey])).toBeInTheDocument();
+    }
+    for (const screen of sidebarScreens) {
+      expect(
+        within(nav).getByRole('link', { name: catalogues.de.nav[screen.titleKey] }),
+      ).toBeInTheDocument();
+    }
+  });
+
+  it('marks the active screen with aria-current', () => {
+    renderWithProviders(<Sidebar collapsed={false} onToggleCollapse={() => undefined} />);
+
+    const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
+    const active = within(nav).getByRole('link', { name: 'Vorgänge und Akten' });
+    expect(active).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('keeps link names accessible when collapsed', () => {
+    renderWithProviders(<Sidebar collapsed onToggleCollapse={() => undefined} />);
+
+    const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
+    expect(within(nav).getByRole('link', { name: 'Vorgänge und Akten' })).toBeInTheDocument();
+  });
+
+  it('translates titles when the locale is switched', () => {
+    renderWithProviders(<Sidebar collapsed={false} onToggleCollapse={() => undefined} />, {
+      locale: 'ru',
+    });
+
+    const nav = screen.getByRole('navigation', { name: 'Основная навигация' });
+    expect(within(nav).getByRole('link', { name: 'Входящие' })).toBeInTheDocument();
+  });
+});

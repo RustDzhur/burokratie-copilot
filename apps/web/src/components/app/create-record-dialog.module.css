@@ -1,0 +1,27 @@
+/* Create dialog + page toolbar. */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  margin-bottom: var(--space-4);
+}
+
+.toolbar > * {
+  min-width: 180px;
+}
+
+.toolbar > :first-child {
+  flex: 1;
+}

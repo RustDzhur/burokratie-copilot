@@ -1,0 +1,45 @@
+# Integration-test profile.
+#
+# IMPORTANT (see docs/implementation-plan.md, Q-01): Docker is not available in the
+# reference environment, therefore integration tests run against a *real* PostgreSQL
+# instance (never H2 / in-memory — spec §28.1). Point BC_TEST_DB_* at any reachable
+# PostgreSQL 16+ server. In Docker-enabled environments set BC_USE_TESTCONTAINERS=true
+# and Testcontainers will provide the database instead.
+spring:
+  datasource:
+    url: jdbc:postgresql://${BC_TEST_DB_HOST:localhost}:${BC_TEST_DB_PORT:5432}/${BC_TEST_DB_NAME:burokratie_test}
+    username: ${BC_TEST_DB_USER:burokratie}
+    password: ${BC_TEST_DB_PASSWORD:burokratie_dev_password}
+    hikari:
+      maximum-pool-size: 8
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+    clean-disabled: false
+    locations: classpath:db/migration
+
+logging:
+  level:
+    root: WARN
+    de.buerokratiecopilot: INFO
+    org.flywaydb: INFO
+
+burokratie:
+  security:
+    public-base-url: http://localhost:3000
+    session:
+      cookie-secure: false
+    encryption:
+      # Test-only key. Never used outside the test profile.
+      key-base64: YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=
+  storage:
+    type: local-fs
+    local:
+      base-path: ${java.io.tmpdir}/burokratie-test-blobs
+  ai:
+    enabled: false
+  ocr:
+    enabled: false

@@ -1,0 +1,111 @@
+/* Dropdown menu used by the topbar (notifications, theme, language, account). */
+
+.wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  z-index: var(--z-popover);
+  min-width: 260px;
+  max-width: min(360px, calc(100vw - var(--space-8)));
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-glass-strong);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-lg);
+  animation: bc-scale-in var(--motion-duration-fast) var(--motion-ease-emphasized);
+  overflow: hidden;
+}
+
+.menuEnd {
+  inset-inline-end: 0;
+}
+
+.menuStart {
+  inset-inline-start: 0;
+}
+
+.menuHeader {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.menuList {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(60dvh, 420px);
+  overflow-y: auto;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: var(--font-size-md);
+  text-align: start;
+}
+
+.menuItem:hover:not(:disabled),
+.menuItem:focus-visible {
+  background-color: var(--color-bg-subtle);
+}
+
+.menuItem:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.menuItemDanger {
+  color: var(--color-danger-text);
+}
+
+.menuItemIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  color: var(--color-text-subtle);
+}
+
+.menuItemDanger .menuItemIcon {
+  color: inherit;
+}
+
+.checkPlaceholder {
+  display: inline-block;
+  width: 15px;
+}
+
+.menuItemLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shortcut {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  color: var(--color-text-subtle);
+}
+
+.menuFooter {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+  background-color: var(--color-surface-2);
+  font-size: var(--font-size-sm);
+}

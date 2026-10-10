@@ -1,0 +1,41 @@
+# Production profile.
+#
+# Fails fast when mandatory secrets/configuration are missing — see
+# de.buerokratiecopilot.shared.config.ProductionConfigurationGuard.
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: ${BC_DB_POOL_SIZE:25}
+      minimum-idle: 5
+      connection-timeout: 5000
+      validation-timeout: 3000
+      max-lifetime: 1800000
+  jpa:
+    show-sql: false
+  flyway:
+    # Production migrations are part of a controlled deployment procedure with a
+    # verified backup — see docs/runbook.md.
+    enabled: ${BC_FLYWAY_ENABLED:true}
+
+server:
+  shutdown: graceful
+  tomcat:
+    remoteip:
+      remote-ip-header: X-Forwarded-For
+      protocol-header: X-Forwarded-Proto
+
+logging:
+  level:
+    root: INFO
+    de.buerokratiecopilot: INFO
+
+management:
+  endpoint:
+    health:
+      show-details: when-authorized
+
+burokratie:
+  security:
+    session:
+      cookie-secure: true
+      cookie-same-site: Strict

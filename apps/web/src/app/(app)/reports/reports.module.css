@@ -1,0 +1,74 @@
+/* Reports: filters, KPIs and a simple bar chart. */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  margin-bottom: var(--space-5);
+}
+
+.controls > * {
+  min-width: 200px;
+}
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+  list-style: none;
+  margin: 0 0 var(--space-6);
+  padding: 0;
+}
+
+.kpiLabel {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.kpiValue {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.chartRow {
+  display: grid;
+  grid-template-columns: minmax(72px, 120px) 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.chartLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.chartBar {
+  display: block;
+  height: 10px;
+  min-width: 2px;
+  border-radius: var(--radius-pill);
+  background-image: var(--gradient-brand);
+}
+
+.chartValue {
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,62 @@
+import type { Metadata, Viewport } from 'next';
+import type { ReactNode } from 'react';
+import '@/styles/tokens.css';
+import '@/styles/globals.css';
+import { AppProviders } from '@/components/app/providers';
+import { getServerLocale } from '@/i18n/server';
+import {
+  APPEARANCE_COOKIE,
+  appearanceBootstrapScript,
+  defaultAppearance,
+  parseAppearanceCookie,
+} from '@/settings/appearance';
+import { cookies } from 'next/headers';
+
+export const metadata: Metadata = {
+  title: {
+    default: 'Bürokratie-Copilot',
+    template: '%s · Bürokratie-Copilot',
+  },
+  description:
+    'Bürokratie-Copilot bündelt Dokumente, Vorgänge, Fristen und Zahlungen in einem sicheren Arbeitsbereich.',
+  applicationName: 'Bürokratie-Copilot',
+  formatDetection: { telephone: false },
+  robots: { index: false, follow: false },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f4f6fb' },
+    { media: '(prefers-color-scheme: dark)', color: '#070b14' },
+  ],
+};
+
+/**
+ * Root layout.
+ *
+ * Locale and appearance preferences are read from cookies on the server so the
+ * first paint is already in the right language and theme (`<html lang>` and the
+ * data attributes are correct before hydration). The inline bootstrap script
+ * applies stored preferences before the first paint to avoid a theme flash.
+ */
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const locale = await getServerLocale();
+  const cookieStore = await cookies();
+  const appearance =
+    parseAppearanceCookie(cookieStore.get(APPEARANCE_COOKIE)?.value) ?? defaultAppearance;
+
+  return (
+    <html lang={locale} data-theme="light" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: appearanceBootstrapScript() }} />
+      </head>
+      <body>
+        <AppProviders initialLocale={locale} initialAppearance={appearance}>
+          {children}
+        </AppProviders>
+      </body>
+    </html>
+  );
+}

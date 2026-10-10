@@ -1,0 +1,76 @@
+/* Auth shell: centered card with brand header. */
+
+.shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-4) var(--space-10);
+}
+
+.skipLink {
+  position: absolute;
+  top: var(--space-2);
+  inset-inline-start: var(--space-2);
+  z-index: var(--z-skip-link);
+  transform: translateY(-200%);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-focus-ring);
+  text-decoration: none;
+}
+
+.skipLink:focus {
+  transform: translateY(0);
+}
+
+.header {
+  width: 100%;
+  max-width: 28rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: var(--font-weight-semibold);
+}
+
+.brandMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-md);
+  background-image: var(--gradient-brand);
+  color: var(--color-text-on-accent);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-2xs);
+}
+
+.controls {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.main {
+  width: 100%;
+  max-width: 28rem;
+}
+
+.note {
+  margin: 0;
+  max-width: 28rem;
+  text-align: center;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-subtle);
+}
