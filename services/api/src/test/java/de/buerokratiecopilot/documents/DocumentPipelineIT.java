@@ -59,6 +59,11 @@ class DocumentPipelineIT {
     private DocumentProcessingStepRepository steps;
 
     private String uploadDocument() throws Exception {
+        return uploadDocument(de.buerokratiecopilot.support.TestDocuments.pdf("Rechnung 2026-001 Brutto 119,00 EUR"),
+                "Rechnung.pdf");
+    }
+
+    private String uploadDocument(byte[] content, String filename) throws Exception {
         String email = "pipeline-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de";
         MvcResult registration = mockMvc.perform(post("/api/v1/auth/register").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -90,8 +95,7 @@ class DocumentPipelineIT {
 
         // A real PDF: the extraction stage parses it with PDFBox, and a hand-written byte string
         // that merely looks like a PDF header would fail there.
-        MockMultipartFile file = new MockMultipartFile("file", "Rechnung.pdf", "application/pdf",
-                de.buerokratiecopilot.support.TestDocuments.pdf("Rechnung 2026-001 Brutto 119,00 EUR"));
+        MockMultipartFile file = new MockMultipartFile("file", filename, "application/pdf", content);
         MvcResult upload = mockMvc.perform(multipart("/api/v1/documents").file(file).with(csrf())
                         .cookie(session))
                 .andExpect(status().isCreated())
@@ -131,10 +135,11 @@ class DocumentPipelineIT {
                 RequestContext.runAs(tenant, () -> pipeline.advance(id));
 
         assertThat(result.executed()).containsExactly(
-                DocumentProcessingStep.Step.FORMAT_DETECT, DocumentProcessingStep.Step.TEXT_EXTRACT);
-        // A PDF with a text layer needs no OCR, so the extraction stage did its job and the next
-        // stage is the one without an implementation.
-        assertThat(result.stoppedAt()).isEqualTo(DocumentProcessingStep.Step.OCR);
+                DocumentProcessingStep.Step.FORMAT_DETECT, DocumentProcessingStep.Step.TEXT_EXTRACT,
+                DocumentProcessingStep.Step.OCR);
+        // A PDF with a text layer needs no OCR: the OCR stage confirms there is nothing to do and
+        // the pipeline stops at the next stage that has no implementation yet.
+        assertThat(result.stoppedAt()).isEqualTo(DocumentProcessingStep.Step.LANGUAGE_DETECT);
         assertThat(result.stopReason()).contains("No handler is registered");
         assertThat(result.status()).isEqualTo(Document.ProcessingStatus.EXTRACTING);
 
@@ -144,11 +149,42 @@ class DocumentPipelineIT {
                 .contains("Rechnung 2026-001");
 
         // The unimplemented step stays PENDING: it is waiting, not skipped and not succeeded.
-        assertThat(steps.findByDocumentIdAndStep(id, DocumentProcessingStep.Step.OCR))
+        assertThat(steps.findByDocumentIdAndStep(id, DocumentProcessingStep.Step.LANGUAGE_DETECT))
                 .isPresent()
                 .get()
                 .satisfies(step -> assertThat(step.getStatus())
                         .isEqualTo(DocumentProcessingStep.Status.PENDING));
+    }
+
+    @Test
+    @DisplayName("a scanned document is routed to OCR and, without an engine, to human review")
+    void scannedDocumentIsNotPretendedToBeRead() throws Exception {
+        // Three pages without any text layer, as a scanner produces.
+        UUID id = UUID.fromString(uploadDocument(
+                de.buerokratiecopilot.support.TestDocuments.scannedPdf(3), "Scan.pdf"));
+        UUID tenant = tenantOf(id);
+
+        DocumentProcessingPipeline.AdvanceResult result =
+                RequestContext.runAs(tenant, () -> pipeline.advance(id));
+
+        // Text extraction found no text layer and handed the document to the OCR stage.
+        assertThat(result.executed()).containsExactly(
+                DocumentProcessingStep.Step.FORMAT_DETECT, DocumentProcessingStep.Step.TEXT_EXTRACT,
+                DocumentProcessingStep.Step.OCR);
+
+        // No OCR engine is configured in the test profile, so the OCR step is reported as skipped
+        // with the reason, and the document goes to a human instead of being treated as blank.
+        DocumentProcessingStep ocr = steps.findByDocumentIdAndStep(id, DocumentProcessingStep.Step.OCR)
+                .orElseThrow();
+        assertThat(ocr.getStatus())
+                .as("a skipped step is not a failure and not a success")
+                .isEqualTo(DocumentProcessingStep.Status.SKIPPED);
+        assertThat(ocr.getErrorMessage()).contains("No OCR engine");
+        assertThat(ocr.getErrorMessage()).contains("3 page(s)");
+
+        Document stored = RequestContext.runAs(tenant, () -> documents.findById(id).orElseThrow());
+        assertThat(stored.getProcessingStatus()).isEqualTo(Document.ProcessingStatus.REVIEW_REQUIRED);
+        assertThat(stored.getExtractedText()).isEmpty();
     }
 
     @Test
