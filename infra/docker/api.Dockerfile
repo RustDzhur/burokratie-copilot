@@ -27,6 +27,20 @@ FROM maven:3.9-eclipse-temurin-21 AS build
 ARG BUILD_REVISION=unknown
 ARG BUILD_CREATED=unknown
 
+# The official maven base image sets MAVEN_CONFIG=/root/.m2 to point at its local repository.
+# The `mvnw` script shipped with the Maven distribution gives that variable a different meaning:
+# it treats it as the path of a Maven *config file* and passes the value as a command line
+# argument ("${WRAPPER_LAUNCHER} $MAVEN_CONFIG \"$@\""). Inside this image that turned
+# `./mvnw -B -ntp dependency:go-offline` into `mvn /root/.m2 -B -ntp dependency:go-offline`, and
+# Maven failed with:
+#
+#     [ERROR] Unknown lifecycle phase "/root/.m2"
+#
+# Clearing the variable restores the default local repository (~/.m2/repository), which is exactly
+# what the BuildKit cache mount below targets. Do not remove this line without replacing it with a
+# real config file path: the build breaks in a way that looks unrelated to the Dockerfile.
+ENV MAVEN_CONFIG=""
+
 WORKDIR /build
 
 # Dependency layer: copied FIRST so that a source-only change does not
