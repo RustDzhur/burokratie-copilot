@@ -332,6 +332,20 @@ public class Invoice {
         return paidAmount;
     }
 
+    /**
+     * Records how much has been paid.
+     *
+     * <p>Only the payment service calls this, and only from an executed payment. A status that can be
+     * set independently of the money is a status that will eventually be wrong.</p>
+     */
+    public void setPaidAmount(BigDecimal paidAmount) {
+        if (paidAmount != null && paidAmount.signum() < 0) {
+            throw new IllegalArgumentException("Ein gezahlter Betrag kann nicht negativ sein");
+        }
+        this.paidAmount = paidAmount == null ? BigDecimal.ZERO : paidAmount;
+        this.updatedAt = Instant.now();
+    }
+
     public Status getStatus() {
         return status;
     }
