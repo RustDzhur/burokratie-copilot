@@ -458,13 +458,19 @@ jobs:
             echo "::warning::Docker is not available on this runner — 'docker compose config' is SKIPPED (the static checks above still ran)."
           fi
 
+      - name: Generate throw-away secrets for the Compose render
+        id: secrets
+        run: echo "encryption_key=$(openssl rand -base64 32)" >> "$GITHUB_OUTPUT"
+
       - name: Validate the resolved Compose configuration
         if: steps.docker.outputs.available == 'true'
         env:
-          # Compose interpolates ${VAR:?msg} and refuses to render without these.
-          BC_DB_PASSWORD: ci-placeholder-password
-          POSTGRES_PASSWORD: ci-placeholder-password
-          BC_ENCRYPTION_KEY: Y2ktcGxhY2Vob2xkZXIta2V5LTMyLWJ5dGVzISE=
+          # Compose interpolates ${VAR:?msg} and refuses to render without these. They exist so the
+          # file can be resolved; nothing is deployed from this render. The encryption key is
+          # generated for the run rather than stored, so the repository holds no key material.
+          BC_DB_PASSWORD: placeholder
+          POSTGRES_PASSWORD: placeholder
+          BC_ENCRYPTION_KEY: ${{ steps.secrets.outputs.encryption_key }}
           BC_S3_ACCESS_KEY: ci-placeholder-access-key
           BC_S3_SECRET_KEY: ci-placeholder-secret-key
           MINIO_ROOT_USER: ci-placeholder-root
@@ -518,11 +524,26 @@ jobs:
           fetch-depth: 0
 
       - name: Secret scan with gitleaks
-        uses: gitleaks/gitleaks-action@v2
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Findings are reported, not auto-fixed; the job fails on any leak.
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "true"
+          # Pinned, with the official checksum from the same release. The GitHub Action of the same
+          # project was replaced by the binary: the action decides whether it needs a licence by
+          # asking the GitHub API for the account type, and when that request fails it concludes it
+          # needs one and aborts the job. A secret scan that stops working because an unrelated API
+          # call failed is worse than no scan, because the pipeline reports failure and nobody can
+          # tell whether a secret was found.
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          set -euo pipefail
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSL -o "/tmp/${archive}" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}"
+          echo "${GITLEAKS_SHA256}  /tmp/${archive}" | sha256sum --check --status \
+            || { echo "::error::the gitleaks archive does not match its published checksum"; exit 1; }
+          tar -xzf "/tmp/${archive}" -C /tmp gitleaks
+          # The whole history is scanned, not only the last commit: a secret committed once stays in
+          # the repository until it is rotated, whatever the working tree looks like today.
+          /tmp/gitleaks detect --source . --redact --exit-code 1 --verbose
 
       - name: Fail if a .env file, private key or missing .gitignore rule is committed
         run: |

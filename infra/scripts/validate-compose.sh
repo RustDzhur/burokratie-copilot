@@ -333,10 +333,13 @@ done
 if [ "$RUN_DOCKER" -eq 0 ]; then
     skipped "docker compose config (--no-docker)"
 elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-    # Interpolation inputs are placeholders, never real secrets.
-    export BC_DB_PASSWORD="ci-placeholder-password"
-    export POSTGRES_PASSWORD="ci-placeholder-password"
-    export BC_ENCRYPTION_KEY="Y2ktcGxhY2Vob2xkZXIta2V5LTMyLWJ5dGVzISE="
+    # Interpolation inputs only: this render is thrown away and nothing is deployed from it. The
+    # encryption key is generated, not written down, so the repository contains no key material at all
+    # - a fixed placeholder is indistinguishable from a leaked key to any scanner, and "it is only a
+    # placeholder" is exactly what a real leak looks like in a commit history.
+    export BC_DB_PASSWORD="placeholder"
+    export POSTGRES_PASSWORD="placeholder"
+    export BC_ENCRYPTION_KEY="$(openssl rand -base64 32)"
     export BC_S3_ACCESS_KEY="ci-placeholder-access-key"
     export BC_S3_SECRET_KEY="ci-placeholder-secret-key"
     export MINIO_ROOT_USER="ci-placeholder-root"
