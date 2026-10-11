@@ -658,7 +658,10 @@ jobs:
             set -e
             id -u | grep -qv "^0$"
             test -s /app/app.jar
-            unzip -p /app/app.jar META-INF/MANIFEST.MF | grep -q "Main-Class: org.springframework.boot.loader"
+            # No unzip and no jar in a JRE-only image, and adding a package to the runtime
+            # image just to read one file is not worth the attack surface. The manifest is
+            # stored uncompressed in the archive, so a binary-safe grep finds the same strings.
+            grep -aq "Main-Class: org.springframework.boot.loader" /app/app.jar
             echo "image smoke test OK"
           '
 
