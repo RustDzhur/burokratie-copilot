@@ -184,6 +184,16 @@ public class DocumentProcessingPipeline {
                 return new AdvanceResult(documentId, step, result.reason(), document.getProcessingStatus(),
                         executed);
             }
+
+            if (document.getProcessingStatus() == Document.ProcessingStatus.REVIEW_REQUIRED) {
+                // A document waiting for a human must not keep moving. Without this the next stage
+                // would overwrite the status and later stages would act on data nobody has confirmed
+                // - classification that a person still has to accept, for example. The pipeline
+                // resumes from here once the review is decided.
+                return new AdvanceResult(documentId, step,
+                        "The document requires human review before processing can continue",
+                        document.getProcessingStatus(), executed);
+            }
         }
 
         outbox.publish(new DomainEvent("document.processing_completed", "documents", documentId,

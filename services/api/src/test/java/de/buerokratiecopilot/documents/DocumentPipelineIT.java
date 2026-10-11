@@ -141,13 +141,14 @@ class DocumentPipelineIT {
         assertThat(result.executed()).containsExactly(
                 DocumentProcessingStep.Step.FORMAT_DETECT, DocumentProcessingStep.Step.TEXT_EXTRACT,
                 DocumentProcessingStep.Step.OCR, DocumentProcessingStep.Step.LANGUAGE_DETECT,
-                DocumentProcessingStep.Step.CLASSIFY, DocumentProcessingStep.Step.FIELD_EXTRACT);
-        // A PDF with a text layer needs no OCR; the pipeline then detects the language, classifies
-        // the document as an invoice, reads the declared fields and stops at the stage that has no
-        // implementation yet.
-        assertThat(result.stoppedAt()).isEqualTo(DocumentProcessingStep.Step.MATCHING);
-        assertThat(result.stopReason()).contains("No handler is registered");
-        assertThat(result.status()).isEqualTo(Document.ProcessingStatus.CLASSIFYING);
+                DocumentProcessingStep.Step.CLASSIFY, DocumentProcessingStep.Step.FIELD_EXTRACT,
+                DocumentProcessingStep.Step.MATCHING);
+        // Every implemented stage ran: the text layer needed no OCR, the language was detected, the
+        // invoice was classified, its declared fields were read, and matching found no case or
+        // contact to propose - which is a result, so the document is ready.
+        assertThat(result.stoppedAt()).isNull();
+        assertThat(result.stopReason()).isNull();
+        assertThat(result.status()).isEqualTo(Document.ProcessingStatus.READY);
 
         Document stored = RequestContext.runAs(tenant, () -> documents.findById(id).orElseThrow());
         assertThat(stored.getExtractedText())
@@ -159,7 +160,7 @@ class DocumentPipelineIT {
                 .isPresent()
                 .get()
                 .satisfies(step -> assertThat(step.getStatus())
-                        .isEqualTo(DocumentProcessingStep.Status.PENDING));
+                        .isEqualTo(DocumentProcessingStep.Status.SUCCEEDED));
     }
 
     @Test

@@ -196,16 +196,20 @@ class FieldExtractionIT {
     @Test
     @DisplayName("nothing is extracted when the document type is unknown")
     void extractsNothingWithoutAType() throws Exception {
-        // Text that matches no classification rule, so the document has no type and therefore no
-        // declared fields. The step is skipped with the reason instead of reporting a failure.
+        // Text that matches no classification rule, so the document gets no type. The pipeline now
+        // stops at the classification stage and routes the document to a human instead of running
+        // later stages on a document nobody has identified.
         UUID id = uploadInvoice("Zwölf Boxkämpfer jagen Eva quer über den großen Sylter Deich.");
         advance(id);
 
         assertThat(extractions.findByDocumentId(id)).isEmpty();
 
-        DocumentProcessingStep step = steps
-                .findByDocumentIdAndStep(id, DocumentProcessingStep.Step.FIELD_EXTRACT).orElseThrow();
-        assertThat(step.getStatus()).isEqualTo(DocumentProcessingStep.Status.SKIPPED);
-        assertThat(step.getErrorMessage()).contains("no type");
+        assertThat(steps.findByDocumentIdAndStep(id, DocumentProcessingStep.Step.FIELD_EXTRACT))
+                .as("field extraction must not run while the type is still unknown")
+                .isEmpty();
+
+        Document document = documents.findById(id).orElseThrow();
+        assertThat(document.getProcessingStatus()).isEqualTo(Document.ProcessingStatus.REVIEW_REQUIRED);
+        assertThat(document.getDocumentTypeId()).isNull();
     }
 }
