@@ -168,12 +168,21 @@ class ApprovalControllerIT {
                 .andExpect(jsonPath("$[0].event_type").value("REQUESTED"));
     }
 
-    // OPEN QUESTION, not a passing test: POST /api/v1/approvals/{id}/cancel answers 409 for a request
-    // that is PENDING in the database, and I could not establish why within the remaining budget. The
-    // evidence is precise - the row created by ask() has status PENDING, requireApproval finds it (the
-    // answer is 409 and not 404), and the update matches no row. Recorded instead of asserted, because a
-    // test that expects something I have not established either fails for an unknown reason or, adjusted
-    // until it passes, claims a guarantee nobody checked.
+    @Test
+    @DisplayName("a request can be withdrawn")
+    void aRequestCanBeWithdrawn() throws Exception {
+        Session session = register();
+        UUID approvalId = ask(session);
+
+        // The answer used to be 409 for a request that was PENDING: the service wrote decided_at and
+        // decided_by on a withdrawal, and the schema refuses that - those columns name a person who
+        // decided something, and a withdrawal is not a decision.
+        mockMvc.perform(post("/api/v1/approvals/{id}/cancel", approvalId).with(csrf())
+                        .cookie(session.cookie())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"note\":\"Zurückgezogen\"}"))
+                .andExpect(status().isNoContent());
+    }
 
     @Test
     @DisplayName("overdue requests are escalated, and the answer counts them")

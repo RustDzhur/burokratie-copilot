@@ -211,15 +211,24 @@ public class ApprovalService {
         return new Decision("APPROVED", given, levelsRequired, note);
     }
 
-    /** Cancels a request that is no longer needed. */
+    /**
+     * Withdraws a request that is no longer needed.
+     *
+     * <p><strong>A withdrawal is not a decision.</strong> The schema says so and is right: {@code decided_at}
+     * and {@code decided_by} may only be set when the status is APPROVED or REJECTED, because those columns
+     * name a person who decided something. Nobody decided here — the requester took their own request back —
+     * and writing a name into them would put somebody's name on a decision they never made.</p>
+     *
+     * <p>The reason is kept in the journal, which is where the history of the request lives, rather than in
+     * a column that belongs to a decision.</p>
+     */
     @Transactional
     public void cancel(UUID tenantId, UUID approvalId, UUID cancelledBy, String reason) {
         requireApproval(tenantId, approvalId);
         int updated = jdbc.update("""
-                update approvals set status = 'CANCELLED', decided_by = ?, decided_at = now(),
-                       decision_note = ?, updated_at = now()
+                update approvals set status = 'CANCELLED', updated_at = now()
                 where id = ? and tenant_id = ? and status = 'PENDING'
-                """, cancelledBy, reason, approvalId, tenantId);
+                """, approvalId, tenantId);
         if (updated == 0) {
             throw ApiException.conflict("Diese Freigabe ist nicht mehr offen");
         }
