@@ -141,10 +141,11 @@ class DocumentPipelineIT {
         assertThat(result.executed()).containsExactly(
                 DocumentProcessingStep.Step.FORMAT_DETECT, DocumentProcessingStep.Step.TEXT_EXTRACT,
                 DocumentProcessingStep.Step.OCR, DocumentProcessingStep.Step.LANGUAGE_DETECT,
-                DocumentProcessingStep.Step.CLASSIFY);
+                DocumentProcessingStep.Step.CLASSIFY, DocumentProcessingStep.Step.FIELD_EXTRACT);
         // A PDF with a text layer needs no OCR; the pipeline then detects the language, classifies
-        // the document as an invoice and stops at the stage that has no implementation yet.
-        assertThat(result.stoppedAt()).isEqualTo(DocumentProcessingStep.Step.FIELD_EXTRACT);
+        // the document as an invoice, reads the declared fields and stops at the stage that has no
+        // implementation yet.
+        assertThat(result.stoppedAt()).isEqualTo(DocumentProcessingStep.Step.MATCHING);
         assertThat(result.stopReason()).contains("No handler is registered");
         assertThat(result.status()).isEqualTo(Document.ProcessingStatus.CLASSIFYING);
 
@@ -154,7 +155,7 @@ class DocumentPipelineIT {
                 .contains("Rechnungsnummer 2026-001");
 
         // The unimplemented step stays PENDING: it is waiting, not skipped and not succeeded.
-        assertThat(steps.findByDocumentIdAndStep(id, DocumentProcessingStep.Step.FIELD_EXTRACT))
+        assertThat(steps.findByDocumentIdAndStep(id, DocumentProcessingStep.Step.MATCHING))
                 .isPresent()
                 .get()
                 .satisfies(step -> assertThat(step.getStatus())
