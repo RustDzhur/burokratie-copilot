@@ -53,10 +53,17 @@ class DocumentUploadIT {
     @Autowired
     private DocumentRepository documents;
 
-    /** A small but real PDF header so the stored bytes are recognisable. */
+    /**
+     * A valid PDF. The previous fixture was a byte string that only started with "%PDF-"; it was
+     * enough while nothing parsed the file, and became a failure as soon as text extraction did.
+     */
     private static byte[] invoicePdf(String marker) {
-        return ("%PDF-1.7\n% " + marker + "\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n")
-                .getBytes(StandardCharsets.UTF_8);
+        try {
+            return de.buerokratiecopilot.support.TestDocuments.pdf("Rechnung " + marker);
+        }
+        catch (java.io.IOException ex) {
+            throw new IllegalStateException("test fixture could not be built", ex);
+        }
     }
 
     private record Session(Cookie cookie, String tenantId) {

@@ -21,9 +21,12 @@ public final class DocumentStatusMachine {
         allow(Document.ProcessingStatus.RECEIVED, Document.ProcessingStatus.QUARANTINED,
                 Document.ProcessingStatus.UNSUPPORTED, Document.ProcessingStatus.DUPLICATE,
                 Document.ProcessingStatus.CANCELLED, Document.ProcessingStatus.FAILED);
+        // A file the platform cannot read is precisely what a human has to look at, so quarantine
+        // leads to review as well - otherwise an unsupported format would have to be labelled
+        // "extracting" forever, which would be a lie about what happened to it.
         allow(Document.ProcessingStatus.QUARANTINED, Document.ProcessingStatus.OCR_PENDING,
-                Document.ProcessingStatus.EXTRACTING, Document.ProcessingStatus.FAILED,
-                Document.ProcessingStatus.CANCELLED);
+                Document.ProcessingStatus.EXTRACTING, Document.ProcessingStatus.REVIEW_REQUIRED,
+                Document.ProcessingStatus.FAILED, Document.ProcessingStatus.CANCELLED);
         allow(Document.ProcessingStatus.OCR_PENDING, Document.ProcessingStatus.EXTRACTING,
                 Document.ProcessingStatus.REVIEW_REQUIRED, Document.ProcessingStatus.FAILED);
         allow(Document.ProcessingStatus.EXTRACTING, Document.ProcessingStatus.CLASSIFYING,

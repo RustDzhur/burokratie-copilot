@@ -88,8 +88,10 @@ class DocumentPipelineIT {
                 .andReturn();
         Cookie session = login.getResponse().getCookie("bc_session");
 
+        // A real PDF: the extraction stage parses it with PDFBox, and a hand-written byte string
+        // that merely looks like a PDF header would fail there.
         MockMultipartFile file = new MockMultipartFile("file", "Rechnung.pdf", "application/pdf",
-                "%PDF-1.7\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n".getBytes(StandardCharsets.UTF_8));
+                de.buerokratiecopilot.support.TestDocuments.pdf("Rechnung 2026-001 Brutto 119,00 EUR"));
         MvcResult upload = mockMvc.perform(multipart("/api/v1/documents").file(file).with(csrf())
                         .cookie(session))
                 .andExpect(status().isCreated())
@@ -120,24 +122,29 @@ class DocumentPipelineIT {
     }
 
     @Test
-    @DisplayName("the pipeline advances as far as implemented handlers allow and names the missing one")
-    void pipelineStopsAtTheUnimplementedStep() throws Exception {
+    @DisplayName("the pipeline extracts the text and stops at the step that is still missing")
+    void pipelineExtractsTextAndStopsAtOcr() throws Exception {
         UUID id = UUID.fromString(uploadDocument());
         UUID tenant = tenantOf(id);
 
         DocumentProcessingPipeline.AdvanceResult result =
                 RequestContext.runAs(tenant, () -> pipeline.advance(id));
 
-        assertThat(result.executed()).containsExactly(DocumentProcessingStep.Step.FORMAT_DETECT);
-        assertThat(result.stoppedAt()).isEqualTo(DocumentProcessingStep.Step.TEXT_EXTRACT);
+        assertThat(result.executed()).containsExactly(
+                DocumentProcessingStep.Step.FORMAT_DETECT, DocumentProcessingStep.Step.TEXT_EXTRACT);
+        // A PDF with a text layer needs no OCR, so the extraction stage did its job and the next
+        // stage is the one without an implementation.
+        assertThat(result.stoppedAt()).isEqualTo(DocumentProcessingStep.Step.OCR);
         assertThat(result.stopReason()).contains("No handler is registered");
-        assertThat(result.status()).isEqualTo(Document.ProcessingStatus.QUARANTINED);
+        assertThat(result.status()).isEqualTo(Document.ProcessingStatus.EXTRACTING);
 
         Document stored = RequestContext.runAs(tenant, () -> documents.findById(id).orElseThrow());
-        assertThat(stored.getProcessingStatus()).isEqualTo(Document.ProcessingStatus.QUARANTINED);
+        assertThat(stored.getExtractedText())
+                .as("the text of the uploaded PDF is stored with the document")
+                .contains("Rechnung 2026-001");
 
         // The unimplemented step stays PENDING: it is waiting, not skipped and not succeeded.
-        assertThat(steps.findByDocumentIdAndStep(id, DocumentProcessingStep.Step.TEXT_EXTRACT))
+        assertThat(steps.findByDocumentIdAndStep(id, DocumentProcessingStep.Step.OCR))
                 .isPresent()
                 .get()
                 .satisfies(step -> assertThat(step.getStatus())
@@ -173,7 +180,7 @@ class DocumentPipelineIT {
         RequestContext.runAs(tenant, () -> pipeline.advance(id));
 
         assertThatThrownBy(() -> RequestContext.runAs(tenant,
-                () -> pipeline.retryStep(id, DocumentProcessingStep.Step.FORMAT_DETECT)))
+                () -> pipeline.retryStep(id, DocumentProcessingStep.Step.TEXT_EXTRACT)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Only a failed step can be retried");
     }
