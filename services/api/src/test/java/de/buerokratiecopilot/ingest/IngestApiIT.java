@@ -72,7 +72,7 @@ class IngestApiIT {
         IngestService.Caller caller = caller(tenantId);
 
         IngestService.Ingested result = ingest.ingest(caller, "key-1", "rechnung.pdf", "application/pdf",
-                "hash-1", CONTENT, null);
+                "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1", CONTENT, null);
 
         assertThat(result.duplicate()).isFalse();
         assertThat(documentCount(tenantId)).isEqualTo(1);
@@ -86,9 +86,9 @@ class IngestApiIT {
         IngestService.Caller caller = caller(tenantId);
 
         IngestService.Ingested first = ingest.ingest(caller, "key-1", "rechnung.pdf", "application/pdf",
-                "hash-1", CONTENT, null);
+                "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1", CONTENT, null);
         IngestService.Ingested second = ingest.ingest(caller, "key-1", "rechnung.pdf", "application/pdf",
-                "hash-1", CONTENT, null);
+                "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1", CONTENT, null);
 
         assertThat(second.duplicate())
                 .as("a sender that retried after a timeout must not produce a second document")
@@ -103,9 +103,9 @@ class IngestApiIT {
         UUID tenantId = tenant();
         IngestService.Caller caller = caller(tenantId);
 
-        IngestService.Ingested first = ingest.ingest(caller, "key-a", "a.pdf", "application/pdf", "h",
+        IngestService.Ingested first = ingest.ingest(caller, "key-a", "a.pdf", "application/pdf", "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
                 CONTENT, null);
-        IngestService.Ingested second = ingest.ingest(caller, "key-b", "b.pdf", "application/pdf", "h",
+        IngestService.Ingested second = ingest.ingest(caller, "key-b", "b.pdf", "application/pdf", "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
                 CONTENT, null);
 
         assertThat(second.documentId()).isNotEqualTo(first.documentId());
@@ -121,7 +121,7 @@ class IngestApiIT {
         IngestService.Ingested a = ingest.ingest(caller(first), "shared-key", "a.pdf", "application/pdf",
                 "h", CONTENT, null);
         IngestService.Ingested b = ingest.ingest(caller(second), "shared-key", "b.pdf",
-                "application/pdf", "h", CONTENT, null);
+                "application/pdf", "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3", CONTENT, null);
 
         assertThat(a.documentId()).isNotEqualTo(b.documentId());
         assertThat(documentCount(first)).isEqualTo(1);
@@ -134,7 +134,7 @@ class IngestApiIT {
         UUID tenantId = tenant();
         IngestService.Caller caller = caller(tenantId);
 
-        assertThatThrownBy(() -> ingest.ingest(caller, null, "a.pdf", "application/pdf", "h", CONTENT,
+        assertThatThrownBy(() -> ingest.ingest(caller, null, "a.pdf", "application/pdf", "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3", CONTENT,
                 null))
                 .isInstanceOf(ApiException.class)
                 .hasMessageContaining("Idempotenzschlüssel");

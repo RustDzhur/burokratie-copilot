@@ -199,8 +199,8 @@ public class IngestService {
         UUID documentId = jdbc.queryForObject("""
                 insert into documents (id, tenant_id, workspace_id, original_filename, internal_name,
                                        mime_type, size_bytes, content_hash, source, processing_status,
-                                       review_status, has_attachments)
-                values (gen_random_uuid(), ?, ?, ?, ?, ?, ?, ?, 'API', 'RECEIVED', 'PENDING', false)
+                                       review_status)
+                values (gen_random_uuid(), ?, ?, ?, ?, ?, ?, ?, 'API', 'RECEIVED', 'PENDING')
                 returning id
                 """, UUID.class, caller.tenantId(), workspaceId, filename,
                 filename == null ? "unbenannt" : filename, mimeType,
