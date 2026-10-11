@@ -651,18 +651,22 @@ jobs:
         if: steps.docker.outputs.available == 'true'
         run: |
           set -euo pipefail
-          # Prove the artifact is a runnable Spring Boot jar and that the image
-          # runs as a non-root user. The application itself needs a database and
-          # is exercised by the backend job, not here.
+          # What this step can honestly prove about the RUNTIME image: it starts, it does not
+          # run as root, the artifact is there and readable, and the JVM inside the image works.
+          # The application needs a database, so starting it here would prove nothing that the
+          # backend job does not already prove on a real PostgreSQL.
+          #
+          # The manifest assertion deliberately lives in the build stage of the Dockerfile, where
+          # the JDK provides `jar`. It cannot be done here with grep: the manifest of a Spring Boot
+          # jar is deflated inside the archive, so a binary search for "Main-Class" finds nothing
+          # and fails silently - which is exactly how this step failed before.
           docker run --rm --entrypoint sh burokratie-copilot/api:ci-${{ github.sha }} -c '
             set -e
             id -u | grep -qv "^0$"
             test -s /app/app.jar
-            # No unzip and no jar in a JRE-only image, and adding a package to the runtime
-            # image just to read one file is not worth the attack surface. The manifest is
-            # stored uncompressed in the archive, so a binary-safe grep finds the same strings.
-            grep -aq "Main-Class: org.springframework.boot.loader" /app/app.jar
-            echo "image smoke test OK"
+            test -r /app/app.jar
+            java -version 2>&1 | grep -q "version"
+            echo "runtime image smoke test OK: non-root, artifact present, working JVM"
           '
 
       - name: Build summary
