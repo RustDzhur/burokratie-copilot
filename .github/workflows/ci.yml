@@ -290,6 +290,19 @@ jobs:
   # 3. Infrastructure — YAML and Compose validation
   # ===========================================================================
   compose-validation:
+    # The production Compose file deliberately marks eight values as mandatory ("${VAR:?}") so a
+    # deployment cannot start with empty credentials. Rendering it for validation therefore needs
+    # placeholders - the point is to prove the file is structurally valid and contains no secret,
+    # not to deploy anything.
+    env:
+      BC_REGISTRY: registry.invalid
+      BC_IMAGE_TAG: ci-check
+      BC_SERVER_NAMES: example.invalid
+      POSTGRES_DB: burokratie
+      POSTGRES_USER: burokratie
+      POSTGRES_PASSWORD: ci-placeholder-only
+      MINIO_ROOT_USER: ci-placeholder
+      MINIO_ROOT_PASSWORD: ci-placeholder-only
     name: Compose & YAML validation
     runs-on: ubuntu-latest
     timeout-minutes: 15

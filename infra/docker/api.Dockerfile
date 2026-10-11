@@ -78,11 +78,15 @@ RUN --mount=type=cache,target=/root/.m2/repository,sharing=locked \
 # Fail the build early if the artifact is not an executable Spring Boot jar,
 # instead of discovering it when the container starts in production. The
 # manifest must carry the Spring Boot launcher AND our main class.
+# `unzip` is not part of the Maven or the JRE image, and adding a package to the runtime
+# image just to read one file would grow the attack surface for no benefit. `jar` ships with
+# the JDK that the build stage already uses and does the same job.
 RUN set -eux; \
-    unzip -p /build/app.jar META-INF/MANIFEST.MF > /tmp/MANIFEST.MF; \
-    grep -q '^Main-Class: org.springframework.boot.loader' /tmp/MANIFEST.MF; \
-    grep -q 'de.buerokratiecopilot.BurokratieCopilotApplication' /tmp/MANIFEST.MF; \
-    rm -f /tmp/MANIFEST.MF
+    cd /tmp; \
+    jar xf /build/app.jar META-INF/MANIFEST.MF; \
+    grep -q '^Main-Class: org.springframework.boot.loader' META-INF/MANIFEST.MF; \
+    grep -q 'de.buerokratiecopilot.BurokratieCopilotApplication' META-INF/MANIFEST.MF; \
+    rm -rf /tmp/META-INF
 
 # ---------------------------------------------------------------------------
 # Stage 2 — minimal JRE runtime
