@@ -160,7 +160,7 @@ class AssistantConfirmationTest {
                 () -> assistant.confirm(tenantId, colleague, proposal.proposalId())))
                 .as("confirming somebody else's proposal would let one person act with another's rights")
                 .isInstanceOf(ApiException.class)
-                .hasMessageContaining("anfragt");
+                .hasMessageContaining("angefragt");
     }
 
     @Test

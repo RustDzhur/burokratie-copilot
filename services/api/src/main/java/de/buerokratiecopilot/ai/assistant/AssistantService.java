@@ -170,9 +170,12 @@ public class AssistantService {
         }
 
         String toolName = String.valueOf(job.get("tool_name"));
+        // Re-checked because the world may have changed since the proposal was made: the tenant may have
+        // withdrawn the tool and the user may have lost the right. NEEDS_CONFIRMATION is not a refusal
+        // here - it is the question this method is the answer to - so only a genuine refusal blocks.
         ToolPolicy.Decision decision = policy.decide(tenantId,
                 new ToolPolicy.Request(toolName, Map.of(), userId, UntrustedContent.Origin.PLATFORM, null));
-        if (!decision.allowed()) {
+        if (!decision.allowed() && !decision.needsConfirmation()) {
             throw ApiException.conflict("Das Werkzeug '" + toolName + "' ist jetzt nicht zulässig: "
                     + decision.reason());
         }
