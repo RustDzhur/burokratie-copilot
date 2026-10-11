@@ -397,12 +397,12 @@ BEGIN
         SELECT c.conname,
                n.nspname  AS child_schema,
                cl.relname AS child_table,
-               (SELECT string_agg(quote_ident(a.attname), ', ' ORDER BY k.ord)
+               (SELECT string_agg('ch.' || quote_ident(a.attname), ', ' ORDER BY k.ord)
                   FROM unnest(c.conkey) WITH ORDINALITY AS k(attnum, ord)
                   JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum) AS child_cols,
                pn.nspname  AS parent_schema,
                pl.relname  AS parent_table,
-               (SELECT string_agg(quote_ident(a.attname), ', ' ORDER BY k.ord)
+               (SELECT string_agg('pa.' || quote_ident(a.attname), ', ' ORDER BY k.ord)
                   FROM unnest(c.confkey) WITH ORDINALITY AS k(attnum, ord)
                   JOIN pg_attribute a ON a.attrelid = c.confrelid AND a.attnum = k.attnum) AS parent_cols
           FROM pg_constraint c
