@@ -623,6 +623,10 @@ jobs:
           context: .
           file: infra/docker/api.Dockerfile
           push: false
+          # The smoke test below runs the freshly built image. Without `load` the result stays in
+          # the BuildKit cache only, and `docker run` fails with "pull access denied" - which looks
+          # like a registry problem but is simply a missing local image.
+          load: true
           tags: burokratie-copilot/api:ci-${{ github.sha }}
           build-args: |
             BUILD_REVISION=${{ github.sha }}
