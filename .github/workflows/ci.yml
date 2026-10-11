@@ -66,7 +66,12 @@ jobs:
         # The integration tests (*IT) require a REAL PostgreSQL (spec §28.1):
         # the schema relies on extensions, RLS, triggers and jsonb, so H2 is not
         # an option. Same major version as production (spec §2.1).
-        image: postgres:${{ env.POSTGRES_VERSION }}
+        # The image tag is written out literally on purpose: the `env` context is NOT
+        # available inside `jobs.<job_id>.services.<service_id>.image`, and referencing it
+        # there makes GitHub reject the whole workflow with "workflow file issue" before a
+        # single job is scheduled (observed: run failed in 0s with no jobs). The version is
+        # kept in sync with POSTGRES_VERSION above manually.
+        image: postgres:17
         env:
           POSTGRES_DB: burokratie_test
           POSTGRES_USER: burokratie
