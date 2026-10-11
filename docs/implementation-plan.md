@@ -4406,3 +4406,56 @@ varying(20)» — странный способ узнать, что в пись
 галочки каждый раз.
 
 **Итог:** `./mvnw -B clean verify` → **BUILD SUCCESS**, тестов **1116** (428 unit + 688 integration).
+
+## Раунд 57: аудит достижимости — самый крупный оставшийся пробел
+
+После того как в раунде 55 нашлось, что `IngestService` **не выставлен наружу вообще**, я проверил этот
+класс пробела механически, по всему бэкенду.
+
+**Метод.** Взять все классы с `@Service`, взять все классы с `@RestController` и найти сервисы, **имя
+которых не встречается ни в одном контроллере**. Затем — обратная проверка: какие пути зовёт фронтенд и
+какие маппинги существуют.
+
+**Результат:**
+
+```
+сервисов                      : 64
+контроллеров                  : 15
+маппингов в контроллерах      : 79
+сервисов без HTTP-слоя        : 46
+путей, которые зовёт фронтенд : 1   (/api/v1/documents/)
+```
+
+**Что это значит.** Проблема **не в отсутствующих функциях, а в отсутствии достижимости**: значительная
+часть бэкенда реализована и проверена тестами, но **вызвать её нельзя ниоткуда** — фронтенд обращается к
+**одному** пути, а 46 сервисов не упомянуты ни одним контроллером.
+
+**Не все 46 — пробел, и я разделяю их честно:**
+
+**Действительно не имеют эндпоинта, хотя являются функциями продукта** (это и есть пробел):
+
+`AccountModeService`, `AdvisorService`, `ApprovalService`, `ClassificationService`, `DeviceService`,
+`EInvoiceService`, `FamilyAccessService`, `FieldExtractionService`, `GeneratedDocumentService`,
+`GeneratedDocumentExportService`, `IntegrationService`, `InvitationService`, `MatchingService`,
+`MfaService`, `OnboardingService`, `OutboundMessageService`, `PaymentApprovalService`,
+`PaymentMatchingService`, `ReportService`, `RetentionService`, `SettingsService`, `TemplateService`,
+`TextExtractionService`, `WorkflowService`, `WorkflowEngine`, `WorkflowEditor`, `PresetProcesses`,
+`InvoiceNumberService`, `PartialPaymentService`, `PrintService`, `MailAccountService`,
+`IntegrationAdapterCatalogue`, `EInvoiceRuleRegister`.
+
+**Законно внутренние** (вызываются другими слоями, а не пользователем):
+
+`AiOrchestrator`, `ToolPolicy`, `RetrievalService`, `RagService`, `AssistantService` — вызываются друг
+другом и ассистентом; `IdempotencyService`, `OutboxWriter`, `SessionService`, `AuditService` —
+инфраструктура; `PublicSectorGuard` — библиотечная проверка; `DesktopBridge` — программа на рабочей
+станции, а не сервер; `FolderImportService`, `ImapMailIngester` — фоновые задания воркера.
+
+**Что это меняет в оценке.** Раньше я писал «реализовано и проверено», и это было верно **на уровне
+сервисов**. Но **пользователь не может нажать ни на что** для большинства из них: экраны есть, и API для
+них в основном нет. **Это тот же класс пробела, что и `IngestService`, только в масштабе всего
+бэкенда** — и найден он тем же механическим вопросом.
+
+**Честная оценка:** «83 микрозадачи DONE» остаётся верным — каждая задача выполнена и проверена так, как
+она была сформулирована. **Но полнота продукта этим не измеряется**, и таблица соответствия этого не
+показывала. Это **не** закрытый пробел и **не** выполненная работа: это **названный и измеренный** пробел
+с точным списком.
