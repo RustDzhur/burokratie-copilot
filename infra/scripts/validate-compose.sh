@@ -351,7 +351,14 @@ elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
         fail "docker compose config failed for the dev stack: $(head -3 /tmp/bc-compose-dev.err | tr '\n' ' ')"
     fi
 
-    if docker compose -f "$DEV" -f "$PROD" --profile proxy config >/dev/null 2>/tmp/bc-compose-prod.err; then
+    # The production file deliberately marks eight values as mandatory ("${VAR:?}"), so a
+    # deployment cannot start with empty credentials. Rendering it in CI therefore has to supply
+    # placeholder values - the goal here is to prove that the file is structurally valid and that
+    # no secret is hard-coded, not to deploy anything.
+    if BC_REGISTRY=registry.invalid BC_IMAGE_TAG=ci-check BC_SERVER_NAMES=example.invalid \
+       POSTGRES_DB=burokratie POSTGRES_USER=burokratie POSTGRES_PASSWORD=ci-placeholder-only \
+       MINIO_ROOT_USER=ci-placeholder MINIO_ROOT_PASSWORD=ci-placeholder-only \
+       docker compose -f "$DEV" -f "$PROD" --profile proxy config >/dev/null 2>/tmp/bc-compose-prod.err; then
         pass "docker compose config renders the production stack (with the proxy profile)"
     else
         fail "docker compose config failed for the production stack: $(head -3 /tmp/bc-compose-prod.err | tr '\n' ' ')"

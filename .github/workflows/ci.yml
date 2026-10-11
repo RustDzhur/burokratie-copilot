@@ -73,13 +73,17 @@ jobs:
         # kept in sync with POSTGRES_VERSION above manually.
         image: postgres:17
         env:
-          POSTGRES_DB: burokratie_test
-          POSTGRES_USER: burokratie
-          POSTGRES_PASSWORD: burokratie_ci_password
+          # The service user has to be the cluster superuser because the preparation step below
+          # creates the application role and the databases. The TESTS never use it: they connect
+          # as the unprivileged `burokratie` role, because a superuser bypasses Row Level Security
+          # and would silently invalidate the tenant isolation tests.
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U burokratie -d burokratie_test"
+          --health-cmd "pg_isready -U postgres -d postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
@@ -87,6 +91,36 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Create the unprivileged application role and the test databases
+        env:
+          PGPASSWORD: postgres
+        run: |
+          # The application must never run as a superuser: superusers bypass Row Level Security
+          # even when a table is FORCE ROW LEVEL SECURITY, which would make the tenant isolation
+          # tests pass vacuously. This step mirrors production, where the role owning the schema
+          # is a plain login role with CREATEDB (the migration tests create their own database).
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE burokratie LOGIN CREATEDB PASSWORD 'burokratie_ci_password';
+          CREATE DATABASE burokratie_test OWNER burokratie;
+          CREATE DATABASE burokratie_migration_test OWNER burokratie;
+          SQL
+          psql -h localhost -U postgres -d burokratie_test -v ON_ERROR_STOP=1 <<'SQL'
+          -- Installed by the administrator in a real deployment: pgvector is not a trusted
+          -- extension, so the application role cannot create it. The migration degrades
+          -- gracefully when it is missing, and this keeps the semantic search path exercised.
+          CREATE EXTENSION IF NOT EXISTS vector;
+          SQL
+          psql -h localhost -U postgres -d burokratie_migration_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          CREATE EXTENSION IF NOT EXISTS citext;
+          CREATE EXTENSION IF NOT EXISTS pg_trgm;
+          SQL
+          psql -h localhost -U postgres -d burokratie_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          CREATE EXTENSION IF NOT EXISTS citext;
+          CREATE EXTENSION IF NOT EXISTS pg_trgm;
+          SQL
 
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
@@ -226,13 +260,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck
-        run: pnpm run typecheck --if-present
+        run: pnpm --if-present run typecheck
 
       - name: Lint
-        run: pnpm run lint --if-present
+        run: pnpm --if-present run lint
 
       - name: Unit tests
-        run: pnpm run test --if-present
+        run: pnpm --if-present run test
 
       - name: Build
         env:
