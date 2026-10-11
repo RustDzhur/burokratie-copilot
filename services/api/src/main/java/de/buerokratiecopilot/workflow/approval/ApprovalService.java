@@ -284,7 +284,7 @@ public class ApprovalService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> pending(UUID tenantId) {
         return jdbc.queryForList("""
-                select id, subject_type, subject_id, approval_type, title, required_role,
+                select id, status, subject_type, subject_id, approval_type, title, required_role,
                        required_permission, requested_by, expires_at, automation_level, metadata
                 from approvals where tenant_id = ? and status = 'PENDING' order by created_at
                 """, tenantId);
