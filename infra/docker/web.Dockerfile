@@ -67,6 +67,12 @@ RUN set -eux; \
 # Application sources.
 COPY apps/web/ ./
 
+# `public/` is copied into the runtime image below. Next.js treats it as optional, so a project
+# without static assets is valid - but a missing directory would make the runtime COPY fail with
+# "failed to compute cache key: /app/public: not found", which looks like a Dockerfile bug rather
+# than a missing directory. Creating it here keeps the build independent of that detail.
+RUN mkdir -p /app/public
+
 # Disable Next.js anonymous telemetry inside the image layer (belt and braces —
 # NEXT_TELEMETRY_DISABLED is already set).
 RUN set -eux; \
