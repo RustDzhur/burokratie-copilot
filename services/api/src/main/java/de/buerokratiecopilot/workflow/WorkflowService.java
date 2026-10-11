@@ -245,7 +245,7 @@ public class WorkflowService {
     }
 
     /** Reads JSON back into a map, for the definition of a version. */
-    static Object readJson(String json) {
+    public static Object readJson(String json) {
         try {
             return new com.fasterxml.jackson.databind.ObjectMapper().readValue(json, Map.class);
         }
