@@ -66,14 +66,16 @@ class ApprovalAndPresetsIT {
                     insert into roles (id, tenant_id, code, name)
                     values (gen_random_uuid(), ?, ?, '{"de":"Freigeber"}'::jsonb) returning id
                     """, UUID.class, tenantId, "approver-" + UUID.randomUUID().toString().substring(0, 8));
-            permissionCode = "payment.approve." + UUID.randomUUID().toString().substring(0, 8);
+            // The seeded permission, not one invented per run. A test that created a permission each time
+            // left the catalogue with hundreds of junk rows, which is the same class of shared-state
+            // pollution as a leftover global setting: it does not break anything today and it makes an
+            // honest audit of the catalogue impossible tomorrow.
+            permissionCode = "finance.approve";
             UUID permissionId = jdbc.queryForObject("""
-                    insert into permissions (id, code, area, action, name)
-                    values (gen_random_uuid(), ?, 'finance', 'approve', '{"de":"Freigeben"}'::jsonb)
-                    returning id
+                    select id from permissions where code = ?
                     """, UUID.class, permissionCode);
-            jdbc.update("insert into role_permissions (role_id, permission_id) values (?, ?)", roleId,
-                    permissionId);
+            jdbc.update("insert into role_permissions (role_id, permission_id) values (?, ?) "
+                    + "on conflict do nothing", roleId, permissionId);
         }
 
         UUID requester = person(tenantId, null);
