@@ -311,7 +311,7 @@ public class MfaService {
     }
 
     /** Decodes the base32 the platform stored, which is what the provisioning URI carried. */
-    static byte[] decodeBase32(String encoded) {
+    public static byte[] decodeBase32(String encoded) {
         String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
         String cleaned = encoded.toUpperCase(java.util.Locale.ROOT).replace("=", "");
         java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
