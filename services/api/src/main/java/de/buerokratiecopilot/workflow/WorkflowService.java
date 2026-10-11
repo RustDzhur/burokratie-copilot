@@ -228,7 +228,7 @@ public class WorkflowService {
     }
 
     /** Turns a map into JSON; the definition arrives from a caller as a map or a string. */
-    static String toJson(Object value) {
+    public static String toJson(Object value) {
         if (value == null) {
             return "{}";
         }
