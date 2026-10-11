@@ -31,8 +31,15 @@ public final class TestDocuments {
             try (PDPageContentStream content = new PDPageContentStream(document, page)) {
                 content.beginText();
                 content.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
-                content.newLineAtOffset(50, 700);
-                content.showText(text);
+                // Line by line: showText() rejects a line feed, and administrative documents are
+                // multi-line by nature.
+                float y = 750;
+                content.newLineAtOffset(50, y);
+                for (String line : text.split("\\R")) {
+                    content.showText(line.replaceAll("[^\\x20-\\x7E]", " "));
+                    y -= 18;
+                    content.newLineAtOffset(0, -18);
+                }
                 content.endText();
             }
             ByteArrayOutputStream out = new ByteArrayOutputStream();

@@ -55,11 +55,15 @@ class DocumentPipelineIT {
     @Autowired
     private DocumentProcessingPipeline pipeline;
 
+    /** Text the seeded classification rules recognise as an invoice. */
+    static final String INVOICE_TEXT = "Rechnungsnummer 2026-001\n"
+            + "Rechnungsbetrag netto 100,00 EUR\nUmsatzsteuer 19,00 EUR\nZahlbar bis 31.03.2026";
+
     @Autowired
     private DocumentProcessingStepRepository steps;
 
     private String uploadDocument() throws Exception {
-        return uploadDocument(de.buerokratiecopilot.support.TestDocuments.pdf("Rechnung 2026-001 Brutto 119,00 EUR"),
+        return uploadDocument(de.buerokratiecopilot.support.TestDocuments.pdf(DocumentPipelineIT.INVOICE_TEXT),
                 "Rechnung.pdf");
     }
 
@@ -136,20 +140,21 @@ class DocumentPipelineIT {
 
         assertThat(result.executed()).containsExactly(
                 DocumentProcessingStep.Step.FORMAT_DETECT, DocumentProcessingStep.Step.TEXT_EXTRACT,
-                DocumentProcessingStep.Step.OCR);
-        // A PDF with a text layer needs no OCR: the OCR stage confirms there is nothing to do and
-        // the pipeline stops at the next stage that has no implementation yet.
-        assertThat(result.stoppedAt()).isEqualTo(DocumentProcessingStep.Step.LANGUAGE_DETECT);
+                DocumentProcessingStep.Step.OCR, DocumentProcessingStep.Step.LANGUAGE_DETECT,
+                DocumentProcessingStep.Step.CLASSIFY);
+        // A PDF with a text layer needs no OCR; the pipeline then detects the language, classifies
+        // the document as an invoice and stops at the stage that has no implementation yet.
+        assertThat(result.stoppedAt()).isEqualTo(DocumentProcessingStep.Step.FIELD_EXTRACT);
         assertThat(result.stopReason()).contains("No handler is registered");
-        assertThat(result.status()).isEqualTo(Document.ProcessingStatus.EXTRACTING);
+        assertThat(result.status()).isEqualTo(Document.ProcessingStatus.CLASSIFYING);
 
         Document stored = RequestContext.runAs(tenant, () -> documents.findById(id).orElseThrow());
         assertThat(stored.getExtractedText())
                 .as("the text of the uploaded PDF is stored with the document")
-                .contains("Rechnung 2026-001");
+                .contains("Rechnungsnummer 2026-001");
 
         // The unimplemented step stays PENDING: it is waiting, not skipped and not succeeded.
-        assertThat(steps.findByDocumentIdAndStep(id, DocumentProcessingStep.Step.LANGUAGE_DETECT))
+        assertThat(steps.findByDocumentIdAndStep(id, DocumentProcessingStep.Step.FIELD_EXTRACT))
                 .isPresent()
                 .get()
                 .satisfies(step -> assertThat(step.getStatus())
@@ -168,6 +173,8 @@ class DocumentPipelineIT {
                 RequestContext.runAs(tenant, () -> pipeline.advance(id));
 
         // Text extraction found no text layer and handed the document to the OCR stage.
+        // Text extraction found no text layer, so the OCR stage is reached; the later stages are
+        // not, because the document has nothing to classify and no language to detect.
         assertThat(result.executed()).containsExactly(
                 DocumentProcessingStep.Step.FORMAT_DETECT, DocumentProcessingStep.Step.TEXT_EXTRACT,
                 DocumentProcessingStep.Step.OCR);

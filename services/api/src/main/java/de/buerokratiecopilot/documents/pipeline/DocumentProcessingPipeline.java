@@ -168,6 +168,13 @@ public class DocumentProcessingPipeline {
             if (result.nextStatus() != null && result.nextStatus() != document.getProcessingStatus()) {
                 DocumentStatusMachine.requireTransition(document.getProcessingStatus(), result.nextStatus());
                 document.setProcessingStatus(result.nextStatus());
+                if (result.nextStatus() == Document.ProcessingStatus.REVIEW_REQUIRED
+                        && document.getReviewStatus() == Document.ReviewStatus.NOT_REQUIRED) {
+                    // A document waiting for a human must also say so in its review state, otherwise
+                    // the review centre - which queries by that field - would never list it and the
+                    // document would silently wait forever.
+                    document.setReviewStatus(Document.ReviewStatus.PENDING);
+                }
                 documents.save(document);
             }
 
