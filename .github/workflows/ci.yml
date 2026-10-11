@@ -71,7 +71,7 @@ jobs:
         # there makes GitHub reject the whole workflow with "workflow file issue" before a
         # single job is scheduled (observed: run failed in 0s with no jobs). The version is
         # kept in sync with POSTGRES_VERSION above manually.
-        image: postgres:17
+        image: pgvector/pgvector:pg17
         env:
           # The service user has to be the cluster superuser because the preparation step below
           # creates the application role and the databases. The TESTS never use it: they connect
@@ -105,12 +105,13 @@ jobs:
           CREATE DATABASE burokratie_test OWNER burokratie;
           CREATE DATABASE burokratie_migration_test OWNER burokratie;
           SQL
-          psql -h localhost -U postgres -d burokratie_test -v ON_ERROR_STOP=1 <<'SQL'
-          -- Installed by the administrator in a real deployment: pgvector is not a trusted
-          -- extension, so the application role cannot create it. The migration degrades
-          -- gracefully when it is missing, and this keeps the semantic search path exercised.
-          CREATE EXTENSION IF NOT EXISTS vector;
-          SQL
+          # pgvector is installed by an administrator in a real deployment (it is not a trusted
+          # extension). It is optional by design: migration V14 degrades to full text search when
+          # it is missing (see Q-06 in docs/implementation-plan.md). The image ships it, so the
+          # semantic search path is exercised here, but a failure to enable it must not break the
+          # preparation step and hide the real reason a later step fails.
+          psql -h localhost -U postgres -d burokratie_test -c 'CREATE EXTENSION IF NOT EXISTS vector' \
+            || echo "::warning::pgvector is unavailable in this environment; semantic search will be reported as unavailable"
           psql -h localhost -U postgres -d burokratie_migration_test -v ON_ERROR_STOP=1 <<'SQL'
           CREATE EXTENSION IF NOT EXISTS pgcrypto;
           CREATE EXTENSION IF NOT EXISTS citext;
