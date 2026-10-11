@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import '@/styles/tokens.css';
 import '@/styles/globals.css';
 import { AppProviders } from '@/components/app/providers';
+import { ServiceWorkerRegistrar } from '@/components/app/service-worker';
 import { getServerLocale } from '@/i18n/server';
 import {
   APPEARANCE_COOKIE,
@@ -22,6 +23,10 @@ export const metadata: Metadata = {
   applicationName: 'Bürokratie-Copilot',
   formatDetection: { telephone: false },
   robots: { index: false, follow: false },
+  // What makes the app installable on a phone. Without the link the manifest is never read.
+  manifest: '/manifest.webmanifest',
+  appleWebApp: { capable: true, title: 'Bürokratie-Copilot', statusBarStyle: 'default' },
+  icons: { icon: '/icons/icon-192.png', apple: '/icons/icon-192.png' },
 };
 
 export const viewport: Viewport = {
@@ -54,6 +59,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       </head>
       <body>
         <AppProviders initialLocale={locale} initialAppearance={appearance}>
+        <ServiceWorkerRegistrar />
           {children}
         </AppProviders>
       </body>

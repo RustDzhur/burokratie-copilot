@@ -9,6 +9,7 @@ export const ruCore: CoreMessages = {
   common: {
     'app.name': 'Bürokratie-Copilot',
     'app.tagline': 'Интеллектуальный центр управления административными процессами в Германии',
+    'actions.capture': 'Сделать фото',
     'actions.save': 'Сохранить',
     'actions.saveChanges': 'Сохранить изменения',
     'actions.cancel': 'Отмена',

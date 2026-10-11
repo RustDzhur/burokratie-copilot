@@ -8,6 +8,7 @@ export const enCore: CoreMessages = {
   common: {
     'app.name': 'Bürokratie-Copilot',
     'app.tagline': 'The intelligent administrative cockpit for Germany',
+    'actions.capture': 'Take a photo',
     'actions.save': 'Save',
     'actions.saveChanges': 'Save changes',
     'actions.cancel': 'Cancel',

@@ -17,6 +17,7 @@ export const deCore = {
   common: {
     'app.name': 'Bürokratie-Copilot',
     'app.tagline': 'Der intelligente Verwaltungs-Cockpit für Deutschland',
+    'actions.capture': 'Foto aufnehmen',
     'actions.save': 'Speichern',
     'actions.saveChanges': 'Änderungen speichern',
     'actions.cancel': 'Abbrechen',

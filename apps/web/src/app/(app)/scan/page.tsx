@@ -5,6 +5,7 @@ import { PageHeader, PageSection, ResourceView } from '@/components/app/resource
 import { Badge, Card, CardBody, CardHeader, EmptyState, StatusPill } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { FileDropzone, UploadList, useUploadQueue } from '@/components/ui/file-dropzone';
+import { MobileCapture } from '@/components/ui/mobile-capture';
 import { InlineAlert, SkeletonCards } from '@/components/ui/feedback';
 import { useToast } from '@/components/ui/toast';
 import { formatDateTime } from '@/i18n/format';
@@ -141,6 +142,12 @@ export default function ScanPage() {
         <PageSection title={t('action.import')} description={t('subtitle')}>
           <div className={styles.importColumn}>
             <FileDropzone onSelect={(files) => queue.enqueue(files)} label={t('dropzone.label')} />
+            {/* A telephone pointed at a letter goes through the same queue as a file: a second path for
+                photographs would be a second place to get the ingestion wrong. */}
+            <MobileCapture
+              onCapture={(files) => queue.enqueue(files)}
+              label={tCommon('actions.capture')}
+            />
             <p className={styles.meta}>
               {t('dropzone.formats')} · {t('dropzone.maxSize')}
             </p>
