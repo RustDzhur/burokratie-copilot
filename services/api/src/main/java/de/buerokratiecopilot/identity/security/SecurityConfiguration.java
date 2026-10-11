@@ -62,6 +62,9 @@ public class SecurityConfiguration {
             "/api/v1/auth/password-reset/confirm",
             "/api/v1/auth/csrf",
             "/api/v1/public/**",
+            // Authenticated by its own token rather than by a session.
+            "/api/v1/documents:ingest",
+            "/api/v1/webhooks/**",
             "/api/v1/system/info",
             "/actuator/health",
             "/actuator/health/**",
@@ -101,7 +104,9 @@ public class SecurityConfiguration {
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
                         // Ingest is protected by API tokens plus an HMAC signature; browser CSRF
                         // does not apply there (spec §7.4).
-                        .ignoringRequestMatchers("/api/v1/public/**"))
+                        // The machine interface: a bearer token, no session, no CSRF token to send.
+                        .ignoringRequestMatchers("/api/v1/public/**", "/api/v1/documents:ingest",
+                                "/api/v1/webhooks/**"))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource(properties)))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(AbstractHttpConfigurer::disable)
