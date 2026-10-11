@@ -98,7 +98,8 @@ public class IngestService {
                 values (gen_random_uuid(), ?, ?, ?, ?, ?, ?::jsonb, ?, true, ?, ?)
                 returning id
                 """, UUID.class, tenantId, workspaceId, name.strip(), prefix,
-                WebhookSignature.hashApiToken(token), toJsonArray(scopes), limit, expiresAt, createdBy);
+                WebhookSignature.hashApiToken(token), toJsonArray(scopes), limit,
+                expiresAt == null ? null : java.sql.Timestamp.from(expiresAt), createdBy);
 
         log.info("API token {} issued for tenant {} (prefix {})", tokenId, tenantId, prefix);
         return new IssuedToken(tokenId, token, prefix, limit);
