@@ -26,4 +26,10 @@ regexes = [
   '''ci-placeholder-password''',
   '''ci-placeholder-access-key''',
   '''ci-placeholder-secret-key''',
+  # Two commits of AiLogRedactionTest held credential-shaped test data for the redaction assertions.
+  # The values are not credentials - one test asserted that they get removed - and they were replaced
+  # by strings assembled at runtime. Only the history is covered here.
+  '''api_key=sk-abcdef1234567890''',
+  '''eyJhbGciOiJIUzI1NiJ9payload''',
+  '''Basic dXNlcjpwYXNz''',
 ]
