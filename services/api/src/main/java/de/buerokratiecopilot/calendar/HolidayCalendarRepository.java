@@ -21,9 +21,15 @@ public interface HolidayCalendarRepository extends JpaRepository<HolidayCalendar
 
     Optional<HolidayCalendar> findByTenantIdAndCode(UUID tenantId, String code);
 
-    @Query("""
-            select c from HolidayCalendar c
-            where c.defaultCalendar = true and (c.tenantId is null or c.tenantId = :tenantId)
-            """)
-    List<HolidayCalendar> findDefault(@Param("tenantId") UUID tenantId);
+    /**
+     * The tenant's own default calendar.
+     *
+     * <p>Looked up separately from the system default, because a tenant that sets its own default must
+     * override the shared one rather than switch it off for everybody. Writing to a row whose
+     * {@code tenant_id} is NULL is a change to reference data, not to the tenant's own settings.</p>
+     */
+    Optional<HolidayCalendar> findByTenantIdAndDefaultCalendarTrue(UUID tenantId);
+
+    /** The system default, which applies wherever a tenant has not chosen one of its own. */
+    Optional<HolidayCalendar> findByTenantIdIsNullAndDefaultCalendarTrue();
 }

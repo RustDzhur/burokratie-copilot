@@ -77,8 +77,10 @@ public class HolidayCalendarService {
             calendar.setTimeZone(timeZone);
         }
         if (defaultCalendar) {
-            // Only one calendar can be the default, otherwise "the" calendar of a tenant is ambiguous.
-            calendars.findDefault(tenantId).forEach(existing -> {
+            // Only one calendar can be a tenant's default, otherwise "the" calendar is ambiguous. The
+            // system default is deliberately left alone: overriding it is the tenant's choice, and
+            // switching it off would change reference data for every other tenant.
+            calendars.findByTenantIdAndDefaultCalendarTrue(tenantId).ifPresent(existing -> {
                 existing.setDefaultCalendar(false);
                 calendars.save(existing);
             });
@@ -161,16 +163,16 @@ public class HolidayCalendarService {
      */
     @Transactional(readOnly = true)
     public Map<String, Object> workingDayContext(UUID tenantId, int year) {
-        List<HolidayCalendar> defaults = calendars.findDefault(tenantId);
+        java.util.Optional<HolidayCalendar> resolved = defaultCalendar(tenantId);
         Map<String, Object> context = new LinkedHashMap<>();
-        if (defaults.isEmpty()) {
+        if (resolved.isEmpty()) {
             context.put("calendar", null);
             context.put("holidays", Set.of());
             context.put("warning", "No default calendar is configured, so working days skip weekends "
                     + "only and public holidays are not accounted for");
             return context;
         }
-        HolidayCalendar calendar = defaults.getFirst();
+        HolidayCalendar calendar = resolved.get();
         context.put("calendar", calendar.displayName());
         context.put("calendarId", calendar.getId());
         context.put("holidays", nonWorkingDays(calendar.getId(), year));
@@ -218,15 +220,29 @@ public class HolidayCalendarService {
         return DeadlineCalculator.addWorkingDays(start, workingDays, nonWorking);
     }
 
+    /**
+     * The calendar that applies to a tenant.
+     *
+     * <p>The tenant's own default wins; without one the system calendar applies. A tenant therefore
+     * starts with a usable calendar rather than with none, which is the difference between counting
+     * public holidays and silently ignoring them.</p>
+     */
+    @Transactional(readOnly = true)
+    public java.util.Optional<HolidayCalendar> defaultCalendar(UUID tenantId) {
+        java.util.Optional<HolidayCalendar> own =
+                calendars.findByTenantIdAndDefaultCalendarTrue(tenantId);
+        return own.isPresent() ? own : calendars.findByTenantIdIsNullAndDefaultCalendarTrue();
+    }
+
     /** The holidays of the default calendar across the years a period can span. */
     private Set<LocalDate> defaultHolidays(UUID tenantId, int fromYear, int toYear) {
-        List<HolidayCalendar> defaults = calendars.findDefault(tenantId);
-        if (defaults.isEmpty()) {
+        java.util.Optional<HolidayCalendar> resolved = defaultCalendar(tenantId);
+        if (resolved.isEmpty()) {
             return Set.of();
         }
         Set<LocalDate> dates = new java.util.HashSet<>();
         for (int year = Math.min(fromYear, toYear); year <= Math.max(fromYear, toYear); year++) {
-            dates.addAll(nonWorkingDays(defaults.getFirst().getId(), year));
+            dates.addAll(nonWorkingDays(resolved.get().getId(), year));
         }
         return dates;
     }

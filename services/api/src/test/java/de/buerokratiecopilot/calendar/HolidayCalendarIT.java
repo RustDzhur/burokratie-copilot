@@ -179,17 +179,47 @@ class HolidayCalendarIT {
     }
 
     @Test
-    @DisplayName("without a default calendar the platform says holidays are not accounted for")
-    void warnsWithoutADefaultCalendar() throws Exception {
+    @DisplayName("a tenant without its own calendar uses the system one rather than counting nothing")
+    void fallsBackToTheSystemCalendar() throws Exception {
         Session session = register();
+        // Only a non-default calendar of its own, so the system default applies.
         createCalendar(session, false);
 
-        mockMvc.perform(get("/api/v1/calendars/working-days").param("from", "2026-03-02")
-                        .param("to", "2026-03-09").cookie(session.cookie()))
+        mockMvc.perform(get("/api/v1/calendars/working-days").param("from", "2026-05-01")
+                        .param("to", "2026-05-04").cookie(session.cookie()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.workingDays").value(5))
-                .andExpect(jsonPath("$.warning")
-                        .value(org.hamcrest.Matchers.containsString("public holidays")));
+                // 2026-05-01 is a nationwide holiday in the system calendar, so the period from
+                // Friday to Monday contains one working day: the Monday.
+                .andExpect(jsonPath("$.workingDays").value(1))
+                .andExpect(jsonPath("$.calendar").value(org.hamcrest.Matchers.containsString("DE")));
+    }
+
+    @Test
+    @DisplayName("a tenant's own default calendar overrides the system one without changing it")
+    void ownDefaultOverridesTheSystemCalendar() throws Exception {
+        Session session = register();
+        String ownId = createCalendar(session, true);
+        // The tenant's calendar has no holidays, so 2026-05-01 counts as a working day again.
+        mockMvc.perform(post("/api/v1/calendars/{id}/holidays", ownId).with(csrf())
+                        .cookie(session.cookie()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"holidays\":[{\"date\":\"2026-05-01\",\"name\":\"Eigener Feiertag\"}]}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/calendars/working-days").param("from", "2026-05-01")
+                        .param("to", "2026-05-04").cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workingDays").value(1))
+                .andExpect(jsonPath("$.calendar").value("Bayern (DE-BY)"));
+
+        // The system calendar is reference data shared by every tenant and must not be switched off
+        // by one tenant choosing its own default. Asserted on the flag itself rather than on a
+        // display name, because the name of a seeded calendar is not this test's to control.
+        Session other = register();
+        mockMvc.perform(get("/api/v1/calendars").cookie(other.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.code=='de-national')].defaultCalendar")
+                        .value(org.hamcrest.Matchers.contains(true)))
+                .andExpect(jsonPath("$[?(@.code=='de-national' && @.defaultCalendar==true)]").isNotEmpty());
     }
 
     @Test
