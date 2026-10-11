@@ -84,7 +84,9 @@ public class ContractService {
 
         Contract contract = new Contract(UUID.randomUUID(), request.tenantId(), request.title().strip());
         contract.setContractNumber(request.contractNumber());
-        contract.setContractType(request.contractType());
+        if (request.contractType() != null && !request.contractType().isBlank()) {
+            contract.setContractType(request.contractType());
+        }
         contract.setCaseId(request.caseId());
         contract.setCounterpartyContactId(request.counterpartyContactId());
         contract.setStartDate(request.startDate());
@@ -95,7 +97,9 @@ public class ContractService {
         contract.setNoticePeriodValue(request.noticePeriodValue());
         contract.setNoticePeriodUnit(request.noticePeriodUnit());
         contract.setCostAmount(request.costAmount());
-        contract.setCostCurrency(request.costCurrency());
+        if (request.costCurrency() != null && !request.costCurrency().isBlank()) {
+            contract.setCostCurrency(request.costCurrency().toUpperCase(java.util.Locale.ROOT));
+        }
         contract.setCostInterval(request.costInterval());
         contract.setSourceDocumentId(request.sourceDocumentId());
         contract.setTags(request.tags());

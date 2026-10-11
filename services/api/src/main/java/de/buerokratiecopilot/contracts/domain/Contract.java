@@ -56,8 +56,9 @@ public class Contract {
     @Column(nullable = false, length = 300)
     private String title;
 
-    @Column(name = "contract_type", length = 60)
-    private String contractType;
+    /** Mandatory in the schema: a contract is of some kind, and "unknown" is a kind too. */
+    @Column(name = "contract_type", nullable = false, length = 60)
+    private String contractType = "OTHER";
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -96,8 +97,8 @@ public class Contract {
     @Column(name = "cost_amount", precision = 14, scale = 2)
     private BigDecimal costAmount;
 
-    @Column(name = "cost_currency", length = 3)
-    private String costCurrency;
+    @Column(name = "cost_currency", nullable = false, length = 3)
+    private String costCurrency = "EUR";
 
     @Column(name = "cost_interval", length = 20)
     private String costInterval;

@@ -24,6 +24,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import de.buerokratiecopilot.contracts.ContractService;
+import de.buerokratiecopilot.contracts.ContractVersionService;
+import de.buerokratiecopilot.contracts.domain.ContractObligation;
+import de.buerokratiecopilot.contracts.domain.ContractVersion;
 import de.buerokratiecopilot.contracts.domain.Contract;
 import de.buerokratiecopilot.contracts.domain.ContractClause;
 import de.buerokratiecopilot.contracts.domain.ContractParty;
@@ -43,9 +46,11 @@ import de.buerokratiecopilot.shared.context.RequestContext;
 public class ContractController {
 
     private final ContractService contracts;
+    private final ContractVersionService versionService;
 
-    public ContractController(ContractService contracts) {
+    public ContractController(ContractService contracts, ContractVersionService versionService) {
         this.contracts = contracts;
+        this.versionService = versionService;
     }
 
     public record CreateContractRequest(String title, String contractNumber, String contractType,
@@ -229,6 +234,165 @@ public class ContractController {
                                                          @RequestParam LocalDate to) {
         return ResponseEntity.ok(contracts.endingBetween(RequestContext.tenantId().orElseThrow(), from, to)
                 .stream().map(ContractResponse::from).toList());
+    }
+
+    // ------------------------------------------------------------------ versions and obligations
+
+    public record VersionRequest(String versionLabel, LocalDate effectiveFrom, String changeNote,
+                                 String documentId) {
+    }
+
+    public record VersionClauseRequest(String clauseKey, String clauseType, String clauseText,
+                                       Integer sourcePage, String sourceSnippet, boolean critical) {
+    }
+
+    public record VersionResponse(String id, String contractId, String versionLabel,
+                                  LocalDate effectiveFrom, String changeNote, boolean current,
+                                  String createdAt, List<ClauseResponse> clauses) {
+
+        static VersionResponse from(ContractVersion version,
+                                    List<de.buerokratiecopilot.contracts.domain.ContractClause> clauses) {
+            return new VersionResponse(version.getId().toString(), version.getContractId().toString(),
+                    version.getVersionLabel(), version.getEffectiveFrom(), version.getChangeNote(),
+                    version.isCurrent(), version.getCreatedAt().toString(),
+                    clauses.stream().map(clause -> ClauseResponse.from(new ContractService.ClauseView(
+                            clause, clause.isInterpretationVerified(),
+                            ContractService.interpretationState(clause)))).toList());
+        }
+    }
+
+    public record DiffResponse(String contractId, String beforeVersionId, String afterVersionId,
+                               List<Map<String, Object>> differences, Map<String, Long> summary) {
+    }
+
+    public record ObligationRequest(String obligationType, String title, LocalDate dueDate,
+                                    String recurrence, BigDecimal amount, String currency,
+                                    String responsibleUserId, Integer reminderDaysBefore,
+                                    String contractClauseId) {
+    }
+
+    public record ObligationResponse(String id, String contractId, String type, String title,
+                                     LocalDate dueDate, String recurrence, BigDecimal amount,
+                                     String currency, String responsibleUserId, Integer reminderDaysBefore,
+                                     String status, String contractClauseId) {
+
+        static ObligationResponse from(ContractObligation obligation) {
+            return new ObligationResponse(obligation.getId().toString(),
+                    obligation.getContractId().toString(), obligation.getObligationType().name(),
+                    obligation.getTitle(), obligation.getDueDate(), obligation.getRecurrence().name(),
+                    obligation.getAmount(), obligation.getCurrency(),
+                    obligation.getResponsibleUserId() == null ? null
+                            : obligation.getResponsibleUserId().toString(),
+                    obligation.getReminderDaysBefore(), obligation.getStatus().name(),
+                    obligation.getContractClauseId() == null ? null
+                            : obligation.getContractClauseId().toString());
+        }
+    }
+
+    @PostMapping("/{id}/versions")
+    @PreAuthorize("hasAuthority('contracts.edit')")
+    @Operation(summary = "Create a version and make it the current one")
+    public ResponseEntity<VersionResponse> createVersion(@PathVariable UUID id,
+                                                         @RequestBody VersionRequest request) {
+        ContractVersion version = versionService.createVersion(id,
+                RequestContext.tenantId().orElseThrow(), request.versionLabel(), request.effectiveFrom(),
+                request.changeNote(), uuid(request.documentId()), CurrentUser.required());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(VersionResponse.from(version, List.of()));
+    }
+
+    @GetMapping("/{id}/versions")
+    @PreAuthorize("hasAuthority('contracts.view')")
+    @Operation(summary = "The versions of a contract, oldest first")
+    public ResponseEntity<List<VersionResponse>> versions(@PathVariable UUID id) {
+        return ResponseEntity.ok(versionService.versionsOf(id, RequestContext.tenantId().orElseThrow())
+                .stream().map(version -> VersionResponse.from(version,
+                        versionService.view(version.getId(), RequestContext.tenantId().orElseThrow())
+                                .clauses()))
+                .toList());
+    }
+
+    @PostMapping("/versions/{versionId}/clauses")
+    @PreAuthorize("hasAuthority('contracts.edit')")
+    @Operation(summary = "Store a clause as part of a version, with the snippet it came from")
+    public ResponseEntity<ClauseResponse> addClauseToVersion(@PathVariable UUID versionId,
+                                                             @RequestBody VersionClauseRequest request) {
+        ContractClause clause = versionService.addClauseToVersion(versionId,
+                RequestContext.tenantId().orElseThrow(), request.clauseKey(),
+                request.clauseType() == null ? null
+                        : ContractClause.ClauseType.valueOf(request.clauseType()),
+                request.clauseText(), request.sourcePage(), request.sourceSnippet(), request.critical());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ClauseResponse.from(
+                new ContractService.ClauseView(clause, clause.isInterpretationVerified(),
+                        ContractService.interpretationState(clause))));
+    }
+
+    @GetMapping("/{id}/versions/diff")
+    @PreAuthorize("hasAuthority('contracts.view')")
+    @Operation(summary = "Compare two versions; every difference names the clause and shows both wordings")
+    public ResponseEntity<DiffResponse> diff(@PathVariable UUID id, @RequestParam UUID before,
+                                             @RequestParam UUID after) {
+        ContractVersionService.DiffView view = versionService.diff(id,
+                RequestContext.tenantId().orElseThrow(), before, after);
+        return ResponseEntity.ok(new DiffResponse(view.contractId().toString(),
+                view.beforeVersionId().toString(), view.afterVersionId().toString(),
+                view.differences().stream().map(change -> change.asMap()).toList(), view.summary()));
+    }
+
+    @PostMapping("/{id}/obligations")
+    @PreAuthorize("hasAuthority('contracts.edit')")
+    @Operation(summary = "Record an obligation of a contract")
+    public ResponseEntity<ObligationResponse> addObligation(@PathVariable UUID id,
+                                                            @RequestBody ObligationRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ObligationResponse.from(
+                versionService.addObligation(id, RequestContext.tenantId().orElseThrow(),
+                        request.obligationType() == null ? null
+                                : ContractObligation.ObligationType.valueOf(request.obligationType()),
+                        request.title(), request.dueDate(),
+                        request.recurrence() == null ? null
+                                : ContractObligation.Recurrence.valueOf(request.recurrence()),
+                        request.amount(), request.currency(), uuid(request.responsibleUserId()),
+                        request.reminderDaysBefore(), uuid(request.contractClauseId()))));
+    }
+
+    @GetMapping("/{id}/obligations")
+    @PreAuthorize("hasAuthority('contracts.view')")
+    @Operation(summary = "The obligations of a contract")
+    public ResponseEntity<List<ObligationResponse>> obligations(@PathVariable UUID id) {
+        return ResponseEntity.ok(versionService.obligationsOf(id,
+                RequestContext.tenantId().orElseThrow()).stream().map(ObligationResponse::from).toList());
+    }
+
+    @PostMapping("/obligations/{obligationId}/fulfil")
+    @PreAuthorize("hasAuthority('contracts.edit')")
+    @Operation(summary = "Mark an obligation as fulfilled")
+    public ResponseEntity<ObligationResponse> fulfil(@PathVariable UUID obligationId) {
+        return ResponseEntity.ok(ObligationResponse.from(versionService.fulfil(obligationId,
+                RequestContext.tenantId().orElseThrow(), CurrentUser.required())));
+    }
+
+    @GetMapping("/obligations/calendar")
+    @PreAuthorize("hasAuthority('contracts.view')")
+    @Operation(summary = "Obligations due in a window, for the obligation calendar")
+    public ResponseEntity<List<ObligationResponse>> calendar(@RequestParam LocalDate from,
+                                                             @RequestParam LocalDate to) {
+        return ResponseEntity.ok(versionService.calendar(RequestContext.tenantId().orElseThrow(), from, to)
+                .stream().map(ObligationResponse::from).toList());
+    }
+
+    @PostMapping("/obligations/run-reminders")
+    @PreAuthorize("hasAuthority('contracts.edit')")
+    @Operation(summary = "Create a reminder task for every obligation whose window has been reached")
+    public ResponseEntity<Map<String, Object>> runReminders(
+            @RequestParam(required = false) LocalDate today) {
+        ContractVersionService.ReminderRun run = versionService.runReminders(
+                RequestContext.tenantId().orElseThrow(),
+                today == null ? LocalDate.now(java.time.ZoneId.of("Europe/Berlin")) : today,
+                CurrentUser.required());
+
+        Map<String, Object> body = new java.util.LinkedHashMap<>(run.asDiagnostics());
+        body.put("skippedDetails", run.skipped());
+        return ResponseEntity.ok(body);
     }
 
     private static ContractClause.InterpretationSource parseSource(String value) {

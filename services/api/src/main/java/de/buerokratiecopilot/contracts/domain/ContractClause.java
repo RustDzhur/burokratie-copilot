@@ -56,6 +56,14 @@ public class ContractClause {
     @Column(name = "contract_id", nullable = false)
     private UUID contractId;
 
+    /**
+     * The version this wording belongs to, or {@code null} when it was recorded before versions
+     * existed or before anybody said where it belongs. A clause without a version cannot take part in
+     * a comparison, which is a different statement from "unchanged".
+     */
+    @Column(name = "version_id")
+    private UUID versionId;
+
     @Column(name = "tenant_id", nullable = false)
     private UUID tenantId;
 
@@ -128,6 +136,14 @@ public class ContractClause {
 
     public UUID getContractId() {
         return contractId;
+    }
+
+    public UUID getVersionId() {
+        return versionId;
+    }
+
+    public void setVersionId(UUID versionId) {
+        this.versionId = versionId;
     }
 
     public UUID getTenantId() {

@@ -12,4 +12,6 @@ public interface ContractClauseRepository extends JpaRepository<ContractClause, 
     List<ContractClause> findByContractIdOrderBySortOrderAsc(UUID contractId);
 
     List<ContractClause> findByContractIdAndCriticalTrueOrderBySortOrderAsc(UUID contractId);
+
+    List<ContractClause> findByVersionIdOrderBySortOrderAsc(UUID versionId);
 }

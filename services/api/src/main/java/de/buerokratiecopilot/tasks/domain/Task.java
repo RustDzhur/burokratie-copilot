@@ -45,9 +45,9 @@ public class Task {
         CRITICAL, HIGH, NORMAL, LOW, INFORMATIONAL
     }
 
-    /** Where a task came from, which decides whether a human may reorder it freely. */
+    /** Where a task came from; the values are the ones the schema allows. */
     public enum Source {
-        MANUAL, DOCUMENT, WORKFLOW, AI_SUGGESTION, DEADLINE, IMPORT
+        MANUAL, DOCUMENT, WORKFLOW, AI, EMAIL, SYSTEM, IMPORT
     }
 
     @Id
