@@ -59,17 +59,12 @@ class TaxonomyAdminServiceIT {
                     insert into roles (id, tenant_id, code, name)
                     values (gen_random_uuid(), ?, ?, '{"de":"Taxonomie"}'::jsonb) returning id
                     """, UUID.class, tenantId, "tax-" + UUID.randomUUID().toString().substring(0, 8));
+            // Read, not created: creating it here is what let a permission nobody holds pass the service
+            // tests while every endpoint answered 403.
             String permissionCode = "taxonomy.manage";
-            List<UUID> existing = jdbc.query("""
+            UUID permissionId = jdbc.queryForObject("""
                     select id from permissions where code = ?
-                    """, (rs, row) -> rs.getObject("id", UUID.class), permissionCode);
-            UUID permissionId = existing.isEmpty()
-                    ? jdbc.queryForObject("""
-                            insert into permissions (id, code, area, action, name)
-                            values (gen_random_uuid(), ?, 'documents', 'manage', '{"de":"Pflegen"}'::jsonb)
-                            returning id
-                            """, UUID.class, permissionCode)
-                    : existing.getFirst();
+                    """, UUID.class, permissionCode);
             jdbc.update("insert into role_permissions (role_id, permission_id) values (?, ?)", roleId,
                     permissionId);
             jdbc.update("""
