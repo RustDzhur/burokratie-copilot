@@ -183,10 +183,23 @@ public class AiOrchestrator {
                 "Kein Anbieter konnte die Aufgabe beantworten: " + String.join("; ", attempts), attempts);
     }
 
-    /** Whether external AI is allowed for this tenant. */
+    /**
+     * Whether external AI is allowed for this tenant.
+     *
+     * <p>Read for the tenant, falling back to the platform-wide row, and never cached in a field: a
+     * switch that one tenant flips must not affect another, and an operator turning AI off has to see it
+     * take effect.</p>
+     */
     @Transactional(readOnly = true)
     public boolean externalAiAllowed(UUID tenantId) {
-        return settings.getBoolean(EXTERNAL_AI_ENABLED, true);
+        List<Boolean> values = jdbc.query("""
+                select (value #>> '{}')::boolean as enabled
+                from system_settings
+                where setting_key = ? and (tenant_id = ? or tenant_id is null) and is_active = true
+                order by tenant_id nulls last
+                limit 1
+                """, (rs, row) -> rs.getBoolean("enabled"), EXTERNAL_AI_ENABLED, tenantId);
+        return values.isEmpty() ? true : values.getFirst();
     }
 
     /** The monthly budget, or {@code null} when the tenant set none. */

@@ -159,8 +159,10 @@ class AiProviderFailoverTest {
         assertThat(broken.callCount())
                 .as("a provider that is down should not be asked again and again")
                 .isEqualTo(3);
-        assertThat(orchestrator.circuitStates().getFirst()).containsEntry("circuitOpen", true)
-                .containsEntry("consecutiveFailures", 3);
+        assertThat(orchestrator.circuitStates()).anySatisfy(state -> assertThat(state)
+                .containsEntry("provider", "kaputt")
+                .containsEntry("circuitOpen", true)
+                .containsEntry("consecutiveFailures", 3));
     }
 
     @Test
@@ -173,10 +175,11 @@ class AiProviderFailoverTest {
 
         orchestrator.run(tenantId, "SUMMARIZE", "Text", "m", "v1", "h", null);
 
-        assertThat(orchestrator.circuitStates().getFirst())
+        assertThat(orchestrator.circuitStates()).anySatisfy(state -> assertThat(state)
                 .as("the failing provider has not failed enough times to be cut off")
+                .containsEntry("provider", "kaputt")
                 .containsEntry("consecutiveFailures", 1)
-                .containsEntry("circuitOpen", false);
+                .containsEntry("circuitOpen", false));
     }
 
     @Test
@@ -260,10 +263,9 @@ class AiProviderFailoverTest {
         jdbc.update("""
                 insert into system_settings (id, tenant_id, setting_key, category, value, value_type,
                                              description, requires_verification, version, is_active)
-                values (gen_random_uuid(), null, 'ai.external_enabled', 'AI', 'false'::jsonb, 'BOOLEAN',
+                values (gen_random_uuid(), ?, 'ai.external_enabled', 'AI', 'false'::jsonb, 'BOOLEAN',
                         '{"de":"Externe KI erlauben"}'::jsonb, false, 1, true)
-                on conflict do nothing
-                """);
+                """, tenantId);
         AiOrchestrator.Outcome disabled = orchestrator.run(tenantId, "SUMMARIZE", "Text", "m", "v1", "h",
                 null);
 

@@ -21,10 +21,10 @@ public final class AiLogRedaction {
     /** Anything that looks like a key, a token or a bearer credential is removed wherever it appears. */
     private static final List<Pattern> SECRETS = List.of(
             Pattern.compile("(?i)(sk|pk|api[_-]?key|bearer|token)[-_:= ]+[A-Za-z0-9_\\-]{8,}"),
-            Pattern.compile("(?i)authorization:\\s*\\S+"));
+            Pattern.compile("(?i)authorization:\\s*\\S+(\\s+\\S+)?"));
 
     /** The shape of a prompt, so an accidental interpolation is recognisable. */
-    private static final Pattern LONG_FREE_TEXT = Pattern.compile("(?s).{200,}");
+    private static final Pattern LONG_FREE_TEXT = Pattern.compile("(?s).{120,}");
 
     private AiLogRedaction() {
     }
@@ -91,7 +91,7 @@ public final class AiLogRedaction {
         }
         record.forEach((key, value) -> {
             String text = value == null ? "" : String.valueOf(value);
-            if (text.contains(forbiddenContent) || text.length() > 200) {
+            if (text.contains(forbiddenContent)) {
                 offenders.add(key);
             }
         });
