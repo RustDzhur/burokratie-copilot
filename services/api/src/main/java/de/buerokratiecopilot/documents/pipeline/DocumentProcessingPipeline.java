@@ -67,12 +67,14 @@ public class DocumentProcessingPipeline {
     private final DocumentProcessingStepRepository steps;
     private final AuditService auditService;
     private final OutboxWriter outbox;
+    private final de.buerokratiecopilot.documents.review.ReviewService reviews;
     private final Map<DocumentProcessingStep.Step, ProcessingStepHandler> handlers =
             new EnumMap<>(DocumentProcessingStep.Step.class);
 
     public DocumentProcessingPipeline(DocumentRepository documents, DocumentVersionRepository versions,
                                       DocumentBlobRepository blobs, DocumentProcessingStepRepository steps,
                                       AuditService auditService, OutboxWriter outbox,
+                                      de.buerokratiecopilot.documents.review.ReviewService reviews,
                                       List<ProcessingStepHandler> stepHandlers) {
         this.documents = documents;
         this.versions = versions;
@@ -80,6 +82,7 @@ public class DocumentProcessingPipeline {
         this.steps = steps;
         this.auditService = auditService;
         this.outbox = outbox;
+        this.reviews = reviews;
         for (ProcessingStepHandler handler : stepHandlers) {
             ProcessingStepHandler previous = handlers.put(handler.step(), handler);
             if (previous != null) {
@@ -168,12 +171,13 @@ public class DocumentProcessingPipeline {
             if (result.nextStatus() != null && result.nextStatus() != document.getProcessingStatus()) {
                 DocumentStatusMachine.requireTransition(document.getProcessingStatus(), result.nextStatus());
                 document.setProcessingStatus(result.nextStatus());
-                if (result.nextStatus() == Document.ProcessingStatus.REVIEW_REQUIRED
-                        && document.getReviewStatus() == Document.ReviewStatus.NOT_REQUIRED) {
-                    // A document waiting for a human must also say so in its review state, otherwise
-                    // the review centre - which queries by that field - would never list it and the
-                    // document would silently wait forever.
+                if (result.nextStatus() == Document.ProcessingStatus.REVIEW_REQUIRED) {
+                    // A document waiting for a human must also say so in its review state and appear
+                    // in the review centre, otherwise it would wait forever without anyone knowing
+                    // what for. The reason travels with the entry: a queue a person cannot act on is
+                    // just a backlog.
                     document.setReviewStatus(Document.ReviewStatus.PENDING);
+                    reviews.raise(document, version, reviewTypeFor(step), describe(step, result), null);
                 }
                 documents.save(document);
             }
@@ -200,6 +204,33 @@ public class DocumentProcessingPipeline {
                 document.getTenantId(), Map.of("status", document.getProcessingStatus().name())));
 
         return new AdvanceResult(documentId, null, null, document.getProcessingStatus(), executed);
+    }
+
+    /** Which kind of question a stage leaves for a person. */
+    private static de.buerokratiecopilot.documents.domain.DocumentReview.ReviewType reviewTypeFor(
+            DocumentProcessingStep.Step step) {
+        return switch (step) {
+            case CLASSIFY -> de.buerokratiecopilot.documents.domain.DocumentReview.ReviewType.CLASSIFICATION;
+            case FIELD_EXTRACT, TEXT_EXTRACT, OCR ->
+                    de.buerokratiecopilot.documents.domain.DocumentReview.ReviewType.EXTRACTION;
+            case MATCHING -> de.buerokratiecopilot.documents.domain.DocumentReview.ReviewType.MATCHING;
+            case SECURITY_SCAN -> de.buerokratiecopilot.documents.domain.DocumentReview.ReviewType.SECURITY;
+            case DUPLICATE_CHECK -> de.buerokratiecopilot.documents.domain.DocumentReview.ReviewType.DUPLICATE;
+            default -> de.buerokratiecopilot.documents.domain.DocumentReview.ReviewType.COMPLETENESS;
+        };
+    }
+
+    /** The reason shown in the queue: the step's own words, or its rationale. */
+    private static String describe(DocumentProcessingStep.Step step,
+                                   ProcessingStepHandler.StepResult result) {
+        if (result.reason() != null && !result.reason().isBlank()) {
+            return result.reason();
+        }
+        Object rationale = result.diagnostics() == null ? null : result.diagnostics().get("rationale");
+        if (rationale != null) {
+            return String.valueOf(rationale);
+        }
+        return "The stage " + step + " needs a human decision";
     }
 
     /**

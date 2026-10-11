@@ -36,8 +36,12 @@ public final class DocumentStatusMachine {
                 Document.ProcessingStatus.FAILED);
         allow(Document.ProcessingStatus.MATCHING, Document.ProcessingStatus.READY,
                 Document.ProcessingStatus.REVIEW_REQUIRED, Document.ProcessingStatus.FAILED);
+        // A reviewed document resumes processing, so the statuses the remaining stages produce must
+        // be reachable from here. Without them an approved review would leave the document stuck in
+        // exactly the state the reviewer just cleared.
         allow(Document.ProcessingStatus.REVIEW_REQUIRED, Document.ProcessingStatus.READY,
-                Document.ProcessingStatus.MATCHING, Document.ProcessingStatus.FAILED,
+                Document.ProcessingStatus.MATCHING, Document.ProcessingStatus.CLASSIFYING,
+                Document.ProcessingStatus.EXTRACTING, Document.ProcessingStatus.FAILED,
                 Document.ProcessingStatus.CANCELLED);
         allow(Document.ProcessingStatus.READY, Document.ProcessingStatus.ACTION_PENDING,
                 Document.ProcessingStatus.COMPLETED, Document.ProcessingStatus.REVIEW_REQUIRED,
