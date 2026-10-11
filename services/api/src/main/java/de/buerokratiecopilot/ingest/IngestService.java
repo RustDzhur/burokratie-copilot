@@ -190,6 +190,21 @@ public class IngestService {
             throw ApiException.conflict("Dieser Idempotenzschlüssel wird gerade verarbeitet");
         }
 
+        List<Map<String, Object>> sameContent = jdbc.queryForList("""
+                select id, original_filename from documents
+                where tenant_id = ? and content_hash = ? and deleted_at is null
+                order by created_at limit 1
+                """, caller.tenantId(), contentHash);
+        if (!sameContent.isEmpty()) {
+            // Reported rather than refused: a second copy of one invoice is a second payment waiting to
+            // happen, and the caller has to be told which document it already has.
+            UUID existingId = (UUID) sameContent.getFirst().get("id");
+            recordIngest(caller.tenantId(), idempotencyKey, contentHash, existingId);
+            return new Ingested(existingId, true,
+                    "Dieser Inhalt ist bereits als Dokument vorhanden; es wird zurückgegeben statt ein "
+                            + "zweites anzulegen");
+        }
+
         jdbc.update("""
                 insert into idempotency_records (id, tenant_id, idempotency_key, request_method,
                                                  request_path, request_hash, status, expires_at)
@@ -244,6 +259,18 @@ public class IngestService {
     }
 
     /** 401: the caller did not show that it may send anything. */
+    /** Records a completed ingestion so a repeat with the same key is answered the same way. */
+    private void recordIngest(UUID tenantId, String idempotencyKey, String contentHash, UUID documentId) {
+        jdbc.update("""
+                insert into idempotency_records (id, tenant_id, idempotency_key, request_method,
+                                                 request_path, request_hash, status, resource_id,
+                                                 completed_at, expires_at)
+                values (gen_random_uuid(), ?, ?, 'POST', '/api/v1/documents:ingest', ?, 'COMPLETED', ?,
+                        now(), now() + interval '24 hours')
+                on conflict do nothing
+                """, tenantId, idempotencyKey, contentHash, documentId);
+    }
+
     private static ApiException unauthorized(String message) {
         return new ApiException(ErrorCode.UNAUTHENTICATED, message);
     }
