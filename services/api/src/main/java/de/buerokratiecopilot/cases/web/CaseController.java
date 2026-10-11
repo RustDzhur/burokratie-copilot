@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import de.buerokratiecopilot.cases.CaseDocumentRepository;
+import de.buerokratiecopilot.cases.CaseLifecycleService;
 import de.buerokratiecopilot.cases.CaseService;
 import de.buerokratiecopilot.cases.domain.Case;
 import de.buerokratiecopilot.cases.domain.CaseEvent;
@@ -44,9 +45,11 @@ import de.buerokratiecopilot.shared.context.RequestContext;
 public class CaseController {
 
     private final CaseService cases;
+    private final CaseLifecycleService lifecycle;
 
-    public CaseController(CaseService cases) {
+    public CaseController(CaseService cases, CaseLifecycleService lifecycle) {
         this.cases = cases;
+        this.lifecycle = lifecycle;
     }
 
     /** What a client submits to open a case. */
@@ -218,6 +221,61 @@ public class CaseController {
     public ResponseEntity<Void> revokeParticipant(@PathVariable UUID id, @PathVariable UUID participantId) {
         cases.revokeParticipant(id, participantId, CurrentUser.required(), hasPermission("cases.assign"));
         return ResponseEntity.noContent().build();
+    }
+
+    /** What a client submits to move a case along. */
+    public record ChangeStatusRequest(String status, String reason, String closeReason, String outcome,
+                                      String note, boolean acknowledgeOpenWork) {
+    }
+
+    public record ObligationResponse(String kind, String description) {
+    }
+
+    public record LifecycleResponse(CaseResponse caseRecord, List<String> possibleTargets,
+                                    List<ObligationResponse> openObligations) {
+    }
+
+    @PostMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('cases.edit')")
+    @Operation(summary = "Move a case along its lifecycle; closing with open work needs a reason")
+    public ResponseEntity<LifecycleResponse> changeStatus(@PathVariable UUID id,
+                                                          @RequestBody ChangeStatusRequest request) {
+        UUID userId = CurrentUser.required();
+        boolean seeAll = hasPermission("cases.assign");
+
+        Case updated = lifecycle.changeStatus(id,
+                new CaseLifecycleService.TransitionRequest(
+                        request.status() == null ? null : Case.Status.valueOf(request.status()),
+                        request.reason(),
+                        CaseLifecycleService.parseCloseReason(request.closeReason()),
+                        request.outcome(), request.note(), request.acknowledgeOpenWork()),
+                userId, seeAll);
+
+        return ResponseEntity.ok(new LifecycleResponse(
+                CaseResponse.from(updated, null, null, 0, "FULL"),
+                lifecycle.possibleTargets(id, userId, seeAll).stream().map(Enum::name).toList(),
+                lifecycle.obligationsOf(updated).open().stream()
+                        .map(obligation -> new ObligationResponse(obligation.kind(),
+                                obligation.description()))
+                        .toList()));
+    }
+
+    @GetMapping("/{id}/lifecycle")
+    @PreAuthorize("hasAuthority('cases.view')")
+    @Operation(summary = "Where a case can go from here, and what is still open")
+    public ResponseEntity<LifecycleResponse> lifecycle(@PathVariable UUID id) {
+        UUID userId = CurrentUser.required();
+        boolean seeAll = hasPermission("cases.assign");
+        CaseService.Detail detail = cases.detail(id, userId, seeAll);
+
+        return ResponseEntity.ok(new LifecycleResponse(
+                CaseResponse.from(detail.caseRecord(), null, null, detail.documents().size(),
+                        detail.accessLevel().name()),
+                lifecycle.possibleTargets(id, userId, seeAll).stream().map(Enum::name).toList(),
+                lifecycle.obligationsOf(detail.caseRecord()).open().stream()
+                        .map(obligation -> new ObligationResponse(obligation.kind(),
+                                obligation.description()))
+                        .toList()));
     }
 
     @GetMapping("/statistics")
