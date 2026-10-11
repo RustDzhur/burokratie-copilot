@@ -23,6 +23,12 @@
 # ---------------------------------------------------------------------------
 FROM node:22-alpine AS build
 
+# The lockfile is v9.0; installing with "pnpm@latest" resolved to pnpm 12 in CI and
+# `pnpm install --frozen-lockfile` failed against a lockfile of a different major. The version is
+# pinned and kept in sync with the "packageManager" field of apps/web/package.json - a floating
+# tool version is incompatible with the reproducible build required by spec §30.
+ARG PNPM_VERSION=9.15.0
+
 ARG BUILD_REVISION=unknown
 ARG BUILD_CREATED=unknown
 # NEXT_PUBLIC_* variables are INLINED into the client bundle at build time, so
@@ -39,7 +45,7 @@ ENV NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL}" \
 RUN set -eux; \
     apk add --no-cache libc6-compat; \
     corepack enable; \
-    corepack prepare pnpm@latest --activate
+    corepack prepare pnpm@${PNPM_VERSION} --activate
 
 WORKDIR /app
 
