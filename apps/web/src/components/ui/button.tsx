@@ -5,32 +5,13 @@ import { Icon, type IconName } from '@/components/icons';
 import { Spinner } from './feedback';
 import styles from './button.module.css';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'neon';
-export type ButtonSize = 'sm' | 'md' | 'lg';
+// Imported for use here, and re-exported so that existing imports keep working. The definition lives in a
+// module without 'use client': a server component cannot call a function that crosses that boundary.
+import { buttonClass } from './button-class';
+import type { ButtonClassOptions, ButtonSize, ButtonVariant } from './button-class';
 
-export interface ButtonClassOptions {
-  readonly variant?: ButtonVariant;
-  readonly size?: ButtonSize;
-  readonly fullWidth?: boolean;
-  readonly loading?: boolean;
-}
-
-/**
- * Class factory for elements that must look like a button but are not one
- * (links, file inputs). Keeps the visual language in one place.
- */
-export function buttonClass(options: ButtonClassOptions = {}): string {
-  const { variant = 'secondary', size = 'md', fullWidth = false, loading = false } = options;
-  return [
-    styles.button,
-    styles[`variant-${variant}`],
-    styles[`size-${size}`],
-    fullWidth ? styles.fullWidth : '',
-    loading ? styles.loading : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-}
+export { buttonClass };
+export type { ButtonClassOptions, ButtonSize, ButtonVariant };
 
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   readonly children?: ReactNode;
