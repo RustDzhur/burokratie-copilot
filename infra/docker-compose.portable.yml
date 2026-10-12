@@ -1,0 +1,30 @@
+# Portable layout: EVERYTHING the installation owns lives under one directory, so the directory can be archived
+# and moved to another server (scripts/portable.sh pack / restore).
+#
+#   <root>/data/postgres   the database
+#   <root>/data/app        uploaded documents (local file storage) and scratch space, shared by api and worker
+#   <root>/infra/.env      configuration and secrets (chmod 600)
+#
+# No named Docker volumes are used, so nothing is hidden under /var/lib/docker. The S3/MinIO services are
+# switched off (profile `s3`); documents are stored on the local file system (BC_STORAGE_TYPE=local-fs).
+# BC_DATA_DIR is set by scripts/portable.sh to <root>/data.
+services:
+  postgres:
+    volumes: !override
+      - ${BC_DATA_DIR:?run through scripts/portable.sh}/postgres:/var/lib/postgresql/data
+  minio:
+    profiles: ["s3"]
+  minio-init:
+    profiles: ["s3"]
+  api:
+    depends_on: !override
+      postgres:
+        condition: service_healthy
+    volumes: !override
+      - ${BC_DATA_DIR}/app:/app/data
+  worker:
+    depends_on: !override
+      postgres:
+        condition: service_healthy
+    volumes: !override
+      - ${BC_DATA_DIR}/app:/app/data

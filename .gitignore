@@ -53,3 +53,5 @@ logs/
 **/build/reports/
 test-results/
 playwright-report/
+data/
+images/

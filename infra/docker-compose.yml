@@ -155,7 +155,8 @@ services:
   # MinIO — S3-compatible object storage for blobs (spec §2.1, §30)
   # ---------------------------------------------------------------------------
   minio:
-    image: minio/minio:latest
+    # The upstream minio/* images on Docker Hub are no longer published: point these at an image you build or mirror.
+    image: ${BC_MINIO_IMAGE:-minio/minio:latest}
     container_name: bc-minio
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
@@ -189,7 +190,7 @@ services:
   # application does NOT create buckets itself, so api/worker wait for this job
   # to complete successfully.
   minio-init:
-    image: minio/mc:latest
+    image: ${BC_MINIO_MC_IMAGE:-minio/mc:latest}
     container_name: bc-minio-init
     restart: "no"
     depends_on:
