@@ -32,4 +32,9 @@ regexes = [
   '''api_key=sk-abcdef1234567890''',
   '''eyJhbGciOiJIUzI1NiJ9payload''',
   '''Basic dXNlcjpwYXNz''',
+  # One commit of MailControllerIT held a mailbox password written as a literal. It was never a mailbox
+  # and the address is example.de, but a file with a password in it is a finding the next reader cannot
+  # tell from a real one - so the literal was removed from the working tree and replaced by a value built
+  # at runtime, and only the history is covered here.
+  '''streng-geheim-2026''',
 ]
