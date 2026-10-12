@@ -104,11 +104,20 @@ LABEL org.opencontainers.image.title="burokratie-copilot-api" \
       org.opencontainers.image.licenses="Proprietary"
 
 # curl is required by the HEALTHCHECK; dumb-init makes PID 1 forward signals to
-# the JVM and reap zombies. Both are removed from the layer cache afterwards.
+# the JVM and reap zombies.
+# tesseract (German + English) reads scans and photographs; clamscan checks every upload before it is
+# processed. Without them the platform would run with OCR and virus scanning silently off (the application
+# also refuses to start in production without them, see ProductionConfigurationGuard).
+# freshclam downloads the signature database into the image: a build that cannot fetch it fails, because an
+# image whose scanner has no signatures would report every file as clean.
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends curl dumb-init; \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends curl dumb-init tesseract-ocr tesseract-ocr-deu tesseract-ocr-eng \
+        clamav clamav-freshclam; \
+    rm -rf /var/lib/apt/lists/*; \
+    freshclam --quiet; \
+    chmod -R a+rX /var/lib/clamav; \
+    tesseract --version; clamscan --version
 
 # Fixed, non-privileged UID/GID so that volume permissions are predictable and
 # an operator can `chown 10001:10001` a bind mount (spec §21).
@@ -124,7 +133,7 @@ WORKDIR /app
 # (BC_STORAGE_PATH), heap dumps and any scratch files. It is mounted as a volume
 # or tmpfs; the container root filesystem can therefore stay read-only.
 RUN set -eux; \
-    mkdir -p /app/data/blobs /app/data/dumps; \
+    mkdir -p /app/data/blobs /app/data/dumps /app/data/scan-spool; \
     chown -R app:app /app
 
 COPY --from=build --chown=app:app /build/app.jar /app/app.jar

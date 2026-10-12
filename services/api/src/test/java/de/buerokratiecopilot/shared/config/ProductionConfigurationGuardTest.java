@@ -64,4 +64,36 @@ class ProductionConfigurationGuardTest {
 
         assertThatCode(() -> guard.onApplicationEvent(null)).doesNotThrowAnyException();
     }
+
+    private static final String KEY = "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=";
+
+    @Test
+    @DisplayName("production refuses to start without a malware scanner or OCR unless the operator accepts it")
+    void productionRequiresScannerAndOcr() {
+        var environment = new MockEnvironment();
+        environment.setActiveProfiles("prod");
+        var guard = new ProductionConfigurationGuard(environment, properties(KEY, true));
+
+        assertThatThrownBy(() -> guard.onApplicationEvent(null))
+                .hasMessageContaining("BC_MALWARE_SCANNER")
+                .hasMessageContaining("BC_OCR_ENABLED");
+    }
+
+    @Test
+    @DisplayName("a configured scanner and OCR let production start; an explicit override also does")
+    void scannerAndOcrConfiguredOrAccepted() {
+        BurokratieProperties configured = properties(KEY, true);
+        configured.getSecurity().getMalwareScanner().setType("clamav-cli");
+        configured.getOcr().setEnabled(true);
+        var prod = new MockEnvironment();
+        prod.setActiveProfiles("prod");
+        assertThatCode(() -> new ProductionConfigurationGuard(prod, configured).onApplicationEvent(null))
+                .doesNotThrowAnyException();
+
+        var accepted = new MockEnvironment().withProperty("BC_ALLOW_UNSCANNED", "true")
+                .withProperty("BC_ALLOW_NO_OCR", "true");
+        accepted.setActiveProfiles("prod");
+        assertThatCode(() -> new ProductionConfigurationGuard(accepted, properties(KEY, true))
+                .onApplicationEvent(null)).doesNotThrowAnyException();
+    }
 }

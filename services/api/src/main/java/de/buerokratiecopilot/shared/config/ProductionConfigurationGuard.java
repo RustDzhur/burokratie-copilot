@@ -79,6 +79,20 @@ public class ProductionConfigurationGuard implements ApplicationListener<Applica
             problems.add("Object storage type is 's3' but no credentials are configured");
         }
 
+        // Files are checked before they are processed and scans are read (spec §34). The defaults switch both
+        // off, so a production start that never set them would run without either and say nothing. The operator
+        // can accept that explicitly (BC_ALLOW_UNSCANNED / BC_ALLOW_NO_OCR) - what is not allowed is not choosing.
+        if ("none".equalsIgnoreCase(properties.getSecurity().getMalwareScanner().getType())
+                && !environment.getProperty("BC_ALLOW_UNSCANNED", Boolean.class, false)) {
+            problems.add("No malware scanner is configured (BC_MALWARE_SCANNER=none): uploaded files would "
+                    + "be processed unchecked. Set BC_MALWARE_SCANNER=clamav-cli, or BC_ALLOW_UNSCANNED=true "
+                    + "to accept the risk knowingly");
+        }
+        if (!properties.getOcr().isEnabled() && !environment.getProperty("BC_ALLOW_NO_OCR", Boolean.class, false)) {
+            problems.add("OCR is switched off (BC_OCR_ENABLED=false): scans and photographs would not be "
+                    + "read. Set BC_OCR_ENABLED=true, or BC_ALLOW_NO_OCR=true to accept that knowingly");
+        }
+
         boolean production = environment.matchesProfiles("prod");
         if (production && !problems.isEmpty()) {
             throw new IllegalStateException("Refusing to start in production with an incomplete "
