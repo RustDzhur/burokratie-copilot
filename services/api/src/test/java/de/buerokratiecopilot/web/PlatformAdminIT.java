@@ -37,13 +37,19 @@ import de.buerokratiecopilot.shared.context.RequestContext;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@org.springframework.test.context.TestPropertySource(properties = {
-        "bc.test.context=platform-admin", "burokratie.platform-admins=boss-it@example.de"})
+@org.springframework.test.context.TestPropertySource(properties = "bc.test.context=platform-admin")
 @org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class PlatformAdminIT {
 
     private static final String PASSWORD = "EinSicheresPasswort-2026!";
+    /** A new address every run: the test database keeps its users between runs. */
+    private static final String BOSS = "boss-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de";
+
+    @org.springframework.test.context.DynamicPropertySource
+    static void platformAdmin(org.springframework.test.context.DynamicPropertyRegistry registry) {
+        registry.add("burokratie.platform-admins", () -> BOSS);
+    }
 
     @Autowired
     private MockMvc mvc;
@@ -81,11 +87,11 @@ class PlatformAdminIT {
     @DisplayName("the listed, verified address is a platform administrator and sees every customer")
     void adminSeesEverything() throws Exception {
         xsrf = mvc.perform(get("/api/v1/auth/csrf")).andReturn().getResponse().getCookie("XSRF-TOKEN");
-        register("boss-it@example.de", true);
+        register(BOSS, true);
         customerTenant = register("customer-it-" + UUID.randomUUID().toString().substring(0, 6) + "@example.de", true);
         session = mvc.perform(post("/api/v1/auth/login").cookie(xsrf).header("X-XSRF-TOKEN", xsrf.getValue())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"boss-it@example.de\",\"password\":\"%s\"}".formatted(PASSWORD)))
+                        .content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(BOSS, PASSWORD)))
                 .andExpect(status().isOk()).andReturn().getResponse().getCookie("bc_session");
 
         mvc.perform(authed(get("/api/v1/auth/me"))).andExpect(status().isOk())
