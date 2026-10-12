@@ -168,13 +168,13 @@ class RagCitationTest {
     void extractedFieldCanBeCited() {
         UUID tenantId = tenant();
         UUID documentId = document(tenantId, "rechnung.pdf", "Rechnung Nr. 4711 über 119,00 EUR.");
-        jdbc.update("""
+        RequestContext.runAs(tenantId, () -> jdbc.update("""
                 insert into document_extractions (id, document_id, field_key, field_value, value_type,
                                                   confidence, source_kind, source_page, source_snippet,
                                                   extractor)
                 values (gen_random_uuid(), ?, 'invoice_number', '4711', 'TEXT', 0.95, 'TEXT', 1,
                         'Rechnung Nr. 4711 über 119,00 EUR.', 'RULE')
-                """, documentId);
+                """, documentId));
 
         RagService.Answer answer = ask(tenantId, "Rechnung 4711",
                 List.of(new Citation(documentId, 1, "invoice_number", "Die Rechnungsnummer ist 4711")));
@@ -212,13 +212,13 @@ class RagCitationTest {
     void fieldKeyIsChecked() {
         UUID tenantId = tenant();
         UUID documentId = document(tenantId, "rechnung.pdf", "Rechnung Nr. 4711.");
-        jdbc.update("""
+        RequestContext.runAs(tenantId, () -> jdbc.update("""
                 insert into document_extractions (id, document_id, field_key, field_value, value_type,
                                                   confidence, source_kind, source_page, source_snippet,
                                                   extractor)
                 values (gen_random_uuid(), ?, 'invoice_number', '4711', 'TEXT', 0.95, 'TEXT', 1,
                         'Rechnung Nr. 4711.', 'RULE')
-                """, documentId);
+                """, documentId));
 
         // A field the extraction does not have is not a source, even for a document that was found.
         RagService.Answer answer = ask(tenantId, "Rechnung 4711",

@@ -122,8 +122,13 @@ class FieldExtractionIT {
     }
 
     private DocumentExtraction field(UUID documentId, String key) {
-        return extractions.findByDocumentIdAndFieldKey(documentId, key).orElseThrow(
-                () -> new AssertionError("The field " + key + " was not extracted"));
+        // The extraction rows are protected by a row-level security policy that reaches the tenant through
+        // the document, so a read without a tenant context sees nothing - which is the point of the policy
+        // and is why this helper establishes one, as the application does.
+        UUID tenant = documents.findById(documentId).orElseThrow().getTenantId();
+        return RequestContext.runAs(tenant,
+                        () -> extractions.findByDocumentIdAndFieldKey(documentId, key))
+                .orElseThrow(() -> new AssertionError("The field " + key + " was not extracted"));
     }
 
     @Test

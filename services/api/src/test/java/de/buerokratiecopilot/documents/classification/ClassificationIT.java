@@ -128,7 +128,10 @@ class ClassificationIT {
         assertThat(types.findById(stored.getDocumentTypeId()).orElseThrow().getCode())
                 .isEqualTo("rechnung");
 
-        var classification = classifications.findByDocumentIdAndCurrentTrue(id).orElseThrow();
+        // The classifications are protected the same way: without a tenant context the read sees nothing.
+        UUID tenantOfDocument = documents.findById(id).orElseThrow().getTenantId();
+        var classification = RequestContext.runAs(tenantOfDocument,
+                () -> classifications.findByDocumentIdAndCurrentTrue(id)).orElseThrow();
         assertThat(classification.getMethod()).isEqualTo("RULE");
         assertThat(classification.getConfidence().doubleValue()).isGreaterThanOrEqualTo(0.85);
         assertThat(classification.getRationale()).contains("rechnungsnummer");

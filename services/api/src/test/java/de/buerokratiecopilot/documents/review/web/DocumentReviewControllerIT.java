@@ -35,14 +35,11 @@ import de.buerokratiecopilot.shared.context.RequestContext;
  * alike</strong> — a figure somebody is asked to confirm has to be checkable against the letter, and one that
  * is not is a figure they must take on trust.</p>
  *
- * <p><strong>What this does not cover, named rather than implied.</strong> Both a classification and an
- * extracted value hang off a document <em>version</em>: document_versions carries a blob_id pointing at a
- * stored blob, and document_extractions.version_id is NOT NULL. Building that fixture is a larger job than
- * this round could verify, so what is asserted here is the empty case and the isolation, not the populated
- * one. <strong>Specifically not covered: that a value is served with its page and sentence, that a value
- * without a source is marked unverifiable, and that another account's extraction rows are invisible.</strong>
- * The routes themselves are exercised; the assertions about their contents are not, and no claim is made that
- * they are.</p>
+ * <p><strong>The schema enforces provenance, and that shaped these tests.</strong>
+ * {@code document_extractions_provenance_chk} requires an extraction to carry a snippet unless it was entered
+ * by a person or linked to an object. A value nobody can check against the letter is therefore only ever a
+ * MANUAL one, and the assertion that a value is marked unverifiable uses that case rather than inventing one
+ * the database would reject.</p>
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -93,6 +90,65 @@ class DocumentReviewControllerIT {
         return new Session(login.getResponse().getCookie("bc_session"), tenantId, userId);
     }
 
+    /**
+     * A document with one stored version.
+     *
+     * <p>A version needs a blob — {@code document_versions.blob_id} is a foreign key to
+     * {@code document_blobs} — and both a classification and an extracted value hang off the version, which
+     * is why neither could be exercised before this fixture existed.</p>
+     */
+    private UUID versionedDocument(Session session) {
+        UUID documentId = documentFor(session);
+        UUID blobId = jdbc.queryForObject("""
+                insert into document_blobs (id, tenant_id, storage_key, size_bytes, content_hash,
+                                            content_type, scan_status, quarantined)
+                values (gen_random_uuid(), ?, ?, 10, ?, 'application/pdf', 'CLEAN', false)
+                returning id
+                """, UUID.class, session.tenantId(),
+                "tenants/" + session.tenantId() + "/" + UUID.randomUUID() + ".pdf",
+                "%064x".formatted(java.util.concurrent.ThreadLocalRandom.current().nextLong()));
+        jdbc.update("""
+                insert into document_versions (id, document_id, tenant_id, version, blob_id, content_hash,
+                                               size_bytes, mime_type, original_filename, created_by)
+                values (gen_random_uuid(), ?, ?, 1, ?, ?, 10, 'application/pdf', 'akte.pdf', ?)
+                """, documentId, session.tenantId(), blobId,
+                "%064x".formatted(java.util.concurrent.ThreadLocalRandom.current().nextLong()),
+                session.userId());
+        return documentId;
+    }
+
+    private void classificationRow(Session session, UUID documentId, String method, boolean current,
+                                   String confidence) {
+        RequestContext.runAs(session.tenantId(), () -> jdbc.update("""
+                insert into document_classifications (id, document_id, version_id, document_type_id,
+                                                      confidence, method, rationale, is_current, created_by)
+                select gen_random_uuid(), ?, v.id, dt.id, ?::numeric, ?, ?, ?, ?
+                  from document_versions v, document_types dt
+                 where v.document_id = ? and dt.code = 'rechnung'
+                 limit 1
+                """, documentId, confidence, method, "Weil der Absender bekannt ist", current,
+                session.userId(), documentId));
+    }
+
+    /**
+     * An extracted value. The provenance check in the schema decides what is allowed here: an extraction must
+     * carry a snippet, unless a person entered it or it is linked to an object. That means a value with no
+     * source can only be a MANUAL one — which is exactly the semantics, and the reason the assertion below
+     * uses that case.
+     */
+    private void extractionRow(UUID documentId, String key, String value, String extractor,
+                               String sourceKind, Integer page, String snippet, java.util.UUID tenantId) {
+        RequestContext.runAs(tenantId, () -> jdbc.update("""
+                insert into document_extractions (id, document_id, version_id, field_key, field_value,
+                                                  normalized_value, value_type, confidence, source_kind,
+                                                  source_page, source_snippet, extractor)
+                select gen_random_uuid(), ?, v.id, ?, ?, ?, 'MONEY', 0.900, ?, ?, ?, ?
+                  from document_versions v
+                 where v.document_id = ?
+                 limit 1
+                """, documentId, key, value, value, sourceKind, page, snippet, extractor, documentId));
+    }
+
     private UUID documentFor(Session session) {
         return jdbc.queryForObject("""
                 insert into documents (id, tenant_id, original_filename, internal_name, mime_type,
@@ -102,6 +158,80 @@ class DocumentReviewControllerIT {
                 returning id
                 """, UUID.class, session.tenantId(),
                 "%064x".formatted(java.util.concurrent.ThreadLocalRandom.current().nextLong()));
+    }
+
+    // ---------------------------------------------------------------- with a stored version
+
+    @Test
+    @DisplayName("a value is served with the page and sentence it came from")
+    void aValueIsServedWithItsSource() throws Exception {
+        Session session = register();
+        UUID documentId = versionedDocument(session);
+        extractionRow(documentId, "betrag", "119,00", "RULE", "TEXT", 3,
+                "Der Betrag beläuft sich auf 119,00 Euro.", session.tenantId());
+
+        mockMvc.perform(get("/api/v1/documents/{id}/fields", documentId).cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fields[0].fieldKey").value("betrag"))
+                .andExpect(jsonPath("$.fields[0].rawValue").value("119,00"))
+                .andExpect(jsonPath("$.fields[0].sourcePage").value(3))
+                .andExpect(jsonPath("$.fields[0].sourceSnippet").isNotEmpty())
+                .andExpect(jsonPath("$.fields[0].verifiable").value(true))
+                .andExpect(jsonPath("$.unverifiableCount").value(0));
+    }
+
+    @Test
+    @DisplayName("a value a person entered has no page to point at, and is marked as such")
+    void aManualValueIsMarkedUnverifiable() throws Exception {
+        Session session = register();
+        UUID documentId = versionedDocument(session);
+        // The schema's provenance check enforces this shape: only a MANUAL extraction or a linked object may
+        // omit the snippet. A value nobody can check against the letter is one somebody must trust, and the
+        // answer says which of the two it is rather than presenting them alike.
+        extractionRow(documentId, "aktenzeichen", "AZ-1", "MANUAL", "MANUAL", null, null,
+                session.tenantId());
+
+        mockMvc.perform(get("/api/v1/documents/{id}/fields", documentId).cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fields[0].verifiable").value(false))
+                .andExpect(jsonPath("$.unverifiableCount").value(1));
+    }
+
+    @Test
+    @DisplayName("another account sees nothing of the first account's document")
+    void anotherAccountSeesNothing() throws Exception {
+        Session first = register();
+        Session second = register();
+        UUID documentId = versionedDocument(first);
+        extractionRow(documentId, "betrag", "119,00", "RULE", "TEXT", 1,
+                "Der Betrag beläuft sich auf 119,00 Euro.", first.tenantId());
+
+        mockMvc.perform(get("/api/v1/documents/{id}/fields", documentId).cookie(first.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fields[0].rawValue").value("119,00"));
+
+        MvcResult foreign = mockMvc.perform(get("/api/v1/documents/{id}/fields", documentId)
+                        .cookie(second.cookie()))
+                .andExpect(status().isOk())
+                .andReturn();
+        org.assertj.core.api.Assertions.assertThat(foreign.getResponse().getContentAsString())
+                .as("nothing of the first account's document may appear in the second's answer")
+                .doesNotContain("119,00");
+    }
+
+    @Test
+    @DisplayName("the history says which entry counts, as a property of the row and not of its place")
+    void theHistorySaysWhichEntryCounts() throws Exception {
+        Session session = register();
+        UUID documentId = versionedDocument(session);
+        classificationRow(session, documentId, "RULE", false, "0.42");
+        classificationRow(session, documentId, "MANUAL", true, "1.00");
+
+        mockMvc.perform(get("/api/v1/documents/{id}/classifications", documentId)
+                        .cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[?(@.current == true)].rationale").isNotEmpty());
     }
 
     @Test
