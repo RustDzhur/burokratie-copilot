@@ -281,6 +281,126 @@ class MailControllerIT {
                 .andExpect(jsonPath("$.isReplyToIncoming").isBoolean());
     }
 
+    @Test
+    @DisplayName("a draft is refused, then approved, and only then handed over")
+    void theLoopRunsInThatOrder() throws Exception {
+        Session session = register();
+        MvcResult drafted = mockMvc.perform(post("/api/v1/mail/messages").with(csrf())
+                        .cookie(session.cookie())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"channel":"EMAIL","subject":"Widerspruch","bodyText":"Text",
+                                 "toAddresses":["behoerde@example.de"],"idempotencyKey":"kreislauf-1"}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        UUID messageId = UUID.fromString(JsonPath.read(
+                drafted.getResponse().getContentAsString(), "$.messageId"));
+
+        // The order is the point: an objection does not leave the house because somebody wrote it.
+        mockMvc.perform(post("/api/v1/mail/messages/{id}/send", messageId).with(csrf())
+                        .cookie(session.cookie()))
+                .andExpect(status().isConflict());
+
+        mockMvc.perform(post("/api/v1/mail/messages/{id}/approve", messageId).with(csrf())
+                        .cookie(session.cookie())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.approvedBy").value(session.userId().toString()))
+                .andExpect(jsonPath("$.note").isNotEmpty());
+
+        // The release is what changes the answer: before it the refusal says the letter was not approved,
+        // after it the handover is attempted. There is no SMTP server here, so the attempt fails - and that
+        // failure is REPORTED rather than shown as success, which is the property worth asserting. A route
+        // that answered 200 whenever it had tried would be one that showed a letter as sent when it was not.
+        MvcResult handedOver = mockMvc.perform(post("/api/v1/mail/messages/{id}/send", messageId)
+                        .with(csrf())
+                        .cookie(session.cookie()))
+                .andReturn();
+
+        org.assertj.core.api.Assertions.assertThat(handedOver.getResponse().getStatus())
+                .as("with no mail server the handover must not answer success")
+                .isNotEqualTo(200);
+        org.assertj.core.api.Assertions.assertThat(
+                        jdbc.queryForObject("""
+                                select status from outbound_messages where id = ?
+                                """, String.class, messageId))
+                .as("the row records what actually happened to the letter")
+                .isIn("FAILED", "DRAFT", "APPROVED");
+    }
+
+    @Test
+    @DisplayName("the approver comes from the session and cannot be named in the body")
+    void theApproverComesFromTheSession() throws Exception {
+        Session session = register();
+        MvcResult drafted = mockMvc.perform(post("/api/v1/mail/messages").with(csrf())
+                        .cookie(session.cookie())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"channel":"EMAIL","subject":"Widerspruch","bodyText":"Text",
+                                 "toAddresses":["behoerde@example.de"],"idempotencyKey":"freigabe-1"}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        UUID messageId = UUID.fromString(JsonPath.read(
+                drafted.getResponse().getContentAsString(), "$.messageId"));
+        UUID somebodyElse = UUID.randomUUID();
+
+        // An approval that named itself would not be one: the point of the step is that a second person
+        // decided, and a caller who could write that name could write any name.
+        mockMvc.perform(post("/api/v1/mail/messages/{id}/approve", messageId).with(csrf())
+                        .cookie(session.cookie())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"approverId\":\"%s\"}".formatted(somebodyElse)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.approvedBy").value(session.userId().toString()));
+
+        String recorded = jdbc.queryForObject("""
+                select approved_by::text from outbound_messages where id = ?
+                """, String.class, messageId);
+        org.assertj.core.api.Assertions.assertThat(recorded)
+                .as("the row records the session's user, not the identifier in the body")
+                .isEqualTo(session.userId().toString());
+    }
+
+    @Test
+    @DisplayName("a provider event is recorded, and an unknown one is refused")
+    void aProviderEventIsRecorded() throws Exception {
+        Session session = register();
+        MvcResult drafted = mockMvc.perform(post("/api/v1/mail/messages").with(csrf())
+                        .cookie(session.cookie())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"channel":"EMAIL","subject":"Widerspruch","bodyText":"Text",
+                                 "toAddresses":["behoerde@example.de"],"idempotencyKey":"ereignis-1"}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        UUID messageId = UUID.fromString(JsonPath.read(
+                drafted.getResponse().getContentAsString(), "$.messageId"));
+
+        // A queued event for a letter that was never handed over cannot advance anything: the status would
+        // have to move from DRAFT to QUEUED, and the service refuses that rather than believing the provider
+        // about a message it never received.
+        mockMvc.perform(post("/api/v1/mail/messages/{id}/events", messageId).with(csrf())
+                        .cookie(session.cookie())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"eventType\":\"QUEUED\",\"providerEventId\":\"p-1\"}"))
+                .andExpect(status().isConflict());
+
+        mockMvc.perform(post("/api/v1/mail/messages/{id}/events", messageId).with(csrf())
+                        .cookie(session.cookie())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"eventType\":\"GEFUEHL\"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/v1/mail/messages/{id}/events", messageId).with(csrf())
+                        .cookie(session.cookie())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
     // ---------------------------------------------------------------- what is refused
 
     @Test

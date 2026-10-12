@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import de.buerokratiecopilot.mail.inbound.MailAccountService;
+import de.buerokratiecopilot.mail.outbound.DeliverySemantics;
 import de.buerokratiecopilot.mail.outbound.OutboundMessageService;
 import de.buerokratiecopilot.shared.context.CurrentUser;
 import de.buerokratiecopilot.shared.context.RequestContext;
@@ -71,6 +72,14 @@ public class MailController {
 
     /** A sync outcome to record. */
     public record SyncBody(String outcome, String errorMessage) {
+    }
+
+    /** A decision on a draft. */
+    public record ApproveBody(String finalSubject, String finalBodyText, String finalBodyHtml) {
+    }
+
+    /** What the provider reported. */
+    public record EventBody(String eventType, String providerEventId, String details) {
     }
 
     /** A draft to create. */
@@ -176,6 +185,58 @@ public class MailController {
         UUID tenantId = tenant();
         return Map.of("messageId", messageId.toString(),
                 "isReplyToIncoming", outbound.isReplyToIncoming(tenantId, messageId));
+    }
+
+    /**
+     * Approves a draft.
+     *
+     * <p><strong>The approver comes from the session and never from the body.</strong> An approval that named
+     * itself would not be one: the whole point of the step is that a second person decided, and a caller who
+     * could write that person's identifier could write any name they liked.</p>
+     */
+    @PostMapping("/messages/{messageId}/approve")
+    @PreAuthorize(SEND)
+    @Operation(summary = "Approves a draft; the approver comes from the session")
+    public ResponseEntity<Map<String, Object>> approve(@PathVariable UUID messageId,
+                                                       @RequestBody(required = false) ApproveBody body) {
+        UUID tenantId = tenant();
+        UUID approver = CurrentUser.required();
+        outbound.approve(tenantId, messageId, approver,
+                body == null ? null : body.finalSubject(),
+                body == null ? null : body.finalBodyText(),
+                body == null ? null : body.finalBodyHtml());
+        return ResponseEntity.ok(Map.of("messageId", messageId.toString(), "approvedBy",
+                approver.toString(),
+                "note", "Freigegeben; das Schreiben kann jetzt übergeben werden."));
+    }
+
+    /**
+     * Records what the provider reported.
+     *
+     * <p>A status is only advanced by an event that proves it, which the delivery rules decide and not this
+     * endpoint: a provider saying "queued" has delivered nothing, and an endpoint that treated the two alike
+     * would show a letter as arrived before it left.</p>
+     */
+    @PostMapping("/messages/{messageId}/events")
+    @PreAuthorize(SEND)
+    @Operation(summary = "Records what the provider reported; only a proving event advances the status")
+    public Map<String, Object> recordEvent(@PathVariable UUID messageId, @RequestBody EventBody body) {
+        UUID tenantId = tenant();
+        if (body == null || body.eventType() == null || body.eventType().isBlank()) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "Eine Ereignisart ist erforderlich");
+        }
+        DeliverySemantics.EventType type;
+        try {
+            type = DeliverySemantics.EventType.valueOf(
+                    body.eventType().toUpperCase(java.util.Locale.ROOT));
+        }
+        catch (IllegalArgumentException ex) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST,
+                    "Unbekannte Ereignisart: " + body.eventType());
+        }
+        return Map.of("messageId", messageId.toString(),
+                "status", outbound.recordEvent(tenantId, messageId, type, body.providerEventId(),
+                        body.details()).name());
     }
 
     /**
