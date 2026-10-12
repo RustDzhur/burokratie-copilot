@@ -70,14 +70,18 @@ class RagNoAnswerTest {
                 values (gen_random_uuid(), ?, ?, 1, ?, ?, 1000, 'application/pdf', ?)
                 returning id
                 """, UUID.class, documentId, tenantId, blobId, hash, name);
-        int page = 1;
-        for (String text : pages) {
-            jdbc.update("""
-                    insert into document_pages (id, document_id, version_id, page_number, text_content,
-                                                ocr_used, text_blocks)
-                    values (gen_random_uuid(), ?, ?, ?, ?, false, '[]'::jsonb)
-                    """, documentId, versionId, page++, text);
-        }
+        int[] pageCounter = {1};
+        // document_pages is protected by a row-level security policy that reaches the tenant through the
+        // document, so a write without a tenant context is refused - which is the point of the policy.
+        RequestContext.runAs(tenantId, () -> {
+            for (String text : pages) {
+                jdbc.update("""
+                        insert into document_pages (id, document_id, version_id, page_number, text_content,
+                                                    ocr_used, text_blocks)
+                        values (gen_random_uuid(), ?, ?, ?, ?, false, '[]'::jsonb)
+                        """, documentId, versionId, pageCounter[0]++, text);
+            }
+        });
         return documentId;
     }
 

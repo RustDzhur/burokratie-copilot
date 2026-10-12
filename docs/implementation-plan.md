@@ -5131,3 +5131,58 @@ document_classifications rls=false force=false   ←
 
 **Итог:** `./mvnw -B clean verify` → **BUILD SUCCESS**, тестов **1288** (428 unit + 860 integration),
 миграций **28**.
+
+### Раунд 78: аудит ВСЕХ таблиц — и пробел, который я не смог закрыть честно
+
+**Метод раунда 77 сработал, поэтому я применил его ко всей схеме, а не к тем таблицам, которые помнил.**
+
+```sql
+select c.relname from pg_class c join pg_namespace n on n.oid=c.relnamespace
+ where n.nspname='public' and c.relkind='r' and c.relrowsecurity = false
+   and exists (select 1 from information_schema.columns col
+                where col.table_name=c.relname
+                  and col.column_name in ('tenant_id','document_id','case_id','workspace_id'))
+ order by c.relname;
+```
+
+**Семнадцать таблиц без RLS.** Все включать нельзя — среди них **глобальные справочники**. Разделил по
+тому, как таблица достигает арендатора:
+
+| Таблица | Как достигает арендатора | Опасность |
+|---|---|---|
+| **`document_pages`** | через `document_id` | **текст страниц документа** |
+| **`document_processing_steps`** | через `document_id` | промежуточные результаты конвейера |
+| **`document_tag_links`** | через `document_id` | метки документа |
+| `document_templates`, `template_versions` | свой `tenant_id` | шаблоны |
+| `workflow_definitions`, `workflow_versions` | свой `tenant_id` | процессы |
+| `outbox_consumptions`, `feature_flags` | свой `tenant_id` | настройки |
+| `case_types`, `deadline_rules`, `document_type_rules`, `tax_rates`, `payment_approval_rules` | свой `tenant_id` | справочники — **нужно решение по каждой** |
+| **`roles`** | `tenant_id` **+ `is_system`** | **системные роли имеют `tenant_id IS NULL`**; наивная политика **скрыла бы их и сломала всё** |
+
+**`document_pages` — самое чувствительное:** это **сам текст**. Назвав идентификатор документа, можно
+читать чужое письмо постранично.
+
+**Я написал `V29` для трёх таблиц-потомков документа и получил 15 падающих тестов:** вставки страниц без
+контекста арендатора. Я исправил два помощника — и **получил ещё шесть** падений в трёх других классах.
+
+**И здесь я остановился и откатил V29.** Причина прямая: **я не могу довести её до зелёного в этом
+раунде**, а **оставить `main` сломанным нельзя**. RLS, ломающий шесть интеграционных тестов, **хуже точно
+задокументированного пробела**.
+
+**Откат вскрыл собственную ловушку, и её стоит записать:** удалить файл миграции **недостаточно** —
+**Flyway уже применил её к базе**. Пока политики не сняты и запись не удалена из `flyway_schema_history`,
+тесты падают **на пустом месте**, и причина не видна в коде. **Миграция — это изменение состояния базы, а
+не только файл.**
+
+**Что осталось сделать (и это названо, а не забыто):** `V29` для `document_pages`,
+`document_processing_steps`, `document_tag_links` **по образцу `V28`**, плюс контексты арендатора в
+`DocumentPipelineIT` и в остальных чтениях `FieldExtractionIT`/`ClassificationIT`. **Точный список
+падающих тестов:** `DocumentPipelineIT` (3), `ClassificationIT.unknownDocumentIsNotGuessed`,
+`FieldExtractionIT.doesNotInventMissingFields`, `RagNoAnswerTest` (6) и `RagCitationTest` (2) — последние
+два **уже исправлены** в этом раунде.
+
+**Улучшения тестов сохранены:** вставки страниц в `RagNoAnswerTest` и `RagCitationTest` теперь идут в
+контексте арендатора — **это верно само по себе** и понадобится, когда политика вернётся.
+
+**Итог:** `./mvnw -B clean verify` → **BUILD SUCCESS**, тестов **1288** (428 unit + 860 integration),
+миграций **28**.
