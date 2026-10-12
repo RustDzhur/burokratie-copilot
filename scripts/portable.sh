@@ -2,6 +2,7 @@
 # One place, one command for a self-contained installation (compose project `burokratie`).
 #
 #   scripts/portable.sh up        build images if missing and start everything
+#   scripts/portable.sh backup    database dump into backups/ (cron: daily 03:15)
 #   scripts/portable.sh build     (re)build the images
 #   scripts/portable.sh down      stop (data stays)
 #   scripts/portable.sh status    containers and health
@@ -33,6 +34,12 @@ images_present() { docker image inspect burokratie-local/api:local burokratie-lo
 build_images() { docker compose -p burokratie --env-file "$ENV_FILE" -f infra/docker-compose.yml build; }
 
 case "${1:-}" in
+  backup)  # backup: a restorable database dump in <root>/backups, the newest 14 daily ones are kept
+    mkdir -p backups
+    pguser="$(grep -E '^POSTGRES_USER=' "$ENV_FILE" | cut -d= -f2)"; pgdb="$(grep -E '^POSTGRES_DB=' "$ENV_FILE" | cut -d= -f2)"
+    out="backups/daily-$(date +%Y%m%d-%H%M%S).dump"
+    docker exec bc-postgres pg_dump -U "${pguser:-burokratie}" -d "${pgdb:-burokratie}" -Fc > "$out" && echo "dump: $out ($(du -h "$out" | cut -f1))"
+    ls -1t backups/daily-*.dump 2>/dev/null | tail -n +15 | xargs -r rm -f ;;
   build) build_images ;;
   up) prepare_dirs; images_present || build_images; compose up -d ;;
   down) compose down ;;
@@ -62,5 +69,5 @@ case "${1:-}" in
   restore)
     if [[ -f images/images.tar ]]; then docker load -i images/images.tar; fi
     prepare_dirs; images_present || build_images; compose up -d ;;
-  *) sed -n '2,15p' "$0"; exit 1 ;;
+  *) sed -n '2,16p' "$0"; exit 1 ;;
 esac
