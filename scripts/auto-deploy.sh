@@ -28,7 +28,7 @@ main() {
   exec 9>"$ROOT/.deploy.lock"
   flock -n 9 || exit 0 # one deployment at a time
   log() { echo "$(date -Is) $*" >> "$ROOT/deploy.log"; }
-  local branch=main new cur changed rebuild=false
+  local branch=main new cur changed rebuild=false services=()
   git fetch -q origin "$branch" 2>>"$ROOT/deploy.log" || { log "git fetch failed"; exit 1; }
   new="$(git rev-parse "origin/$branch")"
   cur="$(git rev-parse HEAD)"
@@ -38,7 +38,9 @@ main() {
 
   log "deploy ${cur:0:8} -> ${new:0:8}: $(git log -1 --format=%s "$new")"
   changed="$(git diff --name-only "$cur" "$new")"
-  grep -qE '^(apps/|services/|infra/docker)' <<<"$changed" && rebuild=true
+  # Rebuild - and so restart - only what changed: a front-end edit must not take the API down for a minute.
+  grep -qE '^(services/|infra/docker/api|infra/docker-compose)' <<<"$changed" && { rebuild=true; services+=(api); }
+  grep -qE '^(apps/|infra/docker/web|infra/docker-compose)' <<<"$changed" && { rebuild=true; services+=(web); }
   git reset -q --hard "$new"
 
   export BC_DATA_DIR="$ROOT/data"
@@ -55,9 +57,9 @@ main() {
   fi
 
   if $rebuild; then
-    for img in api web; do docker tag "burokratie-local/$img:local" "burokratie-local/$img:prev" 2>/dev/null; done
-    log "building images"
-    if ! scripts/portable.sh build >> "$ROOT/deploy.log" 2>&1; then
+    for img in "${services[@]}"; do docker tag "burokratie-local/$img:local" "burokratie-local/$img:prev" 2>/dev/null; done
+    log "building images: ${services[*]}"
+    if ! scripts/portable.sh build "${services[@]}" >> "$ROOT/deploy.log" 2>&1; then
       log "BUILD FAILED - the running version is untouched"
       echo "$new" > .deploy-failed
       git reset -q --hard "$cur"
@@ -71,7 +73,7 @@ main() {
     log "deployed ${new:0:8} OK"
   else
     log "UNHEALTHY after the update - rolling back to ${cur:0:8}"
-    for img in api web; do
+    for img in "${services[@]}"; do
       if docker image inspect "burokratie-local/$img:prev" >/dev/null 2>&1; then docker tag "burokratie-local/$img:prev" "burokratie-local/$img:local"; fi
     done
     echo "$new" > .deploy-failed

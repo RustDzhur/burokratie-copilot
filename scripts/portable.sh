@@ -3,7 +3,7 @@
 #
 #   scripts/portable.sh up        build images if missing and start everything
 #   scripts/portable.sh backup    database dump into backups/ (cron: daily 03:15)
-#   scripts/portable.sh build     (re)build the images
+#   scripts/portable.sh build [api|web]   (re)build the images (both when none is named)
 #   scripts/portable.sh down      stop (data stays)
 #   scripts/portable.sh status    containers and health
 #   scripts/portable.sh logs [svc]
@@ -31,7 +31,7 @@ prepare_dirs() {
   docker run --rm -v "$BC_DATA_DIR/app:/d" alpine sh -c 'chown 10001:10001 /d' >/dev/null
 }
 images_present() { docker image inspect burokratie-local/api:local burokratie-local/web:local >/dev/null 2>&1; }
-build_images() { docker compose -p burokratie --env-file "$ENV_FILE" -f infra/docker-compose.yml build; }
+build_images() { docker compose -p burokratie --env-file "$ENV_FILE" -f infra/docker-compose.yml build "$@"; }
 
 case "${1:-}" in
   backup)  # backup: a restorable database dump in <root>/backups, the newest 14 daily ones are kept
@@ -40,7 +40,7 @@ case "${1:-}" in
     out="backups/daily-$(date +%Y%m%d-%H%M%S).dump"
     docker exec bc-postgres pg_dump -U "${pguser:-burokratie}" -d "${pgdb:-burokratie}" -Fc > "$out" && echo "dump: $out ($(du -h "$out" | cut -f1))"
     ls -1t backups/daily-*.dump 2>/dev/null | tail -n +15 | xargs -r rm -f ;;
-  build) build_images ;;
+  build) shift; build_images "$@" ;;
   up) prepare_dirs; images_present || build_images; compose up -d ;;
   down) compose down ;;
   status) compose ps ;;
