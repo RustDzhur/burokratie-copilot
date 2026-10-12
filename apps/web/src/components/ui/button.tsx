@@ -10,7 +10,6 @@ import styles from './button.module.css';
 import { buttonClass } from './button-class';
 import type { ButtonClassOptions, ButtonSize, ButtonVariant } from './button-class';
 
-export { buttonClass };
 export type { ButtonClassOptions, ButtonSize, ButtonVariant };
 
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
@@ -21,8 +20,8 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   readonly loading?: boolean;
   /** Announced while loading; defaults to the visible label. */
   readonly loadingLabel?: string;
-  readonly iconLeft?: IconName | ReactNode;
-  readonly iconRight?: IconName | ReactNode;
+  readonly iconLeft?: IconName | Exclude<ReactNode, string>;
+  readonly iconRight?: IconName | Exclude<ReactNode, string>;
   readonly fullWidth?: boolean;
   readonly ref?: Ref<HTMLButtonElement>;
 }

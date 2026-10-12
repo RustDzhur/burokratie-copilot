@@ -334,7 +334,7 @@ export const enCore: CoreMessages = {
     'verify.submit': 'Verify',
     'verify.resend': 'Resend code',
     'verify.resent': 'A new code has been sent.',
-    'verify.hint': 'The code is valid for 30 minutes. Please also check your spam folder.',
+    'verify.hint': 'The link is valid for 3 days. Please also check your spam folder.',
     'reset.title': 'Reset password',
     'reset.subtitle': 'Enter your e-mail address. We will send a reset link.',
     'reset.email': 'E-mail address',

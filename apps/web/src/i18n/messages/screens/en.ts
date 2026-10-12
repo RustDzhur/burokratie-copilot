@@ -134,6 +134,7 @@ export const enScreens: ScreenMessages = {
     'column.dueDate': 'Next deadline',
     'status.open': 'Open',
     'status.inProgress': 'In progress',
+    'status.in_progress': 'In progress',
     'status.waiting': 'Waiting for response',
     'status.closed': 'Completed',
     'empty.title': 'No cases yet',
@@ -309,6 +310,7 @@ export const enScreens: ScreenMessages = {
     'status.new': 'New',
     'status.processed': 'Processed',
     'status.needsReply': 'Reply required',
+    'status.needs_reply': 'Reply required',
     'notConnected.title': 'No mailbox connected',
     'notConnected.description':
       'Connect a mailbox so that incoming authority mail is captured automatically. Credentials are stored in the backend.',

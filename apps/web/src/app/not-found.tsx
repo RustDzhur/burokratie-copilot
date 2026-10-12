@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { buttonClass } from '@/components/ui/button';
+import { buttonClass } from '@/components/ui/button-class';
 import { getServerTranslations } from '@/i18n/server';
 import styles from './status-page.module.css';
 

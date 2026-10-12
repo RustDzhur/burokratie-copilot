@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { buttonClass } from '@/components/ui/button';
+import { buttonClass } from '@/components/ui/button-class';
 import { useTranslations } from '@/i18n/provider';
 import { LanguageMenu, ThemeMenu } from './preference-controls';
 import styles from './public-header.module.css';

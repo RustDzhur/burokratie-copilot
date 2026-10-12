@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState, type FormEvent } from 'react';
-import { Button, buttonClass } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
+import { buttonClass } from '@/components/ui/button-class';
 import { Input } from '@/components/ui/form';
 import { InlineAlert } from '@/components/ui/feedback';
 import { useToast } from '@/components/ui/toast';

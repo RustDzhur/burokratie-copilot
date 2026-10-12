@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Icon, type IconName } from '@/components/icons';
-import { buttonClass } from '@/components/ui/button';
+import { buttonClass } from '@/components/ui/button-class';
 import { Badge, Card } from '@/components/ui/data';
 import { useTranslations } from '@/i18n/provider';
 import styles from './landing.module.css';

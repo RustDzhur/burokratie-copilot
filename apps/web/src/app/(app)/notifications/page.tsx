@@ -124,7 +124,7 @@ export default function NotificationsPage() {
             >
               {t('action.markAllRead')}
             </Button>
-            <Button variant="secondary" iconLeft="settings" onClick={() => setPreferencesOpen(true)}>
+            <Button variant="secondary" iconLeft="gear" onClick={() => setPreferencesOpen(true)}>
               {t('action.settings')}
             </Button>
           </>

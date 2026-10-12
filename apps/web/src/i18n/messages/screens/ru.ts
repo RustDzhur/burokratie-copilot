@@ -137,6 +137,7 @@ export const ruScreens: ScreenMessages = {
     'column.dueDate': 'Ближайший срок',
     'status.open': 'Открыто',
     'status.inProgress': 'В работе',
+    'status.in_progress': 'В работе',
     'status.waiting': 'Ожидает ответа',
     'status.closed': 'Завершено',
     'empty.title': 'Дел пока нет',
@@ -311,6 +312,7 @@ export const ruScreens: ScreenMessages = {
     'status.new': 'Новое',
     'status.processed': 'Обработано',
     'status.needsReply': 'Требуется ответ',
+    'status.needs_reply': 'Требуется ответ',
     'notConnected.title': 'Почтовый ящик не подключён',
     'notConnected.description':
       'Подключите почтовый ящик, чтобы входящая корреспонденция регистрировалась автоматически. Учётные данные хранятся в бэкенде.',

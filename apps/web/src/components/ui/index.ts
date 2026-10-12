@@ -1,4 +1,5 @@
-export { Button, IconButton, buttonClass } from './button';
+export { Button, IconButton } from './button';
+export { buttonClass } from './button-class';
 export type { ButtonProps, ButtonVariant, ButtonSize, IconButtonProps } from './button';
 export {
   Spinner,

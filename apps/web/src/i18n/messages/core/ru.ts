@@ -337,7 +337,7 @@ export const ruCore: CoreMessages = {
     'verify.submit': 'Подтвердить',
     'verify.resend': 'Отправить код повторно',
     'verify.resent': 'Новый код отправлен.',
-    'verify.hint': 'Код действует 30 минут. Проверьте также папку «Спам».',
+    'verify.hint': 'Ссылка действует 3 дня. Проверьте также папку «Спам».',
     'reset.title': 'Сброс пароля',
     'reset.subtitle': 'Укажите адрес e-mail. Мы отправим ссылку для сброса пароля.',
     'reset.email': 'Адрес e-mail',

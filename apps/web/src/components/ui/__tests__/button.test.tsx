@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders, screen, userEvent } from '@/test/render';
-import { Button, IconButton, buttonClass } from '../button';
+import { Button, IconButton } from '../button';
+import { buttonClass } from '../button-class';
 
 describe('Button', () => {
   it('renders its label and handles clicks', async () => {

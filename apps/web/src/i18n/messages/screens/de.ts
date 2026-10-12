@@ -137,6 +137,7 @@ export const deScreens = {
     'column.dueDate': 'Nächste Frist',
     'status.open': 'Offen',
     'status.inProgress': 'In Bearbeitung',
+    'status.in_progress': 'In Bearbeitung',
     'status.waiting': 'Wartet auf Rückmeldung',
     'status.closed': 'Abgeschlossen',
     'empty.title': 'Noch keine Vorgänge',
@@ -316,6 +317,7 @@ export const deScreens = {
     'status.new': 'Neu',
     'status.processed': 'Bearbeitet',
     'status.needsReply': 'Antwort erforderlich',
+    'status.needs_reply': 'Antwort erforderlich',
     'notConnected.title': 'Kein Postfach verbunden',
     'notConnected.description':
       'Verbinden Sie ein Postfach, damit eingehende Behördenpost automatisch erfasst wird. Zugangsdaten werden im Backend hinterlegt.',

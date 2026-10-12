@@ -349,7 +349,7 @@ export const deCore = {
     'verify.submit': 'Bestätigen',
     'verify.resend': 'Code erneut senden',
     'verify.resent': 'Ein neuer Code wurde versendet.',
-    'verify.hint': 'Der Code ist 30 Minuten gültig. Prüfen Sie auch den Spam-Ordner.',
+    'verify.hint': 'Der Link ist 3 Tage gültig. Prüfen Sie auch den Spam-Ordner.',
     'reset.title': 'Passwort zurücksetzen',
     'reset.subtitle': 'Geben Sie Ihre E-Mail-Adresse an. Wir senden einen Link zum Zurücksetzen.',
     'reset.email': 'E-Mail-Adresse',
