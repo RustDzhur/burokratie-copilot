@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import de.buerokratiecopilot.documents.DocumentMatchRepository;
 import de.buerokratiecopilot.documents.domain.Document;
 import de.buerokratiecopilot.documents.domain.DocumentMatch;
+import de.buerokratiecopilot.shared.error.ApiException;
 import de.buerokratiecopilot.documents.domain.DocumentVersion;
 import de.buerokratiecopilot.shared.settings.SettingsService;
 
@@ -340,8 +341,11 @@ public class MatchingService {
     /** Files a person's decision about a proposal (spec §9.5). */
     @Transactional
     public DocumentMatch decide(UUID matchId, DocumentMatch.Status decision, UUID userId) {
+        // The project's own not-found answer. An IllegalArgumentException for a missing row is
+        // indistinguishable from a programming error and reached the caller as a 500, which tells somebody
+        // that the platform is broken rather than that the identifier they used does not exist.
         DocumentMatch match = matches.findById(matchId).orElseThrow(
-                () -> new IllegalArgumentException("Unknown match " + matchId));
+                () -> ApiException.notFound("Zuordnung " + matchId));
         match.decide(decision, userId);
         if (decision == DocumentMatch.Status.CONFIRMED
                 && match.getMatchType() == DocumentMatch.MatchType.CASE) {
