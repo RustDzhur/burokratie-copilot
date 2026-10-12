@@ -100,6 +100,7 @@ import {
   type TemplateWire,
   type WorkflowWire,
 } from './wire/misc';
+import { normalizeGraph, type Graph, type PaletteEntry } from '../workflow/graph';
 import { collectPages, csvBlob, toCsv } from './csv';
 import type {
   AccessibilityPreferences,
@@ -369,6 +370,13 @@ export interface ApiResources {
   readonly audit: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<AuditEntry>>;
     export: (params?: ListParams) => Promise<Blob>;
+  };
+  readonly workflows: {
+    palette: (signal?: AbortSignal) => Promise<readonly PaletteEntry[]>;
+    /** The saved graph of a process; `null` when no version has been published yet. */
+    graph: (id: string, signal?: AbortSignal) => Promise<Graph | null>;
+    check: (id: string, graph: Graph) => Promise<readonly { readonly code: string; readonly message: string }[]>;
+    publish: (id: string, graph: Graph, note?: string) => Promise<{ version: number }>;
   };
   readonly mfa: {
     /** Starts an enrolment: the secret to put into an authenticator app, not yet active. */
@@ -1025,6 +1033,26 @@ export function createResources(client: ApiClient): ApiResources {
           ]),
         );
       },
+    },
+    workflows: {
+      palette: (signal) => client.get<readonly PaletteEntry[]>('/workflows/palette', withSignal(signal)),
+      graph: async (id, signal) => {
+        try {
+          return normalizeGraph(await client.get(`/workflows/${id}/graph`, withSignal(signal)));
+        } catch (error) {
+          // A process nobody has published has no graph yet: the editor starts empty.
+          if (error instanceof ApiError && (error.status === 404 || error.status === 409)) return null;
+          throw error;
+        }
+      },
+      check: async (id, graph) =>
+        (await client.post<{ problems: readonly { code: string; message: string }[] }>(`/workflows/${id}/graph/check`, graph))
+          .problems,
+      publish: (id, graph, note) =>
+        client.post<{ version: number }>(`/workflows/${id}/graph/publish`, graph, {
+          query: { note },
+          idempotencyKey: true,
+        }),
     },
     mfa: {
       begin: () =>

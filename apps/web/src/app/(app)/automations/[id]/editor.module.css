@@ -1,0 +1,80 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  gap: var(--space-4, 1rem);
+  align-items: start;
+}
+
+@media (max-width: 60rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.canvasWrap {
+  overflow: auto;
+  border: 1px solid var(--color-border, rgba(127, 127, 127, 0.35));
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-surface, transparent);
+  max-height: 70vh;
+}
+
+.canvas {
+  display: block;
+  min-width: 100%;
+  touch-action: none;
+}
+
+.node rect {
+  fill: var(--color-surface-raised, #1d2433);
+  stroke: var(--color-border-strong, #6b7a99);
+  stroke-width: 1.5;
+}
+
+.node:focus-visible rect,
+.selected rect {
+  stroke: var(--color-accent, #4cc2ff);
+  stroke-width: 3;
+}
+
+.node text {
+  fill: var(--color-text, currentColor);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.entry rect {
+  stroke-dasharray: 0;
+  fill: var(--color-accent-soft, #123a52);
+}
+
+.unreachable rect {
+  stroke-dasharray: 5 3;
+}
+
+.edge {
+  stroke: var(--color-text-muted, #9aa7bd);
+  stroke-width: 1.6;
+  fill: none;
+}
+
+.edgeLabel {
+  fill: var(--color-text-muted, #9aa7bd);
+  font-size: 11px;
+}
+
+.panel {
+  display: grid;
+  gap: var(--space-3, 0.75rem);
+}
+
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 0.5rem);
+}
+
+.problems {
+  margin: 0;
+  padding-left: 1.2rem;
+}

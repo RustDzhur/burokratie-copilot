@@ -26,7 +26,13 @@ export default function AutomationsPage() {
   const triggerLabel = useGroupedLabels('automations', 'trigger');
 
   const columns: readonly Column<AutomationSummary>[] = [
-    { key: 'name', header: t('column.name'), sortable: true, render: (row) => row.name },
+    {
+      key: 'name',
+      header: t('column.name'),
+      sortable: true,
+      link: (row) => `/automations/${row.id}`,
+      render: (row) => row.name,
+    },
     { key: 'trigger', header: t('column.trigger'), render: (row) => triggerLabel(row.trigger) },
     {
       key: 'lastRun',

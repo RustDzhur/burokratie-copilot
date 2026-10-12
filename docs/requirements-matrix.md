@@ -34,7 +34,7 @@
 | 13 | Договоры и обязательства | `contracts` | `ContractModelIT`, `ObligationReminderIT` | **РЕАЛИЗОВАНО** | — |
 | 14 | Счета, расходы и платежи | `invoices`, `approvals`, `banking`, `dunning` | `InvoiceValidationTest`, `InvoiceApiIT`, `ApprovalAndPresetsIT`, `PaymentMatchingIT` | **РЕАЛИЗОВАНО** | — |
 | 15 | Почта и генератор документов | `mail/outbound`, `templates`, `responses`, `einvoicing` | `OutboundSendIT`, `TemplateControllerIT`, `DraftValidationTest`, `EInvoiceStorageIT` | **РЕАЛИЗОВАНО** | — |
-| 16 | Универсальный workflow engine | `workflow`, `workflow/approval` | `WorkflowEngineIT`, `ApprovalAndPresetsIT` | **ЧАСТИЧНО** | серверная часть редактора готова и проверена; холста нет |
+| 16 | Универсальный workflow engine | `workflow`, `workflow/approval` | `WorkflowEngineIT`, `ApprovalAndPresetsIT` | **РЕАЛИЗОВАНО** | редактор `/automations/{id}`: шаги из палитры, перетаскивание и клавиатура, связи списком, «Проверить» (то же, что при публикации) и «Опубликовать» — `graph.test.ts`, `editor.spec.ts` |
 | 17 | Специализированные режимы | `accounts`, `accounts/sector`, `family` | `AccountModeIT`, `FamilyIsolationIT`, `PublicSectorGuardTest`, `MandatoryScenariosIT` | **РЕАЛИЗОВАНО** | — |
 | 18 | Интеграции | `integrations`, `integrations/adapters` | `IntegrationLifecycleIT`, `IntegrationAdapterCatalogueIT` | **РЕАЛИЗОВАНО** | 32 адаптера описаны, 8 реализованы, остальные честно помечены `NOT_SUPPORTED` |
 | 19 | PostgreSQL: модель данных | `db/migration` V1–V23 | `everyTenantTableIsProtected`, схема читается тестами | **РЕАЛИЗОВАНО** | — |
@@ -47,7 +47,7 @@
 | 26 | Отчёты и аналитика | `reports` | `ReportAccuracyIT` | **РЕАЛИЗОВАНО** | — |
 | 27 | Надёжность и производительность | worker-профиль, `FOR UPDATE SKIP LOCKED`, ретраи | `WorkflowEngineIT`, `ApplicationContextIT` | **ЧАСТИЧНО** | нагрузочные тесты (I-003) |
 | 28 | Тестирование | **1093** бэкенд-теста + **166** фронтенд-тестов, сквозные сценарии | `MandatoryScenariosIT` | **ЧАСТИЧНО** | ручной чек-лист клавиатуры и screen reader (I-002); нагрузка — только путь отклонения |
-| 29 | Интерфейс и пользовательские сценарии | экраны `apps/web`, оболочка `app-shell`, состояния | `pages.a11y.test.tsx`, `app-shell.test.tsx` (148 тестов фронтенда) | **ЧАСТИЧНО** | экраны и состояния ошибки есть; сквозные сценарии в браузере не прогонялись |
+| 29 | Интерфейс и пользовательские сценарии | экраны `apps/web`, оболочка `app-shell`, состояния | `pages.a11y.test.tsx`, `app-shell.test.tsx`, `tests/e2e` (Playwright) | **РЕАЛИЗОВАНО** | сквозные сценарии в браузере: `journey.spec.ts`, `editor.spec.ts` |
 | 30 | Развёртывание и DevOps | `infra/docker`, `infra/scripts`, `.github/workflows/ci.yml` | CI 5/5; прогон `backup.sh` + `verify-restore.sh` | **РЕАЛИЗОВАНО** | — |
 | 31 | Настройки и конфигурация | `system_settings`, `feature_flags`, каталог модулей | `AccountModeIT`, `ApplicationContextIT` | **РЕАЛИЗОВАНО** | — |
 | 32 | Границы автоматизации | `PublicSectorGuard`, пустой реестр правовых сроков, правовое основание в политике хранения | `PublicSectorGuardTest`, `RetentionPolicyIT` | **РЕАЛИЗОВАНО** | — |
