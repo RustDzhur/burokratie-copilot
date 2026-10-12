@@ -413,6 +413,26 @@ public class BurokratieProperties {
         private String baseUrl = "";
         private String apiKey = "";
         private double monthlyBudgetEur = 0;
+        /** Model name sent to the provider (for example gpt-4o-mini or deepseek-chat). */
+        private String model = "";
+        /** How many questions one workspace may ask Iris per day. */
+        private int guideDailyLimit = 100;
+
+        public String getModel() {
+            return model;
+        }
+
+        public void setModel(String model) {
+            this.model = model;
+        }
+
+        public int getGuideDailyLimit() {
+            return guideDailyLimit;
+        }
+
+        public void setGuideDailyLimit(int guideDailyLimit) {
+            this.guideDailyLimit = guideDailyLimit;
+        }
 
         public boolean isEnabled() {
             return enabled;

@@ -161,6 +161,8 @@ burokratie:
     base-url: ${BC_AI_BASE_URL:}
     api-key: ${BC_AI_API_KEY:}
     monthly-budget-eur: ${BC_AI_MONTHLY_BUDGET_EUR:0}
+    model: ${BC_AI_MODEL:}
+    guide-daily-limit: ${BC_AI_GUIDE_DAILY_LIMIT:100}
   ocr:
     enabled: ${BC_OCR_ENABLED:false}
     engine: ${BC_OCR_ENGINE:tesseract}

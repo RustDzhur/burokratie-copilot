@@ -366,6 +366,19 @@ export interface ApiResources {
       readonly body?: string;
     }) => Promise<TemplateSummary>;
   };
+  readonly guide: {
+    ask: (payload: {
+      readonly messages: readonly { readonly role: 'user' | 'assistant'; readonly text: string }[];
+      readonly page: string;
+      readonly locale: string;
+    }) => Promise<{
+      readonly available: boolean;
+      readonly text: string;
+      readonly open: string;
+      readonly handoff: boolean;
+      readonly reason: string;
+    }>;
+  };
   readonly assistant: {
     ask: (payload: AssistantQueryPayload, signal?: AbortSignal) => Promise<AssistantAnswer>;
   };
@@ -1016,6 +1029,9 @@ export function createResources(client: ApiClient): ApiResources {
           placeholders: placeholdersIn(body),
         };
       },
+    },
+    guide: {
+      ask: (payload) => client.post('/ai/guide', payload, { timeoutMs: 45_000 }),
     },
     assistant: {
       ask: async (payload, signal) =>

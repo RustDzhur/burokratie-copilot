@@ -10,6 +10,7 @@ import { SessionProvider } from '@/lib/auth/session-context';
 import { useApiResource } from '@/lib/api/hooks';
 import type { SessionUser } from '@/lib/api/types';
 import { screens, screensVisibleFor } from '@/navigation/screens';
+import { IrisWidget } from './iris-widget';
 import { SubscriptionBanner } from './subscription-banner';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
@@ -170,6 +171,8 @@ export function AppShell({ children }: AppShellProps) {
           onNavigate={() => setMobileNavOpen(false)}
         />
       </Drawer>
+
+      {blocked ? null : <IrisWidget />}
 
       <CommandPalette
         open={paletteOpen}

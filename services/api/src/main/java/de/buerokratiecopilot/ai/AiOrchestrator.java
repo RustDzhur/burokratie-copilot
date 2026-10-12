@@ -103,12 +103,23 @@ public class AiOrchestrator {
     @Transactional
     public Outcome run(UUID tenantId, String jobType, String input, String model,
                        String instructionVersion, String instructionHash, UUID requestedBy) {
+        return run(tenantId, jobType, input, input, model, instructionVersion, instructionHash, requestedBy);
+    }
+
+    /**
+     * Runs a job whose full prompt is long and not worth keeping: {@code input} goes to the provider,
+     * {@code recordedInput} is what is stored with the job (for a chat, the question without the instructions
+     * and the product knowledge that are sent along every time).
+     */
+    @Transactional
+    public Outcome run(UUID tenantId, String jobType, String input, String recordedInput, String model,
+                       String instructionVersion, String instructionHash, UUID requestedBy) {
         UUID jobId = jdbc.queryForObject("""
                 insert into ai_jobs (id, tenant_id, job_type, status, priority, input,
                                      instruction_version, model, requested_by, attempts, max_attempts)
                 values (gen_random_uuid(), ?, ?, 'QUEUED', 5, ?::jsonb, ?, ?, ?, 0, 3)
                 returning id
-                """, UUID.class, tenantId, jobType, jsonOf(input), instructionVersion, model,
+                """, UUID.class, tenantId, jobType, jsonOf(recordedInput), instructionVersion, model,
                 requestedBy);
 
         if (!externalAiAllowed(tenantId)) {
@@ -318,8 +329,24 @@ public class AiOrchestrator {
 
     /** The job input as the jsonb column expects it; the text is not the whole document of a request. */
     private static String jsonOf(String text) {
-        return "{\"text\":\"" + (text == null ? "" : text.replace("\\", "\\\\").replace("\"", "'")
-                .replace("\n", " ")) + "\"}";
+        // Hand-built JSON must not contain a raw control character (a tab or a line break in a question would make
+        // the whole insert fail), so every one of them becomes a space.
+        StringBuilder safe = new StringBuilder();
+        for (char ch : (text == null ? "" : text).toCharArray()) {
+            if (ch == '\\') {
+                safe.append("\\\\");
+            }
+            else if (ch == '"') {
+                safe.append('\'');
+            }
+            else if (ch < 0x20) {
+                safe.append(' ');
+            }
+            else {
+                safe.append(ch);
+            }
+        }
+        return "{\"text\":\"" + safe + "\"}";
     }
 
     private static String jsonArray(List<String> values) {
