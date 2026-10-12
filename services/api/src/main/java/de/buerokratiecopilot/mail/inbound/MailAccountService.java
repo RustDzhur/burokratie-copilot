@@ -91,7 +91,7 @@ public class MailAccountService {
                                            import_emails_as_documents, consecutive_failures, is_active,
                                            created_by)
                 values (?, ?, ?, ?, ?, ?, 'DISCONNECTED', ?, ?, ?, ?, ?, ?, ?, true, ?,
-                        '["INBOX"]'::jsonb, 300, '{}'::jsonb, true, true, 0, true, ?)
+                        '["INBOX"]'::jsonb, 'PT5M', '{}'::jsonb, true, true, 0, true, ?)
                 """, accountId, connection.tenantId(), connection.workspaceId(),
                 connection.displayName().strip(),
                 connection.emailAddress().strip().toLowerCase(java.util.Locale.ROOT), provider,

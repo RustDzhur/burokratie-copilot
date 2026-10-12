@@ -70,7 +70,7 @@ public class MailCollectionScheduler {
                       and credential_encrypted is not null
                       and consecutive_failures < ?
                       and (last_sync_at is null
-                           or last_sync_at < now() - make_interval(secs => greatest(coalesce(sync_interval, 300), 60)))
+                           or last_sync_at < now() - greatest(sync_interval::interval, interval '1 minute'))
                     order by last_sync_at nulls first
                     limit ?
                     for update skip locked)

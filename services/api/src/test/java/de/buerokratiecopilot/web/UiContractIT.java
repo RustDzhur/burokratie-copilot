@@ -67,6 +67,9 @@ class UiContractIT {
     @Autowired
     private UserRepository users;
 
+    @Autowired
+    private de.buerokratiecopilot.mail.inbound.MailCollectionScheduler mailCollection;
+
     private static Cookie session;
     private static String userId;
     private static String email;
@@ -429,6 +432,12 @@ class UiContractIT {
         mvc.perform(authed(get("/api/v1/mail/accounts"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].email_address").value("a@example.test"))
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("secret-pw"))));
+        // The background collection picks the new mailbox up; the server cannot be reached, which is recorded on the
+        // mailbox (and one broken mailbox does not stop the cycle) instead of being lost.
+        mailCollection.collectDue();
+        mvc.perform(authed(get("/api/v1/mail/accounts"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].status").value("ERROR"))
+                .andExpect(jsonPath("$[0].consecutive_failures").value(1));
         mvc.perform(authed(get("/api/v1/devices"))).andExpect(status().isOk()).andExpect(jsonPath("$").isArray());
         mvc.perform(authed(get("/api/v1/reports/company").param("from", LocalDate.now().withDayOfMonth(1).toString())
                         .param("to", LocalDate.now().toString())))
