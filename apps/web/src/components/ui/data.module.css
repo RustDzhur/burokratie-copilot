@@ -55,6 +55,10 @@
 }
 
 .cardInteractive {
+  /* A card that holds a stretched link (a ::after with position: absolute; inset: 0) must be its own positioning
+     context, otherwise that invisible overlay covers the nearest positioned ancestor - on the dashboard, the whole
+     page - and every card's hover state fights with the others. */
+  position: relative;
   transition:
     transform var(--motion-duration-base) var(--motion-ease-standard),
     box-shadow var(--motion-duration-base) var(--motion-ease-standard),
@@ -62,7 +66,7 @@
 }
 
 .cardInteractive:hover {
-  transform: translateY(-2px);
+  /* No lift: a card that moves out from under a resting pointer loses :hover, drops back, gains it again - a flicker. */
   box-shadow: var(--shadow-md);
   border-color: var(--color-border-strong);
 }

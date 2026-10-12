@@ -68,3 +68,36 @@ test.describe('first journey', () => {
     }
   });
 });
+
+test('dashboard cards: a card link only covers its own card (hover does not flicker)', async ({ page }) => {
+  const email = newAddress();
+  await register(page, email);
+  await confirmEmail(email);
+  await signIn(page, email);
+  await page.waitForURL(/\/(onboarding|dashboard)/);
+  await page.goto('/dashboard');
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  const cards = page.locator('a[class*="cardLink"]');
+  await expect(cards.first()).toBeVisible();
+
+  // The link's stretched overlay is its ::after: a point on the page heading must not hit any card link.
+  const hit = await page.evaluate(() => {
+    const heading = document.querySelector('h1');
+    if (!heading) return 'no heading';
+    const box = heading.getBoundingClientRect();
+    const element = document.elementFromPoint(box.left + 4, box.top + box.height / 2);
+    return element?.closest('a[class*="cardLink"]') ? 'card link' : 'other';
+  });
+  expect(hit).toBe('other');
+
+  // And a point inside the first card does hit that card's own link.
+  const inside = await page.evaluate(() => {
+    const link = document.querySelector('a[class*="cardLink"]');
+    const card = link?.closest('li');
+    if (!link || !card) return false;
+    const box = card.getBoundingClientRect();
+    const element = document.elementFromPoint(box.left + box.width / 2, box.top + box.height - 6);
+    return element === link || link.contains(element);
+  });
+  expect(inside).toBe(true);
+});
