@@ -56,6 +56,7 @@ export const deScreens = {
     'invoice.crypto.scan': 'QR-Code mit Ihrer Wallet scannen. Der QR-Code enthält die Adresse; Betrag und Netzwerk geben Sie bitte genau so ein.',
     'data.title': 'Ihre Daten',
     'data.description': 'Sie können Ihr Konto jederzeit löschen. Dabei werden alle Dokumente, Vorgänge, Kontakte und Zugänge unwiderruflich entfernt. Rechnungen an Sie bleiben aus gesetzlichen Gründen erhalten.',
+    'data.export': 'Alle Daten herunterladen (ZIP)',
     'data.delete': 'Konto und alle Daten löschen',
     'data.deleteTitle': 'Alle Daten endgültig löschen?',
     'data.deleteBody': 'Dieser Schritt kann nicht rückgängig gemacht werden.',

@@ -36,10 +36,12 @@ public class BillingController {
     private final SubscriptionService subscriptions;
     private final BillingService billing;
     private final TenantPurgeService purge;
+    private final TenantExportService export;
     private final JdbcTemplate jdbc;
 
     public BillingController(SubscriptionService subscriptions, BillingService billing, TenantPurgeService purge,
-                             JdbcTemplate jdbc) {
+                             TenantExportService export, JdbcTemplate jdbc) {
+        this.export = export;
         this.subscriptions = subscriptions;
         this.billing = billing;
         this.purge = purge;
@@ -125,6 +127,22 @@ public class BillingController {
         }
         subscriptions.recordDataChoice(tenantId, choice);
         return Map.of("deleted", false, "choice", choice);
+    }
+
+    /**
+     * All the customer's data as one ZIP; reachable after the access ended, so the data can be taken along.
+     *
+     * <p>Written straight to the response on the request thread, not through an asynchronous streaming body: the
+     * asynchronous dispatch passes the security filters again without the session and would be refused after the first
+     * bytes had been sent.</p>
+     */
+    @GetMapping("/export")
+    public void export(jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        UUID tenantId = tenant();
+        requireOwner(tenantId);
+        response.setContentType("application/zip");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"buerokratie-copilot-export.zip\"");
+        export.write(tenantId, response.getOutputStream());
     }
 
     private List<Map<String, Object>> plans() {

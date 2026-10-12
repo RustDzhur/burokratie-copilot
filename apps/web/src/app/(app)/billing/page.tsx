@@ -222,6 +222,9 @@ export default function BillingPage() {
       <PageSection title={t('data.title')}>
         <p className={styles.muted}>{t('data.description')}</p>
         <div className={styles.actions}>
+          <a href={api.billing.exportUrl()} download>
+            {t('data.export')}
+          </a>
           <Button variant="danger" onClick={() => setDeleteOpen(true)}>
             {t('data.delete')}
           </Button>

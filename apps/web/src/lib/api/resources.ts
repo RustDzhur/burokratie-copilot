@@ -418,6 +418,7 @@ export interface ApiResources {
     invoices: (signal?: AbortSignal) => Promise<readonly BillingInvoice[]>;
     createInvoice: (payload: InvoiceRequest) => Promise<BillingInvoice>;
     invoicePdfUrl: (id: string) => string;
+    exportUrl: () => string;
     keepData: () => Promise<void>;
     deleteData: () => Promise<void>;
   };
@@ -1151,6 +1152,7 @@ export function createResources(client: ApiClient): ApiResources {
       createInvoice: async (payload) =>
         platformInvoiceFromWire(await client.post<PlatformInvoiceWire>('/billing/invoices', payload, { idempotencyKey: true })),
       invoicePdfUrl: (id) => `/api/v1/billing/invoices/${id}/pdf`,
+      exportUrl: () => '/api/v1/billing/export',
       keepData: async () => {
         await client.post<unknown>('/billing/data-choice', { choice: 'KEEP' }, { idempotencyKey: true });
       },

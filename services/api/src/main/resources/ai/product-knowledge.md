@@ -76,8 +76,9 @@ Use the exact German names, they are what the menu shows. To send the person to 
 * Pay: Tarif und Zahlung → enter name and address → choose invoice or crypto wallet → create. The invoice then shows
   how to pay. After the payment arrived it is confirmed by the administrator.
 * Change the interface language: the language switch in the top bar (German, English, Russian).
-* Export data: CSV export exists in the lists of the screens that have an export button. A complete data download is
-  not available yet.
+* Export data: the owner can download everything (documents with their original files, cases, tasks, contacts) as one
+  ZIP under "Tarif und Zahlung" → "Alle Daten herunterladen (ZIP)"; this also works after the access ended. The lists
+  of several screens have a CSV export button as well.
 
 ## Security and data
 

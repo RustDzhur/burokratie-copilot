@@ -65,6 +65,13 @@ export default function AccessEndedPage() {
               <InlineAlert tone="warning">
                 {data.status === 'SUSPENDED' ? t('bodySuspended') : t('body', { date })}
               </InlineAlert>
+              {data.owner ? (
+                <p className={styles.muted}>
+                  <a href={api.billing.exportUrl()} download>
+                    {tBilling('data.export')}
+                  </a>
+                </p>
+              ) : null}
               {!data.owner ? (
                 <p className={styles.muted}>{t('notOwner')}</p>
               ) : data.status === 'SUSPENDED' ? null : (

@@ -54,6 +54,7 @@ export const enScreens: ScreenMessages = {
     'invoice.crypto.scan': 'Scan the QR code with your wallet. It contains the address; enter amount and network exactly as shown.',
     'data.title': 'Your data',
     'data.description': 'You can delete your account at any time. All documents, cases, contacts and access are removed irreversibly. Invoices issued to you are kept for legal reasons.',
+    'data.export': 'Download all data (ZIP)',
     'data.delete': 'Delete account and all data',
     'data.deleteTitle': 'Delete all data for good?',
     'data.deleteBody': 'This step cannot be undone.',

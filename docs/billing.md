@@ -33,9 +33,12 @@ Die Audit- und Zugriffslogs sind sonst nur anhängbar (Trigger `forbid_append_on
 in einer Transaktion, die mit `set_config('app.tenant_purge', '<tenant-id>', true)` genau diesen Arbeitsbereich zur
 Löschung freigibt (V33). Getestet in `BillingLifecycleIT`.
 
+Der Inhaber kann jederzeit (auch nach Ende des Zugangs) alle Daten als ZIP herunterladen (`GET /api/v1/billing/export`):
+Originaldateien der Dokumente plus `dokumente.csv`, `vorgaenge.csv`, `aufgaben.csv`, `kontakte.csv`
+(Datenübertragbarkeit nach Art. 20 DSGVO).
+
 > **Offen, vor dem Start mit Fachperson klären:** Aufbewahrungsfrist von 100 Tagen und Löschkonzept in der
-> Datenschutzerklärung nennen; Auftragsverarbeitung; Datenexport (Art. 20 DSGVO) – die Oberfläche bietet ihn noch nicht
-> als Download an.
+> Datenschutzerklärung nennen; Auftragsverarbeitung.
 
 ## Zahlung ohne Zahlungsanbieter
 

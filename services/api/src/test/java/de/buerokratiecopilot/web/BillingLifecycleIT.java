@@ -188,6 +188,21 @@ class BillingLifecycleIT {
 
     @Test
     @Order(6)
+    @DisplayName("the owner can download everything as one ZIP")
+    void exportsAllData() throws Exception {
+        byte[] zip = mvc.perform(authed(get("/api/v1/billing/export")))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+        java.util.Set<String> names = new java.util.HashSet<>();
+        try (var in = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(zip))) {
+            for (var entry = in.getNextEntry(); entry != null; entry = in.getNextEntry()) {
+                names.add(entry.getName());
+            }
+        }
+        assertThat(names).contains("LIESMICH.txt", "dokumente.csv", "vorgaenge.csv", "aufgaben.csv", "kontakte.csv");
+    }
+
+    @Test
+    @Order(7)
     @DisplayName("deleting the data needs the word DELETE and removes the workspace, its people and its audit trail")
     void ownerDeletesEverything() throws Exception {
         mvc.perform(authed(post("/api/v1/billing/data-choice").contentType(MediaType.APPLICATION_JSON)
