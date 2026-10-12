@@ -171,8 +171,11 @@ class ClassificationIT {
                 .isNull();
         assertThat(stored.getProcessingStatus()).isEqualTo(Document.ProcessingStatus.REVIEW_REQUIRED);
 
-        DocumentProcessingStep classify = steps
-                .findByDocumentIdAndStep(id, DocumentProcessingStep.Step.CLASSIFY).orElseThrow();
+        // The step rows are protected by a policy that reaches the tenant through the document.
+        UUID tenantForSteps = documents.findById(id).orElseThrow().getTenantId();
+        DocumentProcessingStep classify = RequestContext.runAs(tenantForSteps,
+                        () -> steps.findByDocumentIdAndStep(id, DocumentProcessingStep.Step.CLASSIFY))
+                .orElseThrow();
         assertThat(classify.getStatus()).isEqualTo(DocumentProcessingStep.Status.SUCCEEDED);
         assertThat(classify.getDiagnostics().get("rationale").toString())
                 .contains("No configured rule matched");

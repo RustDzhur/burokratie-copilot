@@ -122,7 +122,7 @@ class DocumentPipelineIT {
                         DocumentProcessingStep.Step.DUPLICATE_CHECK);
         assertThat(history).allSatisfy(step ->
                 assertThat(step.getStatus()).isEqualTo(DocumentProcessingStep.Status.SUCCEEDED));
-        assertThat(steps.findByDocumentIdAndStep(id, DocumentProcessingStep.Step.SECURITY_SCAN))
+        assertThat(step(id, DocumentProcessingStep.Step.SECURITY_SCAN))
                 .isPresent()
                 .get()
                 .satisfies(step -> assertThat(step.getDiagnostics()).containsKeys(
@@ -156,7 +156,7 @@ class DocumentPipelineIT {
                 .contains("Rechnungsnummer 2026-001");
 
         // The unimplemented step stays PENDING: it is waiting, not skipped and not succeeded.
-        assertThat(steps.findByDocumentIdAndStep(id, DocumentProcessingStep.Step.MATCHING))
+        assertThat(step(id, DocumentProcessingStep.Step.MATCHING))
                 .isPresent()
                 .get()
                 .satisfies(step -> assertThat(step.getStatus())
@@ -183,7 +183,7 @@ class DocumentPipelineIT {
 
         // No OCR engine is configured in the test profile, so the OCR step is reported as skipped
         // with the reason, and the document goes to a human instead of being treated as blank.
-        DocumentProcessingStep ocr = steps.findByDocumentIdAndStep(id, DocumentProcessingStep.Step.OCR)
+        DocumentProcessingStep ocr = step(id, DocumentProcessingStep.Step.OCR)
                 .orElseThrow();
         assertThat(ocr.getStatus())
                 .as("a skipped step is not a failure and not a success")
@@ -209,7 +209,7 @@ class DocumentPipelineIT {
         assertThat(second.progressed())
                 .as("the finished step must not run twice")
                 .isFalse();
-        assertThat(steps.findByDocumentIdAndStep(id, DocumentProcessingStep.Step.FORMAT_DETECT))
+        assertThat(step(id, DocumentProcessingStep.Step.FORMAT_DETECT))
                 .isPresent()
                 .get()
                 .satisfies(step -> assertThat(step.getAttempt())
@@ -228,6 +228,18 @@ class DocumentPipelineIT {
                 () -> pipeline.retryStep(id, DocumentProcessingStep.Step.TEXT_EXTRACT)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Only a failed step can be retried");
+    }
+
+    /**
+     * A step of a document, read in the tenant's context.
+     *
+     * <p>document_processing_steps is protected by a policy that reaches the tenant through the document, so
+     * a read without a context sees nothing - which is the point, and why this goes through one place.</p>
+     */
+    private java.util.Optional<DocumentProcessingStep> step(UUID documentId,
+                                                            DocumentProcessingStep.Step which) {
+        return RequestContext.runAs(tenantOf(documentId),
+                () -> steps.findByDocumentIdAndStep(documentId, which));
     }
 
     private UUID tenantOf(UUID documentId) {

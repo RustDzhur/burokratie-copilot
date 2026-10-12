@@ -190,8 +190,11 @@ class FieldExtractionIT {
         assertThat(extractions.findByDocumentIdAndFieldKey(id, "Waehrung")).isEmpty();
         assertThat(extractions.findByDocumentIdAndFieldKey(id, "Bestellreferenz")).isEmpty();
 
-        DocumentProcessingStep step = steps
-                .findByDocumentIdAndStep(id, DocumentProcessingStep.Step.FIELD_EXTRACT).orElseThrow();
+        UUID tenantForSteps = documents.findById(id).orElseThrow().getTenantId();
+        DocumentProcessingStep step = RequestContext.runAs(tenantForSteps,
+                        () -> steps.findByDocumentIdAndStep(id,
+                                DocumentProcessingStep.Step.FIELD_EXTRACT))
+                .orElseThrow();
         assertThat(step.getStatus()).isEqualTo(DocumentProcessingStep.Status.SUCCEEDED);
         assertThat(step.getDiagnostics().get("notFound").toString())
                 .contains("Bestellreferenz");
