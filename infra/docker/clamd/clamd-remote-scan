@@ -1,0 +1,19 @@
+#!/bin/sh
+# The application calls its scanner like `clamscan --no-summary --stdout <file>` (and `--version` at start-up).
+# Starting clamscan per upload reloads the whole signature database every time (about 500 MB and minutes of CPU),
+# which made the server unusable under a handful of uploads. This wrapper keeps that calling convention but asks the
+# long-running clamd service (container `clamav`, database loaded once) and streams the file to it.
+set -eu
+CONF=/etc/clamav/clamdscan-remote.conf
+if [ "${1:-}" = "--version" ]; then
+  exec clamdscan --config-file="$CONF" --version
+fi
+file=""
+for arg in "$@"; do
+  case "$arg" in
+    --*) ;;
+    *) file="$arg" ;;
+  esac
+done
+[ -n "$file" ] || { echo "no file to scan" >&2; exit 2; }
+exec clamdscan --config-file="$CONF" --no-summary --stream --stdout "$file"

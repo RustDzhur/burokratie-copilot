@@ -26,7 +26,7 @@ compose() {
     -f infra/docker-compose.host-proxy.yml -f infra/docker-compose.portable.yml "$@"
 }
 prepare_dirs() {
-  mkdir -p data/postgres data/app
+  mkdir -p data/postgres data/app data/clamav
   # The API runs as uid 10001 and cannot be chown'ed from an unprivileged login: a throw-away root container does it.
   docker run --rm -v "$BC_DATA_DIR/app:/d" alpine sh -c 'chown 10001:10001 /d' >/dev/null
 }

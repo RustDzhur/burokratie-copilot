@@ -88,7 +88,7 @@ x-api-environment: &api-environment
   BC_REGISTRATION_OPEN: ${BC_REGISTRATION_OPEN:-true}
   BC_OCR_ENABLED: ${BC_OCR_ENABLED:-true}
   BC_MALWARE_SCANNER: ${BC_MALWARE_SCANNER:-clamav-cli}
-  BC_CLAMAV_PATH: ${BC_CLAMAV_PATH:-clamscan}
+  BC_CLAMAV_PATH: ${BC_CLAMAV_PATH:-/usr/local/bin/clamd-remote-scan}
   BC_MALWARE_SCAN_SPOOL: ${BC_MALWARE_SCAN_SPOOL:-/app/data/scan-spool}
   BC_MALWARE_SCAN_TIMEOUT: ${BC_MALWARE_SCAN_TIMEOUT:-PT2M}
   BC_OCR_ENGINE: ${BC_OCR_ENGINE:-tesseract}
@@ -239,6 +239,33 @@ services:
     logging: *default-logging
 
   # ---------------------------------------------------------------------------
+  # clamav - the virus scanner daemon. The signature database is loaded ONCE; the API streams every upload to it
+  # (clamd-remote-scan). It keeps its own database up to date (freshclam inside the image).
+  # ---------------------------------------------------------------------------
+  clamav:
+    image: ${BC_CLAMAV_IMAGE:-clamav/clamav:1.4}
+    container_name: bc-clamav
+    restart: unless-stopped
+    environment:
+      CLAMD_CONF_StreamMaxLength: 110M
+      CLAMD_CONF_MaxFileSize: 110M
+    volumes:
+      - clamav-db:/var/lib/clamav
+    healthcheck:
+      test: ["CMD-SHELL", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 360s
+    deploy:
+      resources:
+        limits:
+          memory: ${BC_CLAMAV_MEMORY_LIMIT:-3g}
+    networks:
+      - internal
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
   # api — HTTP backend (Spring Boot, profile `dev`)
   # ---------------------------------------------------------------------------
   api:
@@ -248,6 +275,8 @@ services:
     restart: unless-stopped
     depends_on:
       postgres:
+        condition: service_healthy
+      clamav:
         condition: service_healthy
       minio:
         condition: service_healthy
@@ -292,6 +321,8 @@ services:
     container_name: bc-worker
     restart: unless-stopped
     depends_on:
+      clamav:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       minio:
@@ -388,6 +419,8 @@ networks:
 # Named volumes — data survives `docker compose down`; `down -v` removes it.
 # -----------------------------------------------------------------------------
 volumes:
+  clamav-db:
+    name: ${COMPOSE_PROJECT_NAME:-burokratie-copilot}-clamav-db
   postgres-data:
     name: ${COMPOSE_PROJECT_NAME:-burokratie-copilot}-postgres-data
   minio-data:

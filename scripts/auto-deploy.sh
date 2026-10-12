@@ -68,7 +68,7 @@ main() {
   fi
 
   scripts/portable.sh up >> "$ROOT/deploy.log" 2>&1
-  if wait_healthy 300; then
+  if wait_healthy 600; then
     rm -f .deploy-failed
     log "deployed ${new:0:8} OK"
   else

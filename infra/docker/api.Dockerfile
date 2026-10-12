@@ -105,19 +105,21 @@ LABEL org.opencontainers.image.title="burokratie-copilot-api" \
 
 # curl is required by the HEALTHCHECK; dumb-init makes PID 1 forward signals to
 # the JVM and reap zombies.
-# tesseract (German + English) reads scans and photographs; clamscan checks every upload before it is
-# processed. Without them the platform would run with OCR and virus scanning silently off (the application
-# also refuses to start in production without them, see ProductionConfigurationGuard).
-# freshclam downloads the signature database into the image: a build that cannot fetch it fails, because an
-# image whose scanner has no signatures would report every file as clean.
+# tesseract (German + English) reads scans and photographs. Virus scanning is done by a separate, long-running
+# clamd service (compose service `clamav`): only its client, clamdscan, is installed here, behind a wrapper that keeps
+# the `clamscan <file>` calling convention. A per-upload `clamscan` reloads the whole signature database each time
+# and brought the server to its knees (see infra/docker/clamd/clamd-remote-scan). The application also refuses to
+# start in production without a scanner and OCR, see ProductionConfigurationGuard.
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends curl dumb-init tesseract-ocr tesseract-ocr-deu tesseract-ocr-eng \
-        clamav clamav-freshclam; \
+        clamav-daemon; \
     rm -rf /var/lib/apt/lists/*; \
-    freshclam --quiet; \
-    chmod -R a+rX /var/lib/clamav; \
-    tesseract --version; clamscan --version
+    tesseract --version; clamdscan --version | head -1 || true
+
+COPY infra/docker/clamd/clamd-remote-scan /usr/local/bin/clamd-remote-scan
+COPY infra/docker/clamd/clamdscan-remote.conf /etc/clamav/clamdscan-remote.conf
+RUN chmod 0755 /usr/local/bin/clamd-remote-scan
 
 # Fixed, non-privileged UID/GID so that volume permissions are predictable and
 # an operator can `chown 10001:10001` a bind mount (spec §21).

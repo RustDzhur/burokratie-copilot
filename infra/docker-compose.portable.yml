@@ -12,6 +12,9 @@ services:
   postgres:
     volumes: !override
       - ${BC_DATA_DIR:?run through scripts/portable.sh}/postgres:/var/lib/postgresql/data
+  clamav:
+    volumes: !override
+      - ${BC_DATA_DIR}/clamav:/var/lib/clamav
   minio:
     profiles: ["s3"]
   minio-init:
@@ -20,11 +23,15 @@ services:
     depends_on: !override
       postgres:
         condition: service_healthy
+      clamav:
+        condition: service_healthy
     volumes: !override
       - ${BC_DATA_DIR}/app:/app/data
   worker:
     depends_on: !override
       postgres:
+        condition: service_healthy
+      clamav:
         condition: service_healthy
     volumes: !override
       - ${BC_DATA_DIR}/app:/app/data
