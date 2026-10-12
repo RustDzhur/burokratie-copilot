@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -14,6 +15,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import de.buerokratiecopilot.accounts.ModuleCatalogue.Module;
 import de.buerokratiecopilot.shared.context.RequestContext;
+import de.buerokratiecopilot.support.TenantContextExtension;
 import de.buerokratiecopilot.shared.error.ApiException;
 
 /**
@@ -28,6 +30,7 @@ import de.buerokratiecopilot.shared.error.ApiException;
  * changed per tenant, and switching the account type deletes nothing.</p>
  */
 @SpringBootTest
+@ExtendWith(TenantContextExtension.class)
 @ActiveProfiles("test")
 class AccountModeIT {
 
@@ -38,11 +41,15 @@ class AccountModeIT {
     private JdbcTemplate jdbc;
 
     private UUID tenant(String accountType) {
-        return jdbc.queryForObject("""
+        UUID id = jdbc.queryForObject("""
                 insert into tenants (id, slug, name, account_type)
                 values (gen_random_uuid(), ?, ?, ?) returning id
                 """, UUID.class, "mode-" + UUID.randomUUID().toString().substring(0, 12),
                 "Konto " + accountType, accountType);
+        // The tenant is established for the rest of the test: the protected tables require a context,
+        // and the HTTP layer is what normally supplies it. The extension clears it afterwards.
+        RequestContext.setTenantId(id);
+        return id;
     }
 
     private boolean allows(UUID tenantId, String moduleKey) {

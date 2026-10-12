@@ -9,11 +9,14 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
+import de.buerokratiecopilot.shared.context.RequestContext;
+import de.buerokratiecopilot.support.TenantContextExtension;
 import de.buerokratiecopilot.shared.error.ApiException;
 
 /**
@@ -26,6 +29,7 @@ import de.buerokratiecopilot.shared.error.ApiException;
  */
 @SpringBootTest
 @ActiveProfiles("test")
+@ExtendWith(TenantContextExtension.class)
 class UnknownVariableTest {
 
     @Autowired
@@ -35,10 +39,14 @@ class UnknownVariableTest {
     private JdbcTemplate jdbc;
 
     private UUID tenant() {
-        return jdbc.queryForObject("""
+        UUID id = jdbc.queryForObject("""
                 insert into tenants (id, slug, name, account_type)
                 values (gen_random_uuid(), ?, 'Vorlagen Test', 'COMPANY') returning id
                 """, UUID.class, "tpl-" + UUID.randomUUID().toString().substring(0, 12));
+        // The tenant is established for the rest of the test, so that every service call below acts in
+        // it - which is what the protected tables require and what the HTTP layer does in production.
+        RequestContext.setTenantId(id);
+        return id;
     }
 
     private UUID person() {
@@ -51,6 +59,13 @@ class UnknownVariableTest {
     }
 
     private UUID publishedTemplate(UUID tenantId, String bodyHtml) {
+        // This helper is called for a tenant that is not always the one set for the test - one test prepares
+        // a template for its owner and then tries to generate from a stranger's side - so it names the tenant
+        // it acts in rather than relying on the ambient one.
+        return RequestContext.runAs(tenantId, () -> defineAndPublish(tenantId, bodyHtml));
+    }
+
+    private UUID defineAndPublish(UUID tenantId, String bodyHtml) {
         UUID templateId = templates.define(new TemplateService.TemplateRequest(tenantId, "Mahnung",
                 "Mahnung", "Erste Mahnung", "REMINDER",
                 List.of(new TemplateService.FieldRequest("kontakt_name", "Name", "CONTACT", "Name", "TEXT",

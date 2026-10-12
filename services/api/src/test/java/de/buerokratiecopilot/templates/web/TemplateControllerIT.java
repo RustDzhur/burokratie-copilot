@@ -144,9 +144,12 @@ class TemplateControllerIT {
                         .cookie(session.cookie()))
                 .andExpect(status().isNoContent());
 
-        org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject("""
+        // template_versions is protected by a policy on its own tenant_id, so this read names the tenant:
+        // the HTTP call set the context for itself and cleared it again.
+        Integer published = RequestContext.runAs(session.tenantId(), () -> jdbc.queryForObject("""
                 select count(*) from template_versions where template_id = ? and status = 'PUBLISHED'
-                """, Integer.class, templateId))
+                """, Integer.class, templateId));
+        org.assertj.core.api.Assertions.assertThat(published)
                 .as("the letter that went out must not change when the template is edited afterwards")
                 .isGreaterThan(0);
     }
