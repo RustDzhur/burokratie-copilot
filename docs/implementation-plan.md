@@ -5340,3 +5340,43 @@ feature_flags:         0 null / 330
 
 **Итог:** `./mvnw -B clean verify` → **BUILD SUCCESS**, тестов **1288** (428 unit + 860 integration),
 миграций **30**.
+
+### Раунд 83: V31 — решения по восьми таблицам приняты, миграция откачена
+
+**Главное в раунде — не миграция, а решение, и оно принято по данным.**
+
+Восемь оставшихся таблиц **нельзя закрыть одним шаблоном**, и проверка это показала:
+
+| Таблица | Глобальных строк | Политика |
+|---|---|---|
+| `case_types` | **10 из 10** | `tenant_id is null or = current` |
+| `document_type_rules` | **63 из 477** | `tenant_id is null or = current` |
+| **`roles`** | **10 из 6883** | `tenant_id is null or = current` |
+| `system_settings` | **10 из 545** | `tenant_id is null or = current` |
+| `deadline_rules` | 0 из 670 | `tenant_id = current` |
+| `payment_approval_rules` | 0 из 1460 | `tenant_id = current` |
+| `tax_rates` | 0 из 0 | `tenant_id = current` |
+| `system_setting_history` | 0 из 0 | `tenant_id = current` |
+
+**Сплошная политика `tenant_id = current_tenant_id()` скрыла бы системные роли** (10 глобальных строк в
+`roles`) **и сломала бы каждый запрос прав, то есть каждый запрос вообще.** Это ровно тот случай, о
+котором я предупреждал, и он подтвердился числами.
+
+**Миграция `V31` написана с этими двумя политиками — и откачена: 48 падающих тестов.** Все они —
+**вставки в защищённые таблицы без контекста арендатора**, и это **тот же класс**, что закрывался
+расширением в прошлом раунде, **но масштаб другой**: `ApprovalFlowIT`, `ApprovalAndPresetsIT`,
+`ApprovalAndPresetsIT`, `AiProviderFailoverTest`, `AssistantConfirmationTest`, `ToolAllowlistTest` и другие.
+
+**Расширение уже применено к трём из них** (`AiProviderFailoverTest`, `AssistantConfirmationTest`,
+`ToolAllowlistTest`) — **29 из 30 тестов прошли** после одной строки на класс и **явной обёртки** в
+`person(...)`, который действует **для другого арендатора**, чем окружающий.
+
+**Что осталось:** применить расширение **тем же приёмом** к `ApprovalFlowIT` и `ApprovalAndPresetsIT`
+(они падают на `payment_approval_rules` и `roles`), затем вернуть `V31` **дословно** — она проверена и
+корректна.
+
+**Почему откатил, а не доделал:** **масштаб больше, чем остаток контекста**, а **оставить `main`
+сломанным нельзя**. Тот же выбор, что для `V29` (закрыта через раунд) и `V30` (закрыта через два).
+
+**Итог:** `./mvnw -B clean verify` → **BUILD SUCCESS**, тестов **1288** (428 unit + 860 integration),
+миграций **30**, таблиц с пробелом **8**.
