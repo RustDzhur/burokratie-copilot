@@ -284,7 +284,7 @@ if [ -n "$YAML_FILES" ]; then
         PLAIN_COUNT=0
         for yaml_file in $YAML_FILES; do
             case "$yaml_file" in
-                infra/docker-compose.yml|infra/docker-compose.prod.yml) continue ;;
+                infra/docker-compose.yml|infra/docker-compose.prod.yml|infra/docker-compose.portable.yml) continue ;;
             esac
             PLAIN_COUNT=$((PLAIN_COUNT + 1))
             if ! python3 -c 'import sys, yaml; yaml.safe_load(open(sys.argv[1], encoding="utf-8"))' "$yaml_file" >/dev/null 2>&1; then

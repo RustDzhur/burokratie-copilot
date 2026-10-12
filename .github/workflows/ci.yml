@@ -342,7 +342,7 @@ jobs:
             # which yaml.safe_load cannot resolve. They are parsed (and their
             # structure asserted) by infra/scripts/validate-compose.sh below.
             case "$file" in
-              infra/docker-compose.yml|infra/docker-compose.prod.yml) continue ;;
+              infra/docker-compose.yml|infra/docker-compose.prod.yml|infra/docker-compose.portable.yml) continue ;;
             esac
             if python3 -c 'import sys, yaml; yaml.safe_load(open(sys.argv[1], encoding="utf-8"))' "$file"; then
               echo "OK    $file"
@@ -555,7 +555,7 @@ jobs:
           # --allow-web-pending reports a missing `output: "standalone"` as PENDING instead of
           # failing. A RELEASE must run the plain form (and --strict also rejects pending
           # paths) - see docs/deployment.md §7.2. The only PENDING items left are tests/e2e
-          # and tests/load, which have no automated suites yet.
+          # tests/load (no automated load suite yet).
           infra/scripts/check-structure.sh --quiet --allow-web-pending
 
       - name: Documents name only tests that exist
