@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -16,6 +17,7 @@ import org.springframework.test.context.ActiveProfiles;
 import de.buerokratiecopilot.ai.security.UntrustedContent;
 import de.buerokratiecopilot.ai.security.ToolPolicy;
 import de.buerokratiecopilot.shared.context.RequestContext;
+import de.buerokratiecopilot.support.TenantContextExtension;
 import de.buerokratiecopilot.shared.error.ApiException;
 
 /**
@@ -27,6 +29,8 @@ import de.buerokratiecopilot.shared.error.ApiException;
  * could be undone.</p>
  */
 @SpringBootTest
+@ExtendWith(TenantContextExtension.class)
+@ExtendWith(TenantContextExtension.class)
 @ActiveProfiles("test")
 class AssistantConfirmationTest {
 
@@ -47,28 +51,30 @@ class AssistantConfirmationTest {
     }
 
     private UUID person(UUID tenantId, String... permissions) {
-        UUID userId = jdbc.queryForObject("""
-                insert into users (id, email, status, display_name, locale, time_zone,
-                                   failed_login_attempts, must_change_password)
-                values (gen_random_uuid(), ?, 'ACTIVE', 'Sachbearbeiter', 'de', 'Europe/Berlin', 0, false)
-                returning id
-                """, UUID.class, "cn-" + UUID.randomUUID().toString().substring(0, 10) + "@example.de");
+        return RequestContext.runAs(tenantId, () -> {
+            UUID userId = jdbc.queryForObject("""
+                    insert into users (id, email, status, display_name, locale, time_zone,
+                                       failed_login_attempts, must_change_password)
+                    values (gen_random_uuid(), ?, 'ACTIVE', 'Sachbearbeiter', 'de', 'Europe/Berlin', 0, false)
+                    returning id
+                    """, UUID.class, "cn-" + UUID.randomUUID().toString().substring(0, 10) + "@example.de");
 
-        UUID roleId = jdbc.queryForObject("""
-                insert into roles (id, tenant_id, code, name, is_system)
-                values (gen_random_uuid(), ?, ?, '{"de":"Testrolle"}'::jsonb, false) returning id
-                """, UUID.class, tenantId, "ROLE_" + UUID.randomUUID().toString().substring(0, 8));
-        for (String permission : permissions) {
-            jdbc.update("insert into role_permissions (role_id, permission_id) select ?, id from "
-                    + "permissions where code = ?", roleId, permission);
-        }
-        UUID membershipId = jdbc.queryForObject("""
-                insert into memberships (id, tenant_id, user_id, status, is_owner)
-                values (gen_random_uuid(), ?, ?, 'ACTIVE', false) returning id
-                """, UUID.class, tenantId, userId);
-        jdbc.update("insert into membership_roles (membership_id, role_id, granted_at) values (?, ?, now())",
-                membershipId, roleId);
-        return userId;
+            UUID roleId = jdbc.queryForObject("""
+                    insert into roles (id, tenant_id, code, name, is_system)
+                    values (gen_random_uuid(), ?, ?, '{"de":"Testrolle"}'::jsonb, false) returning id
+                    """, UUID.class, tenantId, "ROLE_" + UUID.randomUUID().toString().substring(0, 8));
+            for (String permission : permissions) {
+                jdbc.update("insert into role_permissions (role_id, permission_id) select ?, id from "
+                        + "permissions where code = ?", roleId, permission);
+            }
+            UUID membershipId = jdbc.queryForObject("""
+                    insert into memberships (id, tenant_id, user_id, status, is_owner)
+                    values (gen_random_uuid(), ?, ?, 'ACTIVE', false) returning id
+                    """, UUID.class, tenantId, userId);
+            jdbc.update("insert into membership_roles (membership_id, role_id, granted_at) values (?, ?, now())",
+                    membershipId, roleId);
+            return userId;
+        });
     }
 
     /** Enables a tool for the tenant, which every tool with an effect requires. */

@@ -8,10 +8,14 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+
+import de.buerokratiecopilot.shared.context.RequestContext;
+import de.buerokratiecopilot.support.TenantContextExtension;
 
 import de.buerokratiecopilot.ai.security.ToolPolicy.Request;
 import de.buerokratiecopilot.ai.security.ToolPolicy.Risk;
@@ -25,6 +29,8 @@ import de.buerokratiecopilot.shared.error.ApiException;
  * right names" but "the call is refused".</p>
  */
 @SpringBootTest
+@ExtendWith(TenantContextExtension.class)
+@ExtendWith(TenantContextExtension.class)
 @ActiveProfiles("test")
 class ToolAllowlistTest {
 
@@ -43,28 +49,30 @@ class ToolAllowlistTest {
 
     /** A person with exactly one permission. */
     private UUID personWith(UUID tenantId, String permissionCode) {
-        UUID userId = jdbc.queryForObject("""
-                insert into users (id, email, status, display_name, locale, time_zone,
-                                   failed_login_attempts, must_change_password)
-                values (gen_random_uuid(), ?, 'ACTIVE', 'Sachbearbeiter', 'de', 'Europe/Berlin', 0, false)
-                returning id
-                """, UUID.class, "tw-" + UUID.randomUUID().toString().substring(0, 10) + "@example.de");
+        return RequestContext.runAs(tenantId, () -> {
+            UUID userId = jdbc.queryForObject("""
+                    insert into users (id, email, status, display_name, locale, time_zone,
+                                       failed_login_attempts, must_change_password)
+                    values (gen_random_uuid(), ?, 'ACTIVE', 'Sachbearbeiter', 'de', 'Europe/Berlin', 0, false)
+                    returning id
+                    """, UUID.class, "tw-" + UUID.randomUUID().toString().substring(0, 10) + "@example.de");
 
-        UUID roleId = jdbc.queryForObject("""
-                insert into roles (id, tenant_id, code, name, is_system)
-                values (gen_random_uuid(), ?, ?, '{"de":"Testrolle"}'::jsonb, false) returning id
-                """, UUID.class, tenantId, "ROLE_" + UUID.randomUUID().toString().substring(0, 8));
+            UUID roleId = jdbc.queryForObject("""
+                    insert into roles (id, tenant_id, code, name, is_system)
+                    values (gen_random_uuid(), ?, ?, '{"de":"Testrolle"}'::jsonb, false) returning id
+                    """, UUID.class, tenantId, "ROLE_" + UUID.randomUUID().toString().substring(0, 8));
 
-        jdbc.update("insert into role_permissions (role_id, permission_id) select ?, id from permissions "
-                + "where code = ?", roleId, permissionCode);
+            jdbc.update("insert into role_permissions (role_id, permission_id) select ?, id from permissions "
+                    + "where code = ?", roleId, permissionCode);
 
-        UUID membershipId = jdbc.queryForObject("""
-                insert into memberships (id, tenant_id, user_id, status, is_owner)
-                values (gen_random_uuid(), ?, ?, 'ACTIVE', false) returning id
-                """, UUID.class, tenantId, userId);
-        jdbc.update("insert into membership_roles (membership_id, role_id, granted_at) values (?, ?, now())",
-                membershipId, roleId);
-        return userId;
+            UUID membershipId = jdbc.queryForObject("""
+                    insert into memberships (id, tenant_id, user_id, status, is_owner)
+                    values (gen_random_uuid(), ?, ?, 'ACTIVE', false) returning id
+                    """, UUID.class, tenantId, userId);
+            jdbc.update("insert into membership_roles (membership_id, role_id, granted_at) values (?, ?, now())",
+                    membershipId, roleId);
+            return userId;
+        });
     }
 
     /** Runs a policy call in the tenant's context, which is what row level security requires. */

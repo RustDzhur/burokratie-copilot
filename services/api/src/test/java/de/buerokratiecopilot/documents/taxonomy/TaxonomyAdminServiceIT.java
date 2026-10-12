@@ -8,12 +8,14 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import de.buerokratiecopilot.shared.context.RequestContext;
+import de.buerokratiecopilot.support.TenantContextExtension;
 import de.buerokratiecopilot.shared.error.ApiException;
 
 /**
@@ -26,6 +28,8 @@ import de.buerokratiecopilot.shared.error.ApiException;
  * second person.</p>
  */
 @SpringBootTest
+@ExtendWith(TenantContextExtension.class)
+@ExtendWith(TenantContextExtension.class)
 @ActiveProfiles("test")
 class TaxonomyAdminServiceIT {
 
@@ -44,34 +48,36 @@ class TaxonomyAdminServiceIT {
 
     /** A person, optionally with the permission the endpoint asks for. */
     private UUID person(UUID tenantId, boolean withPermission) {
-        UUID userId = jdbc.queryForObject("""
-                insert into users (id, email, status, display_name, locale, time_zone,
-                                   failed_login_attempts, must_change_password)
-                values (gen_random_uuid(), ?, 'ACTIVE', 'Person', 'de', 'Europe/Berlin', 0, false)
-                returning id
-                """, UUID.class, "tx-" + UUID.randomUUID().toString().substring(0, 10) + "@example.de");
-        UUID membershipId = jdbc.queryForObject("""
-                insert into memberships (id, tenant_id, user_id, status, is_owner)
-                values (gen_random_uuid(), ?, ?, 'ACTIVE', false) returning id
-                """, UUID.class, tenantId, userId);
-        if (withPermission) {
-            UUID roleId = jdbc.queryForObject("""
-                    insert into roles (id, tenant_id, code, name)
-                    values (gen_random_uuid(), ?, ?, '{"de":"Taxonomie"}'::jsonb) returning id
-                    """, UUID.class, tenantId, "tax-" + UUID.randomUUID().toString().substring(0, 8));
-            // Read, not created: creating it here is what let a permission nobody holds pass the service
-            // tests while every endpoint answered 403.
-            String permissionCode = "taxonomy.manage";
-            UUID permissionId = jdbc.queryForObject("""
-                    select id from permissions where code = ?
-                    """, UUID.class, permissionCode);
-            jdbc.update("insert into role_permissions (role_id, permission_id) values (?, ?)", roleId,
-                    permissionId);
-            jdbc.update("""
-                    insert into membership_roles (membership_id, role_id, granted_at) values (?, ?, now())
-                    """, membershipId, roleId);
-        }
-        return userId;
+        return RequestContext.runAs(tenantId, () -> {
+            UUID userId = jdbc.queryForObject("""
+                    insert into users (id, email, status, display_name, locale, time_zone,
+                                       failed_login_attempts, must_change_password)
+                    values (gen_random_uuid(), ?, 'ACTIVE', 'Person', 'de', 'Europe/Berlin', 0, false)
+                    returning id
+                    """, UUID.class, "tx-" + UUID.randomUUID().toString().substring(0, 10) + "@example.de");
+            UUID membershipId = jdbc.queryForObject("""
+                    insert into memberships (id, tenant_id, user_id, status, is_owner)
+                    values (gen_random_uuid(), ?, ?, 'ACTIVE', false) returning id
+                    """, UUID.class, tenantId, userId);
+            if (withPermission) {
+                UUID roleId = jdbc.queryForObject("""
+                        insert into roles (id, tenant_id, code, name)
+                        values (gen_random_uuid(), ?, ?, '{"de":"Taxonomie"}'::jsonb) returning id
+                        """, UUID.class, tenantId, "tax-" + UUID.randomUUID().toString().substring(0, 8));
+                // Read, not created: creating it here is what let a permission nobody holds pass the service
+                // tests while every endpoint answered 403.
+                String permissionCode = "taxonomy.manage";
+                UUID permissionId = jdbc.queryForObject("""
+                        select id from permissions where code = ?
+                        """, UUID.class, permissionCode);
+                jdbc.update("insert into role_permissions (role_id, permission_id) values (?, ?)", roleId,
+                        permissionId);
+                jdbc.update("""
+                        insert into membership_roles (membership_id, role_id, granted_at) values (?, ?, now())
+                        """, membershipId, roleId);
+            }
+            return userId;
+        });
     }
 
     /** A real user, because the audit trail names an actor and the column is a foreign key. */
@@ -279,15 +285,17 @@ class TaxonomyAdminServiceIT {
             taxonomy.setRuleActive(tenantId, rule.id(), false, actor);
             return null;
         });
-        assertThat(jdbc.queryForObject("select is_active from document_type_rules where id = ?",
-                Boolean.class, rule.id())).isFalse();
+        assertThat(RequestContext.runAs(tenantId, () -> jdbc.queryForObject(
+                "select is_active from document_type_rules where id = ?",
+                Boolean.class, rule.id()))).isFalse();
 
         RequestContext.runAs(tenantId, () -> {
             taxonomy.setRuleActive(tenantId, rule.id(), true, actor);
             return null;
         });
-        assertThat(jdbc.queryForObject("select is_active from document_type_rules where id = ?",
-                Boolean.class, rule.id())).isTrue();
+        assertThat(RequestContext.runAs(tenantId, () -> jdbc.queryForObject(
+                "select is_active from document_type_rules where id = ?",
+                Boolean.class, rule.id()))).isTrue();
     }
 
     @Test
@@ -397,8 +405,9 @@ class TaxonomyAdminServiceIT {
         assertThatThrownBy(() -> RequestContext.runAs(second,
                 () -> taxonomy.deleteRule(second, rule.id(), person(second, true))))
                 .isInstanceOf(ApiException.class);
-        assertThat(jdbc.queryForObject("select count(*) from document_type_rules where id = ?",
-                Integer.class, rule.id())).isEqualTo(1);
+        assertThat(RequestContext.runAs(first, () -> jdbc.queryForObject(
+                "select count(*) from document_type_rules where id = ?",
+                Integer.class, rule.id()))).isEqualTo(1);
     }
 
     @Test

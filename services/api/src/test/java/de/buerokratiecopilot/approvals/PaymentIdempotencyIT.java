@@ -9,6 +9,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -18,6 +19,7 @@ import de.buerokratiecopilot.approvals.domain.Payment;
 import de.buerokratiecopilot.approvals.domain.PaymentApproval;
 import de.buerokratiecopilot.shared.error.ApiException;
 import de.buerokratiecopilot.shared.context.RequestContext;
+import de.buerokratiecopilot.support.TenantContextExtension;
 
 /**
  * Verifies that a repeated confirmation does not duplicate the operation (spec §15, D-004 acceptance).
@@ -28,6 +30,7 @@ import de.buerokratiecopilot.shared.context.RequestContext;
  * one that a request identifier alone would not catch.</p>
  */
 @SpringBootTest
+@ExtendWith(TenantContextExtension.class)
 @ActiveProfiles("test")
 class PaymentIdempotencyIT {
 
@@ -45,6 +48,7 @@ class PaymentIdempotencyIT {
                 insert into tenants (id, slug, name, account_type)
                 values (gen_random_uuid(), ?, 'Idempotenz Test', 'COMPANY') returning id
                 """, UUID.class, "idem-" + UUID.randomUUID().toString().substring(0, 12));
+        RequestContext.setTenantId(tenantId);
 
         UUID approverId = person(tenantId, "finance.approve");
         UUID requesterId = person(tenantId, "finance.create");

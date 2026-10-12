@@ -10,10 +10,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+
+import de.buerokratiecopilot.shared.context.RequestContext;
+import de.buerokratiecopilot.support.TenantContextExtension;
 
 import de.buerokratiecopilot.shared.settings.SettingsService;
 
@@ -26,6 +30,7 @@ import de.buerokratiecopilot.shared.settings.SettingsService;
  * document that could not be summarised, not an outage.</p>
  */
 @SpringBootTest
+@ExtendWith(TenantContextExtension.class)
 @ActiveProfiles("test")
 class AiProviderFailoverTest {
 
@@ -104,10 +109,14 @@ class AiProviderFailoverTest {
     }
 
     private UUID tenant() {
-        return jdbc.queryForObject("""
+        UUID tenantId = jdbc.queryForObject("""
                 insert into tenants (id, slug, name, account_type)
                 values (gen_random_uuid(), ?, 'KI Test', 'COMPANY') returning id
                 """, UUID.class, "ai-" + UUID.randomUUID().toString().substring(0, 12));
+        // Established for the rest of the test: roles and settings live in tables protected by a policy on
+        // tenant_id, which the HTTP layer supplies in production.
+        RequestContext.setTenantId(tenantId);
+        return tenantId;
     }
 
     @Test
@@ -260,12 +269,14 @@ class AiProviderFailoverTest {
                 null);
         assertThat(outcome.status()).isEqualTo("SUCCEEDED");
 
-        jdbc.update("""
+        // system_settings is protected by a policy that lets a global row through and needs a tenant for
+        // the rest, so this write names the account it belongs to.
+        RequestContext.runAs(tenantId, () -> jdbc.update("""
                 insert into system_settings (id, tenant_id, setting_key, category, value, value_type,
                                              description, requires_verification, version, is_active)
                 values (gen_random_uuid(), ?, 'ai.external_enabled', 'AI', 'false'::jsonb, 'BOOLEAN',
                         '{"de":"Externe KI erlauben"}'::jsonb, false, 1, true)
-                """, tenantId);
+                """, tenantId));
         AiOrchestrator.Outcome disabled = orchestrator.run(tenantId, "SUMMARIZE", "Text", "m", "v1", "h",
                 null);
 

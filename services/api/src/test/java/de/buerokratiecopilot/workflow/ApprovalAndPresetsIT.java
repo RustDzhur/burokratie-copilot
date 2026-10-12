@@ -12,12 +12,14 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import de.buerokratiecopilot.shared.context.RequestContext;
+import de.buerokratiecopilot.support.TenantContextExtension;
 import de.buerokratiecopilot.shared.error.ApiException;
 import de.buerokratiecopilot.workflow.approval.ApprovalService;
 
@@ -31,6 +33,7 @@ import de.buerokratiecopilot.workflow.approval.ApprovalService;
  * would let one person click twice.</p>
  */
 @SpringBootTest
+@ExtendWith(TenantContextExtension.class)
 @ActiveProfiles("test")
 class ApprovalAndPresetsIT {
 
@@ -58,6 +61,7 @@ class ApprovalAndPresetsIT {
                 insert into tenants (id, slug, name, account_type)
                 values (gen_random_uuid(), ?, 'Freigabe Test', 'COMPANY') returning id
                 """, UUID.class, "ap-" + UUID.randomUUID().toString().substring(0, 12));
+        RequestContext.setTenantId(tenantId);
 
         UUID roleId = null;
         String permissionCode = null;
@@ -328,6 +332,7 @@ class ApprovalAndPresetsIT {
                 insert into tenants (id, slug, name, account_type)
                 values (gen_random_uuid(), ?, 'Vorlagen', 'COMPANY') returning id
                 """, UUID.class, "pre-" + UUID.randomUUID().toString().substring(0, 12));
+        RequestContext.setTenantId(tenantId);
         UUID installer = person(tenantId, null);
 
         Map<String, Object> first = RequestContext.runAs(tenantId,
@@ -354,6 +359,7 @@ class ApprovalAndPresetsIT {
                 insert into tenants (id, slug, name, account_type)
                 values (gen_random_uuid(), ?, 'Durchlauf', 'COMPANY') returning id
                 """, UUID.class, "pre-" + UUID.randomUUID().toString().substring(0, 12));
+        RequestContext.setTenantId(tenantId);
         UUID installer = person(tenantId, null);
         RequestContext.runAs(tenantId, () -> presets.install(tenantId, installer));
 
@@ -381,6 +387,7 @@ class ApprovalAndPresetsIT {
                 insert into tenants (id, slug, name, account_type)
                 values (gen_random_uuid(), ?, 'Halt', 'COMPANY') returning id
                 """, UUID.class, "pre-" + UUID.randomUUID().toString().substring(0, 12));
+        RequestContext.setTenantId(tenantId);
         UUID installer = person(tenantId, null);
         RequestContext.runAs(tenantId, () -> presets.install(tenantId, installer));
 

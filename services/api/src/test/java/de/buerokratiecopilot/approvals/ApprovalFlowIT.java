@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -19,6 +20,7 @@ import de.buerokratiecopilot.approvals.domain.Payment;
 import de.buerokratiecopilot.approvals.domain.PaymentApproval;
 import de.buerokratiecopilot.shared.error.ApiException;
 import de.buerokratiecopilot.shared.context.RequestContext;
+import de.buerokratiecopilot.support.TenantContextExtension;
 
 /**
  * Verifies the payment approval flow (spec §15, D-004 acceptance).
@@ -29,6 +31,7 @@ import de.buerokratiecopilot.shared.context.RequestContext;
  * refused, and the refusal has to say why.</p>
  */
 @SpringBootTest
+@ExtendWith(TenantContextExtension.class)
 @ActiveProfiles("test")
 class ApprovalFlowIT {
 
@@ -47,6 +50,7 @@ class ApprovalFlowIT {
                 insert into tenants (id, slug, name, account_type)
                 values (gen_random_uuid(), ?, 'Freigabe Test', 'COMPANY') returning id
                 """, UUID.class, "appr-" + UUID.randomUUID().toString().substring(0, 12));
+        RequestContext.setTenantId(tenantId);
 
         jdbc.update("""
                 insert into payment_approval_rules (id, tenant_id, code, name, min_amount, currency,
