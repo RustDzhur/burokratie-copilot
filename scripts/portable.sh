@@ -2,6 +2,7 @@
 # One place, one command for a self-contained installation (compose project `burokratie`).
 #
 #   scripts/portable.sh up        build images if missing and start everything
+#   scripts/portable.sh build     (re)build the images
 #   scripts/portable.sh down      stop (data stays)
 #   scripts/portable.sh status    containers and health
 #   scripts/portable.sh logs [svc]
@@ -32,6 +33,7 @@ images_present() { docker image inspect burokratie-local/api:local burokratie-lo
 build_images() { docker compose -p burokratie --env-file "$ENV_FILE" -f infra/docker-compose.yml build; }
 
 case "${1:-}" in
+  build) build_images ;;
   up) prepare_dirs; images_present || build_images; compose up -d ;;
   down) compose down ;;
   status) compose ps ;;

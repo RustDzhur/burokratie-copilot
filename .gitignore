@@ -55,3 +55,7 @@ test-results/
 playwright-report/
 data/
 images/
+deploy.log
+.deploy.lock
+.deploy-failed
+backups/

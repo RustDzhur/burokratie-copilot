@@ -101,6 +101,9 @@ x-api-environment: &api-environment
   SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
   SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
   SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+  # Without these the connection is plain text and Gmail and most relays refuse it (530 Must issue a STARTTLS).
+  SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:-true}
+  SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:-true}
   BC_MAIL_FROM: ${BC_MAIL_FROM:-no-reply@buerokratie-copilot.local}
   # --- observability ---
   BC_LOG_LEVEL: ${BC_LOG_LEVEL:-INFO}
