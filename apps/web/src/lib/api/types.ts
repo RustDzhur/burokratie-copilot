@@ -202,6 +202,36 @@ export interface IntegrationSummary {
   readonly description?: string | null;
 }
 
+/** One entry of the integration catalogue: what exists, what it can do and what the owner has to bring. */
+export interface IntegrationCatalogueEntry {
+  readonly provider: string;
+  readonly category: string;
+  readonly name: string;
+  readonly implemented: boolean;
+  readonly capabilities: readonly string[];
+  readonly ownerRequirements: readonly string[];
+  readonly note: string | null;
+}
+
+/** A connected mailbox; the password is never part of it. */
+export interface MailAccountSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly email: string;
+  readonly provider: string;
+  readonly status: 'CONNECTED' | 'DISCONNECTED' | 'ERROR' | string;
+  readonly lastSyncAt: IsoDateTime | null;
+  readonly lastError: string | null;
+  readonly failures: number;
+}
+
+export interface MailCollectResult {
+  readonly seen: number;
+  readonly stored: number;
+  readonly skipped: number;
+  readonly documentsCreated: number;
+}
+
 export interface DeviceSummary {
   readonly id: string;
   readonly name: string;
@@ -339,6 +369,103 @@ export interface SessionUser {
   readonly onboardingCompleted?: boolean;
   /** The account requires a second factor and this person has none yet: they may only set one up. */
   readonly mfaEnrolmentRequired?: boolean;
+  /** Runs the platform: gets the /admin area. Given by the server's configuration, never by the interface. */
+  readonly platformAdmin?: boolean;
+  readonly subscription?: SubscriptionInfo | null;
+}
+
+export type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'EXPIRED' | 'SUSPENDED';
+
+/** Where a workspace stands: free trial, paid, expired (data kept for a while) or suspended. */
+export interface SubscriptionInfo {
+  readonly planCode: string;
+  readonly planName: string;
+  readonly status: SubscriptionStatus;
+  readonly accessUntil: IsoDateTime;
+  readonly retentionUntil?: IsoDateTime | null;
+  readonly daysLeft: number;
+  readonly blocked: boolean;
+  readonly dataChoice?: 'KEEP' | 'DELETE' | null;
+  readonly retentionDays: number;
+}
+
+export interface PlanSummary {
+  readonly code: string;
+  readonly name: string;
+  readonly priceCents: number;
+  readonly currency: string;
+  readonly accountType?: string;
+  readonly active?: boolean;
+}
+
+export interface BillingState extends SubscriptionInfo {
+  readonly owner: boolean;
+  readonly invoiceAvailable: boolean;
+  readonly cryptoAvailable: boolean;
+  readonly plans: readonly PlanSummary[];
+}
+
+export interface BillingInvoice {
+  readonly id: string;
+  readonly number: string;
+  readonly planCode: string;
+  readonly months: number;
+  readonly amountCents: number;
+  readonly status: 'ISSUED' | 'PAID' | 'CANCELLED';
+  readonly method: 'INVOICE' | 'CRYPTO';
+  readonly reference: string;
+  readonly issuedAt: IsoDateTime;
+  readonly dueAt: IsoDateTime;
+  readonly paidAt?: IsoDateTime | null;
+  readonly cryptoAsset?: string | null;
+  readonly cryptoNetwork?: string | null;
+  readonly cryptoAddress?: string | null;
+  readonly cryptoAmount?: string | null;
+  /** Admin lists only. */
+  readonly tenantName?: string | null;
+  readonly customerName?: string | null;
+  readonly customerEmail?: string | null;
+}
+
+export interface InvoiceRequest {
+  readonly method: 'INVOICE' | 'CRYPTO';
+  readonly months: number;
+  readonly customerName: string;
+  readonly customerAddress: string;
+  readonly customerCountry: string;
+  readonly customerVatId?: string;
+}
+
+export interface AdminOverview {
+  readonly tenants: number;
+  readonly byStatus: readonly { readonly status: SubscriptionStatus; readonly count: number }[];
+  readonly monthlyRecurringCents: number;
+  readonly trialEndingSoon: number;
+  readonly openInvoices: number;
+  readonly payeeConfigured: boolean;
+  readonly cryptoConfigured: boolean;
+}
+
+export interface AdminTenant {
+  readonly id: string;
+  readonly name: string;
+  readonly accountType: string;
+  readonly createdAt: IsoDateTime;
+  readonly planCode: string;
+  readonly status: SubscriptionStatus;
+  readonly accessUntil: IsoDateTime;
+  readonly retentionUntil?: IsoDateTime | null;
+  readonly dataChoice?: 'KEEP' | 'DELETE' | null;
+  readonly ownerEmail?: string | null;
+  readonly members: number;
+}
+
+export interface AdminService {
+  readonly id: string;
+  readonly name: string;
+  readonly enabled: boolean;
+  readonly detail: string;
+  readonly setting: string;
 }
 
 export interface SessionInfo {

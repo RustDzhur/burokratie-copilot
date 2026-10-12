@@ -1,0 +1,63 @@
+.plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.planName {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+}
+
+.planPrice {
+  margin: 0;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-sm);
+}
+
+.form {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 560px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.invoice {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.qr {
+  display: block;
+  width: 192px;
+  height: 192px;
+  background: #fff;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border, #d0d7e2);
+}
+
+.mono {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  word-break: break-all;
+}

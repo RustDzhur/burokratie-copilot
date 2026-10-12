@@ -51,12 +51,15 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
     private final MembershipAuthorityResolver authorityResolver;
     private final BurokratieProperties properties;
     private final de.buerokratiecopilot.identity.mfa.MfaService mfa;
+    private final AccessPolicy accessPolicy;
 
     public SessionAuthenticationFilter(SessionService sessionService,
                                        MembershipAuthorityResolver authorityResolver,
                                        BurokratieProperties properties,
-                                       de.buerokratiecopilot.identity.mfa.MfaService mfa) {
+                                       de.buerokratiecopilot.identity.mfa.MfaService mfa,
+                                       AccessPolicy accessPolicy) {
         this.mfa = mfa;
+        this.accessPolicy = accessPolicy;
         this.sessionService = sessionService;
         this.authorityResolver = authorityResolver;
         this.properties = properties;
@@ -78,6 +81,12 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
             }
         }
         try {
+            var authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.getDetails() instanceof SessionDetails details
+                    && accessPolicy.blocks(details.tenantId(), request.getRequestURI())) {
+                writeSubscriptionRequired(request, response);
+                return;
+            }
             chain.doFilter(request, response);
         }
         finally {
@@ -128,9 +137,12 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
         List<String> permissions = session.getTenantId() == null
                 ? List.of()
                 : authorityResolver.permissionsOf(session.getTenantId(), session.getUserId());
-        List<SimpleGrantedAuthority> authorities = permissions.stream()
+        List<SimpleGrantedAuthority> authorities = new java.util.ArrayList<>(permissions.stream()
                 .map(SimpleGrantedAuthority::new)
-                .toList();
+                .toList());
+        if (accessPolicy.isPlatformAdmin(session.getUserId())) {
+            authorities.add(new SimpleGrantedAuthority("platform.admin"));
+        }
 
         var authentication = new UsernamePasswordAuthenticationToken(
                 session.getUserId().toString(), null, authorities);
@@ -140,6 +152,16 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
 
         // Recorded for the audit trail of the current request.
         request.setAttribute("bc.sessionId", session.getId());
+    }
+
+    /** 402: the workspace's access ended. The interface reads the code and shows the page where the plan is renewed. */
+    private static void writeSubscriptionRequired(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+        response.setStatus(402);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"code\":\"SUBSCRIPTION_REQUIRED\",\"message\":"
+                + "\"Der Zugang ist abgelaufen. Bitte den Tarif verlängern.\",\"path\":\""
+                + request.getRequestURI().replace("\"", "") + "\"}");
     }
 
     private String readSessionCookie(HttpServletRequest request) {

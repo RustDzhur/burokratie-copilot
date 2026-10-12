@@ -124,6 +124,14 @@ public class MailController {
                 "note", "Das Kennwort wird gespeichert und nie zurückgegeben."));
     }
 
+    /** The mailboxes of this account, with how the last collection went; never a password. */
+    @GetMapping("/accounts")
+    @PreAuthorize("hasAnyAuthority('mail.view','mail.configure','mail.connect')")
+    @Operation(summary = "The connected mailboxes and the state of their last collection")
+    public java.util.List<Map<String, Object>> listAccounts() {
+        return accounts.list(tenant());
+    }
+
     /** Whether the mailbox may be synchronised now, so an interface can say so before trying. */
     @GetMapping("/accounts/{accountId}/may-sync")
     @PreAuthorize(SEE)

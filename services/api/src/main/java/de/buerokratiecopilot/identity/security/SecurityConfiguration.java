@@ -94,9 +94,12 @@ public class SecurityConfiguration {
                                                    ObjectMapper objectMapper,
                                                    org.springframework.context.MessageSource messageSource,
                                                    BurokratieProperties properties,
-                                                   de.buerokratiecopilot.identity.mfa.MfaService mfa) throws Exception {
+                                                   de.buerokratiecopilot.identity.mfa.MfaService mfa,
+                                                   org.springframework.beans.factory.ObjectProvider<AccessPolicy> accessPolicy)
+            throws Exception {
         SessionAuthenticationFilter sessionAuthenticationFilter =
-                new SessionAuthenticationFilter(sessionService, authorityResolver, properties, mfa);
+                new SessionAuthenticationFilter(sessionService, authorityResolver, properties, mfa,
+                        accessPolicy.getIfAvailable(() -> AccessPolicy.OPEN));
         de.buerokratiecopilot.shared.idempotency.IdempotencyFilter idempotencyFilter =
                 new de.buerokratiecopilot.shared.idempotency.IdempotencyFilter(idempotencyService, objectMapper);
 

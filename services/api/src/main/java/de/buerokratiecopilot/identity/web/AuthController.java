@@ -52,11 +52,15 @@ public class AuthController {
     private final BurokratieProperties properties;
     private final org.springframework.security.web.csrf.CsrfTokenRepository csrfTokenRepository;
 
+    private final de.buerokratiecopilot.billing.SubscriptionService subscriptions;
+
     public AuthController(AuthService authService, BurokratieProperties properties,
                           org.springframework.security.web.csrf.CsrfTokenRepository csrfTokenRepository,
                           de.buerokratiecopilot.identity.auth.AccountSetupService accountSetup,
                           de.buerokratiecopilot.identity.mfa.MfaService mfa,
-                          de.buerokratiecopilot.identity.auth.SessionService sessions) {
+                          de.buerokratiecopilot.identity.auth.SessionService sessions,
+                          de.buerokratiecopilot.billing.SubscriptionService subscriptions) {
+        this.subscriptions = subscriptions;
         this.mfa = mfa;
         this.sessions = sessions;
         this.authService = authService;
@@ -95,7 +99,7 @@ public class AuthController {
     public record MeResponse(UUID userId, UUID tenantId, List<String> permissions, String email,
                              String displayName, String locale, String timeZone, String workspaceName,
                              String accountType, List<String> roles, boolean onboardingCompleted,
-                             boolean mfaEnrolmentRequired) {
+                             boolean mfaEnrolmentRequired, java.util.Map<String, Object> subscription) {
     }
 
     public record PasswordResetRequest(@NotBlank @Email String email) {
@@ -202,7 +206,26 @@ public class AuthController {
         return ResponseEntity.ok(new MeResponse(userId, tenantId, permissions, profile.email(),
                 profile.displayName(), profile.locale(), profile.timeZone(), profile.workspaceName(),
                 profile.accountType(), profile.roles(), accountSetup.isCompleted(userId),
-                enrolmentRequired(authentication, userId, tenantId)));
+                enrolmentRequired(authentication, userId, tenantId), subscriptionOf(tenantId)));
+    }
+
+    /** What the interface needs to show the trial banner or the "access ended" page; null without a workspace. */
+    private java.util.Map<String, Object> subscriptionOf(UUID tenantId) {
+        if (tenantId == null) {
+            return null;
+        }
+        try {
+            java.util.Map<String, Object> view = subscriptions.view(tenantId);
+            java.util.Map<String, Object> small = new java.util.LinkedHashMap<>();
+            for (String key : List.of("plan_code", "plan_name", "status", "access_until", "retention_until",
+                    "days_left", "blocked", "data_choice", "retention_days")) {
+                small.put(key, view.get(key));
+            }
+            return small;
+        }
+        catch (de.buerokratiecopilot.shared.error.ApiException ex) {
+            return null;
+        }
     }
 
     public record OnboardingRequest(String workspaceName, String workspaceType, List<String> sources,

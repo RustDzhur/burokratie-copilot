@@ -9,6 +9,7 @@ import { InlineAlert } from '@/components/ui/feedback';
 import { useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { toApiError, type ApiError } from '@/lib/api/errors';
+import { useApiResource } from '@/lib/api/hooks';
 import styles from '../auth-card.module.css';
 
 const MIN_PASSWORD_LENGTH = 12;
@@ -28,6 +29,7 @@ export default function RegisterPage() {
   const tCommon = useTranslations('common');
   const router = useRouter();
 
+  const { state: plans } = useApiResource((signal) => api.publicPlans.get(signal), []);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -70,6 +72,9 @@ export default function RegisterPage() {
         {t('register.title')}
       </h1>
       <p className={styles.subtitle}>{t('register.subtitle')}</p>
+      {plans.status === 'ready' ? (
+        <p className={styles.subtitle}>{t('register.trialNote', { days: plans.data.trialDays })}</p>
+      ) : null}
 
       {error ? (
         <InlineAlert tone="danger" title={tErrors(error.kind)}>

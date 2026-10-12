@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders, screen, within } from '@/test/render';
 import { Sidebar } from '@/components/app/sidebar';
-import { navSections, screens, sidebarScreens, findScreenByPath, getScreen } from '../screens';
+import {
+  navSections,
+  screens,
+  screensVisibleFor,
+  sidebarScreens,
+  findScreenByPath,
+  getScreen,
+} from '../screens';
 import { catalogues } from '@/i18n/messages';
 
 vi.mock('next/navigation', () => ({
@@ -14,9 +21,9 @@ vi.mock('next/navigation', () => ({
 describe('screen registry', () => {
   it('covers all 30 screens required by the specification', () => {
     // §5.2.2 (registration and sign-in) is four routes, hence 33 in total.
-    expect(screens).toHaveLength(33);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(33);
-    expect(new Set(screens.map((screen) => screen.href)).size).toBe(33);
+    expect(screens).toHaveLength(36);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(36);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(36);
   });
 
   it('puts every workspace screen into a sidebar section', () => {
@@ -26,7 +33,7 @@ describe('screen registry', () => {
         expect(sectionIds.has(screen.section)).toBe(true);
       }
     }
-    expect(sidebarScreens).toHaveLength(26);
+    expect(sidebarScreens).toHaveLength(28);
   });
 
   it('has a German, English and Russian title for every screen', () => {
@@ -63,17 +70,34 @@ describe('Sidebar', () => {
     renderWithProviders(<Sidebar collapsed={false} onToggleCollapse={() => undefined} />);
 
     const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
-    // 26 workspace screens plus the brand link back to the dashboard.
-    expect(within(nav).getAllByRole('link')).toHaveLength(27);
+    // 27 workspace screens (the admin area is hidden from everybody but the platform administrator) plus the brand link back to the dashboard.
+    expect(within(nav).getAllByRole('link')).toHaveLength(28);
 
     for (const section of navSections) {
       expect(within(nav).getByText(catalogues.de.nav[section.labelKey])).toBeInTheDocument();
     }
-    for (const screen of sidebarScreens) {
+    for (const screen of screensVisibleFor(sidebarScreens, null)) {
       expect(
         within(nav).getByRole('link', { name: catalogues.de.nav[screen.titleKey] }),
       ).toBeInTheDocument();
     }
+    expect(within(nav).queryByRole('link', { name: catalogues.de.nav['items.admin'] })).toBeNull();
+  });
+
+  it('shows each kind of workspace its own screens, and the admin area only to the administrator', () => {
+    const base = { id: 'u', name: 'N', email: 'n@example.de', roles: [], workspaceId: 'w', workspaceName: 'W' } as const;
+    const names = (user: Parameters<typeof screensVisibleFor>[1]): string[] =>
+      screensVisibleFor(sidebarScreens, user).map((item) => item.id);
+
+    expect(names({ workspaceType: 'private' })).not.toContain('family');
+    expect(names({ workspaceType: 'private' })).not.toContain('company');
+    expect(names({ workspaceType: 'family' })).toContain('family');
+    expect(names({ workspaceType: 'family' })).not.toContain('employees');
+    expect(names({ workspaceType: 'company' })).toContain('employees');
+    expect(names({ workspaceType: 'company' })).not.toContain('family');
+    expect(names({ workspaceType: 'company' })).not.toContain('admin');
+    expect(names({ workspaceType: 'company', platformAdmin: true })).toContain('admin');
+    expect(base.id).toBe('u');
   });
 
   it('marks the active screen with aria-current', () => {

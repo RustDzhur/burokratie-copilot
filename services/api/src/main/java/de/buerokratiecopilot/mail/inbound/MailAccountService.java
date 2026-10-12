@@ -161,7 +161,18 @@ public class MailAccountService {
         }
         Map<String, Object> row = rows.getFirst();
         return Boolean.TRUE.equals(row.get("is_active"))
-                && List.of("CONNECTED", "DISCONNECTED").contains(String.valueOf(row.get("status")));
+                && List.of("CONNECTED", "DISCONNECTED", "ERROR").contains(String.valueOf(row.get("status")));
+    }
+
+    /** Every mailbox of the tenant as the interface shows it, with no secret in it. */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> list(UUID tenantId) {
+        return jdbc.queryForList("""
+                select id, display_name, email_address::text as email_address, provider, status, imap_host, imap_port,
+                       last_sync_at, last_sync_status, last_sync_error, consecutive_failures, is_active
+                from mail_accounts where tenant_id = ? and deleted_at is null
+                order by created_at
+                """, tenantId);
     }
 
     /** The account as the interface shows it, with no secret in it. */

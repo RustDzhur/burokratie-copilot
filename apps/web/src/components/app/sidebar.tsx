@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/icons';
 import { IconButton } from '@/components/ui/button';
 import { useTranslations } from '@/i18n/provider';
-import { navSections, screensBySection } from '@/navigation/screens';
+import { useSession } from '@/lib/auth/session-context';
+import { navSections, screensBySection, screensVisibleFor } from '@/navigation/screens';
 import styles from './sidebar.module.css';
 
 export interface SidebarProps {
@@ -32,6 +33,7 @@ export function Sidebar({
   const t = useTranslations('nav');
   const tCommon = useTranslations('common');
   const pathname = usePathname();
+  const session = useSession();
   const isCollapsed = collapsed && variant === 'desktop';
 
   return (
@@ -61,7 +63,7 @@ export function Sidebar({
 
       <div className={styles.scrollArea}>
         {navSections.map((section) => {
-          const items = screensBySection(section.id);
+          const items = screensVisibleFor(screensBySection(section.id), session);
           if (items.length === 0) return null;
           return (
             <div className={styles.section} key={section.id}>

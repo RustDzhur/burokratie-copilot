@@ -5,6 +5,8 @@ import { Icon, type IconName } from '@/components/icons';
 import { buttonClass } from '@/components/ui/button-class';
 import { Badge, Card } from '@/components/ui/data';
 import { useTranslations } from '@/i18n/provider';
+import { api } from '@/lib/api';
+import { useApiResource } from '@/lib/api/hooks';
 import styles from './landing.module.css';
 
 interface FeatureItem {
@@ -123,6 +125,8 @@ export default function LandingPage() {
         </ul>
       </section>
 
+      <PricingSection />
+
       <section className={styles.section} aria-labelledby="landing-trust-title">
         <div className={styles.twoColumn}>
           <div>
@@ -159,5 +163,43 @@ export default function LandingPage() {
         </Link>
       </section>
     </div>
+  );
+}
+
+const PLAN_HINTS = {
+  PRIVATE: 'pricing.hint.PRIVATE',
+  FAMILY: 'pricing.hint.FAMILY',
+  COMPANY: 'pricing.hint.COMPANY',
+} as const;
+
+/** The price list and the terms of the free trial, read from the server so the page never disagrees with it. */
+function PricingSection() {
+  const t = useTranslations('landing');
+  const { state } = useApiResource((signal) => api.publicPlans.get(signal), []);
+  if (state.status !== 'ready' || state.data.plans.length === 0) return null;
+  const { plans, trialDays, retentionDays } = state.data;
+  return (
+    <section className={styles.section} id="pricing" aria-labelledby="landing-pricing-title">
+      <h2 className={styles.sectionTitle} id="landing-pricing-title">
+        {t('pricing.title')}
+      </h2>
+      <p className={styles.featureText}>{t('pricing.trial', { days: trialDays })}</p>
+      <ul className={styles.featureGrid}>
+        {plans.map((plan) => (
+          <li key={plan.code}>
+            <Card tone="glass">
+              <h3 className={styles.featureTitle}>{plan.name}</h3>
+              <p className={styles.featureTitle}>
+                {t('pricing.perMonth', { price: (plan.priceCents / 100).toFixed(2).replace('.', ',') })}
+              </p>
+              <p className={styles.featureText}>
+                {PLAN_HINTS[plan.code as keyof typeof PLAN_HINTS] ? t(PLAN_HINTS[plan.code as keyof typeof PLAN_HINTS]) : ''}
+              </p>
+            </Card>
+          </li>
+        ))}
+      </ul>
+      <p className={styles.featureText}>{t('pricing.afterTrial', { days: retentionDays })}</p>
+    </section>
   );
 }

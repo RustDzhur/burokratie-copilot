@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -416,6 +417,18 @@ class UiContractIT {
                 .andExpect(jsonPath("$.events[0].eventId").exists())
                 .andExpect(jsonPath("$.events[0].createdAt").exists());
         mvc.perform(authed(get("/api/v1/integrations"))).andExpect(status().isOk()).andExpect(jsonPath("$").isArray());
+        mvc.perform(authed(get("/api/v1/integrations/catalogue"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.implementedCount").isNumber());
+        // A mailbox is registered, shows up in the list without its password, and an unreachable server is a
+        // reported failure rather than an empty run.
+        mvc.perform(authed(post("/api/v1/mail/accounts").contentType(MediaType.APPLICATION_JSON).content(
+                """
+                {"displayName":"a@example.test","emailAddress":"a@example.test","provider":"IMAP",
+                 "imapHost":"127.0.0.1","imapPort":1,"password":"secret-pw"}
+                """))).andExpect(status().isCreated());
+        mvc.perform(authed(get("/api/v1/mail/accounts"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].email_address").value("a@example.test"))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("secret-pw"))));
         mvc.perform(authed(get("/api/v1/devices"))).andExpect(status().isOk()).andExpect(jsonPath("$").isArray());
         mvc.perform(authed(get("/api/v1/reports/company").param("from", LocalDate.now().withDayOfMonth(1).toString())
                         .param("to", LocalDate.now().toString())))

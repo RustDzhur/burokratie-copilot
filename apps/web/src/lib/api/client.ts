@@ -128,6 +128,8 @@ export interface ApiClientOptions {
   readonly getAuthToken?: () => string | null | undefined;
   /** Called on 401 so the app shell can redirect to the sign-in screen. */
   readonly onUnauthorized?: (error: ApiError) => void;
+  /** The workspace's access ended (402): the shell sends the person to the page where the plan is renewed. */
+  readonly onPaymentRequired?: (error: ApiError) => void;
   /**
    * Double-submit CSRF protection (default on in a browser). The backend sets an `XSRF-TOKEN` cookie
    * and rejects every unsafe request that does not echo it in `X-XSRF-TOKEN`; without this the browser
@@ -420,6 +422,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
       }
       const error = apiErrorFromEnvelope(payload, response.status, url, retryAfterSeconds);
       if (error.kind === 'unauthorized') options.onUnauthorized?.(error);
+      if (error.kind === 'paymentRequired') options.onPaymentRequired?.(error);
       throw error;
     }
 

@@ -250,6 +250,7 @@ the pipeline still works. Full procedure: [`docs/runbook.md`](docs/runbook.md).
 | [`docs/data-model.md`](docs/data-model.md) | PostgreSQL data model (owned by another workstream) |
 | [`docs/security.md`](docs/security.md) | Security concept (owned by another workstream) |
 | [`docs/runbook.md`](docs/runbook.md) | Operations: start/stop, health, migrations, rollback, backup drill, incidents |
+| [`docs/billing.md`](docs/billing.md) | Plans and prices, 60-day trial, what happens when access ends, payment by invoice or crypto wallet, deletion of data, the admin area |
 | [`docs/deployment.md`](docs/deployment.md) | Production deployment: reverse proxy/TLS, secrets, data region, sizing, zero downtime, owner-supplied credentials |
 | [`docs/integrations.md`](docs/integrations.md) | Every §18 integration with its honest status and the exact owner actions |
 | [`tests/load/README.md`](tests/load/README.md) | Load tests and the conditions that must be recorded with any result |

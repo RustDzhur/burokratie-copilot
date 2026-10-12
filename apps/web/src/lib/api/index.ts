@@ -23,8 +23,19 @@ export function onUnauthorized(listener: UnauthorizedListener): () => void {
 }
 
 /** Shared API client instance used by the application. */
+const paymentRequiredListeners = new Set<UnauthorizedListener>();
+
+/** Subscribes to "the access of this workspace ended" (a 402 from any call); returns the unsubscribe function. */
+export function onPaymentRequired(listener: UnauthorizedListener): () => void {
+  paymentRequiredListeners.add(listener);
+  return () => {
+    paymentRequiredListeners.delete(listener);
+  };
+}
+
 export const apiClient: ApiClient = createApiClient({
   onUnauthorized: (error) => unauthorizedListeners.forEach((listener) => listener(error)),
+  onPaymentRequired: (error) => paymentRequiredListeners.forEach((listener) => listener(error)),
 });
 
 export const api: ApiResources = createResources(apiClient);

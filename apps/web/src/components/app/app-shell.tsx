@@ -5,10 +5,12 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Drawer } from '@/components/ui/overlay';
 import { CommandPalette, type CommandItem } from '@/components/ui/command-palette';
 import { useTranslations } from '@/i18n/provider';
-import { api, onUnauthorized } from '@/lib/api';
+import { api, onPaymentRequired, onUnauthorized } from '@/lib/api';
+import { SessionProvider } from '@/lib/auth/session-context';
 import { useApiResource } from '@/lib/api/hooks';
 import type { SessionUser } from '@/lib/api/types';
-import { screens } from '@/navigation/screens';
+import { screens, screensVisibleFor } from '@/navigation/screens';
+import { SubscriptionBanner } from './subscription-banner';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
 import styles from './app-shell.module.css';
@@ -57,6 +59,17 @@ export function AppShell({ children }: AppShellProps) {
     return onUnauthorized(toSignIn);
   }, [pathname, router]);
 
+  // The workspace's access ended: the only page left is the one where the plan is renewed or the data dealt with.
+  const blocked = user?.subscription?.blocked === true;
+  const onBillingPage = pathname.startsWith('/billing') || pathname.startsWith('/access-ended');
+  useEffect(() => {
+    const toAccessEnded = (): void => {
+      if (!onBillingPage) router.replace('/access-ended');
+    };
+    if (blocked) toAccessEnded();
+    return onPaymentRequired(toAccessEnded);
+  }, [blocked, onBillingPage, router]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
@@ -73,9 +86,10 @@ export function AppShell({ children }: AppShellProps) {
   }, [pathname]);
 
   const commandItems = useMemo<CommandItem[]>(() => {
-    const navigation: CommandItem[] = screens
-      .filter((screen) => screen.inSidebar)
-      .map((screen) => ({
+    const navigation: CommandItem[] = screensVisibleFor(
+      screens.filter((screen) => screen.inSidebar),
+      user,
+    ).map((screen) => ({
         id: `nav-${screen.id}`,
         label: t(screen.titleKey),
         group: t('commands.navigation'),
@@ -99,7 +113,7 @@ export function AppShell({ children }: AppShellProps) {
       },
     ];
     return [...navigation, ...actions];
-  }, [t]);
+  }, [t, user]);
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -110,6 +124,7 @@ export function AppShell({ children }: AppShellProps) {
   }, [router]);
 
   return (
+    <SessionProvider user={user}>
     <div className={styles.shell}>
       <a className={styles.skipLink} href="#main-content">
         {t('skipToContent')}
@@ -130,8 +145,9 @@ export function AppShell({ children }: AppShellProps) {
             void handleSignOut();
           }}
         />
+        <SubscriptionBanner subscription={user?.subscription ?? null} hidden={onBillingPage} />
         <main id="main-content" tabIndex={-1} className={styles.content}>
-          {children}
+          {blocked && !onBillingPage ? null : children}
         </main>
         <footer className={styles.footer}>
           <p>
@@ -161,5 +177,6 @@ export function AppShell({ children }: AppShellProps) {
         items={commandItems}
       />
     </div>
+    </SessionProvider>
   );
 }

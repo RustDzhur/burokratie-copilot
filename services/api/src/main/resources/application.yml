@@ -105,6 +105,8 @@ info:
     description: AI platform for administrative automation in Germany
 
 burokratie:
+  # E-mail addresses (comma separated) of the platform administrators: they get the /admin area.
+  platform-admins: ${BC_PLATFORM_ADMINS:}
   security:
     # Public base URL used in e-mails and links.
     public-base-url: ${BC_PUBLIC_BASE_URL:http://localhost:3000}

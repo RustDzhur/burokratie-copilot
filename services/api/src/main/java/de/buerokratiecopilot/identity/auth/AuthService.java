@@ -60,6 +60,7 @@ public class AuthService {
     private static final Duration PASSWORD_RESET_TTL = Duration.ofHours(2);
 
     private final de.buerokratiecopilot.identity.mfa.MfaService mfa;
+    private final de.buerokratiecopilot.billing.SubscriptionService subscriptions;
     private final UserRepository users;
     private final TenantRepository tenants;
     private final WorkspaceRepository workspaces;
@@ -82,7 +83,9 @@ public class AuthService {
                        PasswordEncoder passwordEncoder, PasswordPolicy passwordPolicy,
                        EmailSender emailSender, BurokratieProperties properties,
                        org.springframework.transaction.PlatformTransactionManager transactionManager,
-                       de.buerokratiecopilot.identity.mfa.MfaService mfa) {
+                       de.buerokratiecopilot.identity.mfa.MfaService mfa,
+                       de.buerokratiecopilot.billing.SubscriptionService subscriptions) {
+        this.subscriptions = subscriptions;
         this.mfa = mfa;
         this.users = users;
         this.tenants = tenants;
@@ -161,7 +164,9 @@ public class AuthService {
                         ? displayName
                         : command.tenantName().trim(),
                 accountType);
-        tenants.save(tenant);
+        tenants.saveAndFlush(tenant);
+        // Every new workspace starts with the free trial.
+        subscriptions.startTrial(tenant.getId(), accountType);
 
         Workspace workspace = new Workspace(UUID.randomUUID(), tenant.getId(),
                 workspaceNameFor(accountType), workspaceModeFor(accountType));

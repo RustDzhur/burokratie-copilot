@@ -17,6 +17,7 @@ export type ApiErrorKind =
   | 'aborted'
   | 'unauthorized'
   | 'forbidden'
+  | 'paymentRequired'
   | 'notFound'
   | 'conflict'
   | 'validation'
@@ -85,6 +86,7 @@ export function isApiError(value: unknown): value is ApiError {
 
 export function statusToKind(status: number): ApiErrorKind {
   if (status === 401) return 'unauthorized';
+  if (status === 402) return 'paymentRequired';
   if (status === 403) return 'forbidden';
   if (status === 404) return 'notFound';
   if (status === 409) return 'conflict';

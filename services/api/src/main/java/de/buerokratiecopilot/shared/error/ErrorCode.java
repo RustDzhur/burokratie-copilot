@@ -35,6 +35,7 @@ public enum ErrorCode {
     FEATURE_DISABLED(HttpStatus.SERVICE_UNAVAILABLE, "error.feature_disabled"),
     DEPENDENCY_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "error.dependency_unavailable"),
     AI_DISABLED(HttpStatus.SERVICE_UNAVAILABLE, "error.ai_disabled"),
+    SUBSCRIPTION_REQUIRED(HttpStatus.PAYMENT_REQUIRED, "error.subscription_required"),
     BUDGET_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "error.budget_exceeded"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "error.internal");
 

@@ -64,7 +64,12 @@ export type ScreenId =
   | 'security'
   | 'accessibilitySettings'
   | 'notifications'
-  | 'audit';
+  | 'audit'
+  | 'billing'
+  | 'admin'
+  | 'accessEnded';
+
+export type WorkspaceKind = 'private' | 'family' | 'company';
 
 export interface ScreenDefinition {
   readonly id: ScreenId;
@@ -77,6 +82,10 @@ export interface ScreenDefinition {
   readonly requiresAuth: boolean;
   /** Key inside the `nav` namespace (single source for screen titles). */
   readonly titleKey: `items.${ScreenId}`;
+  /** Workspace kinds this screen is meant for; absent = every kind. Hidden from the menu otherwise, never blocked. */
+  readonly audience?: readonly WorkspaceKind[];
+  /** Shown only to the platform administrator. */
+  readonly adminOnly?: boolean;
 }
 
 function screen(
@@ -84,7 +93,12 @@ function screen(
   href: string,
   icon: IconName,
   section: SectionId | null,
-  options: { readonly inSidebar?: boolean; readonly requiresAuth?: boolean } = {},
+  options: {
+    readonly inSidebar?: boolean;
+    readonly requiresAuth?: boolean;
+    readonly audience?: readonly WorkspaceKind[];
+    readonly adminOnly?: boolean;
+  } = {},
 ): ScreenDefinition {
   const inSidebar = options.inSidebar ?? section !== null;
   return {
@@ -95,6 +109,8 @@ function screen(
     inSidebar,
     requiresAuth: options.requiresAuth ?? inSidebar,
     titleKey: `items.${id}`,
+    audience: options.audience,
+    adminOnly: options.adminOnly,
   };
 }
 
@@ -148,11 +164,11 @@ export const screens: readonly ScreenDefinition[] = [
   // §5.2.21 — scanning and import
   screen('scan', '/scan', 'printer', 'automation'),
   // §5.2.22 — family cockpit
-  screen('family', '/family', 'shield-heart', 'organisation'),
+  screen('family', '/family', 'shield-heart', 'organisation', { audience: ['family'] }),
   // §5.2.23 — company workspace
-  screen('company', '/company', 'building', 'organisation'),
+  screen('company', '/company', 'building', 'organisation', { audience: ['company'] }),
   // §5.2.24 — employees and roles
-  screen('employees', '/employees', 'user-cog', 'organisation'),
+  screen('employees', '/employees', 'user-cog', 'organisation', { audience: ['company'] }),
   // §5.2.25 — reports and analytics
   screen('reports', '/reports', 'bar-chart', 'governance'),
   // §5.2.26 — archive and retention
@@ -165,7 +181,25 @@ export const screens: readonly ScreenDefinition[] = [
   screen('notifications', '/notifications', 'bell', 'governance'),
   // §5.2.30 — activity history and audit
   screen('audit', '/audit', 'clock', 'governance'),
+  // plan, payment and invoices of the workspace
+  screen('billing', '/billing', 'credit-card', 'governance'),
+  // the platform administrator's area (customers, prices, payments, global settings)
+  screen('admin', '/admin', 'shield', 'governance', { adminOnly: true }),
+  // the only page of a workspace whose access has ended
+  screen('accessEnded', '/access-ended', 'lock', null, { inSidebar: false }),
 ];
+
+/** The menu entries one person gets: the screens for their kind of workspace, and the admin area for the admin. */
+export function screensVisibleFor(
+  list: readonly ScreenDefinition[],
+  user: { readonly workspaceType?: WorkspaceKind; readonly platformAdmin?: boolean } | null | undefined,
+): readonly ScreenDefinition[] {
+  return list.filter((item) => {
+    if (item.adminOnly) return Boolean(user?.platformAdmin);
+    if (!item.audience || !user?.workspaceType) return true;
+    return item.audience.includes(user.workspaceType);
+  });
+}
 
 export const sidebarScreens: readonly ScreenDefinition[] = screens.filter((item) => item.inSidebar);
 

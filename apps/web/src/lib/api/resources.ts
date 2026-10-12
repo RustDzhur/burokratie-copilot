@@ -117,7 +117,18 @@ import type {
   DocumentDetail,
   DocumentHistoryEntry,
   DocumentSummary,
+  AdminOverview,
+  AdminService,
+  AdminTenant,
+  BillingInvoice,
+  BillingState,
+  InvoiceRequest,
+  PlanSummary,
+  SubscriptionInfo,
+  IntegrationCatalogueEntry,
   IntegrationSummary,
+  MailAccountSummary,
+  MailCollectResult,
   InvoiceSummary,
   MailMessageSummary,
   MemberRole,
@@ -150,6 +161,34 @@ interface MeResponse {
   readonly roles: readonly string[];
   readonly onboardingCompleted?: boolean;
   readonly mfaEnrolmentRequired?: boolean;
+  readonly permissions?: readonly string[];
+  readonly subscription?: SubscriptionWire | null;
+}
+
+interface SubscriptionWire {
+  readonly plan_code: string;
+  readonly plan_name: string;
+  readonly status: SubscriptionInfo['status'];
+  readonly access_until: string;
+  readonly retention_until?: string | null;
+  readonly days_left: number;
+  readonly blocked: boolean;
+  readonly data_choice?: 'KEEP' | 'DELETE' | null;
+  readonly retention_days: number;
+}
+
+function subscriptionFromWire(wire: SubscriptionWire): SubscriptionInfo {
+  return {
+    planCode: wire.plan_code,
+    planName: wire.plan_name,
+    status: wire.status,
+    accessUntil: wire.access_until,
+    retentionUntil: wire.retention_until ?? null,
+    daysLeft: wire.days_left,
+    blocked: wire.blocked,
+    dataChoice: wire.data_choice ?? null,
+    retentionDays: wire.retention_days,
+  };
 }
 
 const ROLE_FROM_BACKEND: Readonly<Record<string, MemberRole>> = {
@@ -190,6 +229,8 @@ export function sessionUserFromMe(me: MeResponse): SessionUser {
     workspaceType: workspaceTypeFromBackend(me.accountType),
     onboardingCompleted: me.onboardingCompleted ?? true,
     mfaEnrolmentRequired: me.mfaEnrolmentRequired ?? false,
+    platformAdmin: (me.permissions ?? []).includes('platform.admin'),
+    subscription: me.subscription ? subscriptionFromWire(me.subscription) : null,
   };
 }
 
@@ -338,6 +379,53 @@ export interface ApiResources {
   readonly integrations: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<IntegrationSummary>>;
     disconnect: (id: string) => Promise<void>;
+    catalogue: (signal?: AbortSignal) => Promise<readonly IntegrationCatalogueEntry[]>;
+  };
+  readonly mailAccounts: {
+    list: (signal?: AbortSignal) => Promise<readonly MailAccountSummary[]>;
+    connect: (payload: {
+      readonly displayName: string;
+      readonly emailAddress: string;
+      readonly password: string;
+      readonly imapHost: string;
+      readonly imapPort: number;
+    }) => Promise<{ readonly accountId: string }>;
+    collect: (accountId: string) => Promise<MailCollectResult>;
+  };
+  readonly publicPlans: {
+    get: (signal?: AbortSignal) => Promise<{
+      readonly trialDays: number;
+      readonly retentionDays: number;
+      readonly plans: readonly PlanSummary[];
+    }>;
+  };
+  readonly billing: {
+    state: (signal?: AbortSignal) => Promise<BillingState>;
+    changePlan: (planCode: string) => Promise<BillingState>;
+    invoices: (signal?: AbortSignal) => Promise<readonly BillingInvoice[]>;
+    createInvoice: (payload: InvoiceRequest) => Promise<BillingInvoice>;
+    invoicePdfUrl: (id: string) => string;
+    keepData: () => Promise<void>;
+    deleteData: () => Promise<void>;
+  };
+  readonly admin: {
+    overview: (signal?: AbortSignal) => Promise<AdminOverview>;
+    tenants: (params: { q?: string; status?: string }, signal?: AbortSignal) => Promise<readonly AdminTenant[]>;
+    extend: (id: string, months: number) => Promise<void>;
+    grantDays: (id: string, days: number) => Promise<void>;
+    setSuspended: (id: string, suspended: boolean) => Promise<void>;
+    setPlan: (id: string, planCode: string) => Promise<void>;
+    deleteTenant: (id: string, confirmName: string) => Promise<void>;
+    plans: (signal?: AbortSignal) => Promise<readonly PlanSummary[]>;
+    editPlan: (code: string, payload: { name?: string; priceCents?: number; active?: boolean }) => Promise<void>;
+    settings: (signal?: AbortSignal) => Promise<Record<string, unknown>>;
+    putSetting: (key: string, value: unknown) => Promise<Record<string, unknown>>;
+    invoices: (status?: string, signal?: AbortSignal) => Promise<readonly BillingInvoice[]>;
+    markPaid: (id: string) => Promise<void>;
+    cancelInvoice: (id: string) => Promise<void>;
+    invoicePdfUrl: (id: string) => string;
+    runLifecycle: () => Promise<void>;
+    services: (signal?: AbortSignal) => Promise<readonly AdminService[]>;
   };
   readonly devices: {
     list: (signal?: AbortSignal) => Promise<Page<DeviceSummary>>;
@@ -415,6 +503,116 @@ async function decideOpenReview(
     throw new ApiError({ kind: 'conflict', status: 409, message: 'The document has no open review' });
   }
   await client.post<unknown>(`/reviews/${target.id}/decision`, decision, { idempotencyKey: true });
+}
+
+interface CatalogueWire {
+  readonly provider: string;
+  readonly category: string;
+  readonly displayName: string;
+  readonly implemented: boolean;
+  readonly capabilities?: readonly string[];
+  readonly ownerRequirements?: readonly string[];
+  readonly note?: string | null;
+}
+
+interface MailAccountWire {
+  readonly id: string;
+  readonly display_name: string;
+  readonly email_address: string;
+  readonly provider: string;
+  readonly status: string;
+  readonly last_sync_at?: string | null;
+  readonly last_sync_error?: string | null;
+  readonly consecutive_failures?: number;
+}
+
+interface PlanWire {
+  readonly code: string;
+  readonly name: string;
+  readonly price_cents: number;
+  readonly currency: string;
+  readonly account_type?: string;
+  readonly is_active?: boolean;
+}
+
+const planFromWire = (wire: PlanWire): PlanSummary => ({
+  code: wire.code,
+  name: wire.name,
+  priceCents: wire.price_cents,
+  currency: wire.currency,
+  accountType: wire.account_type,
+  active: wire.is_active,
+});
+
+type BillingStateWire = SubscriptionWire & {
+  readonly owner: boolean;
+  readonly invoiceAvailable: boolean;
+  readonly cryptoAvailable: boolean;
+  readonly plans: readonly PlanWire[];
+};
+
+const billingStateFromWire = (wire: BillingStateWire): BillingState => ({
+  ...subscriptionFromWire(wire),
+  owner: wire.owner,
+  invoiceAvailable: wire.invoiceAvailable,
+  cryptoAvailable: wire.cryptoAvailable,
+  plans: wire.plans.map(planFromWire),
+});
+
+interface PlatformInvoiceWire {
+  readonly id: string;
+  readonly invoice_number: string;
+  readonly plan_code: string;
+  readonly period_months: number;
+  readonly amount_cents: number;
+  readonly status: BillingInvoice['status'];
+  readonly method: BillingInvoice['method'];
+  readonly reference?: string;
+  readonly issued_at: string;
+  readonly due_at: string;
+  readonly paid_at?: string | null;
+  readonly crypto_asset?: string | null;
+  readonly crypto_network?: string | null;
+  readonly crypto_address?: string | null;
+  readonly crypto_amount?: number | string | null;
+  readonly tenant_name?: string | null;
+  readonly customer_name?: string | null;
+  readonly customer_email?: string | null;
+}
+
+const platformInvoiceFromWire = (wire: PlatformInvoiceWire): BillingInvoice => ({
+  id: wire.id,
+  number: wire.invoice_number,
+  planCode: wire.plan_code,
+  months: wire.period_months,
+  amountCents: wire.amount_cents,
+  status: wire.status,
+  method: wire.method,
+  reference: wire.reference ?? wire.invoice_number,
+  issuedAt: wire.issued_at,
+  dueAt: wire.due_at,
+  paidAt: wire.paid_at ?? null,
+  cryptoAsset: wire.crypto_asset ?? null,
+  cryptoNetwork: wire.crypto_network ?? null,
+  cryptoAddress: wire.crypto_address ?? null,
+  cryptoAmount: wire.crypto_amount === null || wire.crypto_amount === undefined ? null : String(wire.crypto_amount),
+  tenantName: wire.tenant_name ?? null,
+  customerName: wire.customer_name ?? null,
+  customerEmail: wire.customer_email ?? null,
+});
+
+interface AdminTenantWire {
+  readonly id: string;
+  readonly name: string;
+  readonly account_type: string;
+  readonly created_at: string;
+  readonly plan_code: string;
+  readonly status: AdminTenant['status'];
+  readonly access_until: string;
+  readonly retention_until?: string | null;
+  readonly data_choice?: 'KEEP' | 'DELETE' | null;
+  readonly owner_email?: string | null;
+  readonly members: number;
 }
 
 const withSignal = (signal?: AbortSignal): { signal?: AbortSignal } => (signal ? { signal } : {});
@@ -863,6 +1061,149 @@ export function createResources(client: ApiClient): ApiResources {
       disconnect: async (id) => {
         await client.post<unknown>(`/integrations/${id}/disable`, {}, { idempotencyKey: true });
       },
+      catalogue: async (signal) => {
+        const grouped = await client.get<Record<string, unknown>>('/integrations/catalogue', withSignal(signal));
+        const entries: IntegrationCatalogueEntry[] = [];
+        for (const value of Object.values(grouped)) {
+          if (!Array.isArray(value)) continue; // implementedCount / notImplementedCount
+          for (const raw of value as readonly CatalogueWire[]) {
+            entries.push({
+              provider: raw.provider,
+              category: raw.category,
+              name: raw.displayName,
+              implemented: raw.implemented,
+              capabilities: raw.capabilities ?? [],
+              ownerRequirements: raw.ownerRequirements ?? [],
+              note: raw.note ?? null,
+            });
+          }
+        }
+        return entries;
+      },
+    },
+    mailAccounts: {
+      list: async (signal) => {
+        const rows = await client.get<readonly MailAccountWire[]>('/mail/accounts', withSignal(signal));
+        return rows.map((row) => ({
+          id: row.id,
+          name: row.display_name,
+          email: row.email_address,
+          provider: row.provider,
+          status: row.status,
+          lastSyncAt: row.last_sync_at ?? null,
+          lastError: row.last_sync_error ?? null,
+          failures: row.consecutive_failures ?? 0,
+        }));
+      },
+      connect: (payload) =>
+        client.post<{ accountId: string }>(
+          '/mail/accounts',
+          {
+            displayName: payload.displayName,
+            emailAddress: payload.emailAddress,
+            provider: 'IMAP',
+            imapHost: payload.imapHost,
+            imapPort: payload.imapPort,
+            imapUsername: payload.emailAddress,
+            imapUseSsl: true,
+            password: payload.password,
+          },
+          { idempotencyKey: true },
+        ),
+      collect: (accountId) =>
+        client.post<MailCollectResult>(`/mail/accounts/${accountId}/collect`, {}, { idempotencyKey: true }),
+    },
+    publicPlans: {
+      get: async (signal) => {
+        const wire = await client.get<{
+          trialDays: number;
+          retentionDays: number;
+          plans: readonly PlanWire[];
+        }>('/public/plans', withSignal(signal));
+        return { trialDays: wire.trialDays, retentionDays: wire.retentionDays, plans: wire.plans.map(planFromWire) };
+      },
+    },
+    billing: {
+      state: async (signal) =>
+        billingStateFromWire(await client.get<BillingStateWire>('/billing/subscription', withSignal(signal))),
+      changePlan: async (planCode) =>
+        billingStateFromWire(
+          await client.post<BillingStateWire>('/billing/plan', { planCode }, { idempotencyKey: true }),
+        ),
+      invoices: async (signal) =>
+        (await client.get<readonly PlatformInvoiceWire[]>('/billing/invoices', withSignal(signal))).map(platformInvoiceFromWire),
+      createInvoice: async (payload) =>
+        platformInvoiceFromWire(await client.post<PlatformInvoiceWire>('/billing/invoices', payload, { idempotencyKey: true })),
+      invoicePdfUrl: (id) => `/api/v1/billing/invoices/${id}/pdf`,
+      keepData: async () => {
+        await client.post<unknown>('/billing/data-choice', { choice: 'KEEP' }, { idempotencyKey: true });
+      },
+      deleteData: async () => {
+        await client.post<unknown>('/billing/data-choice', { choice: 'DELETE', confirm: 'DELETE' }, { idempotencyKey: true });
+      },
+    },
+    admin: {
+      overview: (signal) => client.get<AdminOverview>('/admin/overview', withSignal(signal)),
+      tenants: async (params, signal) =>
+        (await client.get<readonly AdminTenantWire[]>('/admin/tenants', { ...withSignal(signal), query: params })).map(
+          (row) => ({
+            id: row.id,
+            name: row.name,
+            accountType: row.account_type,
+            createdAt: row.created_at,
+            planCode: row.plan_code,
+            status: row.status,
+            accessUntil: row.access_until,
+            retentionUntil: row.retention_until ?? null,
+            dataChoice: row.data_choice ?? null,
+            ownerEmail: row.owner_email ?? null,
+            members: row.members,
+          }),
+        ),
+      extend: async (id, months) => {
+        await client.post<unknown>(`/admin/tenants/${id}/extend`, { months }, { idempotencyKey: true });
+      },
+      grantDays: async (id, days) => {
+        await client.post<unknown>(`/admin/tenants/${id}/grant-days`, { days }, { idempotencyKey: true });
+      },
+      setSuspended: async (id, suspended) => {
+        if (suspended) {
+          await client.post<unknown>(`/admin/tenants/${id}/suspend`, {}, { idempotencyKey: true });
+        } else {
+          await client.post<unknown>(`/admin/tenants/${id}/unsuspend`, {}, { idempotencyKey: true });
+        }
+      },
+      setPlan: async (id, planCode) => {
+        await client.post<unknown>(`/admin/tenants/${id}/plan`, { planCode }, { idempotencyKey: true });
+      },
+      deleteTenant: async (id, confirmName) => {
+        await client.post<unknown>(`/admin/tenants/${id}/delete`, {}, { idempotencyKey: true, query: { confirmName } });
+      },
+      plans: async (signal) =>
+        (await client.get<readonly PlanWire[]>('/admin/plans', withSignal(signal))).map(planFromWire),
+      editPlan: async (code, payload) => {
+        await client.put<unknown>(`/admin/plans/${code}`, payload);
+      },
+      settings: (signal) => client.get<Record<string, unknown>>('/admin/settings', withSignal(signal)),
+      putSetting: (key, value) => client.put<Record<string, unknown>>('/admin/settings', { key, value }),
+      invoices: async (status, signal) =>
+        (
+          await client.get<readonly PlatformInvoiceWire[]>('/admin/invoices', {
+            ...withSignal(signal),
+            query: status ? { status } : undefined,
+          })
+        ).map(platformInvoiceFromWire),
+      markPaid: async (id) => {
+        await client.post<unknown>(`/admin/invoices/${id}/mark-paid`, {}, { idempotencyKey: true });
+      },
+      cancelInvoice: async (id) => {
+        await client.post<unknown>(`/admin/invoices/${id}/cancel`, {}, { idempotencyKey: true });
+      },
+      invoicePdfUrl: (id) => `/api/v1/admin/invoices/${id}/pdf`,
+      runLifecycle: async () => {
+        await client.post<unknown>('/admin/lifecycle/run', {}, { idempotencyKey: true });
+      },
+      services: (signal) => client.get<readonly AdminService[]>('/admin/integrations', withSignal(signal)),
     },
     devices: {
       list: async (signal) => {
