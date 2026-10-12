@@ -59,6 +59,7 @@ public class AuthService {
     private static final Duration EMAIL_VERIFICATION_TTL = Duration.ofDays(3);
     private static final Duration PASSWORD_RESET_TTL = Duration.ofHours(2);
 
+    private final de.buerokratiecopilot.identity.mfa.MfaService mfa;
     private final UserRepository users;
     private final TenantRepository tenants;
     private final WorkspaceRepository workspaces;
@@ -80,7 +81,9 @@ public class AuthService {
                        SessionService sessionService, AuditService auditService,
                        PasswordEncoder passwordEncoder, PasswordPolicy passwordPolicy,
                        EmailSender emailSender, BurokratieProperties properties,
-                       org.springframework.transaction.PlatformTransactionManager transactionManager) {
+                       org.springframework.transaction.PlatformTransactionManager transactionManager,
+                       de.buerokratiecopilot.identity.mfa.MfaService mfa) {
+        this.mfa = mfa;
         this.users = users;
         this.tenants = tenants;
         this.workspaces = workspaces;
@@ -106,7 +109,7 @@ public class AuthService {
     }
 
     public record LoginResult(String sessionToken, UUID userId, UUID tenantId, String displayName,
-                              String locale, String timeZone, List<String> roles) {
+                              String locale, String timeZone, List<String> roles, boolean mfaRequired) {
     }
 
     // ---------------------------------------------------------------------------------
@@ -294,7 +297,10 @@ public class AuthService {
             current.registerSuccessfulLogin(Instant.now());
             users.save(current);
 
-            SessionService.IssuedSession issued = sessionService.issue(current, tenantId, false,
+            // A person with a second factor gets a session that is not yet usable: the filter lets it reach
+            // only the code check and sign-out until the code has been proven.
+            boolean secondFactor = mfa.hasActiveFactor(current.getId());
+            SessionService.IssuedSession issued = sessionService.issue(current, tenantId, !secondFactor,
                     ipAddress, userAgent);
 
             auditService.record(AuditService.AuditEntry
@@ -308,7 +314,7 @@ public class AuthService {
 
             return new LoginResult(issued.rawToken(), current.getId(), tenantId,
                     current.getDisplayName(), current.getLocale(), current.getTimeZone(),
-                    membershipRoles.findRoleCodes(membershipId));
+                    membershipRoles.findRoleCodes(membershipId), secondFactor);
         });
     }
 
@@ -346,6 +352,27 @@ public class AuthService {
                         .orElse(List.of());
         return new SessionProfile(user.getEmail(), user.getDisplayName(), user.getLocale(), user.getTimeZone(),
                 workspaceName, accountType, roleCodes);
+    }
+
+    /**
+     * Counts a wrong second-factor code like a wrong password: repeated failures lock the account for the
+     * same time, so the six-digit code cannot be guessed.
+     */
+    public void registerFailedSecondFactor(UUID userId, String ipAddress, String userAgent) {
+        inNewTransaction(() -> {
+            User current = users.findById(userId).orElseThrow();
+            current.registerFailedLogin(properties.getSecurity().getLogin().getMaxFailedAttempts(),
+                    Instant.now().plus(properties.getSecurity().getLogin().getLockoutDuration()));
+            users.save(current);
+            return auditService.record(AuditService.AuditEntry
+                    .builder(AuditEvent.Category.AUTHENTICATION, "MFA_FAILED")
+                    .actor(AuditEvent.ActorType.USER, current.getId(), current.getEmail())
+                    .description("Wrong second-factor code")
+                    .result(AuditEvent.Result.FAILURE)
+                    .severity(AuditEvent.Severity.NOTICE)
+                    .request(ipAddress, userAgent, null, "/api/v1/auth/mfa/verify", "POST")
+                    .build());
+        });
     }
 
     @Transactional

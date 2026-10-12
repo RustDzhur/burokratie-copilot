@@ -324,6 +324,8 @@ export const deCore = {
     'login.register': 'Jetzt registrieren',
     'login.mfaHint':
       'Bei aktivierter Zwei-Faktor-Authentifizierung fragen wir im nächsten Schritt einen Code ab.',
+    'login.mfaPrompt': 'Geben Sie den Code aus Ihrer Authenticator-App oder einen Wiederherstellungscode ein.',
+    'login.mfaCode': 'Bestätigungscode',
     'login.rememberMe': 'Angemeldet bleiben',
     'register.title': 'Konto erstellen',
     'register.subtitle': 'In wenigen Schritten zum eigenen Arbeitsbereich.',

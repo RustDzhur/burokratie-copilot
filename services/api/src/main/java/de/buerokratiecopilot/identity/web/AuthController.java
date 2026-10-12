@@ -45,6 +45,8 @@ import de.buerokratiecopilot.shared.config.BurokratieProperties;
 @Tag(name = "Authentication", description = "Registration, sign-in, sessions and password reset")
 public class AuthController {
 
+    private final de.buerokratiecopilot.identity.mfa.MfaService mfa;
+    private final de.buerokratiecopilot.identity.auth.SessionService sessions;
     private final AuthService authService;
     private final de.buerokratiecopilot.identity.auth.AccountSetupService accountSetup;
     private final BurokratieProperties properties;
@@ -52,7 +54,11 @@ public class AuthController {
 
     public AuthController(AuthService authService, BurokratieProperties properties,
                           org.springframework.security.web.csrf.CsrfTokenRepository csrfTokenRepository,
-                          de.buerokratiecopilot.identity.auth.AccountSetupService accountSetup) {
+                          de.buerokratiecopilot.identity.auth.AccountSetupService accountSetup,
+                          de.buerokratiecopilot.identity.mfa.MfaService mfa,
+                          de.buerokratiecopilot.identity.auth.SessionService sessions) {
+        this.mfa = mfa;
+        this.sessions = sessions;
         this.authService = authService;
         this.accountSetup = accountSetup;
         this.properties = properties;
@@ -83,7 +89,7 @@ public class AuthController {
     }
 
     public record LoginResponse(UUID userId, UUID tenantId, String displayName, String locale,
-                                String timeZone, List<String> roles) {
+                                String timeZone, List<String> roles, boolean mfaRequired) {
     }
 
     public record MeResponse(UUID userId, UUID tenantId, List<String> permissions, String email,
@@ -137,7 +143,32 @@ public class AuthController {
                 clientIp(httpRequest), httpRequest.getHeader(HttpHeaders.USER_AGENT));
         httpResponse.addHeader(HttpHeaders.SET_COOKIE, sessionCookie(result.sessionToken()).toString());
         return ResponseEntity.ok(new LoginResponse(result.userId(), result.tenantId(), result.displayName(),
-                result.locale(), result.timeZone(), result.roles()));
+                result.locale(), result.timeZone(), result.roles(), result.mfaRequired()));
+    }
+
+    public record MfaCodeRequest(@NotBlank String code) {
+    }
+
+    /**
+     * The second step of sign-in. Works only for a session that was issued but has not yet proven its
+     * second factor; the session filter lets exactly this route (and sign-out) through for it.
+     */
+    @PostMapping("/mfa/verify")
+    @Operation(summary = "Proves the second factor of a freshly issued session")
+    public ResponseEntity<Void> verifyMfa(@Valid @RequestBody MfaCodeRequest request, Authentication authentication,
+                                          HttpServletRequest httpRequest) {
+        if (authentication == null || !(authentication.getDetails()
+                instanceof de.buerokratiecopilot.identity.security.SessionAuthenticationFilter.SessionDetails details)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        UUID userId = UUID.fromString(authentication.getName());
+        if (!mfa.verify(details.tenantId(), userId, request.code().strip()).valid()) {
+            authService.registerFailedSecondFactor(userId, clientIp(httpRequest),
+                    httpRequest.getHeader(HttpHeaders.USER_AGENT));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        sessions.markMfaVerified(details.sessionId());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/logout")

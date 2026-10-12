@@ -309,6 +309,8 @@ export const enCore: CoreMessages = {
     'login.register': 'Register now',
     'login.mfaHint':
       'If two-factor authentication is enabled, we will ask for a code in the next step.',
+    'login.mfaPrompt': 'Enter the code from your authenticator app, or a recovery code.',
+    'login.mfaCode': 'Verification code',
     'login.rememberMe': 'Stay signed in',
     'register.title': 'Create an account',
     'register.subtitle': 'Your own workspace in just a few steps.',

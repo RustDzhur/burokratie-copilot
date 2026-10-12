@@ -50,10 +50,13 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
     private final SessionService sessionService;
     private final MembershipAuthorityResolver authorityResolver;
     private final BurokratieProperties properties;
+    private final de.buerokratiecopilot.identity.mfa.MfaService mfa;
 
     public SessionAuthenticationFilter(SessionService sessionService,
                                        MembershipAuthorityResolver authorityResolver,
-                                       BurokratieProperties properties) {
+                                       BurokratieProperties properties,
+                                       de.buerokratiecopilot.identity.mfa.MfaService mfa) {
+        this.mfa = mfa;
         this.sessionService = sessionService;
         this.authorityResolver = authorityResolver;
         this.properties = properties;
@@ -85,7 +88,19 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 
+    /** What a session that has not yet proven its second factor may still call. */
+    private static boolean allowedBeforeSecondFactor(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return "/api/v1/auth/mfa/verify".equals(path) || "/api/v1/auth/logout".equals(path);
+    }
+
     private void authenticate(UserSession session, HttpServletRequest request) {
+        // Checked only for sessions not yet marked verified, so the common request costs nothing extra. A
+        // session of a person without a second factor passes: there is nothing for it to prove.
+        if (!session.isMfaVerified() && !allowedBeforeSecondFactor(request)
+                && mfa.hasActiveFactor(session.getUserId())) {
+            return;
+        }
         RequestContext.setTenantId(session.getTenantId());
         RequestContext.setUserId(session.getUserId());
         RequestContext.setActorType(RequestContext.ActorType.USER);

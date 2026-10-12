@@ -226,7 +226,9 @@ export interface AssistantQueryPayload {
 
 export interface ApiResources {
   readonly auth: {
-    login: (payload: LoginPayload) => Promise<SessionUser>;
+    /** Resolves to the user, or to `mfaRequired` when a second factor has to be proven first. */
+    login: (payload: LoginPayload) => Promise<SessionUser | { readonly mfaRequired: true }>;
+    verifyMfa: (code: string) => Promise<SessionUser>;
     logout: () => Promise<void>;
     register: (payload: RegisterPayload) => Promise<{ userId: string; email: string }>;
     verifyEmail: (payload: { token: string }) => Promise<void>;
@@ -412,7 +414,16 @@ export function createResources(client: ApiClient): ApiResources {
     auth: {
       login: async (payload) => {
         // A fresh sign-in must never be answered from the idempotency cache: the reply carries Set-Cookie.
-        await client.post<unknown>('/auth/login', { email: payload.email, password: payload.password });
+        const answer = await client.post<{ mfaRequired?: boolean }>('/auth/login', {
+          email: payload.email,
+          password: payload.password,
+        });
+        // The session exists but is unusable until the code is proven; /auth/me would answer 401.
+        if (answer?.mfaRequired) return { mfaRequired: true as const };
+        return sessionUserFromMe(await client.get<MeResponse>('/auth/me'));
+      },
+      verifyMfa: async (code) => {
+        await client.post<unknown>('/auth/mfa/verify', { code });
         return sessionUserFromMe(await client.get<MeResponse>('/auth/me'));
       },
       logout: () => client.post<void>('/auth/logout'),

@@ -93,9 +93,10 @@ public class SecurityConfiguration {
                                                    MembershipAuthorityResolver authorityResolver,
                                                    ObjectMapper objectMapper,
                                                    org.springframework.context.MessageSource messageSource,
-                                                   BurokratieProperties properties) throws Exception {
+                                                   BurokratieProperties properties,
+                                                   de.buerokratiecopilot.identity.mfa.MfaService mfa) throws Exception {
         SessionAuthenticationFilter sessionAuthenticationFilter =
-                new SessionAuthenticationFilter(sessionService, authorityResolver, properties);
+                new SessionAuthenticationFilter(sessionService, authorityResolver, properties, mfa);
         de.buerokratiecopilot.shared.idempotency.IdempotencyFilter idempotencyFilter =
                 new de.buerokratiecopilot.shared.idempotency.IdempotencyFilter(idempotencyService, objectMapper);
 

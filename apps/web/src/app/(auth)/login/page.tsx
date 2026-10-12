@@ -29,6 +29,8 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [pending, setPending] = useState(false);
+  const [needsCode, setNeedsCode] = useState(false);
+  const [code, setCode] = useState('');
   const [error, setError] = useState<ApiError | null>(null);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -36,7 +38,14 @@ function LoginForm() {
     setPending(true);
     setError(null);
     try {
-      const user = await api.auth.login({ email, password, rememberMe });
+      const outcome = needsCode
+        ? await api.auth.verifyMfa(code)
+        : await api.auth.login({ email, password, rememberMe });
+      if ('mfaRequired' in outcome) {
+        setNeedsCode(true);
+        return;
+      }
+      const user = outcome;
       toast.success(t('login.title'), tCommon('app.name'));
       // A person who has not been through the first-run wizard goes there before anything else.
       router.push(user.onboardingCompleted === false ? '/onboarding' : (next ?? '/dashboard'));
@@ -57,24 +66,42 @@ function LoginForm() {
       {error ? <InlineAlert tone="danger" title={tErrors(error.kind)} /> : null}
 
       <form className={styles.form} onSubmit={onSubmit} noValidate>
-        <Input
-          label={t('login.email')}
-          type="email"
-          name="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-        />
-        <Input
-          label={t('login.password')}
-          type="password"
-          name="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
+        {needsCode ? (
+          <>
+            <p className={styles.subtitle}>{t('login.mfaPrompt')}</p>
+            <Input
+              label={t('login.mfaCode')}
+              name="code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              required
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+            />
+          </>
+        ) : null}
+        {needsCode ? null : (
+          <>
+            <Input
+              label={t('login.email')}
+              type="email"
+              name="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+            <Input
+              label={t('login.password')}
+              type="password"
+              name="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </>
+        )}
         <div className={styles.row}>
           <Checkbox
             label={t('login.rememberMe')}

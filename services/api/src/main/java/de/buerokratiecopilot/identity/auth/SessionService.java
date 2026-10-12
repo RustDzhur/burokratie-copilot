@@ -108,6 +108,15 @@ public class SessionService {
     }
 
     /** Revokes every session of a user — used on password change and on access revocation. */
+    /** The second factor was proven in this session: from now on it counts as fully signed in. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markMfaVerified(UUID sessionId) {
+        sessions.findById(sessionId).ifPresent(session -> {
+            session.setMfaVerified(true);
+            sessions.save(session);
+        });
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public int revokeAllForUser(UUID userId, String reason) {
         return sessions.revokeAllForUser(userId, reason, Instant.now());
