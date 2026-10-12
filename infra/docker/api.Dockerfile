@@ -113,9 +113,9 @@ LABEL org.opencontainers.image.title="burokratie-copilot-api" \
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends curl dumb-init tesseract-ocr tesseract-ocr-deu tesseract-ocr-eng \
-        clamav-daemon; \
+        clamdscan; \
     rm -rf /var/lib/apt/lists/*; \
-    tesseract --version; clamdscan --version | head -1 || true
+    tesseract --version; command -v clamdscan
 
 COPY infra/docker/clamd/clamd-remote-scan /usr/local/bin/clamd-remote-scan
 COPY infra/docker/clamd/clamdscan-remote.conf /etc/clamav/clamdscan-remote.conf
