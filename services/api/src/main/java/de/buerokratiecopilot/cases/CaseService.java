@@ -133,8 +133,20 @@ public class CaseService {
     /** Cases the user may see, newest first. */
     @Transactional(readOnly = true)
     public Page<Case> listVisible(UUID tenantId, UUID userId, boolean seeAll, Pageable pageable) {
-        return seeAll ? cases.findAllInTenant(tenantId, pageable)
-                : cases.findVisibleTo(tenantId, userId, pageable);
+        return listVisible(tenantId, userId, seeAll, null, null, pageable);
+    }
+
+    /** The same list narrowed by status and priority; an absent filter is passed as every value. */
+    @Transactional(readOnly = true)
+    public Page<Case> listVisible(UUID tenantId, UUID userId, boolean seeAll,
+                                  java.util.Collection<Case.Status> statuses,
+                                  java.util.Collection<Case.Priority> priorities, Pageable pageable) {
+        java.util.Collection<Case.Status> wantedStatuses = statuses == null || statuses.isEmpty()
+                ? java.util.EnumSet.allOf(Case.Status.class) : statuses;
+        java.util.Collection<Case.Priority> wantedPriorities = priorities == null || priorities.isEmpty()
+                ? java.util.EnumSet.allOf(Case.Priority.class) : priorities;
+        return seeAll ? cases.findAllInTenant(tenantId, wantedStatuses, wantedPriorities, pageable)
+                : cases.findVisibleTo(tenantId, userId, wantedStatuses, wantedPriorities, pageable);
     }
 
     /**

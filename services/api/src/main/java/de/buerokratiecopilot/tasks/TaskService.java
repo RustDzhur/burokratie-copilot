@@ -151,8 +151,23 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public Page<Task> listVisible(UUID tenantId, UUID userId, boolean seeAll, Pageable pageable) {
-        return seeAll ? tasks.findAllInTenant(tenantId, pageable)
-                : tasks.findVisibleTo(tenantId, userId, pageable);
+        return listVisible(tenantId, userId, seeAll, null, null, pageable);
+    }
+
+    /**
+     * The same list narrowed by status and priority. An absent filter means every value, passed explicitly:
+     * an empty collection in an {@code in} clause matches nothing, which would turn "no filter" into "no tasks".
+     */
+    @Transactional(readOnly = true)
+    public Page<Task> listVisible(UUID tenantId, UUID userId, boolean seeAll,
+                                  java.util.Collection<Task.Status> statuses,
+                                  java.util.Collection<Task.Priority> priorities, Pageable pageable) {
+        java.util.Collection<Task.Status> wantedStatuses = statuses == null || statuses.isEmpty()
+                ? java.util.EnumSet.allOf(Task.Status.class) : statuses;
+        java.util.Collection<Task.Priority> wantedPriorities = priorities == null || priorities.isEmpty()
+                ? java.util.EnumSet.allOf(Task.Priority.class) : priorities;
+        return seeAll ? tasks.findAllInTenant(tenantId, wantedStatuses, wantedPriorities, pageable)
+                : tasks.findVisibleTo(tenantId, userId, wantedStatuses, wantedPriorities, pageable);
     }
 
     @Transactional(readOnly = true)

@@ -32,19 +32,22 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
      *
      * <p>{@code query} is never {@code null}: the caller passes an empty string for "no search term".
      * A nullable string parameter makes the driver bind an untyped value, which PostgreSQL then
-     * treats as {@code bytea} and {@code lower()} fails — a real bug this signature prevents.</p>
+     * treats as {@code bytea} and {@code lower()} fails — a real bug this signature prevents. For the same
+     * reason the status and source filters are never empty: "no filter" is passed as every value.</p>
      */
     @Query("""
             select d from Document d
             where d.tenantId = :tenantId and d.deletedAt is null
-              and (:status is null or d.processingStatus = :status)
+              and d.processingStatus in :statuses
+              and d.source in :sources
               and (:query = ''
                    or lower(d.originalFilename) like lower(concat('%', :query, '%'))
                    or lower(d.documentNumber) like lower(concat('%', :query, '%')))
             """)
     Page<Document> search(@Param("tenantId") UUID tenantId,
                           @Param("query") String query,
-                          @Param("status") Document.ProcessingStatus status,
+                          @Param("statuses") java.util.Collection<Document.ProcessingStatus> statuses,
+                          @Param("sources") java.util.Collection<Document.Source> sources,
                           Pageable pageable);
 
     List<Document> findByDuplicateOfDocumentId(UUID duplicateOfDocumentId);

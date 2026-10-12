@@ -208,9 +208,18 @@ public class WorkflowService {
     /** The processes of a tenant. */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> list(UUID tenantId) {
+        // The last run and the volume of the last 30 days sit next to the definition, because a process
+        // list that cannot say "this one has been failing" is a list nobody can act on.
         return jdbc.queryForList("""
-                select id, code, name->>'de' as name, category, is_active, current_version
-                from workflow_definitions where tenant_id = ? order by code
+                select d.id, d.code, d.name->>'de' as name, d.category, d.is_active, d.current_version,
+                       d.trigger_config->>'type' as trigger_type,
+                       (select r.started_at from workflow_runs r where r.definition_id = d.id
+                         order by r.started_at desc nulls last limit 1) as last_run_at,
+                       (select r.status from workflow_runs r where r.definition_id = d.id
+                         order by r.started_at desc nulls last limit 1) as last_run_status,
+                       (select count(*) from workflow_runs r where r.definition_id = d.id
+                          and r.started_at > now() - interval '30 days') as runs_30d
+                from workflow_definitions d where d.tenant_id = ? order by d.code
                 """, tenantId);
     }
 

@@ -111,6 +111,13 @@ public class NotificationController {
                 notifications.deliveriesOf(notification.getId())));
     }
 
+    @PostMapping("/read-all")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Mark every unread notification of the caller as read")
+    public ResponseEntity<Map<String, Object>> markAllRead() {
+        return ResponseEntity.ok(Map.of("marked", notifications.markAllRead(CurrentUser.required())));
+    }
+
     @PostMapping("/{id}/unread")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Mark a notification as unread again")
@@ -125,6 +132,37 @@ public class NotificationController {
     @Operation(summary = "The caller's channel preferences")
     public ResponseEntity<List<PreferenceResponse>> preferences() {
         return ResponseEntity.ok(notifications.preferencesOf(CurrentUser.required()).stream()
+                .map(PreferenceResponse::from).toList());
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/preferences")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Replace the caller's preferences in one step; every row is checked before any is stored")
+    public ResponseEntity<List<PreferenceResponse>> replacePreferences(
+            @RequestBody List<PreferenceBody> requests) {
+        UUID tenantId = RequestContext.tenantId().orElseThrow();
+        UUID userId = CurrentUser.required();
+        // Parse everything first: a bad category in the last row must not leave the first rows applied.
+        record Parsed(Notification.Category category, Channel channel, boolean enabled,
+                      NotificationPreference.Frequency frequency) {
+        }
+        List<Parsed> parsed;
+        try {
+            parsed = requests.stream().map(request -> new Parsed(
+                    Notification.Category.valueOf(request.category()), Channel.valueOf(request.channel()),
+                    request.enabled(),
+                    request.frequency() == null ? null
+                            : NotificationPreference.Frequency.valueOf(request.frequency()))).toList();
+        }
+        catch (IllegalArgumentException | NullPointerException ex) {
+            // A word the platform does not know is the caller's mistake, not a server failure.
+            throw new de.buerokratiecopilot.shared.error.ApiException(
+                    de.buerokratiecopilot.shared.error.ErrorCode.INVALID_REQUEST,
+                    "Unbekannte Kategorie, unbekannter Kanal oder unbekannte Häufigkeit");
+        }
+        parsed.forEach(row -> notifications.setPreference(tenantId, userId, row.category(), row.channel(),
+                row.enabled(), row.frequency()));
+        return ResponseEntity.ok(notifications.preferencesOf(userId).stream()
                 .map(PreferenceResponse::from).toList());
     }
 

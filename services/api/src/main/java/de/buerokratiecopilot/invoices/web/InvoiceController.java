@@ -92,9 +92,13 @@ public class InvoiceController {
                                   String iban, String bic, String supplierId, String documentId,
                                   boolean bankDetailsChanged, boolean blocksAutomaticPosting,
                                   String state, List<FlagResponse> flags, String approvedAt,
-                                  List<LineResponse> lines) {
+                                  List<LineResponse> lines, String supplierName) {
 
         static InvoiceResponse from(Invoice invoice, List<InvoiceLine> lines) {
+            return from(invoice, lines, null);
+        }
+
+        static InvoiceResponse from(Invoice invoice, List<InvoiceLine> lines, String supplierName) {
             Object state = invoice.getValidationState().get("state");
             return new InvoiceResponse(invoice.getId().toString(), invoice.getInvoiceNumber(),
                     invoice.getDirection().name(), invoice.getInvoiceType().name(),
@@ -108,7 +112,7 @@ public class InvoiceController {
                     state == null ? "NOT_VALIDATED" : String.valueOf(state),
                     invoice.getValidationFlags().stream().map(FlagResponse::from).toList(),
                     invoice.getApprovedAt() == null ? null : invoice.getApprovedAt().toString(),
-                    lines == null ? List.of() : lines.stream().map(LineResponse::from).toList());
+                    lines == null ? List.of() : lines.stream().map(LineResponse::from).toList(), supplierName);
         }
     }
 
@@ -136,6 +140,25 @@ public class InvoiceController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(InvoiceResponse.from(recorded.invoice(), recorded.lines()));
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAuthority('finance.view')")
+    @Operation(summary = "Invoices of the account, filterable by status and direction")
+    public ResponseEntity<org.springframework.data.domain.Page<InvoiceResponse>> list(
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            List<Invoice.Status> status,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            List<Invoice.Direction> direction,
+            @org.springframework.data.web.PageableDefault(size = 25, sort = "createdAt",
+                    direction = org.springframework.data.domain.Sort.Direction.DESC)
+            org.springframework.data.domain.Pageable pageable) {
+        UUID tenantId = RequestContext.tenantId().orElseThrow();
+        var page = invoices.list(tenantId, status, direction, pageable);
+        var names = invoices.supplierNames(tenantId, page.getContent().stream()
+                .map(Invoice::getSupplierId).filter(java.util.Objects::nonNull).distinct().toList());
+        return ResponseEntity.ok(page.map(invoice -> InvoiceResponse.from(invoice, null,
+                names.get(invoice.getSupplierId()))));
     }
 
     @GetMapping("/{id}")

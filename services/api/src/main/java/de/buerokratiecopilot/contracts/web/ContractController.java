@@ -47,10 +47,21 @@ public class ContractController {
 
     private final ContractService contracts;
     private final ContractVersionService versionService;
+    private final de.buerokratiecopilot.contracts.ContractPartyRepository parties;
 
-    public ContractController(ContractService contracts, ContractVersionService versionService) {
+    public ContractController(ContractService contracts, ContractVersionService versionService,
+                              de.buerokratiecopilot.contracts.ContractPartyRepository parties) {
         this.contracts = contracts;
         this.versionService = versionService;
+        this.parties = parties;
+    }
+
+    /** The counterparty a person recognises a contract by: the primary party, else the first one named. */
+    private ContractResponse withPartner(Contract contract) {
+        var named = parties.findByContractIdOrderByCreatedAtAsc(contract.getId());
+        String partner = named.stream().filter(ContractParty::isPrimary).findFirst()
+                .or(() -> named.stream().findFirst()).map(ContractParty::getPartyName).orElse(null);
+        return ContractResponse.from(contract, partner);
     }
 
     public record CreateContractRequest(String title, String contractNumber, String contractType,
@@ -106,9 +117,13 @@ public class ContractController {
                                    Boolean autoRenewal, Integer renewalPeriodMonths,
                                    Integer noticePeriodValue, String noticePeriodUnit,
                                    BigDecimal costAmount, String costCurrency, String costInterval,
-                                   boolean dataVerified, String sourceDocumentId) {
+                                   boolean dataVerified, String sourceDocumentId, String partnerName) {
 
         static ContractResponse from(Contract contract) {
+            return from(contract, null);
+        }
+
+        static ContractResponse from(Contract contract, String partnerName) {
             return new ContractResponse(contract.getId().toString(), contract.getTitle(),
                     contract.getContractNumber(), contract.getContractType(),
                     contract.getStatus().name(), contract.getStartDate(), contract.getEndDate(),
@@ -117,7 +132,7 @@ public class ContractController {
                     contract.getCostAmount(), contract.getCostCurrency(), contract.getCostInterval(),
                     contract.isDataVerified(),
                     contract.getSourceDocumentId() == null ? null
-                            : contract.getSourceDocumentId().toString());
+                            : contract.getSourceDocumentId().toString(), partnerName);
         }
     }
 
@@ -146,7 +161,7 @@ public class ContractController {
     public ResponseEntity<Page<ContractResponse>> list(
             @PageableDefault(size = 25, sort = "createdAt") Pageable pageable) {
         return ResponseEntity.ok(contracts.list(RequestContext.tenantId().orElseThrow(), pageable)
-                .map(ContractResponse::from));
+                .map(this::withPartner));
     }
 
     @GetMapping("/{id}")
@@ -233,7 +248,7 @@ public class ContractController {
     public ResponseEntity<List<ContractResponse>> ending(@RequestParam LocalDate from,
                                                          @RequestParam LocalDate to) {
         return ResponseEntity.ok(contracts.endingBetween(RequestContext.tenantId().orElseThrow(), from, to)
-                .stream().map(ContractResponse::from).toList());
+                .stream().map(this::withPartner).toList());
     }
 
     // ------------------------------------------------------------------ versions and obligations

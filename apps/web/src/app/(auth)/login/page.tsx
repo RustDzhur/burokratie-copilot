@@ -1,14 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox, Input } from '@/components/ui/form';
 import { InlineAlert } from '@/components/ui/feedback';
 import { useToast } from '@/components/ui/toast';
 import { useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
+import { safeNextPath } from '@/lib/auth/safe-next';
 import { toApiError, type ApiError } from '@/lib/api/errors';
 import styles from '../auth-card.module.css';
 
@@ -16,12 +17,13 @@ import styles from '../auth-card.module.css';
  * Sign-in screen. Errors are mapped from the API envelope (401/403/429/5xx) to
  * localized messages; the raw backend text is never shown to users.
  */
-export default function LoginPage() {
+function LoginForm() {
   const t = useTranslations('auth');
   const tCommon = useTranslations('common');
   const tErrors = useTranslations('errors');
   const router = useRouter();
   const toast = useToast();
+  const next = safeNextPath(useSearchParams().get('next'));
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,9 +36,10 @@ export default function LoginPage() {
     setPending(true);
     setError(null);
     try {
-      await api.auth.login({ email, password, rememberMe });
+      const user = await api.auth.login({ email, password, rememberMe });
       toast.success(t('login.title'), tCommon('app.name'));
-      router.push('/dashboard');
+      // A person who has not been through the first-run wizard goes there before anything else.
+      router.push(user.onboardingCompleted === false ? '/onboarding' : (next ?? '/dashboard'));
     } catch (caught) {
       setError(toApiError(caught));
     } finally {
@@ -93,5 +96,14 @@ export default function LoginPage() {
         </span>
       </div>
     </section>
+  );
+}
+
+export default function LoginPage() {
+  // useSearchParams needs a Suspense boundary for static prerendering.
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

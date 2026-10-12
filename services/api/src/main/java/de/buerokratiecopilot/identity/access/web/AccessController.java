@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import de.buerokratiecopilot.family.FamilyAccessService;
 import de.buerokratiecopilot.identity.access.InvitationService;
 import de.buerokratiecopilot.shared.context.CurrentUser;
 import de.buerokratiecopilot.shared.context.RequestContext;
@@ -50,16 +49,18 @@ public class AccessController {
     private static final String SEE = "hasAnyAuthority('settings.view','settings.edit')";
 
     private final InvitationService access;
-    private final FamilyAccessService family;
 
-    public AccessController(InvitationService access, FamilyAccessService family) {
+    public AccessController(InvitationService access) {
         this.access = access;
-        this.family = family;
     }
 
     /** What a caller sends to invite somebody. */
+    /** {@code roleCode} (OWNER, ADMIN, ...) is the readable alternative to {@code roleId}. */
     public record InviteRequest(String email, UUID roleId, UUID workspaceId, String message,
-                                Instant expiresAt) {
+                                Instant expiresAt, String roleCode) {
+    }
+
+    public record RoleRequest(String roleCode) {
     }
 
     /** What a caller sends to let somebody see a case. */
@@ -75,8 +76,7 @@ public class AccessController {
     @PreAuthorize(SEE)
     @Operation(summary = "The people who belong to this account")
     public List<Map<String, Object>> members() {
-        UUID tenantId = tenant();
-        return family.members(tenantId);
+        return access.members(tenant());
     }
 
     /** An invitation, with the token that exists only in this answer. */
@@ -86,8 +86,12 @@ public class AccessController {
     public ResponseEntity<Map<String, Object>> invite(@RequestBody InviteRequest request) {
         UUID tenantId = tenant();
         UUID actor = CurrentUser.required();
+        UUID roleId = request.roleId() != null ? request.roleId() : access.systemRoleId(request.roleCode());
+        if (request.roleId() == null && request.roleCode() != null && roleId == null) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "Unbekannte Rolle: " + request.roleCode());
+        }
         InvitationService.Invitation invitation = access.invite(tenantId, request.email(),
-                request.roleId(), request.workspaceId(), request.message(), request.expiresAt(), actor);
+                roleId, request.workspaceId(), request.message(), request.expiresAt(), actor);
         return ResponseEntity.status(HttpStatus.CREATED).body(invitation.asMap());
     }
 
@@ -139,6 +143,15 @@ public class AccessController {
      * <p>Nothing is deleted: what somebody was part of stays, and the record of their having been part of it
      * stays with it.</p>
      */
+    @PostMapping("/members/{userId}/role")
+    @PreAuthorize(ADMINISTER)
+    @Operation(summary = "Gives a member another role; the last owner cannot be demoted")
+    public ResponseEntity<Void> changeRole(@PathVariable UUID userId, @RequestBody RoleRequest request) {
+        access.changeMemberRole(tenant(), userId, request == null ? null : request.roleCode(),
+                CurrentUser.required());
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/members/{userId}/suspend")
     @PreAuthorize(ADMINISTER)
     @Operation(summary = "Suspends a member without removing what they were part of")

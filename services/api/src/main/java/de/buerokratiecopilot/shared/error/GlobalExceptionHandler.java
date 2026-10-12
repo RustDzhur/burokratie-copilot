@@ -87,6 +87,19 @@ public class GlobalExceptionHandler {
         return simple(ErrorCode.MALFORMED_BODY, request, locale);
     }
 
+    /**
+     * A value the code could not turn into what it needs: an enum word it does not know ({@code valueOf}), an
+     * identifier that is not a UUID, a date that is not a date. In this code base those come from the request,
+     * so they are the caller's mistake; answering 500 would tell the operator's pager about a typo.
+     */
+    @ExceptionHandler({ IllegalArgumentException.class, java.time.format.DateTimeParseException.class,
+                        org.springframework.data.mapping.PropertyReferenceException.class })
+    public ResponseEntity<ApiErrorResponse> handleUnparsableValue(RuntimeException ex, HttpServletRequest request,
+                                                                  Locale locale) {
+        log.debug("Unusable value on {}: {}", request.getRequestURI(), ex.getMessage());
+        return simple(ErrorCode.INVALID_REQUEST, request, locale);
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiErrorResponse> handleAuthentication(AuthenticationException ex,
                                                                  HttpServletRequest request, Locale locale) {

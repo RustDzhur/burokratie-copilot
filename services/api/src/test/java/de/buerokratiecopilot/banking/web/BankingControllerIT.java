@@ -194,7 +194,9 @@ class BankingControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"transactionId\":\"%s\",\"invoiceId\":\"%s\"}"
                                 .formatted(UUID.randomUUID(), UUID.randomUUID())))
-                .andExpect(status().isBadRequest());
+                // No amount is allowed (the whole transaction is matched), so what is wrong here is that the
+                // transaction does not exist.
+                .andExpect(status().isNotFound());
     }
 
     @Test

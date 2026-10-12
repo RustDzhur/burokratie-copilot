@@ -33,15 +33,22 @@ public interface CaseRepository extends JpaRepository<Case, UUID> {
                    or exists (select 1 from CaseParticipant p
                               where p.caseId = c.id and p.userId = :userId and p.revokedAt is null
                                 and (p.expiresAt is null or p.expiresAt > current_timestamp)))
+              and c.status in :statuses and c.priority in :priorities
             """)
     Page<Case> findVisibleTo(@Param("tenantId") UUID tenantId, @Param("userId") UUID userId,
+                             @Param("statuses") java.util.Collection<Case.Status> statuses,
+                             @Param("priorities") java.util.Collection<Case.Priority> priorities,
                              Pageable pageable);
 
     @Query("""
             select c from Case c
             where c.deletedAt is null and c.tenantId = :tenantId
+              and c.status in :statuses and c.priority in :priorities
             """)
-    Page<Case> findAllInTenant(@Param("tenantId") UUID tenantId, Pageable pageable);
+    Page<Case> findAllInTenant(@Param("tenantId") UUID tenantId,
+                               @Param("statuses") java.util.Collection<Case.Status> statuses,
+                               @Param("priorities") java.util.Collection<Case.Priority> priorities,
+                               Pageable pageable);
 
     List<Case> findByStatusAndDeletedAtIsNull(Case.Status status);
 

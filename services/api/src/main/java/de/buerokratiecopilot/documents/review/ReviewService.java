@@ -181,7 +181,7 @@ public class ReviewService {
         DocumentReview review = reviews.findById(reviewId).orElseThrow(
                 () -> new IllegalArgumentException("Unknown review " + reviewId));
         if (!review.isOpen()) {
-            throw new IllegalStateException("The review has already been decided");
+            throw de.buerokratiecopilot.shared.error.ApiException.conflict("The review has already been decided");
         }
 
         Document document = documents.findById(review.getDocumentId()).orElseThrow();

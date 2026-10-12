@@ -44,15 +44,22 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
               and (t.createdByUserId = :userId or t.approverUserId = :userId
                    or exists (select 1 from TaskAssignee a
                               where a.taskId = t.id and a.userId = :userId))
+              and t.status in :statuses and t.priority in :priorities
             """)
     Page<Task> findVisibleTo(@Param("tenantId") UUID tenantId, @Param("userId") UUID userId,
+                             @Param("statuses") java.util.Collection<Task.Status> statuses,
+                             @Param("priorities") java.util.Collection<Task.Priority> priorities,
                              Pageable pageable);
 
     @Query("""
             select t from Task t
             where t.deletedAt is null and t.tenantId = :tenantId
+              and t.status in :statuses and t.priority in :priorities
             """)
-    Page<Task> findAllInTenant(@Param("tenantId") UUID tenantId, Pageable pageable);
+    Page<Task> findAllInTenant(@Param("tenantId") UUID tenantId,
+                               @Param("statuses") java.util.Collection<Task.Status> statuses,
+                               @Param("priorities") java.util.Collection<Task.Priority> priorities,
+                               Pageable pageable);
 
     long countByCaseIdAndStatusNotIn(UUID caseId, List<Task.Status> statuses);
 

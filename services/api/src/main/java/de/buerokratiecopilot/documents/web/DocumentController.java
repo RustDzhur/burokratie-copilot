@@ -45,9 +45,12 @@ import de.buerokratiecopilot.documents.domain.Document;
 public class DocumentController {
 
     private final DocumentService documentService;
+    private final de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline;
 
-    public DocumentController(DocumentService documentService) {
+    public DocumentController(DocumentService documentService,
+                              de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline) {
         this.documentService = documentService;
+        this.pipeline = pipeline;
     }
 
     /** Summary of a document as returned by the API. */
@@ -110,13 +113,15 @@ public class DocumentController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('documents.view')")
-    @Operation(summary = "List documents with search and status filter")
+    @Operation(summary = "List documents with search, status (repeatable) and source (repeatable) filters")
     public ResponseEntity<Page<DocumentResponse>> list(
             @RequestParam(required = false) @Size(max = 200) String q,
-            @RequestParam(required = false) Document.ProcessingStatus status,
+            @RequestParam(required = false) java.util.List<Document.ProcessingStatus> status,
+            @RequestParam(required = false) java.util.List<Document.Source> source,
             @PageableDefault(size = 25, sort = "receivedAt") Pageable pageable) {
 
-        Page<DocumentResponse> page = documentService.list(q, status, pageable).map(DocumentResponse::from);
+        Page<DocumentResponse> page = documentService.list(q, status, source, pageable)
+                .map(DocumentResponse::from);
         return ResponseEntity.ok(page);
     }
 
@@ -152,4 +157,23 @@ public class DocumentController {
         return ResponseEntity.ok(DocumentResponse.from(documentService.changeStatus(id, status, reason)));
     }
 
+
+    /**
+     * Runs the stages that failed again, without repeating those that succeeded, and lets the document
+     * continue. A stage that did not fail is left alone: repeating a finished OCR run would only spend time
+     * to reach the same text.
+     */
+    @PostMapping("/{id}/reprocess")
+    @PreAuthorize("hasAuthority('documents.review')")
+    @Operation(summary = "Retry the failed processing stages of a document and let it continue")
+    public ResponseEntity<DocumentResponse> reprocess(@PathVariable UUID id) {
+        documentService.require(id);
+        for (var step : pipeline.history(id)) {
+            if (step.getStatus() == de.buerokratiecopilot.documents.domain.DocumentProcessingStep.Status.FAILED) {
+                pipeline.retryStep(id, step.getStep());
+            }
+        }
+        pipeline.advance(id);
+        return ResponseEntity.ok(DocumentResponse.from(documentService.require(id)));
+    }
 }

@@ -136,6 +136,31 @@ public class DeviceController {
     }
 
     /** When the device was last seen, which is how a broken bridge is noticed. */
+    public record ScanBody(String profile) {
+    }
+
+    /**
+     * Asks a device to scan. The device pulls its jobs, so this only queues one: a device that is not
+     * released, or has been revoked, is refused here instead of the request waiting for work nobody will take.
+     */
+    @PostMapping("/{deviceId}/scan")
+    @PreAuthorize("hasAnyAuthority('devices.scan','devices.manage')")
+    @Operation(summary = "Queues a scan job for a device; the device collects it on its next poll")
+    public ResponseEntity<Map<String, Object>> scan(@PathVariable UUID deviceId,
+                                                    @RequestBody(required = false) ScanBody body) {
+        UUID tenantId = tenant();
+        if (!devices.mayReceiveWork(tenantId, deviceId)) {
+            throw ApiException.conflict("Das Gerät ist nicht freigegeben oder wurde gesperrt");
+        }
+        String profile = body == null || body.profile() == null ? "" : body.profile().strip();
+        String parameters = profile.isEmpty() ? "{}"
+                : "{\"profile\":" + new com.fasterxml.jackson.databind.ObjectMapper().valueToTree(profile) + "}";
+        UUID jobId = devices.queueJob(tenantId, deviceId, "SCAN", parameters, CurrentUser.required());
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of("jobId", jobId.toString(),
+                "status", "QUEUED",
+                "note", "Der Auftrag liegt bereit. Das Gerät holt ihn bei der nächsten Abfrage ab."));
+    }
+
     @GetMapping("/{deviceId}/last-seen")
     @PreAuthorize(SEE)
     @Operation(summary = "When this device was last seen")

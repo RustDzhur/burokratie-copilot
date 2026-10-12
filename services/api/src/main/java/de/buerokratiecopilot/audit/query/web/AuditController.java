@@ -72,11 +72,12 @@ public class AuditController {
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String result,
             @RequestParam(required = false) String entityType,
+            @RequestParam(required = false) UUID entityId,
             @RequestParam(required = false) Integer limit) {
         UUID tenantId = tenant();
 
         List<Map<String, Object>> events = audit.events(tenantId, from, to, category, result, entityType,
-                limit);
+                entityId, limit);
 
         Map<String, Object> answer = new LinkedHashMap<>();
         answer.put("events", events);

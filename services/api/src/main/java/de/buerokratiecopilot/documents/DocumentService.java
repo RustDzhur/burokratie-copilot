@@ -246,11 +246,17 @@ public class DocumentService {
     }
 
     @Transactional(readOnly = true)
-    public Page<Document> list(String query, Document.ProcessingStatus status, Pageable pageable) {
+    public Page<Document> list(String query, java.util.Collection<Document.ProcessingStatus> statuses,
+                               java.util.Collection<Document.Source> sources, Pageable pageable) {
         UUID tenantId = RequestContext.tenantId()
                 .orElseThrow(() -> new ApiException(ErrorCode.FORBIDDEN, "No tenant in context"));
         // Never pass null here: see the note on DocumentRepository.search.
-        return documents.search(tenantId, query == null ? "" : query.trim(), status, pageable);
+        return documents.search(tenantId, query == null ? "" : query.trim(),
+                statuses == null || statuses.isEmpty()
+                        ? java.util.EnumSet.allOf(Document.ProcessingStatus.class) : statuses,
+                sources == null || sources.isEmpty()
+                        ? java.util.EnumSet.allOf(Document.Source.class) : sources,
+                pageable);
     }
 
     /** Opens the bytes of the current version for download. */

@@ -58,10 +58,13 @@ public class MailController {
 
     private final MailAccountService accounts;
     private final OutboundMessageService outbound;
+    private final de.buerokratiecopilot.mail.MailListService messages;
 
-    public MailController(MailAccountService accounts, OutboundMessageService outbound) {
+    public MailController(MailAccountService accounts, OutboundMessageService outbound,
+                          de.buerokratiecopilot.mail.MailListService messages) {
         this.accounts = accounts;
         this.outbound = outbound;
+        this.messages = messages;
     }
 
     /** A mailbox to connect. */
@@ -156,6 +159,19 @@ public class MailController {
      *
      * <p>Idempotent by the caller's key, so a retry after a timeout does not post a second letter.</p>
      */
+    @GetMapping("/messages")
+    @PreAuthorize(SEE)
+    @Operation(summary = "Received, sent and draft mail in one list, newest first")
+    public org.springframework.data.domain.Page<Map<String, Object>> list(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String q,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            List<de.buerokratiecopilot.mail.MailListService.Folder> folder,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            List<de.buerokratiecopilot.mail.MailListService.Status> status,
+            @org.springframework.data.web.PageableDefault(size = 25) org.springframework.data.domain.Pageable pageable) {
+        return messages.list(tenant(), q, folder, status, pageable);
+    }
+
     @PostMapping("/messages")
     @PreAuthorize(SEND)
     @Operation(summary = "Writes a draft; the same key returns the draft that exists")

@@ -308,7 +308,12 @@ export default function CalendarPage() {
             name: 'type',
             label: t('column.type'),
             type: 'select',
-            options: TYPE_VALUES.map((value) => ({ value, label: typeLabel(value) })),
+            // Deadlines belong to tasks and cases and appear here from there; only appointments and
+            // reminders are entered by hand.
+            options: TYPE_VALUES.filter((value) => value !== 'deadline').map((value) => ({
+              value,
+              label: typeLabel(value),
+            })),
           },
         ]}
         onSubmit={createAppointment}

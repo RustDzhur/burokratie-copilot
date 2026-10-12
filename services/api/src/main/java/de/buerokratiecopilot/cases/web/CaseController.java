@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import de.buerokratiecopilot.cases.CaseDocumentRepository;
@@ -46,10 +47,21 @@ public class CaseController {
 
     private final CaseService cases;
     private final CaseLifecycleService lifecycle;
+    private final de.buerokratiecopilot.identity.UserRepository users;
 
-    public CaseController(CaseService cases, CaseLifecycleService lifecycle) {
+    public CaseController(CaseService cases, CaseLifecycleService lifecycle,
+                          de.buerokratiecopilot.identity.UserRepository users) {
         this.cases = cases;
         this.lifecycle = lifecycle;
+        this.users = users;
+    }
+
+    /** The responsible person's name for display; {@code null} when nobody is responsible. */
+    private String nameOf(Case caseRecord) {
+        UUID responsible = caseRecord.getResponsibleUserId();
+        return responsible == null ? null
+                : users.findById(responsible).map(user -> user.getDisplayName() != null
+                        ? user.getDisplayName() : user.getEmail()).orElse(null);
     }
 
     /** What a client submits to open a case. */
@@ -105,10 +117,11 @@ public class CaseController {
                                String typeCode, String typeName, String description, String responsibleUserId,
                                String counterpartyContactId, String externalReference, Instant openedAt,
                                Instant dueAt, String outcome, Instant closedAt, List<String> tags,
-                               long documentCount, String accessLevel) {
+                               long documentCount, String accessLevel, Instant updatedAt,
+                               String responsibleName) {
 
         static CaseResponse from(Case caseRecord, String typeCode, String typeName, long documentCount,
-                                 String accessLevel) {
+                                 String accessLevel, String responsibleName) {
             return new CaseResponse(caseRecord.getId().toString(), caseRecord.getReference(),
                     caseRecord.getTitle(), caseRecord.getStatus().name(), caseRecord.getPriority().name(),
                     typeCode, typeName, caseRecord.getDescription(),
@@ -118,7 +131,7 @@ public class CaseController {
                             : caseRecord.getCounterpartyContactId().toString(),
                     caseRecord.getExternalReference(), caseRecord.getOpenedAt(), caseRecord.getDueAt(),
                     caseRecord.getOutcome(), caseRecord.getClosedAt(), caseRecord.getTags(), documentCount,
-                    accessLevel);
+                    accessLevel, caseRecord.getUpdatedAt(), responsibleName);
         }
     }
 
@@ -142,22 +155,24 @@ public class CaseController {
 
         Case created = cases.createWithRetry(createRequest, userId);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(CaseResponse.from(created, request.caseTypeCode(), null, 0, "FULL"));
+                .body(CaseResponse.from(created, request.caseTypeCode(), null, 0, "FULL", nameOf(created)));
     }
 
     @GetMapping
     @PreAuthorize("hasAuthority('cases.view')")
     @Operation(summary = "Cases the caller may see")
     public ResponseEntity<Page<CaseResponse>> list(
+            @RequestParam(required = false) List<Case.Status> status,
+            @RequestParam(required = false) List<Case.Priority> priority,
             @PageableDefault(size = 25, sort = "openedAt") Pageable pageable) {
         UUID userId = CurrentUser.required();
         UUID tenantId = RequestContext.tenantId().orElseThrow();
         boolean seeAll = hasPermission("cases.assign");
 
-        return ResponseEntity.ok(cases.listVisible(tenantId, userId, seeAll, pageable)
+        return ResponseEntity.ok(cases.listVisible(tenantId, userId, seeAll, status, priority, pageable)
                 .map(caseRecord -> CaseResponse.from(caseRecord, null, null,
                         cases.detail(caseRecord.getId(), userId, seeAll).documents().size(),
-                        cases.accessLevel(caseRecord, userId, seeAll).name())));
+                        cases.accessLevel(caseRecord, userId, seeAll).name(), nameOf(caseRecord))));
     }
 
     @GetMapping("/{id}")
@@ -171,7 +186,7 @@ public class CaseController {
                 CaseResponse.from(detail.caseRecord(),
                         detail.type() == null ? null : detail.type().getCode(),
                         detail.type() == null ? null : detail.type().nameIn("de"),
-                        detail.documents().size(), detail.accessLevel().name()),
+                        detail.documents().size(), detail.accessLevel().name(), nameOf(detail.caseRecord())),
                 cases.participantRows(id).stream().map(ParticipantResponse::from).toList(),
                 detail.documents().stream().map(DocumentResponse::from).toList(),
                 detail.timeline().stream().map(EventResponse::from).toList(),
@@ -252,7 +267,7 @@ public class CaseController {
                 userId, seeAll);
 
         return ResponseEntity.ok(new LifecycleResponse(
-                CaseResponse.from(updated, null, null, 0, "FULL"),
+                CaseResponse.from(updated, null, null, 0, "FULL", nameOf(updated)),
                 lifecycle.possibleTargets(id, userId, seeAll).stream().map(Enum::name).toList(),
                 lifecycle.obligationsOf(updated).open().stream()
                         .map(obligation -> new ObligationResponse(obligation.kind(),
@@ -270,7 +285,7 @@ public class CaseController {
 
         return ResponseEntity.ok(new LifecycleResponse(
                 CaseResponse.from(detail.caseRecord(), null, null, detail.documents().size(),
-                        detail.accessLevel().name()),
+                        detail.accessLevel().name(), nameOf(detail.caseRecord())),
                 lifecycle.possibleTargets(id, userId, seeAll).stream().map(Enum::name).toList(),
                 lifecycle.obligationsOf(detail.caseRecord()).open().stream()
                         .map(obligation -> new ObligationResponse(obligation.kind(),

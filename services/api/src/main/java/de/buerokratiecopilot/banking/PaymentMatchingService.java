@@ -378,6 +378,61 @@ public class PaymentMatchingService {
                 transactionId);
     }
 
+    /**
+     * Bank transactions of the tenant, newest first, optionally narrowed to some statuses.
+     *
+     * <p>Statuses are checked against the table's own set before they reach the query: a value the table
+     * cannot contain is a caller's mistake, not an empty page.</p>
+     */
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<Map<String, Object>> transactions(
+            UUID tenantId, List<String> statuses, org.springframework.data.domain.Pageable pageable) {
+        List<String> wanted = statuses == null || statuses.isEmpty()
+                ? List.of("UNMATCHED", "SUGGESTED", "MATCHED", "IGNORED", "INTERNAL") : statuses;
+        for (String status : wanted) {
+            if (!List.of("UNMATCHED", "SUGGESTED", "MATCHED", "IGNORED", "INTERNAL").contains(status)) {
+                throw new de.buerokratiecopilot.shared.error.ApiException(
+                        de.buerokratiecopilot.shared.error.ErrorCode.INVALID_REQUEST,
+                        "Unknown transaction status: " + status);
+            }
+        }
+        String marks = String.join(",", java.util.Collections.nCopies(wanted.size(), "?"));
+        List<Object> arguments = new java.util.ArrayList<>();
+        arguments.add(tenantId);
+        arguments.addAll(wanted);
+        Long total = jdbc.queryForObject(
+                "select count(*) from bank_transactions where tenant_id = ? and status in (" + marks + ")",
+                Long.class, arguments.toArray());
+        List<Object> pageArguments = new java.util.ArrayList<>(arguments);
+        pageArguments.add(pageable.getPageSize());
+        pageArguments.add(pageable.getOffset());
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                select t.id, t.booking_date, t.amount, t.currency, t.counterparty_name, t.purpose,
+                       t.reference, t.status,
+                       (select i.invoice_number from payment_matches m join invoices i on i.id = m.invoice_id
+                         where m.bank_transaction_id = t.id and m.status in ('PROPOSED', 'CONFIRMED')
+                         order by m.created_at desc limit 1) as suggested_invoice
+                from bank_transactions t
+                where t.tenant_id = ? and t.status in (""" + marks + """
+                )
+                order by t.booking_date desc, t.created_at desc
+                limit ? offset ?
+                """, pageArguments.toArray());
+        return new org.springframework.data.domain.PageImpl<>(rows, pageable, total == null ? 0 : total);
+    }
+
+    /** The amount of one of the tenant's bank transactions. */
+    @Transactional(readOnly = true)
+    public BigDecimal transactionAmount(UUID tenantId, UUID transactionId) {
+        List<BigDecimal> found = jdbc.queryForList(
+                "select amount from bank_transactions where id = ? and tenant_id = ?", BigDecimal.class,
+                transactionId, tenantId);
+        if (found.isEmpty()) {
+            throw de.buerokratiecopilot.shared.error.ApiException.notFound("Bank transaction");
+        }
+        return found.get(0);
+    }
+
     /** Transactions nobody has dealt with, for the reconciliation list. */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> openTransactions(UUID tenantId, UUID accountId) {

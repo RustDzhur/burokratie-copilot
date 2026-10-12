@@ -340,3 +340,29 @@ describe('api client — CSRF double submit', () => {
     expect((init.headers as Record<string, string>)['X-XSRF-TOKEN']).toBeUndefined();
   });
 });
+
+describe('normalizePage — Spring Data envelopes', () => {
+  it('reads the flat Spring Page: content, number, size, totalElements, totalPages', () => {
+    const page = normalizePage<string>({
+      content: ['a', 'b'],
+      number: 2,
+      size: 2,
+      totalElements: 11,
+      totalPages: 6,
+    });
+    expect(page).toEqual({ items: ['a', 'b'], page: 2, size: 2, totalItems: 11, totalPages: 6 });
+  });
+
+  it('reads the nested DTO form: page.{size,number,totalElements,totalPages}', () => {
+    const page = normalizePage<string>({
+      content: ['a'],
+      page: { size: 25, number: 0, totalElements: 1, totalPages: 1 },
+    });
+    expect(page).toEqual({ items: ['a'], page: 0, size: 25, totalItems: 1, totalPages: 1 });
+  });
+
+  it('still reads the contract names', () => {
+    const page = normalizePage<string>({ items: ['a'], page: 1, size: 5, totalItems: 6, totalPages: 2 });
+    expect(page).toEqual({ items: ['a'], page: 1, size: 5, totalItems: 6, totalPages: 2 });
+  });
+});

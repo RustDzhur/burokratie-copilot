@@ -225,7 +225,7 @@ public class InvitationService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> pendingInvitations(UUID tenantId) {
         return jdbc.queryForList("""
-                select id, email, role_id, workspace_id, invited_by, expires_at, created_at
+                select id, email::text as email, role_id, workspace_id, invited_by, expires_at, created_at
                 from invitations where tenant_id = ? and status = 'PENDING' order by created_at
                 """, tenantId);
     }
@@ -325,6 +325,76 @@ public class InvitationService {
     @Transactional(readOnly = true)
     public boolean mayReadCase(UUID tenantId, UUID userId, UUID caseId) {
         return !caseAccess(tenantId, userId, caseId).isEmpty();
+    }
+
+    /** The id of a system role by its code (OWNER, ADMIN, ...), or {@code null} when there is no such role. */
+    @Transactional(readOnly = true)
+    public UUID systemRoleId(String code) {
+        if (code == null || code.isBlank()) {
+            return null;
+        }
+        List<UUID> found = jdbc.queryForList(
+                "select id from roles where code = ? and tenant_id is null", UUID.class,
+                code.strip().toUpperCase(java.util.Locale.ROOT));
+        return found.isEmpty() ? null : found.get(0);
+    }
+
+    /**
+     * Everybody who belongs to the account with the role they hold and when they were last seen.
+     * Suspended members are included: a list that hid them would make "suspend" look like "delete".
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> members(UUID tenantId) {
+        return jdbc.queryForList("""
+                select m.user_id, u.display_name, u.email::text as email, m.status, m.is_owner, u.last_login_at,
+                       (select string_agg(r.code, ',' order by r.code)
+                          from membership_roles mr join roles r on r.id = mr.role_id
+                         where mr.membership_id = m.id) as role_codes
+                from memberships m join users u on u.id = m.user_id
+                where m.tenant_id = ? and m.status in ('ACTIVE', 'SUSPENDED')
+                order by m.joined_at
+                """, tenantId);
+    }
+
+    /**
+     * Gives a member exactly one role. The last owner cannot be demoted: an account nobody owns cannot
+     * be administered by anybody, which no later action could repair.
+     */
+    @Transactional
+    public void changeMemberRole(UUID tenantId, UUID userId, String roleCode, UUID changedBy) {
+        UUID roleId = systemRoleId(roleCode);
+        if (roleId == null) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "Unbekannte Rolle: " + roleCode);
+        }
+        List<UUID> membership = jdbc.queryForList(
+                "select id from memberships where tenant_id = ? and user_id = ? and status = 'ACTIVE'",
+                UUID.class, tenantId, userId);
+        if (membership.isEmpty()) {
+            throw ApiException.notFound("membership");
+        }
+        UUID membershipId = membership.get(0);
+
+        boolean isOwnerNow = Boolean.TRUE.equals(jdbc.queryForObject(
+                "select exists (select 1 from membership_roles mr join roles r on r.id = mr.role_id "
+                        + "where mr.membership_id = ? and r.code = 'OWNER')", Boolean.class, membershipId));
+        if (isOwnerNow && !"OWNER".equalsIgnoreCase(roleCode)) {
+            Integer owners = jdbc.queryForObject("""
+                    select count(distinct m.id) from memberships m
+                    join membership_roles mr on mr.membership_id = m.id
+                    join roles r on r.id = mr.role_id
+                    where m.tenant_id = ? and m.status = 'ACTIVE' and r.code = 'OWNER'
+                    """, Integer.class, tenantId);
+            if (owners != null && owners <= 1) {
+                throw ApiException.conflict("Der letzte Inhaber kann seine Rolle nicht abgeben");
+            }
+        }
+
+        jdbc.update("delete from membership_roles where membership_id = ?", membershipId);
+        jdbc.update("""
+                insert into membership_roles (membership_id, role_id, granted_at) values (?, ?, now())
+                """, membershipId, roleId);
+        recordChange(tenantId, userId, changedBy, "ROLE_CHANGED", roleCode.strip().toUpperCase(java.util.Locale.ROOT),
+                "{}");
     }
 
     /** Suspend a member without removing what they were part of. */

@@ -10,7 +10,97 @@
  * `Idempotency-Key` header (§20: "идемпотентность, если требуется").
  */
 
-import type { ApiClient, ListParams, Page, UploadOptions } from './client';
+import { ApiError } from './errors';
+import { normalizePage, type ApiClient, type ListParams, type Page, type UploadOptions } from './client';
+import {
+  approvalFromFields,
+  documentDetailFromWire,
+  historyFromWire,
+  documentFromWire,
+  reviewItemFromWire,
+  wireSort,
+  wireSourcesFor,
+  wireStatusesFor,
+  type AuditEventsWire,
+  type DocumentWire,
+  type FieldsWire,
+  type ReviewDetailWire,
+  type ReviewQueueEntryWire,
+  type UploadWire,
+} from './wire/documents';
+import {
+  CASE_SORT,
+  CONTRACT_SORT,
+  INVOICE_SORT,
+  TASK_SORT,
+  caseDetailFromWire,
+  caseFromWire,
+  caseStatusesFor,
+  dueInstant,
+  prioritiesFor,
+  priorityToWire,
+  sortFor,
+  taskFromWire,
+  taskStatusesFor,
+  taskStatusToWire,
+  type CaseDetailWire,
+  type CaseWire,
+  type TaskWire,
+} from './wire/work';
+import {
+  contractFromWire,
+  decimalFromInput,
+  directionToWire,
+  invoiceFromWire,
+  invoiceStatusesFor,
+  paymentFromWire,
+  paymentStatusesFor,
+  type BankTransactionWire,
+  type ContractWire,
+  type InvoiceWire,
+} from './wire/finance';
+import {
+  auditEntryFromWire,
+  deviceFromWire,
+  integrationFromWire,
+  invitedMemberFromWire,
+  memberFromWire,
+  notificationFromWire,
+  preferencesFromWire,
+  preferencesToWire,
+  roleToWire,
+  type AuditEventWire,
+  type DeviceWire,
+  type IntegrationWire,
+  type MemberWire,
+  type NotificationWire,
+  type PendingInvitationWire,
+  type PreferenceWire,
+} from './wire/people';
+import {
+  assistantAnswerFromWire,
+  automationCode,
+  automationFromWire,
+  automationStartKind,
+  automationStatusMatches,
+  calendarEventFromWire,
+  contactFromWire,
+  contactKindToWire,
+  mailFolderToWire,
+  mailFromWire,
+  mailStatusToWire,
+  placeholdersIn,
+  templateCategoryToWire,
+  templateCode,
+  templateFromWire,
+  type AssistantWire,
+  type CalendarEventWire,
+  type ContactWire,
+  type MailWire,
+  type TemplateWire,
+  type WorkflowWire,
+} from './wire/misc';
+import { collectPages, csvBlob, toCsv } from './csv';
 import type {
   AccessibilityPreferences,
   ArchiveEntry,
@@ -57,6 +147,7 @@ interface MeResponse {
   readonly workspaceName: string | null;
   readonly accountType: string | null;
   readonly roles: readonly string[];
+  readonly onboardingCompleted?: boolean;
 }
 
 const ROLE_FROM_BACKEND: Readonly<Record<string, MemberRole>> = {
@@ -95,6 +186,7 @@ export function sessionUserFromMe(me: MeResponse): SessionUser {
     workspaceId: me.tenantId ?? '',
     workspaceName: me.workspaceName ?? '',
     workspaceType: workspaceTypeFromBackend(me.accountType),
+    onboardingCompleted: me.onboardingCompleted ?? true,
   };
 }
 
@@ -122,6 +214,8 @@ export interface CreateTaskPayload {
   readonly priority: TaskSummary['priority'];
   readonly assigneeId?: string;
   readonly caseId?: string;
+  /** What has to be true for the task to count as done; the backend refuses to finish a task without one. */
+  readonly completionCriteria?: string;
 }
 
 export interface AssistantQueryPayload {
@@ -205,7 +299,7 @@ export interface ApiResources {
   };
   readonly payments: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<PaymentSummary>>;
-    match: (id: string, invoiceId: string) => Promise<PaymentSummary>;
+    match: (id: string, invoiceId: string) => Promise<void>;
   };
   readonly contacts: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<ContactSummary>>;
@@ -217,7 +311,6 @@ export interface ApiResources {
   };
   readonly mail: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<MailMessageSummary>>;
-    connect: (payload: { readonly provider: string }) => Promise<void>;
   };
   readonly templates: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<TemplateSummary>>;
@@ -226,18 +319,12 @@ export interface ApiResources {
       readonly templateType: string;
       readonly body?: string;
     }) => Promise<TemplateSummary>;
-    get: (id: string, signal?: AbortSignal) => Promise<TemplateSummary>;
-    save: (
-      id: string,
-      payload: { readonly name: string; readonly body: string },
-    ) => Promise<TemplateSummary>;
   };
   readonly assistant: {
     ask: (payload: AssistantQueryPayload, signal?: AbortSignal) => Promise<AssistantAnswer>;
   };
   readonly automations: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<AutomationSummary>>;
-    setEnabled: (id: string, enabled: boolean) => Promise<AutomationSummary>;
     create: (payload: {
       readonly name: string;
       readonly trigger: string;
@@ -269,6 +356,8 @@ export interface ApiResources {
   };
   readonly notifications: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<NotificationSummary>>;
+    markRead: (id: string) => Promise<void>;
+    unreadCount: (signal?: AbortSignal) => Promise<number>;
     markAllRead: () => Promise<void>;
     preferences: (signal?: AbortSignal) => Promise<NotificationPreferences>;
     savePreferences: (preferences: NotificationPreferences) => Promise<NotificationPreferences>;
@@ -277,6 +366,14 @@ export interface ApiResources {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<AuditEntry>>;
     export: (params?: ListParams) => Promise<Blob>;
   };
+  readonly mfa: {
+    /** Starts an enrolment: the secret to put into an authenticator app, not yet active. */
+    begin: () => Promise<{ methodId: string; secret: string; provisioningUri: string }>;
+    /** Confirms the first code; the recovery codes are shown once. */
+    confirm: (methodId: string, code: string) => Promise<{ recoveryCodes: readonly string[] }>;
+    /** Switches the caller's active factor off. */
+    disable: () => Promise<void>;
+  };
   readonly settings: {
     security: (signal?: AbortSignal) => Promise<SecuritySettings>;
     revokeSession: (id: string) => Promise<void>;
@@ -284,10 +381,28 @@ export interface ApiResources {
       readonly currentPassword: string;
       readonly newPassword: string;
     }) => Promise<void>;
-    setMfa: (enabled: boolean) => Promise<void>;
     accessibility: (signal?: AbortSignal) => Promise<AccessibilityPreferences>;
     saveAccessibility: (preferences: AccessibilityPreferences) => Promise<AccessibilityPreferences>;
   };
+}
+
+/**
+ * Decides the open review of a document. The screens talk about documents; the backend decides reviews,
+ * so the open one is looked up first. A document with no open review has nothing to decide, which is
+ * reported rather than silently ignored.
+ */
+async function decideOpenReview(
+  client: ApiClient,
+  documentId: string,
+  decision: { readonly decision: string; readonly note?: string; readonly changes?: unknown },
+): Promise<void> {
+  const detail = await client.get<ReviewDetailWire>(`/reviews/${documentId}`);
+  // `openReviews` lists only the reviews still waiting (PENDING or IN_REVIEW).
+  const target = detail.openReviews[0];
+  if (!target) {
+    throw new ApiError({ kind: 'conflict', status: 409, message: 'The document has no open review' });
+  }
+  await client.post<unknown>(`/reviews/${target.id}/decision`, decision, { idempotencyKey: true });
 }
 
 const withSignal = (signal?: AbortSignal): { signal?: AbortSignal } => (signal ? { signal } : {});
@@ -324,160 +439,594 @@ export function createResources(client: ApiClient): ApiResources {
         client.post<void>('/auth/password-reset/confirm', payload, { idempotencyKey: true }),
       session: async (signal) =>
         sessionUserFromMe(await client.get<MeResponse>('/auth/me', withSignal(signal))),
-      completeOnboarding: (payload) =>
-        client.post<SessionUser>('/auth/onboarding', payload, { idempotencyKey: true }),
+      completeOnboarding: async (payload) => {
+        await client.post<unknown>('/auth/onboarding', payload, { idempotencyKey: true });
+        return sessionUserFromMe(await client.get<MeResponse>('/auth/me'));
+      },
     },
     dashboard: {
       summary: (signal) => client.get<DashboardSummary>('/dashboard/summary', withSignal(signal)),
     },
     documents: {
-      list: (params, signal) =>
-        client.list<DocumentSummary>('/documents', params, withSignal(signal)),
-      export: (params) =>
-        client.request<Blob>('/documents/export', { query: params, parse: 'blob' }),
-      get: (id, signal) => client.get<DocumentDetail>(`/documents/${id}`, withSignal(signal)),
-      history: (id, signal) =>
-        client.list<DocumentHistoryEntry>(`/documents/${id}/history`, {}, withSignal(signal)),
-      upload: (file, options) => client.upload<DocumentSummary>('/documents', file, options),
-      reprocess: (id) =>
-        client.post<void>(`/documents/${id}/reprocess`, undefined, { idempotencyKey: true }),
+      list: async (params, signal) => {
+        // Screen filters are translated to the pipeline's vocabulary; one screen status covers several stages.
+        const { status, channel, sort, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
+        const page = await client.list<DocumentWire>(
+          '/documents',
+          {
+            ...rest,
+            status: typeof status === 'string' ? [...wireStatusesFor(status)] : undefined,
+            source: typeof channel === 'string' ? [...wireSourcesFor(channel)] : undefined,
+            sort: wireSort(typeof sort === 'string' ? sort : undefined),
+          },
+          withSignal(signal),
+        );
+        return { ...page, items: page.items.map(documentFromWire) };
+      },
+      export: async (params) => {
+        const rows = await collectPages((page, size) => createResources(client).documents.list({ ...params, page, size }));
+        return csvBlob(
+          toCsv(rows, [
+            { header: 'Titel', value: (row) => row.title },
+            { header: 'Status', value: (row) => row.status },
+            { header: 'Kanal', value: (row) => row.channel },
+            { header: 'Eingang', value: (row) => row.receivedAt },
+            { header: 'Größe (Bytes)', value: (row) => row.sizeBytes },
+          ]),
+        );
+      },
+      get: async (id, signal) => {
+        const [document, fields, history] = await Promise.all([
+          client.get<DocumentWire>(`/documents/${id}`, withSignal(signal)),
+          client.get<FieldsWire>(`/documents/${id}/fields`, withSignal(signal)),
+          // The history needs the audit permission, which not every role has: without it the tab is
+          // empty, but the document still opens.
+          client
+            .get<AuditEventsWire>('/audit/events', {
+              query: { entityType: 'documents', entityId: id, limit: 50 },
+              ...withSignal(signal),
+            })
+            .catch(() => null),
+        ]);
+        return documentDetailFromWire(document, fields, history);
+      },
+      history: async (id, signal) => {
+        const events = await client.get<AuditEventsWire>('/audit/events', {
+          query: { entityType: 'documents', entityId: id, limit: 50 },
+          ...withSignal(signal),
+        });
+        return normalizePage(events.events.map(historyFromWire));
+      },
+      upload: async (file, options) =>
+        documentFromWire((await client.upload<UploadWire>('/documents', file, options)).document),
+      reprocess: async (id) => {
+        await client.post<unknown>(`/documents/${id}/reprocess`, undefined, { idempotencyKey: true });
+      },
       downloadOriginal: (id) => client.request<Blob>(`/documents/${id}/content`, { parse: 'blob' }),
-      confirmFields: (id, payload) =>
-        client.post<void>(`/documents/${id}/fields/confirm`, payload, { idempotencyKey: true }),
-      archive: (id) =>
-        client.post<void>(`/documents/${id}/archive`, undefined, { idempotencyKey: true }),
+      confirmFields: async (id, payload) => decideOpenReview(client, id, approvalFromFields(payload.fields)),
+      archive: async (id) => {
+        await client.post<unknown>(`/documents/${id}/status`, undefined, {
+          query: { status: 'ARCHIVED' },
+          idempotencyKey: true,
+        });
+      },
     },
     review: {
-      queue: (params, signal) =>
-        client.list<ReviewItem>('/document-processing/review', params, withSignal(signal)),
+      queue: async (params, signal) => {
+        const entries = await client.get<readonly ReviewQueueEntryWire[]>('/reviews', withSignal(signal));
+        const size = typeof params?.size === 'number' ? params.size : entries.length;
+        const shown = entries.slice(0, size);
+        const items = await Promise.all(
+          shown.map(async (entry) =>
+            reviewItemFromWire(
+              entry,
+              await client.get<ReviewDetailWire>(`/reviews/${entry.documentId}`, withSignal(signal)),
+            ),
+          ),
+        );
+        return { items, page: 0, size: shown.length, totalItems: entries.length, totalPages: 1 };
+      },
       confirm: (documentId, payload) =>
-        client.post<void>(`/document-processing/review/${documentId}/confirm`, payload, {
-          idempotencyKey: true,
-        }),
+        decideOpenReview(client, documentId, approvalFromFields(payload.fields)),
       reject: (documentId, reason) =>
-        client.post<void>(
-          `/document-processing/review/${documentId}/reject`,
-          { reason },
-          { idempotencyKey: true },
-        ),
+        decideOpenReview(client, documentId, { decision: 'REJECTED', note: reason }),
     },
     cases: {
-      list: (params, signal) => client.list<CaseSummary>('/cases', params, withSignal(signal)),
-      get: (id, signal) => client.get<CaseSummary>(`/cases/${id}`, withSignal(signal)),
-      create: (payload) => client.post<CaseSummary>('/cases', payload, { idempotencyKey: true }),
-    },
-    tasks: {
-      list: (params, signal) => client.list<TaskSummary>('/tasks', params, withSignal(signal)),
-      create: (payload) => client.post<TaskSummary>('/tasks', payload, { idempotencyKey: true }),
-      setStatus: (id, status) => client.patch<TaskSummary>(`/tasks/${id}`, { status }),
-    },
-    calendar: {
-      events: (params, signal) =>
-        client.list<CalendarEvent>('/calendar/events', params, withSignal(signal)),
-      create: (payload) =>
-        client.post<CalendarEvent>('/calendar/events', payload, { idempotencyKey: true }),
-    },
-    contracts: {
-      list: (params, signal) =>
-        client.list<ContractSummary>('/contracts', params, withSignal(signal)),
-      expiring: (signal) =>
-        client.list<ContractSummary>('/contracts', { filter: 'expiring' }, withSignal(signal)),
-      create: (payload) =>
-        client.post<ContractSummary>('/contracts', payload, { idempotencyKey: true }),
-    },
-    invoices: {
-      list: (params, signal) =>
-        client.list<InvoiceSummary>('/invoices', params, withSignal(signal)),
-      approve: (id) =>
-        client.post<InvoiceSummary>(`/invoices/${id}/approve`, undefined, { idempotencyKey: true }),
-      create: (payload) =>
-        client.post<InvoiceSummary>('/invoices', payload, { idempotencyKey: true }),
-    },
-    payments: {
-      list: (params, signal) =>
-        client.list<PaymentSummary>('/payments', params, withSignal(signal)),
-      match: (id, invoiceId) =>
-        client.post<PaymentSummary>(
-          `/payments/${id}/match`,
-          { invoiceId },
-          { idempotencyKey: true },
+      list: async (params, signal) => {
+        const { status, priority, sort, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
+        const page = await client.list<CaseWire>(
+          '/cases',
+          {
+            ...rest,
+            sort: sortFor(CASE_SORT, sort),
+            status: typeof status === 'string' ? caseStatusesFor(status) : undefined,
+            priority: typeof priority === 'string' ? prioritiesFor(priority) : undefined,
+          },
+          withSignal(signal),
+        );
+        return { ...page, items: page.items.map((item) => caseFromWire(item)) };
+      },
+      get: async (id, signal) =>
+        caseDetailFromWire(await client.get<CaseDetailWire>(`/cases/${id}`, withSignal(signal))),
+      create: async (payload) =>
+        caseFromWire(
+          await client.post<CaseWire>(
+            '/cases',
+            { title: payload.title, caseTypeCode: payload.caseType },
+            { idempotencyKey: true },
+          ),
         ),
     },
+    tasks: {
+      list: async (params, signal) => {
+        const { status, priority, sort, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
+        const page = await client.list<TaskWire>(
+          '/tasks',
+          {
+            ...rest,
+            sort: sortFor(TASK_SORT, sort),
+            status: typeof status === 'string' ? taskStatusesFor(status) : undefined,
+            priority: typeof priority === 'string' ? prioritiesFor(priority) : undefined,
+          },
+          withSignal(signal),
+        );
+        return { ...page, items: page.items.map((item) => taskFromWire(item)) };
+      },
+      create: async (payload) =>
+        taskFromWire(
+          await client.post<TaskWire>(
+            '/tasks',
+            {
+              title: payload.title,
+              priority: priorityToWire(payload.priority),
+              dueAt: dueInstant(payload.dueDate),
+              assigneeUserId: payload.assigneeId,
+              caseId: payload.caseId,
+              completionCriteria: payload.completionCriteria,
+            },
+            { idempotencyKey: true },
+          ),
+        ),
+      setStatus: async (id, status) =>
+        taskFromWire(
+          status === 'done'
+            ? // Finishing a task means checking its criteria, so it has its own endpoint.
+              await client.post<TaskWire>(`/tasks/${id}/complete`, {}, { idempotencyKey: true })
+            : await client.post<TaskWire>(
+                `/tasks/${id}/status`,
+                {
+                  status: taskStatusToWire(status),
+                  // Blocking needs a reason; the list has no field for one, so the origin is recorded.
+                  reason: status === 'blocked' ? 'Über die Aufgabenliste blockiert' : undefined,
+                },
+                { idempotencyKey: true },
+              ),
+        ),
+    },
+    calendar: {
+      events: async (params, signal) => {
+        const rows = await client.get<readonly CalendarEventWire[]>('/calendar/events', {
+          query: { from: params?.from, to: params?.to },
+          ...withSignal(signal),
+        });
+        return normalizePage(rows.map(calendarEventFromWire));
+      },
+      create: async (payload) =>
+        calendarEventFromWire(
+          await client.post<CalendarEventWire>(
+            '/calendar/events',
+            { title: payload.title, date: payload.date, type: payload.type.toUpperCase() },
+            { idempotencyKey: true },
+          ),
+        ),
+    },
+    contracts: {
+      list: async (params, signal) => {
+        const { sort, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
+        const page = await client.list<ContractWire>(
+          '/contracts',
+          { ...rest, sort: sortFor(CONTRACT_SORT, sort) },
+          withSignal(signal),
+        );
+        return { ...page, items: page.items.map(contractFromWire) };
+      },
+      expiring: async (signal) => {
+        // The backend answers "what ends in this window"; the screen's window is the next 90 days.
+        const from = new Date();
+        const to = new Date(from.getTime() + 90 * 24 * 60 * 60 * 1000);
+        const ending = await client.get<readonly ContractWire[]>('/contracts/ending', {
+          query: { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) },
+          ...withSignal(signal),
+        });
+        return normalizePage(ending.map(contractFromWire));
+      },
+      create: async (payload) => {
+        const created = await client.post<ContractWire>(
+          '/contracts',
+          {
+            title: payload.partner,
+            contractType: payload.contractType,
+            startDate: payload.startDate,
+            endDate: payload.endDate,
+          },
+          { idempotencyKey: true },
+        );
+        // The screen asks for the partner; the backend keeps it as a party of the contract.
+        await client.post<unknown>(
+          `/contracts/${created.id}/parties`,
+          { partyRole: 'COUNTERPARTY', partyName: payload.partner, primary: true },
+          { idempotencyKey: true },
+        );
+        return contractFromWire({ ...created, partnerName: payload.partner });
+      },
+    },
+    invoices: {
+      list: async (params, signal) => {
+        const { status, direction, sort, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
+        const page = await client.list<InvoiceWire>(
+          '/invoices',
+          {
+            ...rest,
+            sort: sortFor(INVOICE_SORT, sort),
+            status: typeof status === 'string' ? invoiceStatusesFor(status) : undefined,
+            direction:
+              typeof direction === 'string'
+                ? directionToWire(direction as 'incoming' | 'outgoing')
+                : undefined,
+          },
+          withSignal(signal),
+        );
+        return { ...page, items: page.items.map(invoiceFromWire) };
+      },
+      approve: async (id) =>
+        invoiceFromWire(
+          await client.post<InvoiceWire>(`/invoices/${id}/approve`, {}, { idempotencyKey: true }),
+        ),
+      create: async (payload) =>
+        invoiceFromWire(
+          await client.post<InvoiceWire>(
+            '/invoices',
+            {
+              invoiceNumber: payload.number,
+              supplierName: payload.counterparty,
+              direction: directionToWire(payload.direction),
+              currency: 'EUR',
+              grossAmount: decimalFromInput(payload.amount),
+              dueDate: payload.dueDate,
+            },
+            { idempotencyKey: true },
+          ),
+        ),
+    },
+    payments: {
+      list: async (params, signal) => {
+        const { status, sort: _ignored, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
+        const page = await client.list<BankTransactionWire>(
+          '/banking/transactions',
+          { ...rest, status: typeof status === 'string' ? paymentStatusesFor(status) : undefined },
+          withSignal(signal),
+        );
+        return { ...page, items: page.items.map(paymentFromWire) };
+      },
+      match: async (id, invoiceId) => {
+        // The amount is left out on purpose: without one the whole transaction is matched.
+        await client.post<unknown>(
+          '/banking/matches',
+          { transactionId: id, invoiceId, matchType: 'MANUAL' },
+          { idempotencyKey: true },
+        );
+      },
+    },
     contacts: {
-      list: (params, signal) =>
-        client.list<ContactSummary>('/contacts', params, withSignal(signal)),
-      create: (payload) =>
-        client.post<ContactSummary>('/contacts', payload, { idempotencyKey: true }),
+      list: async (params, signal) => {
+        const { contactType, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
+        const page = await client.list<ContactWire>(
+          '/contacts',
+          {
+            ...rest,
+            kind: typeof contactType === 'string' ? contactKindToWire(contactType as 'person') : undefined,
+          },
+          withSignal(signal),
+        );
+        return { ...page, items: page.items.map(contactFromWire) };
+      },
+      create: async (payload) =>
+        contactFromWire(
+          await client.post<ContactWire>(
+            '/contacts',
+            { name: payload.name, kind: contactKindToWire(payload.contactType), email: payload.email },
+            { idempotencyKey: true },
+          ),
+        ),
     },
     mail: {
-      list: (params, signal) =>
-        client.list<MailMessageSummary>('/mail', params, withSignal(signal)),
-      connect: (payload) => client.post<void>('/mail/connect', payload, { idempotencyKey: true }),
+      list: async (params, signal) => {
+        const { folder, status, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
+        // The archive folder has no backing store yet: asking for it is an empty answer, not "everything".
+        if (folder === 'archive') return normalizePage([]);
+        const page = await client.list<MailWire>(
+          '/mail/messages',
+          {
+            ...rest,
+            folder: typeof folder === 'string' ? mailFolderToWire(folder) : undefined,
+            status: typeof status === 'string' ? mailStatusToWire(status) : undefined,
+          },
+          withSignal(signal),
+        );
+        return { ...page, items: page.items.map(mailFromWire) };
+      },
     },
     templates: {
-      list: (params, signal) =>
-        client.list<TemplateSummary>('/templates', params, withSignal(signal)),
-      create: (payload) =>
-        client.post<TemplateSummary>('/templates', payload, { idempotencyKey: true }),
-      get: (id, signal) => client.get<TemplateSummary>(`/templates/${id}`, withSignal(signal)),
-      save: (id, payload) =>
-        client.put<TemplateSummary>(`/templates/${id}`, payload, { idempotencyKey: true }),
+      list: async (params, signal) => {
+        const { status, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
+        const page = await client.list<TemplateWire>(
+          '/templates',
+          { ...rest, status: typeof status === 'string' ? status.toUpperCase() : undefined },
+          withSignal(signal),
+        );
+        return { ...page, items: page.items.map(templateFromWire) };
+      },
+      create: async (payload) => {
+        const body = payload.body ?? '';
+        const created = await client.post<{ templateId: string }>(
+          '/templates',
+          {
+            code: templateCode(payload.name),
+            nameGerman: payload.name,
+            category: templateCategoryToWire(payload.templateType),
+            bodyHtml: body,
+            // Every placeholder in the text becomes a field the person fills in: the backend refuses a
+            // body that uses a placeholder nobody declared, and typing {{name}} is declaration enough.
+            fields: placeholdersIn(body).map((key) => ({
+              fieldKey: key,
+              labelGerman: key,
+              sourceEntity: 'CUSTOM',
+              valueType: 'TEXT',
+              required: false,
+            })),
+          },
+          { idempotencyKey: true },
+        );
+        return {
+          id: created.templateId,
+          name: payload.name,
+          templateType: templateCategoryToWire(payload.templateType),
+          status: 'draft' as const,
+          updatedAt: new Date().toISOString(),
+          body,
+          placeholders: placeholdersIn(body),
+        };
+      },
     },
     assistant: {
-      ask: (payload, signal) =>
-        client.post<AssistantAnswer>('/ai/assistant/query', payload, withSignal(signal)),
+      ask: async (payload, signal) =>
+        assistantAnswerFromWire(
+          await client.post<AssistantWire>('/ai/assistant/query', payload, withSignal(signal)),
+        ),
     },
     automations: {
-      list: (params, signal) =>
-        client.list<AutomationSummary>('/workflows', params, withSignal(signal)),
-      setEnabled: (id, enabled) => client.patch<AutomationSummary>(`/workflows/${id}`, { enabled }),
-      create: (payload) =>
-        client.post<AutomationSummary>('/workflows', payload, { idempotencyKey: true }),
+      list: async (params, signal) => {
+        const { status } = (params ?? {}) as Record<string, string | undefined>;
+        const rows = await client.get<readonly WorkflowWire[]>('/workflows', withSignal(signal));
+        const shown = typeof status === 'string' ? rows.filter((row) => automationStatusMatches(row, status)) : rows;
+        return normalizePage(shown.map(automationFromWire));
+      },
+      create: async (payload) => {
+        const created = await client.post<{ definitionId: string }>(
+          '/workflows',
+          {
+            code: automationCode(payload.name),
+            name: payload.name,
+            category: automationStartKind(payload.trigger),
+            triggerConfig: { type: payload.trigger },
+          },
+          { idempotencyKey: true },
+        );
+        return {
+          id: created.definitionId,
+          name: payload.name,
+          trigger: payload.trigger,
+          status: 'draft' as const,
+          lastRunAt: null,
+          lastRunResult: null,
+          runsLast30Days: 0,
+        };
+      },
     },
     integrations: {
-      list: (params, signal) =>
-        client.list<IntegrationSummary>('/integrations', params, withSignal(signal)),
-      disconnect: (id) =>
-        client.post<void>(`/integrations/${id}/disconnect`, undefined, { idempotencyKey: true }),
+      list: async (params, signal) => {
+        const rows = await client.get<readonly IntegrationWire[]>('/integrations', withSignal(signal));
+        void params;
+        return normalizePage(rows.map(integrationFromWire));
+      },
+      disconnect: async (id) => {
+        await client.post<unknown>(`/integrations/${id}/disable`, {}, { idempotencyKey: true });
+      },
     },
     devices: {
-      list: (signal) => client.list<DeviceSummary>('/devices', {}, withSignal(signal)),
+      list: async (signal) => {
+        const rows = await client.get<readonly DeviceWire[]>('/devices', withSignal(signal));
+        return normalizePage(rows.map((row) => deviceFromWire(row)));
+      },
       scan: (id, profile) =>
         client.post<void>(`/devices/${id}/scan`, { profile }, { idempotencyKey: true }),
     },
     members: {
-      list: (params, signal) => client.list<MemberSummary>('/users', params, withSignal(signal)),
-      invite: (payload) =>
-        client.post<void>('/users/invitations', payload, { idempotencyKey: true }),
-      setRole: (id, role) => client.patch<MemberSummary>(`/users/${id}/role`, { role }),
+      list: async (params, signal) => {
+        void params;
+        const [members, invitations] = await Promise.all([
+          client.get<readonly MemberWire[]>('/members', withSignal(signal)),
+          // Listing invitations needs the administration right; without it only the members are shown.
+          client
+            .get<readonly PendingInvitationWire[]>('/invitations', withSignal(signal))
+            .catch(() => [] as readonly PendingInvitationWire[]),
+        ]);
+        return normalizePage([...members.map(memberFromWire), ...invitations.map(invitedMemberFromWire)]);
+      },
+      invite: async (payload) => {
+        await client.post<unknown>(
+          '/invitations',
+          { email: payload.email, roleCode: roleToWire(payload.role) },
+          { idempotencyKey: true },
+        );
+      },
+      setRole: async (id, role) => {
+        await client.post<unknown>(`/members/${id}/role`, { roleCode: roleToWire(role) }, { idempotencyKey: true });
+        const members = await client.get<readonly MemberWire[]>('/members');
+        const changed = members.find((member) => member.user_id === id);
+        if (!changed) throw new ApiError({ kind: 'notFound', status: 404, message: 'The member was not found' });
+        return memberFromWire(changed);
+      },
     },
     reports: {
-      get: (type, period, signal) =>
-        client.get<ReportResult>(`/reports/${type}`, { query: { period }, ...withSignal(signal) }),
-      export: (type, period) =>
-        client.request<Blob>(`/reports/${type}/export`, { query: { period }, parse: 'blob' }),
+      get: async (type, period, signal) => {
+        const [from, to] = period.split('..');
+        const report = await client.get<{
+          readonly metrics: readonly { readonly label: string; readonly value: number }[];
+        }>(`/reports/${type}`, { query: { from, to }, ...withSignal(signal) });
+        return {
+          type,
+          period,
+          generatedAt: new Date().toISOString(),
+          // The backend reports figures with their unit and whether they are exact; the screen shows the
+          // figure under its label, and the label already carries the unit.
+          kpis: Object.fromEntries(report.metrics.map((metric) => [metric.label, Number(metric.value)])),
+          series: report.metrics.map((metric) => ({ period: metric.label, value: Number(metric.value) })),
+        };
+      },
+      export: async (type, period) => {
+        const report = await createResources(client).reports.get(type, period);
+        return csvBlob(
+          toCsv(report.series, [
+            { header: 'Kennzahl', value: (row) => row.period },
+            { header: 'Wert', value: (row) => row.value },
+          ]),
+        );
+      },
     },
     archive: {
-      list: (params, signal) =>
-        client.list<ArchiveEntry>('/documents/archive', params, withSignal(signal)),
-      export: (params) =>
-        client.request<Blob>('/documents/archive/export', { query: params, parse: 'blob' }),
+      list: async (params, signal) => {
+        const { sort, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
+        const page = await client.list<DocumentWire>(
+          '/documents',
+          {
+            ...rest,
+            status: ['ARCHIVED', 'LEGAL_HOLD'],
+            sort: wireSort(typeof sort === 'string' ? sort : undefined),
+          },
+          withSignal(signal),
+        );
+        return {
+          ...page,
+          items: page.items.map((document) => ({
+            id: document.id,
+            title: document.originalFilename,
+            archivedAt: null,
+            // The retention end is derived from a confirmed retention policy; until one is applied the
+            // entry says so instead of inventing a period.
+            retentionUntil: null,
+            legalHold: document.processingStatus === 'LEGAL_HOLD' || document.legalHold === true,
+            status: 'unknown' as const,
+          })),
+        };
+      },
+      export: async (params) => {
+        const rows = await collectPages((page, size) => createResources(client).archive.list({ ...params, page, size }));
+        return csvBlob(
+          toCsv(rows, [
+            { header: 'Titel', value: (row) => row.title },
+            { header: 'Rechtliche Sperre', value: (row) => (row.legalHold ? 'ja' : 'nein') },
+            { header: 'Aufbewahrung bis', value: (row) => row.retentionUntil },
+          ]),
+        );
+      },
     },
     notifications: {
-      list: (params, signal) =>
-        client.list<NotificationSummary>('/notifications', params, withSignal(signal)),
-      markAllRead: () =>
-        client.post<void>('/notifications/read-all', undefined, { idempotencyKey: true }),
-      preferences: (signal) =>
-        client.get<NotificationPreferences>('/notifications/preferences', withSignal(signal)),
-      savePreferences: (preferences) =>
-        client.put<NotificationPreferences>('/notifications/preferences', preferences, {
-          idempotencyKey: true,
-        }),
+      list: async (params, signal) => {
+        // The inbox endpoint answers with the caller's whole list, newest first; category filter and paging
+        // are applied here, which is cheap for one person's notifications.
+        const { category, page = 0, size = 50 } = (params ?? {}) as Record<string, string | number | undefined>;
+        const rows = (await client.get<readonly NotificationWire[]>('/notifications', withSignal(signal))).map(
+          notificationFromWire,
+        );
+        const shown = typeof category === 'string' ? rows.filter((row) => row.category === category) : rows;
+        const pageIndex = Number(page);
+        const pageSize = Number(size);
+        return {
+          items: shown.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize),
+          page: pageIndex,
+          size: pageSize,
+          totalItems: shown.length,
+          totalPages: Math.max(1, Math.ceil(shown.length / pageSize)),
+        };
+      },
+      markRead: async (id) => {
+        await client.post<unknown>(`/notifications/${id}/read`, {});
+      },
+      markAllRead: async () => {
+        await client.post<unknown>('/notifications/read-all', {});
+      },
+      unreadCount: async (signal) =>
+        (await client.get<{ unread: number }>('/notifications/unread-count', withSignal(signal))).unread,
+      preferences: async (signal) =>
+        preferencesFromWire(await client.get<readonly PreferenceWire[]>('/notifications/preferences', withSignal(signal))),
+      savePreferences: async (preferences) =>
+        preferencesFromWire(
+          await client.put<readonly PreferenceWire[]>('/notifications/preferences', preferencesToWire(preferences)),
+        ),
     },
     audit: {
-      list: (params, signal) => client.list<AuditEntry>('/audit', params, withSignal(signal)),
-      export: (params) => client.request<Blob>('/audit/export', { query: params, parse: 'blob' }),
+      list: async (params, signal) => {
+        // The audit API returns the newest events up to a limit rather than pages: ask for as many as the
+        // requested page needs and cut the page out here.
+        const { page = 0, size = 25, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
+        const pageIndex = Number(page);
+        const pageSize = Number(size);
+        const answer = await client.get<{ readonly events: readonly AuditEventWire[] }>('/audit/events', {
+          query: { ...rest, limit: (pageIndex + 1) * pageSize + 1 },
+          ...withSignal(signal),
+        });
+        const start = pageIndex * pageSize;
+        const items = answer.events.slice(start, start + pageSize).map(auditEntryFromWire);
+        const more = answer.events.length > start + pageSize;
+        return {
+          items,
+          page: pageIndex,
+          size: pageSize,
+          // One more event than the page needs tells whether a next page exists without counting the log.
+          totalItems: start + items.length + (more ? 1 : 0),
+          totalPages: pageIndex + 1 + (more ? 1 : 0),
+        };
+      },
+      export: async (params) => {
+        const answer = await client.get<{ readonly events: readonly AuditEventWire[] }>('/audit/events', {
+          query: { ...params, limit: 5000 },
+        });
+        return csvBlob(
+          toCsv(answer.events.map(auditEntryFromWire), [
+            { header: 'Zeitpunkt', value: (row) => row.timestamp },
+            { header: 'Person', value: (row) => row.actor },
+            { header: 'Aktion', value: (row) => row.action },
+            { header: 'Objekt', value: (row) => `${row.objectType} ${row.objectLabel}`.trim() },
+            { header: 'Ergebnis', value: (row) => row.result },
+          ]),
+        );
+      },
+    },
+    mfa: {
+      begin: () =>
+        client.post<{ methodId: string; secret: string; provisioningUri: string }>('/mfa/enrol', {
+          label: 'Authenticator',
+        }),
+      confirm: (methodId, code) =>
+        client.post<{ recoveryCodes: readonly string[] }>(`/mfa/methods/${methodId}/confirm`, { code }),
+      disable: async () => {
+        const methods = await client.get<
+          readonly { readonly id: string; readonly confirmed_at?: string | null; readonly disabled_at?: string | null }[]
+        >('/mfa/methods');
+        const active = methods.filter((method) => method.confirmed_at && !method.disabled_at);
+        await Promise.all(active.map((method) => client.delete<void>(`/mfa/methods/${method.id}`)));
+      },
     },
     settings: {
       security: (signal) => client.get<SecuritySettings>('/settings/security', withSignal(signal)),
@@ -487,14 +1036,10 @@ export function createResources(client: ApiClient): ApiResources {
         }),
       changePassword: (payload) =>
         client.post<void>('/settings/security/password', payload, { idempotencyKey: true }),
-      setMfa: (enabled) =>
-        client.post<void>('/settings/security/mfa', { enabled }, { idempotencyKey: true }),
       accessibility: (signal) =>
         client.get<AccessibilityPreferences>('/settings/accessibility', withSignal(signal)),
       saveAccessibility: (preferences) =>
-        client.put<AccessibilityPreferences>('/settings/accessibility', preferences, {
-          idempotencyKey: true,
-        }),
+        client.put<AccessibilityPreferences>('/settings/accessibility', preferences),
     },
   };
 }

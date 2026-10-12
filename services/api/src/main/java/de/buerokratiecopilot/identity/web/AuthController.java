@@ -46,12 +46,15 @@ import de.buerokratiecopilot.shared.config.BurokratieProperties;
 public class AuthController {
 
     private final AuthService authService;
+    private final de.buerokratiecopilot.identity.auth.AccountSetupService accountSetup;
     private final BurokratieProperties properties;
     private final org.springframework.security.web.csrf.CsrfTokenRepository csrfTokenRepository;
 
     public AuthController(AuthService authService, BurokratieProperties properties,
-                          org.springframework.security.web.csrf.CsrfTokenRepository csrfTokenRepository) {
+                          org.springframework.security.web.csrf.CsrfTokenRepository csrfTokenRepository,
+                          de.buerokratiecopilot.identity.auth.AccountSetupService accountSetup) {
         this.authService = authService;
+        this.accountSetup = accountSetup;
         this.properties = properties;
         this.csrfTokenRepository = csrfTokenRepository;
     }
@@ -85,7 +88,7 @@ public class AuthController {
 
     public record MeResponse(UUID userId, UUID tenantId, List<String> permissions, String email,
                              String displayName, String locale, String timeZone, String workspaceName,
-                             String accountType, List<String> roles) {
+                             String accountType, List<String> roles, boolean onboardingCompleted) {
     }
 
     public record PasswordResetRequest(@NotBlank @Email String email) {
@@ -166,7 +169,27 @@ public class AuthController {
         AuthService.SessionProfile profile = authService.describeSession(userId, tenantId);
         return ResponseEntity.ok(new MeResponse(userId, tenantId, permissions, profile.email(),
                 profile.displayName(), profile.locale(), profile.timeZone(), profile.workspaceName(),
-                profile.accountType(), profile.roles()));
+                profile.accountType(), profile.roles(), accountSetup.isCompleted(userId)));
+    }
+
+    public record OnboardingRequest(String workspaceName, String workspaceType, List<String> sources,
+                                    List<String> notifications) {
+    }
+
+    @PostMapping("/onboarding")
+    @Operation(summary = "Finishes the first-run setup; only an account editor changes the account itself")
+    public ResponseEntity<Void> completeOnboarding(@RequestBody OnboardingRequest request,
+                                                   Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        boolean mayEdit = authentication.getAuthorities().stream()
+                .anyMatch(granted -> "settings.edit".equals(granted.getAuthority()));
+        accountSetup.complete(de.buerokratiecopilot.shared.context.RequestContext.tenantId().orElseThrow(),
+                UUID.fromString(authentication.getName()), mayEdit,
+                new de.buerokratiecopilot.identity.auth.AccountSetupService.Setup(request.workspaceName(),
+                        request.workspaceType(), request.sources(), request.notifications()));
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/password-reset")

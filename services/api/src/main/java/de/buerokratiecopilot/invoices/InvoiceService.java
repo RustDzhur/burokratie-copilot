@@ -246,6 +246,32 @@ public class InvoiceService {
         return lines.findByInvoiceIdOrderByLineNumberAsc(invoiceId);
     }
 
+    /**
+     * Invoices of the tenant, optionally narrowed by status and direction. An absent filter is passed as
+     * every value, because an empty collection in an {@code in} clause matches nothing.
+     */
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<Invoice> list(UUID tenantId,
+                                                              java.util.Collection<Invoice.Status> statuses,
+                                                              java.util.Collection<Invoice.Direction> directions,
+                                                              org.springframework.data.domain.Pageable pageable) {
+        return invoices.search(tenantId,
+                statuses == null || statuses.isEmpty() ? java.util.EnumSet.allOf(Invoice.Status.class) : statuses,
+                directions == null || directions.isEmpty() ? java.util.EnumSet.allOf(Invoice.Direction.class)
+                        : directions,
+                pageable);
+    }
+
+    /** Supplier names for display, keyed by id; suppliers of other tenants are never returned. */
+    @Transactional(readOnly = true)
+    public java.util.Map<UUID, String> supplierNames(UUID tenantId, java.util.Collection<UUID> ids) {
+        java.util.Map<UUID, String> names = new java.util.HashMap<>();
+        for (UUID id : ids) {
+            suppliers.findByIdAndTenantId(id, tenantId).ifPresent(supplier -> names.put(id, supplier.getName()));
+        }
+        return names;
+    }
+
     /** Invoices a person has to look at, because something blocked them. */
     @Transactional(readOnly = true)
     public List<Invoice> needingReview(UUID tenantId) {

@@ -254,8 +254,8 @@ public class IntegrationAdapterCatalogue {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> connections(java.util.UUID tenantId) {
         return jdbc.queryForList("""
-                select provider, category, display_name, status, requires_owner_action, owner_action_hint,
-                       last_sync_status, consecutive_failures
+                select id, provider, category, display_name, status, requires_owner_action, owner_action_hint,
+                       last_sync_status, last_sync_at, consecutive_failures
                 from integrations where tenant_id = ? and deleted_at is null order by category, provider
                 """, tenantId);
     }

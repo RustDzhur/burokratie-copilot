@@ -16,6 +16,7 @@ export interface TopbarProps {
   readonly onOpenMobileNav: () => void;
   readonly user: SessionUser | null;
   readonly unreadNotifications?: number;
+  readonly onOpenNotifications?: () => void;
   readonly onSignOut?: () => void;
 }
 
@@ -29,6 +30,7 @@ export function Topbar({
   onOpenMobileNav,
   user,
   unreadNotifications = 0,
+  onOpenNotifications,
   onSignOut,
 }: TopbarProps) {
   const t = useTranslations('nav');
@@ -113,6 +115,7 @@ export function Topbar({
               id: 'all',
               label: t('notificationsOpen'),
               icon: 'bell',
+              onSelect: () => onOpenNotifications?.(),
             },
           ]}
           header={<span>{t('notificationsUnread', { count: unreadNotifications })}</span>}

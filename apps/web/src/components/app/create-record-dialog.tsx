@@ -9,7 +9,14 @@ import { useTranslations } from '@/i18n/provider';
 import { toApiError, type ApiError } from '@/lib/api/errors';
 import styles from './create-record-dialog.module.css';
 
-export type FormFieldType = 'text' | 'number' | 'date' | 'select' | 'textarea' | 'email';
+export type FormFieldType =
+  | 'text'
+  | 'number'
+  | 'date'
+  | 'select'
+  | 'textarea'
+  | 'email'
+  | 'password';
 
 export interface FormFieldDefinition {
   readonly name: string;
@@ -159,8 +166,11 @@ export function CreateRecordDialog({
                     ? 'date'
                     : field.type === 'email'
                       ? 'email'
-                      : 'text'
+                      : field.type === 'password'
+                        ? 'password'
+                        : 'text'
               }
+              autoComplete={field.type === 'password' ? 'new-password' : undefined}
               value={values[field.name] ?? ''}
               onChange={(event) => setValue(field.name, event.target.value)}
             />

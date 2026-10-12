@@ -45,9 +45,31 @@ import de.buerokratiecopilot.tasks.domain.TaskComment;
 public class TaskController {
 
     private final TaskService tasks;
+    private final de.buerokratiecopilot.identity.UserRepository users;
+    private final de.buerokratiecopilot.cases.CaseRepository caseRepository;
 
-    public TaskController(TaskService tasks) {
+    public TaskController(TaskService tasks, de.buerokratiecopilot.identity.UserRepository users,
+                          de.buerokratiecopilot.cases.CaseRepository caseRepository) {
         this.tasks = tasks;
+        this.users = users;
+        this.caseRepository = caseRepository;
+    }
+
+    /** A list row with the names a person reads: who does it and which case it belongs to. */
+    private TaskResponse listRow(Task task) {
+        TaskService.Detail detail = tasks.detail(task.getId());
+        long openRequired = detail.checklist().stream()
+                .filter(item -> item.isRequired() && !item.isDone()).count();
+        List<String> names = detail.assignees().stream()
+                .map(assignee -> users.findById(assignee.getUserId())
+                        .map(user -> user.getDisplayName() != null ? user.getDisplayName() : user.getEmail())
+                        .orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        String reference = task.getCaseId() == null ? null
+                : caseRepository.findById(task.getCaseId())
+                        .map(de.buerokratiecopilot.cases.domain.Case::getReference).orElse(null);
+        return TaskResponse.from(task, openRequired).withContext(names, reference);
     }
 
     public record CreateTaskRequest(String caseId, String parentTaskId, String title, String description,
@@ -106,7 +128,8 @@ public class TaskController {
                                boolean assignmentPending, String dueAt, String remindAt,
                                String startedAt, String completionCriteria, boolean requiresApproval,
                                String approvedAt, String blockedReason, String completedAt,
-                               List<String> tags, long openRequiredItems) {
+                               List<String> tags, long openRequiredItems, List<String> assigneeNames,
+                               String caseReference) {
 
         static TaskResponse from(Task task, long openRequiredItems) {
             return new TaskResponse(task.getId().toString(),
@@ -118,7 +141,14 @@ public class TaskController {
                     instant(task.getStartedAt()), task.getCompletionCriteria(),
                     task.isRequiresApproval(), instant(task.getApprovedAt()),
                     task.getBlockedReason(), instant(task.getCompletedAt()), task.getTags(),
-                    openRequiredItems);
+                    openRequiredItems, List.of(), null);
+        }
+
+        TaskResponse withContext(List<String> assigneeNames, String caseReference) {
+            return new TaskResponse(id, caseId, parentTaskId, title, description, status, priority,
+                    prioritySource, priorityRationale, assignmentPending, dueAt, remindAt, startedAt,
+                    completionCriteria, requiresApproval, approvedAt, blockedReason, completedAt, tags,
+                    openRequiredItems, assigneeNames, caseReference);
         }
 
         private static String instant(Instant value) {
@@ -153,13 +183,13 @@ public class TaskController {
     @PreAuthorize("hasAuthority('tasks.view')")
     @Operation(summary = "Tasks the caller is involved in")
     public ResponseEntity<Page<TaskResponse>> list(
+            @RequestParam(required = false) List<Task.Status> status,
+            @RequestParam(required = false) List<Task.Priority> priority,
             @PageableDefault(size = 25, sort = "createdAt") Pageable pageable) {
         UUID userId = CurrentUser.required();
         UUID tenantId = RequestContext.tenantId().orElseThrow();
-        return ResponseEntity.ok(tasks.listVisible(tenantId, userId, hasPermission("tasks.assign"), pageable)
-                .map(task -> TaskResponse.from(task,
-                        tasks.detail(task.getId()).checklist().stream()
-                                .filter(item -> item.isRequired() && !item.isDone()).count())));
+        return ResponseEntity.ok(tasks.listVisible(tenantId, userId, hasPermission("tasks.assign"), status, priority, pageable)
+                .map(this::listRow));
     }
 
     @GetMapping("/assignment-queue")

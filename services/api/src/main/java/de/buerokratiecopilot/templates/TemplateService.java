@@ -131,7 +131,11 @@ public class TemplateService {
                     """, templateId, field.fieldKey().strip(), jsonOf(field.labelGerman()),
                     field.sourceEntity() == null ? "CUSTOM"
                             : field.sourceEntity().toUpperCase(java.util.Locale.ROOT),
-                    field.sourcePath(), field.valueType() == null ? "TEXT" : field.valueType(),
+                    // source_path is mandatory in the table; a hand-filled field has no path of its own, so
+                    // it is addressed by its key.
+                    field.sourcePath() == null || field.sourcePath().isBlank() ? field.fieldKey().strip()
+                            : field.sourcePath(),
+                    field.valueType() == null ? "TEXT" : field.valueType(),
                     field.required(), field.defaultValue(), order++);
         }
 
@@ -147,6 +151,45 @@ public class TemplateService {
         log.info("Template {} defined for tenant {} with {} fields", templateId, request.tenantId(),
                 declared.size());
         return templateId;
+    }
+
+    /**
+     * The templates this account can use: its own and the platform's, with whether a version is published.
+     * Platform templates carry no tenant; a row of another tenant never appears.
+     */
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<Map<String, Object>> list(
+            UUID tenantId, String query, List<String> statuses,
+            org.springframework.data.domain.Pageable pageable) {
+        String term = query == null ? "" : query.strip();
+        List<String> wanted = statuses == null || statuses.isEmpty() ? List.of("DRAFT", "PUBLISHED") : statuses;
+        for (String status : wanted) {
+            if (!List.of("DRAFT", "PUBLISHED").contains(status)) {
+                throw new ApiException(ErrorCode.INVALID_REQUEST, "Unbekannter Status: " + status);
+            }
+        }
+        String base = """
+                from (
+                  select t.id, coalesce(t.name->>'de', t.name->>'en', t.code) as name, t.code, t.category,
+                         case when exists (select 1 from template_versions v
+                                            where v.template_id = t.id and v.status = 'PUBLISHED')
+                              then 'PUBLISHED' else 'DRAFT' end as status,
+                         t.updated_at
+                  from document_templates t
+                  where t.is_active and (t.tenant_id = ? or t.tenant_id is null)
+                ) u
+                where u.status in (?, ?) and (? = '' or lower(u.name) like '%' || lower(?) || '%')
+                """;
+        Object[] arguments = {tenantId, wanted.contains("DRAFT") ? "DRAFT" : "-",
+                wanted.contains("PUBLISHED") ? "PUBLISHED" : "-", term, term};
+        Long total = jdbc.queryForObject("select count(*) " + base, Long.class, arguments);
+        Object[] paged = java.util.Arrays.copyOf(arguments, arguments.length + 2);
+        paged[arguments.length] = pageable.getPageSize();
+        paged[arguments.length + 1] = pageable.getOffset();
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                "select u.id, u.name, u.code, u.category, u.status, u.updated_at " + base
+                        + " order by u.name limit ? offset ?", paged);
+        return new org.springframework.data.domain.PageImpl<>(rows, pageable, total == null ? 0 : total);
     }
 
     /** Publishes a version, which is what makes it usable for generation. */
@@ -242,7 +285,19 @@ public class TemplateService {
         return catalogue;
     }
 
+    /**
+     * {@code {"de": value}} with the value escaped by a JSON writer. Hand-built quoting breaks on a backslash
+     * or a line break in a name a person typed, and it would also let a crafted name add keys of its own.
+     */
     private static String jsonOf(String value) {
-        return "{\"de\":\"" + (value == null ? "" : value.replace("\"", "'")) + "\"}";
+        try {
+            return JSON.writeValueAsString(java.util.Map.of("de", value == null ? "" : value));
+        }
+        catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw new IllegalStateException("A string map cannot fail to serialise", ex);
+        }
     }
+
+    private static final com.fasterxml.jackson.databind.ObjectMapper JSON =
+            new com.fasterxml.jackson.databind.ObjectMapper();
 }

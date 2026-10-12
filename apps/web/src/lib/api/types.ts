@@ -335,6 +335,8 @@ export interface SessionUser {
   readonly workspaceName: string;
   readonly workspaceType: 'private' | 'family' | 'company';
   readonly avatarUrl?: string | null;
+  /** False until the first-run wizard was finished; the sign-in sends such a person to it. */
+  readonly onboardingCompleted?: boolean;
 }
 
 export interface SessionInfo {

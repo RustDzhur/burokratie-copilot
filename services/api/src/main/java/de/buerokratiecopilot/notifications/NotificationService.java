@@ -206,6 +206,15 @@ public class NotificationService {
         return notifications.save(notification);
     }
 
+    /** Marks everything the user has not read as read, and says how many that was. */
+    @Transactional
+    public int markAllRead(UUID userId) {
+        List<Notification> unread = notifications.findByUserIdAndReadFalseOrderByCreatedAtDesc(userId);
+        unread.forEach(Notification::markRead);
+        notifications.saveAll(unread);
+        return unread.size();
+    }
+
     @Transactional
     public Notification markUnread(UUID notificationId, UUID userId) {
         Notification notification = notifications.findById(notificationId)

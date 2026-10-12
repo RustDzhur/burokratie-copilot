@@ -55,7 +55,7 @@ public class AuditQueryService {
      */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> events(UUID tenantId, Instant from, Instant to, String category,
-                                            String result, String entityType, Integer limit) {
+                                            String result, String entityType, UUID entityId, Integer limit) {
         StringBuilder sql = new StringBuilder("""
                 select id, actor_user_id, actor_type, actor_label, category, action, entity_type, entity_id,
                        entity_label, description, result, severity, correlation_id, request_path,
@@ -85,6 +85,10 @@ public class AuditQueryService {
         if (entityType != null && !entityType.isBlank()) {
             sql.append(" and entity_type = ?");
             arguments.add(entityType);
+        }
+        if (entityId != null) {
+            sql.append(" and entity_id = ?");
+            arguments.add(entityId);
         }
         sql.append(" order by created_at desc limit ?");
         arguments.add(clamp(limit));

@@ -14,7 +14,7 @@ import { ApiError, apiErrorFromEnvelope, isApiError, type ApiErrorKind } from '.
 /* Pagination                                                                  */
 /* -------------------------------------------------------------------------- */
 
-/** Server-side pagination envelope: `{ items, page, size, totalItems, totalPages }`. */
+/** The pagination envelope the screens work with: `{ items, page, size, totalItems, totalPages }`. */
 export interface Page<T> {
   readonly items: readonly T[];
   readonly page: number;
@@ -60,15 +60,19 @@ export function normalizePage<T>(value: unknown): Page<T> {
       : Array.isArray(record.records)
         ? (record.records as T[])
         : [];
-  const page = typeof record.page === 'number' ? record.page : 0;
-  const size = typeof record.size === 'number' ? record.size : items.length;
-  const totalItems = typeof record.totalItems === 'number' ? record.totalItems : items.length;
+  // Spring Data serializes a Page flat (`number`, `size`, `totalElements`, `totalPages`) and, in its DTO mode,
+  // nested under `page`. The contract's own names (`page`, `totalItems`) are accepted as well.
+  const nested =
+    typeof record.page === 'object' && record.page !== null
+      ? (record.page as Record<string, unknown>)
+      : {};
+  const pick = (...candidates: unknown[]): number | undefined =>
+    candidates.find((value): value is number => typeof value === 'number');
+  const page = pick(record.number, nested.number, record.page) ?? 0;
+  const size = pick(record.size, nested.size) ?? items.length;
+  const totalItems = pick(record.totalItems, record.totalElements, nested.totalElements) ?? items.length;
   const totalPages =
-    typeof record.totalPages === 'number'
-      ? record.totalPages
-      : size > 0
-        ? Math.ceil(totalItems / size)
-        : 1;
+    pick(record.totalPages, nested.totalPages) ?? (size > 0 ? Math.ceil(totalItems / size) : 1);
   return { items, page, size, totalItems, totalPages };
 }
 

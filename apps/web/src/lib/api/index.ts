@@ -1,4 +1,5 @@
 import { createApiClient, type ApiClient } from './client';
+import type { ApiError } from './errors';
 import { createResources, type ApiResources } from './resources';
 
 export * from './client';
@@ -6,14 +7,25 @@ export * from './errors';
 export * from './types';
 export type { ApiResources } from './resources';
 
+type UnauthorizedListener = (error: ApiError) => void;
+const unauthorizedListeners = new Set<UnauthorizedListener>();
+
 /**
- * Shared API client instance used by the application.
- *
- * `onUnauthorized` is intentionally not wired here: the app shell registers a
- * handler so that a 401 can redirect to the sign-in screen without the transport
- * layer knowing about routing.
+ * Subscribes to "the session is no longer valid" (a 401 from any call). The app shell uses it to send the
+ * person to the sign-in screen, so the transport layer does not need to know about routing. Returns the
+ * function that unsubscribes.
  */
-export const apiClient: ApiClient = createApiClient();
+export function onUnauthorized(listener: UnauthorizedListener): () => void {
+  unauthorizedListeners.add(listener);
+  return () => {
+    unauthorizedListeners.delete(listener);
+  };
+}
+
+/** Shared API client instance used by the application. */
+export const apiClient: ApiClient = createApiClient({
+  onUnauthorized: (error) => unauthorizedListeners.forEach((listener) => listener(error)),
+});
 
 export const api: ApiResources = createResources(apiClient);
 

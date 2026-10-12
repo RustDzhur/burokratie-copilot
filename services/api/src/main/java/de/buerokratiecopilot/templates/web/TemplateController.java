@@ -79,6 +79,16 @@ public class TemplateController {
      * <p>The code is the identity of the template: defining the same code again is not a second template,
      * which is what the service enforces.</p>
      */
+    @GetMapping
+    @PreAuthorize(SEE)
+    @Operation(summary = "Templates of the account and of the platform, with their publication state")
+    public org.springframework.data.domain.Page<Map<String, Object>> list(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) List<String> status,
+            @org.springframework.data.web.PageableDefault(size = 25) org.springframework.data.domain.Pageable pageable) {
+        return templates.list(tenant(), q, status, pageable);
+    }
+
     @PostMapping
     @PreAuthorize(CREATE)
     @Operation(summary = "Defines a template with its first version")

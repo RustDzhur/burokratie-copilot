@@ -20,6 +20,20 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
     Optional<Invoice> findByTenantIdAndSupplierIdAndInvoiceNumber(UUID tenantId, UUID supplierId,
                                                                   String invoiceNumber);
 
+    Page<Invoice> findByTenantIdAndDeletedAtIsNull(UUID tenantId, Pageable pageable);
+
+    @org.springframework.data.jpa.repository.Query("""
+            select i from Invoice i
+            where i.tenantId = :tenantId and i.deletedAt is null
+              and i.status in :statuses and i.direction in :directions
+            """)
+    Page<Invoice> search(@org.springframework.data.repository.query.Param("tenantId") UUID tenantId,
+                         @org.springframework.data.repository.query.Param("statuses")
+                         java.util.Collection<Invoice.Status> statuses,
+                         @org.springframework.data.repository.query.Param("directions")
+                         java.util.Collection<Invoice.Direction> directions,
+                         Pageable pageable);
+
     Page<Invoice> findByTenantIdAndDirectionAndDeletedAtIsNull(UUID tenantId, Invoice.Direction direction,
                                                                Pageable pageable);
 

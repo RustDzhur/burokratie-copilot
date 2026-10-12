@@ -12,22 +12,29 @@ import { api } from '@/lib/api';
 import { useApiResource } from '@/lib/api/hooks';
 import styles from './reports.module.css';
 
-const REPORT_TYPES = ['documentVolume', 'processingTime', 'deadlines', 'costs'] as const;
+// The audiences the backend reports for (ReportService.Audience).
+const REPORT_TYPES = ['individual', 'company'] as const;
 const PERIODS = ['currentMonth', 'lastMonth', 'currentQuarter', 'currentYear'] as const;
 
+const isoDay = (date: Date): string =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+/** `from..to` (inclusive ISO days) for one of the selectable periods; the reports API takes both ends. */
 function periodBounds(period: string): string {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
   switch (period) {
     case 'lastMonth':
-      return `${year}-${String(month === 0 ? 12 : month).padStart(2, '0')}`;
-    case 'currentQuarter':
-      return `${year}-Q${Math.floor(month / 3) + 1}`;
+      return `${isoDay(new Date(year, month - 1, 1))}..${isoDay(new Date(year, month, 0))}`;
+    case 'currentQuarter': {
+      const first = Math.floor(month / 3) * 3;
+      return `${isoDay(new Date(year, first, 1))}..${isoDay(new Date(year, first + 3, 0))}`;
+    }
     case 'currentYear':
-      return String(year);
+      return `${isoDay(new Date(year, 0, 1))}..${isoDay(new Date(year, 11, 31))}`;
     default:
-      return `${year}-${String(month + 1).padStart(2, '0')}`;
+      return `${isoDay(new Date(year, month, 1))}..${isoDay(new Date(year, month + 1, 0))}`;
   }
 }
 
@@ -44,7 +51,7 @@ export default function ReportsPage() {
   const tCommon = useTranslations('common');
   const locale = useLocale();
 
-  const [type, setType] = useState<string>('documentVolume');
+  const [type, setType] = useState<string>('individual');
   const [period, setPeriod] = useState<string>('currentMonth');
 
   const { state, reload, isRefreshing } = useApiResource(
@@ -79,7 +86,7 @@ export default function ReportsPage() {
           onChange={(event) => setType(event.target.value)}
           options={REPORT_TYPES.map((value) => ({
             value,
-            label: t(`type.${value}` as 'type.documentVolume'),
+            label: t(`type.${value}` as 'type.individual'),
           }))}
         />
         <Select
@@ -88,7 +95,7 @@ export default function ReportsPage() {
           onChange={(event) => setPeriod(event.target.value)}
           options={PERIODS.map((value) => ({
             value,
-            label: periodBounds(value),
+            label: periodBounds(value).replace('..', ' – '),
           }))}
         />
         <Button variant="secondary" iconLeft="refresh" onClick={reload} loading={isRefreshing}>
