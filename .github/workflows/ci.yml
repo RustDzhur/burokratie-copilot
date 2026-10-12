@@ -20,9 +20,8 @@
 #                       without a usable Docker daemon — it never fails the
 #                       pipeline for an infrastructure reason
 #
-#  Not executed in the authoring environment: Docker is unavailable there, so the
-#  compose-validation `docker compose config` step and the docker-build job are
-#  written to degrade explicitly instead of pretending to pass.
+#  The compose-validation `docker compose config` step and the docker-build job
+#  degrade explicitly (SKIPPED, never a silent pass) when no Docker daemon exists.
 # =============================================================================
 
 name: CI
@@ -553,12 +552,14 @@ jobs:
       - name: Repository structure guard (spec §2.2)
         run: |
           chmod +x infra/scripts/*.sh
-          # --allow-web-pending: a not-yet-correct apps/web configuration (e.g. a
-          # missing `output: "standalone"`) is reported as PENDING instead of
-          # failing the pipeline while the frontend is being implemented. A
-          # RELEASE must run the plain form (`check-structure.sh`, and with
-          # --strict it also rejects pending paths) — see docs/deployment.md §7.2.
+          # --allow-web-pending reports a missing `output: "standalone"` as PENDING instead of
+          # failing. A RELEASE must run the plain form (and --strict also rejects pending
+          # paths) - see docs/deployment.md §7.2. The only PENDING items left are tests/e2e
+          # and tests/load, which have no automated suites yet.
           infra/scripts/check-structure.sh --quiet --allow-web-pending
+
+      - name: Documents name only tests that exist
+        run: scripts/check-doc-references.sh
 
       - name: Dependency review
         # Only meaningful on a pull request: it needs a base/head diff.
@@ -654,7 +655,7 @@ jobs:
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
 
-      - name: Build the frontend image (only when apps/web exists)
+      - name: Build the frontend image
         if: steps.docker.outputs.available == 'true' && hashFiles('apps/web/package.json') != ''
         uses: docker/build-push-action@v6
         with:

@@ -1,6 +1,6 @@
 # Матрица соответствия требованиям — Bürokratie-Copilot
 
-Составлена по `docs/task.md` (37 разделов) и фактическому состоянию `main` на коммите `aa548c8`.
+Составлена по `docs/task.md` (37 разделов). Числа не копируются в этот документ: их печатает `scripts/facts.sh`; имена тестов проверяет `scripts/check-doc-references.sh`.
 
 **Как читать статусы.** Они означают ровно то, что написано, и ничего больше:
 
@@ -11,9 +11,7 @@
 | **НЕ РЕАЛИЗОВАНО** | Кода нет |
 | **ПРОЦЕСС** | Раздел описывает порядок работы, а не функцию продукта |
 
-Проверка, на которую опирается столбец «Тесты»: `services/api/mvnw -B clean verify` →
-**BUILD SUCCESS, 930 тестов** (406 unit + 524 integration), 0 падений. **23 миграции.** CI GitHub Actions —
-**5 из 5 job'ов зелёные** на `aa548c8`.
+Проверка, на которую опирается столбец «Тесты»: `services/api/mvnw -B clean verify` на **JDK 21** (см. `scripts/facts.sh --tests` для чисел последнего прогона) и `pnpm test` в `apps/web`.
 
 ---
 
@@ -26,33 +24,33 @@
 | 3 | Мультипользовательская модель | `tenants`, `memberships`, RLS на 87 таблицах | `TenantIsolationSuiteIT`, `FamilyIsolationIT` | **РЕАЛИЗОВАНО** | — |
 | 4 | Пользователи, роли, права | `identity/auth`, `identity/access`, `identity/mfa`, `memberships`, `roles`, `permissions` | `AuthFlowIT`, `InvitationAccessIT`, `MfaServiceIT`, `OnboardingIT` | **РЕАЛИЗОВАНО** | — |
 | 5 | Главный интерфейс и визуальная концепция | `apps/web` — **33 страницы**, дизайн-система, `design-system` | `pages.a11y.test.tsx`, `contrast.test.ts`, `screens.test.tsx` | **ЧАСТИЧНО** | все основные экраны есть; визуальная концепция целиком не сверялась с §5 |
-| 6 | Универсальная модель документа | `documents`, `documents/extraction`, `documents/taxonomy`, `documents/fields` | `DocumentPipelineIT`, `ExtractionIT`, `TaxonomyIT`, `FieldExtractionIT` | **РЕАЛИЗОВАНО** | — |
-| 7 | Приём документов из всех источников | `ingest`, `mail/inbound`, `importer`, `devices` | `IngestApiIT`, `ImapMailIngesterTest`, `FolderImportIT`, `DeviceServiceIT` | **ЧАСТИЧНО** | Desktop Bridge (G-002) |
-| 8 | Сканеры, МФУ, принтеры | `devices` | `DeviceServiceIT` | **ЧАСТИЧНО** | печать и маркировка оригиналов (G-004) |
-| 9 | OCR и интеллектуальная обработка | `documents/ocr`, `extraction`, `matching`, `review`, `search` | `OcrAdapterTest`, `TextExtractionIT`, `MatchingIT`, `ReviewCentreIT`, `SearchIT` | **РЕАЛИЗОВАНО** | — |
-| 10 | AI-слой и модельный провайдер | `ai`, `ai/security`, `ai/assistant`, `ai/rag` | `AiOrchestratorTest`, `PromptInjectionTest`, `AssistantServiceIT`, `RagServiceIT` | **РЕАЛИЗОВАНО** | — |
-| 11 | Система дел | `cases`, `deadlines`, `deadline_rules` | `CaseServiceIT`, `DeadlineIT` | **РЕАЛИЗОВАНО** | реестр правовых сроков намеренно пуст (см. «Правила») |
-| 12 | Задачи, сроки, ответственность | `tasks`, `task_assignees`, `notifications` | `TaskServiceIT`, `ReminderIT` | **РЕАЛИЗОВАНО** | — |
-| 13 | Договоры и обязательства | `contracts` | `ContractServiceIT`, `NoticePeriodIT` | **РЕАЛИЗОВАНО** | — |
-| 14 | Счета, расходы и платежи | `invoices`, `approvals`, `banking`, `dunning` | `InvoiceValidationTest`, `InvoiceServiceIT`, `ApprovalAndPresetsIT`, `PaymentMatchingIT` | **РЕАЛИЗОВАНО** | — |
-| 15 | Почта и генератор документов | `mail/outbound`, `templates`, `responses`, `einvoicing` | `OutboundMessageIT`, `TemplateServiceIT`, `DraftValidationTest`, `EInvoiceServiceIT` | **РЕАЛИЗОВАНО** | — |
+| 6 | Универсальная модель документа | `documents`, `documents/extraction`, `documents/taxonomy`, `documents/fields` | `DocumentPipelineIT`, `FieldExtractionIT`, `TaxonomyAdminServiceIT`, `FieldExtractionIT` | **РЕАЛИЗОВАНО** | — |
+| 7 | Приём документов из всех источников | `ingest`, `mail/inbound`, `importer`, `devices` | `IngestApiIT`, `MailTokenEncryptionTest`, `FolderImportIT`, `DeviceRegistrationIT`, `ScanImportIT`, `BridgeConfigTest` | **РЕАЛИЗОВАНО** | вход через OAuth для Microsoft 365/Google не реализован (B-014); почтовые ящики подключаются по IMAP/SMTP |
+| 8 | Сканеры, МФУ, принтеры | `devices` | `DeviceRegistrationIT`, `PrintServiceIT`, `ScanImportIT` | **РЕАЛИЗОВАНО** | запуск скана ставит задание в очередь устройства (`POST /devices/{id}/scan`); само устройство забирает его опросом — это работа агента на стороне владельца |
+| 9 | OCR и интеллектуальная обработка | `documents/ocr`, `extraction`, `matching`, `review`, `search` | `TesseractOcrEngineTest`, `TextExtractionControllerIT`, `MatchingIT`, `ReviewCentreIT`, `SearchIsolationIT` | **РЕАЛИЗОВАНО** | — |
+| 10 | AI-слой и модельный провайдер | `ai`, `ai/security`, `ai/assistant`, `ai/rag` | `AiProviderFailoverTest`, `PromptInjectionTest`, `AssistantToolAuthzIT`, `RagCitationTest` | **РЕАЛИЗОВАНО** | — |
+| 11 | Система дел | `cases`, `deadlines`, `deadline_rules` | `CaseModelIT`, `DeadlineRuleIT` | **РЕАЛИЗОВАНО** | реестр правовых сроков намеренно пуст (см. «Правила») |
+| 12 | Задачи, сроки, ответственность | `tasks`, `task_assignees`, `notifications` | `TaskCrudIT`, `ObligationReminderIT` | **РЕАЛИЗОВАНО** | — |
+| 13 | Договоры и обязательства | `contracts` | `ContractModelIT`, `ObligationReminderIT` | **РЕАЛИЗОВАНО** | — |
+| 14 | Счета, расходы и платежи | `invoices`, `approvals`, `banking`, `dunning` | `InvoiceValidationTest`, `InvoiceApiIT`, `ApprovalAndPresetsIT`, `PaymentMatchingIT` | **РЕАЛИЗОВАНО** | — |
+| 15 | Почта и генератор документов | `mail/outbound`, `templates`, `responses`, `einvoicing` | `OutboundSendIT`, `TemplateControllerIT`, `DraftValidationTest`, `EInvoiceStorageIT` | **РЕАЛИЗОВАНО** | — |
 | 16 | Универсальный workflow engine | `workflow`, `workflow/approval` | `WorkflowEngineIT`, `ApprovalAndPresetsIT` | **ЧАСТИЧНО** | серверная часть редактора готова и проверена; холста нет |
 | 17 | Специализированные режимы | `accounts`, `accounts/sector`, `family` | `AccountModeIT`, `FamilyIsolationIT`, `PublicSectorGuardTest`, `MandatoryScenariosIT` | **РЕАЛИЗОВАНО** | — |
-| 18 | Интеграции | `integrations`, `integrations/adapters` | `IntegrationServiceIT`, `IntegrationAdapterCatalogueIT` | **РЕАЛИЗОВАНО** | 32 адаптера описаны, 8 реализованы, остальные честно помечены `NOT_SUPPORTED` |
+| 18 | Интеграции | `integrations`, `integrations/adapters` | `IntegrationLifecycleIT`, `IntegrationAdapterCatalogueIT` | **РЕАЛИЗОВАНО** | 32 адаптера описаны, 8 реализованы, остальные честно помечены `NOT_SUPPORTED` |
 | 19 | PostgreSQL: модель данных | `db/migration` V1–V23 | `everyTenantTableIsProtected`, схема читается тестами | **РЕАЛИЗОВАНО** | — |
-| 20 | API и контракты | REST-контроллеры по всем модулям | каждый `*ApiIT` | **РЕАЛИЗОВАНО** | — |
-| 21 | Безопасность и защита данных | RLS, `CredentialCipher`, `AiLogRedaction`, gitleaks | `TenantIsolationSuiteIT`, `ClamAvCliMalwareScannerTest`, `CredentialCipherTest` | **РЕАЛИЗОВАНО** | — |
-| 22 | Архивирование и немецкие требования | `retention`, legal hold | `RetentionServiceIT` | **РЕАЛИЗОВАНО** | сроки хранения задаёт заказчик с правовым основанием |
+| 20 | API и контракты | REST-контроллеры по всем модулям (47 контроллеров, см. `scripts/facts.sh`) | `UiContractIT` (вызовы клиента отвечают в нужной форме), `contract.test.ts` (каждый вызов `resources.ts` имеет маршрут), `*ApiIT`/`*ControllerIT` | **РЕАЛИЗОВАНО** | генерации типов клиента из OpenAPI нет: контракт держится двумя тестами, а не одним источником |
+| 21 | Безопасность и защита данных | RLS, `CredentialCipher`, `AiLogRedaction`, gitleaks | `TenantIsolationSuiteIT`, `ClamAvCliMalwareScannerTest`, `CredentialEncryptionTest` | **РЕАЛИЗОВАНО** | — |
+| 22 | Архивирование и немецкие требования | `retention`, legal hold | `RetentionPolicyIT` | **РЕАЛИЗОВАНО** | сроки хранения задаёт заказчик с правовым основанием |
 | 23 | Доступность | axe через `jest-axe`, проверки контраста, `eslint-plugin-jsx-a11y` | `pages.a11y.test.tsx` (7 экранов), `contrast.test.ts` (16) | **ЧАСТИЧНО** | axe и контраст зелёные; чек-лист клавиатуры и ручная проверка screen reader — нет (I-002) |
-| 24 | Локализация и немецкий рынок | немецкие тексты, `de` по умолчанию | тексты в тестах | **ЧАСТИЧНО** | нет полноценного i18n-слоя |
-| 25 | Уведомления | `notifications`, напоминания | `NotificationIT` | **РЕАЛИЗОВАНО** | — |
-| 26 | Отчёты и аналитика | `reports` | `ReportServiceIT` | **РЕАЛИЗОВАНО** | — |
-| 27 | Надёжность и производительность | worker-профиль, `FOR UPDATE SKIP LOCKED`, ретраи | `WorkflowEngineIT`, `WorkerIT` | **ЧАСТИЧНО** | нагрузочные тесты (I-003) |
+| 24 | Локализация и немецкий рынок | немецкие тексты, `de` по умолчанию | `apps/web/src/i18n` (ICU, de/en/ru, паритет ключей проверяется типами), `i18n/messages_*.properties` на бэкенде | `format.test.ts`, `provider.test.tsx` | **РЕАЛИЗОВАНО** | качество переводов не проверялось носителем языка |
+| 25 | Уведомления | `notifications`, напоминания | `NotificationDispatchIT` | **РЕАЛИЗОВАНО** | — |
+| 26 | Отчёты и аналитика | `reports` | `ReportAccuracyIT` | **РЕАЛИЗОВАНО** | — |
+| 27 | Надёжность и производительность | worker-профиль, `FOR UPDATE SKIP LOCKED`, ретраи | `WorkflowEngineIT`, `ApplicationContextIT` | **ЧАСТИЧНО** | нагрузочные тесты (I-003) |
 | 28 | Тестирование | **1093** бэкенд-теста + **166** фронтенд-тестов, сквозные сценарии | `MandatoryScenariosIT` | **ЧАСТИЧНО** | ручной чек-лист клавиатуры и screen reader (I-002); нагрузка — только путь отклонения |
 | 29 | Интерфейс и пользовательские сценарии | экраны `apps/web`, оболочка `app-shell`, состояния | `pages.a11y.test.tsx`, `app-shell.test.tsx` (148 тестов фронтенда) | **ЧАСТИЧНО** | экраны и состояния ошибки есть; сквозные сценарии в браузере не прогонялись |
 | 30 | Развёртывание и DevOps | `infra/docker`, `infra/scripts`, `.github/workflows/ci.yml` | CI 5/5; прогон `backup.sh` + `verify-restore.sh` | **РЕАЛИЗОВАНО** | — |
-| 31 | Настройки и конфигурация | `system_settings`, `feature_flags`, каталог модулей | `AccountModeIT`, `SettingsIT` | **РЕАЛИЗОВАНО** | — |
-| 32 | Границы автоматизации | `PublicSectorGuard`, пустой реестр правовых сроков, правовое основание в политике хранения | `PublicSectorGuardTest`, `RetentionServiceIT` | **РЕАЛИЗОВАНО** | — |
+| 31 | Настройки и конфигурация | `system_settings`, `feature_flags`, каталог модулей | `AccountModeIT`, `ApplicationContextIT` | **РЕАЛИЗОВАНО** | — |
+| 32 | Границы автоматизации | `PublicSectorGuard`, пустой реестр правовых сроков, правовое основание в политике хранения | `PublicSectorGuardTest`, `RetentionPolicyIT` | **РЕАЛИЗОВАНО** | — |
 | 33 | Требования к качеству кода | пакеты по модулям, `docs/architecture.md` | сборка, проверки структуры | **РЕАЛИЗОВАНО** | — |
 | 34 | Критерии приёмки проекта | — | — | **ЧАСТИЧНО** | см. раздел «Что проверено и что нет» |
 | 35 | Порядок реализации | `docs/implementation-plan.md` | **83 микрозадачи, все DONE** | **РЕАЛИЗОВАНО** | у двух назван остаток, не закрываемый без браузера и человека |
@@ -125,7 +123,7 @@ eslint-plugin-jsx-a11y     : установлен
 | Шаблоны | определение, версия, генерация письма |
 | Приём документов | машинная доставка (найдена в раунде 55) |
 
-**Остаётся 13**, и каждая из них названа в `docs/implementation-plan.md`.
+Остаток перечислен в `docs/final-report.md` §4.
 
 **И каждое из этих восьми расширений нашло настоящий дефект** — право, которого не существовало; CSRF,
 блокировавший машинный вызов; маршрут со слэшем; отзыв заявки, записанный как решение; `documentId`,
@@ -188,5 +186,6 @@ eslint-plugin-jsx-a11y     : установлен
    касается отсутствующего снимка объектного хранилища и является верным отказом.
 2. **Видимость под RLS без контекста арендатора** — установлено, что суперпользователь с `BYPASSRLS`
    обходит RLS (локальный пользователь именно таков); гарантия держится для обычной роли приложения.
-3. **Ветки WIP** `wip/b-013-ingest`, `wip/e-005-ai-provider`, `wip/e-007-assistant` — задачи закрыты в
-   `main`; ветки не сливать без доработки.
+3. **Ветки WIP** `wip/b-013-ingest`, `wip/e-005-ai-provider`, `wip/e-007-assistant` были полностью влиты в
+   `main`; локальные копии удалены, удалённые (`origin/wip/*`) можно удалить командой
+   `git push origin --delete wip/b-013-ingest wip/e-005-ai-provider wip/e-007-assistant`.
