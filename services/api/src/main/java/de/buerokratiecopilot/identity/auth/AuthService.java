@@ -312,6 +312,42 @@ public class AuthService {
         });
     }
 
+    /**
+     * Sends the verification link again. Like the password reset, the answer is the same whether or not the
+     * address exists or is already confirmed, so the endpoint cannot be used to enumerate accounts.
+     */
+    @Transactional
+    public void resendVerification(String rawEmail) {
+        users.findActiveByEmail(normalizeEmail(rawEmail))
+                .filter(user -> user.getStatus() == User.Status.PENDING_VERIFICATION)
+                .ifPresent(user -> sendVerificationMail(user,
+                        issueOneTimeToken(user, OneTimeToken.Purpose.EMAIL_VERIFICATION, EMAIL_VERIFICATION_TTL)));
+    }
+
+    /** What the signed-in screen needs to greet the user and name the workspace. */
+    public record SessionProfile(String email, String displayName, String locale, String timeZone,
+                                 String workspaceName, String accountType, List<String> roles) {
+    }
+
+    /**
+     * Describes the principal of a request that is already authenticated. The caller supplies the ids
+     * from the session, so nothing here can reach another workspace than the one the session names.
+     */
+    @Transactional(readOnly = true)
+    public SessionProfile describeSession(UUID userId, UUID tenantId) {
+        User user = users.findById(userId)
+                .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHENTICATED, "The session user no longer exists"));
+        Optional<Tenant> tenant = tenantId == null ? Optional.empty() : tenants.findById(tenantId);
+        String workspaceName = tenant.map(Tenant::getName).orElse(null);
+        String accountType = tenant.map(Tenant::getAccountType).orElse(null);
+        List<String> roleCodes = tenantId == null ? List.<String>of()
+                : memberships.findByTenantIdAndUserId(tenantId, userId)
+                        .map(m -> membershipRoles.findRoleCodes(m.getId()))
+                        .orElse(List.of());
+        return new SessionProfile(user.getEmail(), user.getDisplayName(), user.getLocale(), user.getTimeZone(),
+                workspaceName, accountType, roleCodes);
+    }
+
     @Transactional
     public void logout(String rawSessionToken, String ipAddress, String userAgent) {
         sessionService.revoke(rawSessionToken, "USER_LOGOUT");

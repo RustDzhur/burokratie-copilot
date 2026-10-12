@@ -11,6 +11,8 @@ import { api } from '@/lib/api';
 import { toApiError, type ApiError } from '@/lib/api/errors';
 import styles from '../auth-card.module.css';
 
+const MIN_PASSWORD_LENGTH = 12;
+
 type AccountType = 'private' | 'family' | 'company';
 
 /**
@@ -35,9 +37,16 @@ export default function RegisterPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [mismatch, setMismatch] = useState(false);
+  const [tooShort, setTooShort] = useState(false);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    // The backend enforces the same minimum (AuthController.RegisterRequest); checking here saves the trip.
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setTooShort(true);
+      return;
+    }
+    setTooShort(false);
     if (password !== passwordConfirm) {
       setMismatch(true);
       return;
@@ -95,6 +104,7 @@ export default function RegisterPage() {
           autoComplete="new-password"
           required
           hint={t('register.passwordHelp')}
+          error={tooShort ? t('register.passwordTooShort') : undefined}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />

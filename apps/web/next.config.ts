@@ -23,6 +23,15 @@ const securityHeaders = [
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
 ];
 
+/**
+ * Where the backend lives, as seen from the machine running the Next.js server. The browser never uses this:
+ * it calls the relative `NEXT_PUBLIC_API_BASE_URL` (`/api/v1`) and the rewrite below forwards it. One origin
+ * for page and API is what keeps the session cookie first-party (`SameSite=Strict`) and the CSRF cookie
+ * readable; behind the production reverse proxy `/api/*` is routed before it ever reaches this rewrite.
+ * Evaluated at build time, so it is a build argument of the image.
+ */
+const apiOrigin = (process.env.BC_API_ORIGIN ?? 'http://localhost:8080').replace(/\/+$/, '');
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Required by infra/docker/web.Dockerfile and checked by infra/scripts/check-structure.sh:
@@ -37,6 +46,9 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [{ source: '/_design', destination: '/design-system', permanent: false }];
+  },
+  async rewrites() {
+    return [{ source: '/api/v1/:path*', destination: `${apiOrigin}/api/v1/:path*` }];
   },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];

@@ -3,7 +3,7 @@
 # =============================================================================
 #  Build (context MUST be the repository root — see docker-compose.yml):
 #      docker build -f infra/docker/web.Dockerfile \
-#        --build-arg NEXT_PUBLIC_API_BASE_URL=https://app.example.de \
+#        --build-arg NEXT_PUBLIC_API_BASE_URL=/api/v1 \
 #        --build-arg BUILD_REVISION="$(git rev-parse --short HEAD)" \
 #        -t burokratie-copilot/web:local .
 #
@@ -33,9 +33,12 @@ ARG BUILD_REVISION=unknown
 ARG BUILD_CREATED=unknown
 # NEXT_PUBLIC_* variables are INLINED into the client bundle at build time, so
 # they must be present here and not only at container start.
-ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+ARG NEXT_PUBLIC_API_BASE_URL=/api/v1
+# Where next.config.ts forwards /api/v1/* (evaluated at build time).
+ARG BC_API_ORIGIN=http://api:8080
 
 ENV NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL}" \
+    BC_API_ORIGIN="${BC_API_ORIGIN}" \
     NEXT_TELEMETRY_DISABLED=1 \
     CI=true \
     # corepack must not prompt for confirmation when it downloads pnpm.

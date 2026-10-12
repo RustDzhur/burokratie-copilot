@@ -124,6 +124,12 @@ export interface ApiClientOptions {
   readonly getAuthToken?: () => string | null | undefined;
   /** Called on 401 so the app shell can redirect to the sign-in screen. */
   readonly onUnauthorized?: (error: ApiError) => void;
+  /**
+   * Double-submit CSRF protection (default on in a browser). The backend sets an `XSRF-TOKEN` cookie
+   * and rejects every unsafe request that does not echo it in `X-XSRF-TOKEN`; without this the browser
+   * cannot even sign in. `false` turns it off for tests and non-browser callers.
+   */
+  readonly csrf?: boolean;
 }
 
 export interface ApiClient {
@@ -155,6 +161,25 @@ export interface ApiClient {
 }
 
 const DEFAULT_BASE_URL = '/api/v1';
+const CSRF_COOKIE = 'XSRF-TOKEN';
+const CSRF_HEADER = 'X-XSRF-TOKEN';
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+function readCookie(name: string): string | undefined {
+  if (typeof document === 'undefined') return undefined;
+  for (const part of document.cookie.split(';')) {
+    const separator = part.indexOf('=');
+    if (separator < 0) continue;
+    if (part.slice(0, separator).trim() === name) {
+      try {
+        return decodeURIComponent(part.slice(separator + 1).trim());
+      } catch {
+        return part.slice(separator + 1).trim();
+      }
+    }
+  }
+  return undefined;
+}
 const DEFAULT_TIMEOUT_MS = 20_000;
 
 function normalizeBaseUrl(baseUrl: string): string {
@@ -253,6 +278,30 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
   const baseUrl = resolveBaseUrl(options.baseUrl);
   const defaultTimeoutMs = resolveDefaultTimeout(options.timeoutMs);
   const defaultHeaders = options.defaultHeaders ?? {};
+  const csrfEnabled = options.csrf ?? typeof document !== 'undefined';
+  let csrfInFlight: Promise<void> | undefined;
+
+  /**
+   * Makes sure the CSRF cookie exists before an unsafe request. Concurrent callers share one round trip.
+   * A failure here is not fatal: the request is sent anyway and the server's own answer is what the
+   * caller sees, instead of a second, more confusing error.
+   */
+  async function ensureCsrfToken(doFetch: typeof fetch): Promise<string | undefined> {
+    const existing = readCookie(CSRF_COOKIE);
+    if (existing) return existing;
+    csrfInFlight ??= doFetch(buildUrl(baseUrl, '/auth/csrf'), {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+    })
+      .then(() => undefined)
+      .catch(() => undefined)
+      .finally(() => {
+        csrfInFlight = undefined;
+      });
+    await csrfInFlight;
+    return readCookie(CSRF_COOKIE);
+  }
 
   async function request<T>(path: string, requestOptions: RequestOptions = {}): Promise<T> {
     const url = buildUrl(baseUrl, path, requestOptions.query);
@@ -316,6 +365,11 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
       });
     }
 
+    if (csrfEnabled && !SAFE_METHODS.has(method) && !headers[CSRF_HEADER]) {
+      const csrfToken = await ensureCsrfToken(doFetch);
+      if (csrfToken) headers[CSRF_HEADER] = csrfToken;
+    }
+
     let response: Response;
     try {
       response = await doFetch(url, {
@@ -377,8 +431,10 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
     return normalizePage<T>(payload);
   }
 
-  function upload<T>(path: string, file: Blob, uploadOptions: UploadOptions = {}): Promise<T> {
+  async function upload<T>(path: string, file: Blob, uploadOptions: UploadOptions = {}): Promise<T> {
     const url = buildUrl(baseUrl, path);
+    const fetchForCsrf: typeof fetch | undefined = options.fetchImpl ?? globalThis.fetch?.bind(globalThis);
+    if (csrfEnabled && fetchForCsrf) await ensureCsrfToken(fetchForCsrf);
     const form = new FormData();
     form.append(uploadOptions.fieldName ?? 'file', file);
     for (const [key, value] of Object.entries(uploadOptions.fields ?? {})) form.append(key, value);
@@ -395,6 +451,8 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
       xhr.setRequestHeader('Accept', 'application/json');
       const token = options.getAuthToken?.();
       if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      const csrfToken = csrfEnabled ? readCookie(CSRF_COOKIE) : undefined;
+      if (csrfToken) xhr.setRequestHeader(CSRF_HEADER, csrfToken);
       if (uploadOptions.idempotencyKey) {
         xhr.setRequestHeader(
           'Idempotency-Key',

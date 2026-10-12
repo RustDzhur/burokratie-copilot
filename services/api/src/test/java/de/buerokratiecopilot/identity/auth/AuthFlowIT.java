@@ -163,7 +163,26 @@ class AuthFlowIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.userId").value(registered.userId().toString()))
                 .andExpect(jsonPath("$.tenantId").value(registered.tenantId().toString()))
-                .andExpect(jsonPath("$.permissions").isNotEmpty());
+                .andExpect(jsonPath("$.permissions").isNotEmpty())
+                // The sign-in screen builds its greeting and workspace switcher from this answer alone.
+                .andExpect(jsonPath("$.email").value(registered.email()))
+                .andExpect(jsonPath("$.displayName").value("Erika Mustermann"))
+                .andExpect(jsonPath("$.workspaceName").value("Muster GmbH"))
+                .andExpect(jsonPath("$.accountType").value("COMPANY"))
+                .andExpect(jsonPath("$.roles[0]").value("OWNER"));
+    }
+
+    @Test
+    @DisplayName("resending the verification link answers 202 for a known and an unknown address alike")
+    void resendVerificationDoesNotRevealWhetherAnAccountExists() throws Exception {
+        Registered registered = register("PRIVATE_PERSON");
+        for (String email : new String[] {registered.email(), "nobody-" + UUID.randomUUID() + "@example.de"}) {
+            mockMvc.perform(post("/api/v1/auth/verify-email/resend")
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"%s\"}".formatted(email)))
+                    .andExpect(status().isAccepted());
+        }
     }
 
     @Test

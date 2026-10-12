@@ -110,8 +110,9 @@ open http://localhost:8080/swagger-ui.html
 cd apps/web
 corepack enable            # provides pnpm
 pnpm install
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8080 pnpm dev
-# -> http://localhost:3000
+pnpm dev
+# -> http://localhost:3000   (calls /api/v1, which Next.js forwards to http://localhost:8080;
+#    set BC_API_ORIGIN to point it elsewhere)
 ```
 
 ### 2.6 Background worker (optional, no HTTP traffic)

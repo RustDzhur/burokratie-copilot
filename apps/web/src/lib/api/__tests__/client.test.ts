@@ -15,7 +15,7 @@ const baseUrl = 'https://api.test/api/v1';
 describe('api client', () => {
   it('builds the URL with query parameters and sends JSON bodies', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ id: 'd1' }));
-    const client = createApiClient({ baseUrl, fetchImpl: fetchMock });
+    const client = createApiClient({ baseUrl, csrf: false, fetchImpl: fetchMock });
 
     await client.post('/documents', { title: 'Rechnung' }, { query: { page: 2, size: 20, q: '' } });
 
@@ -31,7 +31,7 @@ describe('api client', () => {
 
   it('appends repeated query values for arrays and skips empty values', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ items: [] }));
-    const client = createApiClient({ baseUrl, fetchImpl: fetchMock });
+    const client = createApiClient({ baseUrl, csrf: false, fetchImpl: fetchMock });
 
     await client.get('/documents', {
       query: { status: ['open', 'closed'], q: undefined, sort: 'title,asc' },
@@ -46,6 +46,7 @@ describe('api client', () => {
   it('adds an Authorization header when a token is available', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({}));
     const client = createApiClient({
+      csrf: false,
       baseUrl,
       fetchImpl: fetchMock,
       getAuthToken: () => 'token-123',
@@ -59,7 +60,7 @@ describe('api client', () => {
 
   it('sends a generated Idempotency-Key when requested', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ id: 'x' }));
-    const client = createApiClient({ baseUrl, fetchImpl: fetchMock });
+    const client = createApiClient({ baseUrl, csrf: false, fetchImpl: fetchMock });
 
     await client.post('/documents', { title: 'A' }, { idempotencyKey: true });
     await client.post('/documents', { title: 'B' }, { idempotencyKey: 'fixed-key' });
@@ -80,7 +81,7 @@ describe('api client', () => {
         { status: 401 },
       ),
     );
-    const client = createApiClient({ baseUrl, fetchImpl: fetchMock, onUnauthorized });
+    const client = createApiClient({ baseUrl, csrf: false, fetchImpl: fetchMock, onUnauthorized });
 
     await expect(client.get('/documents')).rejects.toMatchObject({
       kind: 'unauthorized',
@@ -102,7 +103,7 @@ describe('api client', () => {
     [418, 'unknown'],
   ])('maps HTTP %i to kind %s', async (status, kind) => {
     const fetchMock = vi.fn(async () => jsonResponse({ code: 'X', message: 'boom' }, { status }));
-    const client = createApiClient({ baseUrl, fetchImpl: fetchMock });
+    const client = createApiClient({ baseUrl, csrf: false, fetchImpl: fetchMock });
 
     await expect(client.get('/documents')).rejects.toMatchObject({ kind, status });
   });
@@ -119,7 +120,7 @@ describe('api client', () => {
         { status: 422 },
       ),
     );
-    const client = createApiClient({ baseUrl, fetchImpl: fetchMock });
+    const client = createApiClient({ baseUrl, csrf: false, fetchImpl: fetchMock });
 
     try {
       await client.post('/invoices', {});
@@ -139,7 +140,7 @@ describe('api client', () => {
         { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '30' } },
       ),
     );
-    const client = createApiClient({ baseUrl, fetchImpl: fetchMock });
+    const client = createApiClient({ baseUrl, csrf: false, fetchImpl: fetchMock });
 
     await expect(client.get('/documents')).rejects.toMatchObject({
       kind: 'rateLimited',
@@ -151,7 +152,7 @@ describe('api client', () => {
     const fetchMock = vi.fn(async () => {
       throw new TypeError('Failed to fetch');
     });
-    const client = createApiClient({ baseUrl, fetchImpl: fetchMock });
+    const client = createApiClient({ baseUrl, csrf: false, fetchImpl: fetchMock });
 
     const error = await client.get('/documents').catch((caught: unknown) => caught);
     expect(isApiError(error)).toBe(true);
@@ -168,7 +169,7 @@ describe('api client', () => {
           });
         }),
     );
-    const client = createApiClient({ baseUrl, fetchImpl: fetchMock as unknown as typeof fetch });
+    const client = createApiClient({ baseUrl, csrf: false, fetchImpl: fetchMock as unknown as typeof fetch });
 
     await expect(client.get('/documents', { timeoutMs: 5 })).rejects.toMatchObject({
       kind: 'timeout',
@@ -185,7 +186,7 @@ describe('api client', () => {
           });
         }),
     );
-    const client = createApiClient({ baseUrl, fetchImpl: fetchMock as unknown as typeof fetch });
+    const client = createApiClient({ baseUrl, csrf: false, fetchImpl: fetchMock as unknown as typeof fetch });
 
     const promise = client.get('/documents', { signal: controller.signal });
     controller.abort();
@@ -197,14 +198,14 @@ describe('api client', () => {
       async () =>
         new Response('not-json', { status: 200, headers: { 'Content-Type': 'application/json' } }),
     );
-    const client = createApiClient({ baseUrl, fetchImpl: fetchMock });
+    const client = createApiClient({ baseUrl, csrf: false, fetchImpl: fetchMock });
 
     await expect(client.get('/documents')).rejects.toMatchObject({ kind: 'malformed' });
   });
 
   it('returns undefined for 204 responses', async () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
-    const client = createApiClient({ baseUrl, fetchImpl: fetchMock });
+    const client = createApiClient({ baseUrl, csrf: false, fetchImpl: fetchMock });
 
     await expect(client.delete('/documents/1')).resolves.toBeUndefined();
   });
@@ -213,7 +214,7 @@ describe('api client', () => {
     const fetchMock = vi.fn(async () =>
       jsonResponse({ items: [{ id: '1' }], page: 1, size: 10, totalItems: 21, totalPages: 3 }),
     );
-    const client = createApiClient({ baseUrl, fetchImpl: fetchMock });
+    const client = createApiClient({ baseUrl, csrf: false, fetchImpl: fetchMock });
 
     const page = await client.list<{ id: string }>('/documents');
 
@@ -262,5 +263,80 @@ describe('error normalization', () => {
   it('keeps existing ApiError instances untouched', () => {
     const original = new ApiError({ kind: 'conflict' });
     expect(toApiError(original)).toBe(original);
+  });
+});
+
+describe('api client — CSRF double submit', () => {
+  const clearCookie = (): void => {
+    document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+  };
+
+  /** A fetch that behaves like the backend: `/auth/csrf` sets the cookie, everything else answers 200. */
+  function backendLikeFetch(): ReturnType<typeof vi.fn> {
+    return vi.fn(async (url: string) => {
+      if (url.endsWith('/auth/csrf')) {
+        document.cookie = 'XSRF-TOKEN=token-from-server; path=/';
+        return new Response(null, { status: 204 });
+      }
+      return jsonResponse({ ok: true });
+    });
+  }
+
+  it('fetches the token before the first unsafe request and echoes it in X-XSRF-TOKEN', async () => {
+    clearCookie();
+    const fetchMock = backendLikeFetch();
+    const client = createApiClient({ baseUrl, fetchImpl: fetchMock as unknown as typeof fetch });
+
+    await client.post('/auth/login', { email: 'a@b.de', password: 'x' });
+
+    const urls = fetchMock.mock.calls.map((call) => call[0] as string);
+    expect(urls).toEqual([`${baseUrl}/auth/csrf`, `${baseUrl}/auth/login`]);
+    const [, init] = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['X-XSRF-TOKEN']).toBe('token-from-server');
+    clearCookie();
+  });
+
+  it('does not call /auth/csrf again once the cookie exists, and never for safe methods', async () => {
+    document.cookie = 'XSRF-TOKEN=existing; path=/';
+    const fetchMock = backendLikeFetch();
+    const client = createApiClient({ baseUrl, fetchImpl: fetchMock as unknown as typeof fetch });
+
+    await client.get('/auth/me');
+    await client.post('/tasks', { title: 'A' });
+    await client.delete('/tasks/1');
+
+    expect(fetchMock.mock.calls.map((call) => call[0] as string)).toEqual([
+      `${baseUrl}/auth/me`,
+      `${baseUrl}/tasks`,
+      `${baseUrl}/tasks/1`,
+    ]);
+    const [, init] = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['X-XSRF-TOKEN']).toBe('existing');
+    clearCookie();
+  });
+
+  it('lets concurrent unsafe requests share a single token round trip', async () => {
+    clearCookie();
+    const fetchMock = backendLikeFetch();
+    const client = createApiClient({ baseUrl, fetchImpl: fetchMock as unknown as typeof fetch });
+
+    await Promise.all([client.post('/a', {}), client.post('/b', {}), client.put('/c', {})]);
+
+    const csrfCalls = fetchMock.mock.calls.filter((call) => (call[0] as string).endsWith('/auth/csrf'));
+    expect(csrfCalls).toHaveLength(1);
+    clearCookie();
+  });
+
+  it('still sends the request when the token endpoint is unreachable, so the caller sees the real answer', async () => {
+    clearCookie();
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith('/auth/csrf')) throw new TypeError('offline');
+      return jsonResponse({ ok: true });
+    });
+    const client = createApiClient({ baseUrl, fetchImpl: fetchMock as unknown as typeof fetch });
+
+    await expect(client.post('/documents', {})).resolves.toEqual({ ok: true });
+    const [, init] = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['X-XSRF-TOKEN']).toBeUndefined();
   });
 });

@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
-import { Button } from '@/components/ui/button';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState, type FormEvent } from 'react';
+import { Button, buttonClass } from '@/components/ui/button';
 import { Input } from '@/components/ui/form';
 import { InlineAlert } from '@/components/ui/feedback';
 import { useToast } from '@/components/ui/toast';
@@ -12,34 +12,43 @@ import { api } from '@/lib/api';
 import { toApiError, type ApiError } from '@/lib/api/errors';
 import styles from '../auth-card.module.css';
 
-/** E-mail verification with code resend. */
-export default function VerifyEmailPage() {
+type Outcome = 'idle' | 'working' | 'done' | 'failed';
+
+/**
+ * E-mail verification. The mail carries a link `/verify-email?token=…`; opening it confirms the address.
+ * Without a token the page only tells the user to check the mailbox and offers to send the link again.
+ */
+function VerifyEmail() {
   const t = useTranslations('auth');
   const tErrors = useTranslations('errors');
-  const router = useRouter();
   const toast = useToast();
+  const token = useSearchParams().get('token');
 
+  const [outcome, setOutcome] = useState<Outcome>(token ? 'working' : 'idle');
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [pending, setPending] = useState(false);
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
 
-  const onSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault();
-    setPending(true);
-    setError(null);
-    try {
-      await api.auth.verifyEmail({ email, code });
-      router.push('/onboarding');
-    } catch (caught) {
-      setError(toApiError(caught));
-    } finally {
-      setPending(false);
-    }
-  };
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    api.auth
+      .verifyEmail({ token })
+      .then(() => {
+        if (!cancelled) setOutcome('done');
+      })
+      .catch((caught: unknown) => {
+        if (cancelled) return;
+        setError(toApiError(caught));
+        setOutcome('failed');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
-  const onResend = async (): Promise<void> => {
+  const onResend = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
     setResending(true);
     setError(null);
     try {
@@ -57,47 +66,51 @@ export default function VerifyEmailPage() {
       <h1 className={styles.title} id="verify-title">
         {t('verify.title')}
       </h1>
-      <p className={styles.subtitle}>{t('verify.subtitle', { email: email || '…' })}</p>
 
-      {error ? <InlineAlert tone="danger" title={tErrors(error.kind)} /> : null}
+      {outcome === 'working' ? <p className={styles.subtitle}>{t('verify.working')}</p> : null}
+      {outcome === 'idle' ? <p className={styles.subtitle}>{t('verify.checkMail')}</p> : null}
+      {outcome === 'done' ? (
+        <>
+          <InlineAlert tone="success" title={t('verify.done')} />
+          <Link href="/login" className={buttonClass({ variant: 'primary', size: 'lg', fullWidth: true })}>
+            {t('verify.goToLogin')}
+          </Link>
+        </>
+      ) : null}
 
-      <form className={styles.form} onSubmit={onSubmit} noValidate>
-        <Input
-          label={t('reset.email')}
-          type="email"
-          name="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-        />
-        <Input
-          label={t('verify.code')}
-          name="code"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          required
-          value={code}
-          onChange={(event) => setCode(event.target.value)}
-        />
-        <Button type="submit" variant="primary" size="lg" fullWidth loading={pending}>
-          {t('verify.submit')}
-        </Button>
-      </form>
+      {outcome === 'failed' ? <InlineAlert tone="danger" title={t('verify.failed')} /> : null}
+      {error && outcome !== 'failed' ? <InlineAlert tone="danger" title={tErrors(error.kind)} /> : null}
+
+      {outcome === 'idle' || outcome === 'failed' ? (
+        <form className={styles.form} onSubmit={(event) => void onResend(event)} noValidate>
+          <Input
+            label={t('reset.email')}
+            type="email"
+            name="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          <Button type="submit" variant="secondary" loading={resending} disabled={email === ''}>
+            {t('verify.resend')}
+          </Button>
+        </form>
+      ) : null}
 
       <p className={styles.hint}>{t('verify.hint')}</p>
-
       <div className={styles.meta}>
-        <Button
-          variant="secondary"
-          onClick={() => void onResend()}
-          loading={resending}
-          disabled={email === ''}
-        >
-          {t('verify.resend')}
-        </Button>
         <Link href="/login">{t('reset.backToLogin')}</Link>
       </div>
     </section>
+  );
+}
+
+export default function VerifyEmailPage() {
+  // useSearchParams needs a Suspense boundary for static prerendering.
+  return (
+    <Suspense fallback={null}>
+      <VerifyEmail />
+    </Suspense>
   );
 }

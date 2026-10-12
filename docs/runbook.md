@@ -67,7 +67,7 @@ BC_DB_HOST=localhost BC_DB_NAME=burokratie_dev BC_DB_USER=<user> BC_DB_PASSWORD=
 BC_ENCRYPTION_KEY='<base64-32-bytes>' ./mvnw spring-boot:run
 
 # 3. frontend (second terminal)
-cd apps/web && NEXT_PUBLIC_API_BASE_URL=http://localhost:8080 pnpm dev
+cd apps/web && pnpm dev   # /api/v1 is forwarded to http://localhost:8080 (BC_API_ORIGIN)
 
 # 4. worker (third terminal) — SAME jar, different profile
 java -jar services/api/target/burokratie-copilot-api.jar --spring.profiles.active=worker

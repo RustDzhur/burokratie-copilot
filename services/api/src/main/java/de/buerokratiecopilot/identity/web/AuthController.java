@@ -73,6 +73,9 @@ public class AuthController {
     public record VerifyEmailRequest(@NotBlank String token) {
     }
 
+    public record ResendVerificationRequest(@NotBlank @Email String email) {
+    }
+
     public record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {
     }
 
@@ -80,7 +83,9 @@ public class AuthController {
                                 String timeZone, List<String> roles) {
     }
 
-    public record MeResponse(UUID userId, UUID tenantId, List<String> permissions) {
+    public record MeResponse(UUID userId, UUID tenantId, List<String> permissions, String email,
+                             String displayName, String locale, String timeZone, String workspaceName,
+                             String accountType, List<String> roles) {
     }
 
     public record PasswordResetRequest(@NotBlank @Email String email) {
@@ -111,6 +116,13 @@ public class AuthController {
         authService.verifyEmail(request.token(), clientIp(httpRequest),
                 httpRequest.getHeader(HttpHeaders.USER_AGENT));
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/verify-email/resend")
+    @Operation(summary = "Send the verification link again (the answer never reveals whether the address exists)")
+    public ResponseEntity<Void> resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
+        authService.resendVerification(request.email());
+        return ResponseEntity.accepted().build();
     }
 
     @PostMapping("/login")
@@ -151,7 +163,10 @@ public class AuthController {
                 .toList();
         UUID userId = UUID.fromString(authentication.getName());
         UUID tenantId = de.buerokratiecopilot.shared.context.RequestContext.tenantId().orElse(null);
-        return ResponseEntity.ok(new MeResponse(userId, tenantId, permissions));
+        AuthService.SessionProfile profile = authService.describeSession(userId, tenantId);
+        return ResponseEntity.ok(new MeResponse(userId, tenantId, permissions, profile.email(),
+                profile.displayName(), profile.locale(), profile.timeZone(), profile.workspaceName(),
+                profile.accountType(), profile.roles()));
     }
 
     @PostMapping("/password-reset")

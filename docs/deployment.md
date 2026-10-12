@@ -136,8 +136,10 @@ deployment defect, not a nuisance.
 
 ### 2.2 Same-origin API (why `/api/` is proxied)
 
-`NEXT_PUBLIC_API_BASE_URL` is inlined into the browser bundle at **build** time. Point it at the
-public origin (`https://app.example.de`) and let the proxy route `/api/*` to the backend. Then:
+`NEXT_PUBLIC_API_BASE_URL` is inlined into the browser bundle at **build** time. Keep it the
+**relative** path `/api/v1` (the default) and let the proxy route `/api/*` to the backend; without a
+proxy, `next.config.ts` forwards `/api/v1/*` to `BC_API_ORIGIN`. The client reads the `XSRF-TOKEN`
+cookie, which only works when page and API share an origin. Then:
 
 - session cookies are **first-party** and work with `SameSite=Strict` (the `prod` profile forces
   secure cookies);

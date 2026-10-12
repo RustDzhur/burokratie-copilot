@@ -29,6 +29,7 @@ import type {
   IntegrationSummary,
   InvoiceSummary,
   MailMessageSummary,
+  MemberRole,
   MemberSummary,
   NotificationPreferences,
   NotificationSummary,
@@ -45,6 +46,56 @@ export interface LoginPayload {
   readonly email: string;
   readonly password: string;
   readonly rememberMe?: boolean;
+}
+
+/** What `GET /auth/me` answers. Mirrors `AuthController.MeResponse`; the screens never see this shape. */
+interface MeResponse {
+  readonly userId: string;
+  readonly tenantId: string | null;
+  readonly email: string;
+  readonly displayName: string | null;
+  readonly workspaceName: string | null;
+  readonly accountType: string | null;
+  readonly roles: readonly string[];
+}
+
+const ROLE_FROM_BACKEND: Readonly<Record<string, MemberRole>> = {
+  OWNER: 'owner',
+  ADMIN: 'admin',
+  MANAGER: 'admin',
+  EMPLOYEE: 'member',
+  READ_ONLY: 'member',
+  MEMBER: 'member',
+  ACCOUNTANT: 'accountant',
+  AUDITOR: 'auditor',
+};
+
+const ACCOUNT_TYPE_TO_BACKEND = {
+  private: 'PRIVATE_PERSON',
+  family: 'FAMILY_HOUSEHOLD',
+  company: 'COMPANY',
+} as const;
+
+function workspaceTypeFromBackend(accountType: string | null): SessionUser['workspaceType'] {
+  if (accountType === 'PRIVATE_PERSON') return 'private';
+  if (accountType === 'FAMILY_HOUSEHOLD') return 'family';
+  return 'company';
+}
+
+/** The one place that turns the backend's principal description into the user the screens work with. */
+export function sessionUserFromMe(me: MeResponse): SessionUser {
+  return {
+    id: me.userId,
+    name: me.displayName ?? me.email,
+    email: me.email,
+    roles: me.roles.flatMap((code) => {
+      const role = ROLE_FROM_BACKEND[code];
+      return role ? [role] : [];
+    }),
+    workspaceId: me.tenantId ?? '',
+    workspaceName: me.workspaceName ?? '',
+    workspaceType: workspaceTypeFromBackend(me.accountType),
+  };
 }
 
 export interface RegisterPayload {
@@ -84,9 +135,10 @@ export interface ApiResources {
     login: (payload: LoginPayload) => Promise<SessionUser>;
     logout: () => Promise<void>;
     register: (payload: RegisterPayload) => Promise<{ userId: string; email: string }>;
-    verifyEmail: (payload: { email: string; code: string }) => Promise<void>;
+    verifyEmail: (payload: { token: string }) => Promise<void>;
     resendVerification: (payload: { email: string }) => Promise<void>;
     requestPasswordReset: (payload: { email: string }) => Promise<void>;
+    confirmPasswordReset: (payload: { token: string; password: string }) => Promise<void>;
     session: (signal?: AbortSignal) => Promise<SessionUser>;
     completeOnboarding: (payload: OnboardingPayload) => Promise<SessionUser>;
   };
@@ -243,20 +295,35 @@ const withSignal = (signal?: AbortSignal): { signal?: AbortSignal } => (signal ?
 export function createResources(client: ApiClient): ApiResources {
   return {
     auth: {
-      login: (payload) =>
-        client.post<SessionUser>('/auth/login', payload, { idempotencyKey: true }),
+      login: async (payload) => {
+        // A fresh sign-in must never be answered from the idempotency cache: the reply carries Set-Cookie.
+        await client.post<unknown>('/auth/login', { email: payload.email, password: payload.password });
+        return sessionUserFromMe(await client.get<MeResponse>('/auth/me'));
+      },
       logout: () => client.post<void>('/auth/logout'),
-      register: (payload) =>
-        client.post<{ userId: string; email: string }>('/auth/register', payload, {
-          idempotencyKey: true,
-        }),
+      register: async (payload) => {
+        const created = await client.post<{ userId: string }>(
+          '/auth/register',
+          {
+            email: payload.email,
+            password: payload.password,
+            displayName: payload.fullName,
+            accountType: ACCOUNT_TYPE_TO_BACKEND[payload.accountType],
+          },
+          { idempotencyKey: true },
+        );
+        return { userId: created.userId, email: payload.email };
+      },
       verifyEmail: (payload) =>
         client.post<void>('/auth/verify-email', payload, { idempotencyKey: true }),
       resendVerification: (payload) =>
         client.post<void>('/auth/verify-email/resend', payload, { idempotencyKey: true }),
       requestPasswordReset: (payload) =>
         client.post<void>('/auth/password-reset', payload, { idempotencyKey: true }),
-      session: (signal) => client.get<SessionUser>('/auth/session', withSignal(signal)),
+      confirmPasswordReset: (payload) =>
+        client.post<void>('/auth/password-reset/confirm', payload, { idempotencyKey: true }),
+      session: async (signal) =>
+        sessionUserFromMe(await client.get<MeResponse>('/auth/me', withSignal(signal))),
       completeOnboarding: (payload) =>
         client.post<SessionUser>('/auth/onboarding', payload, { idempotencyKey: true }),
     },

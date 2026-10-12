@@ -273,7 +273,7 @@ jobs:
         env:
           # Inlined into the client bundle at build time; CI only needs it to be
           # defined so that a missing value cannot break the build.
-          NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+          NEXT_PUBLIC_API_BASE_URL: /api/v1
           NEXT_TELEMETRY_DISABLED: "1"
         run: pnpm run build
 
@@ -664,7 +664,7 @@ jobs:
           tags: burokratie-copilot/web:ci-${{ github.sha }}
           build-args: |
             BUILD_REVISION=${{ github.sha }}
-            NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+            NEXT_PUBLIC_API_BASE_URL=/api/v1
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
 
