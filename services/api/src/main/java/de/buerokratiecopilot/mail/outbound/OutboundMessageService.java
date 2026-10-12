@@ -86,6 +86,24 @@ public class OutboundMessageService {
         }
 
         String channel = request.channel() == null ? "EMAIL" : request.channel();
+
+        // The key exists so that a caller who retries after a timeout does not post a second letter. The
+        // schema enforces it with a unique index on (tenant_id, idempotency_key), and the insert looked up
+        // nothing: a retry therefore came back as a failure, which is the one answer the key was there to
+        // prevent. Looking the draft up first is what makes the promise true.
+        if (request.idempotencyKey() != null && !request.idempotencyKey().isBlank()) {
+            List<UUID> existing = jdbc.query("""
+                    select id from outbound_messages
+                     where tenant_id = ? and idempotency_key = ? and deleted_at is null
+                    """, (rs, row) -> rs.getObject("id", UUID.class), request.tenantId(),
+                    request.idempotencyKey());
+            if (!existing.isEmpty()) {
+                log.info("Outbound message {} already drafted under key {}", existing.getFirst(),
+                        request.idempotencyKey());
+                return existing.getFirst();
+            }
+        }
+
         UUID messageId = jdbc.queryForObject("""
                 insert into outbound_messages (id, tenant_id, case_id, channel, status, subject,
                                                body_text, body_html, from_address, to_addresses,
