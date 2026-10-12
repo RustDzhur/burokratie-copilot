@@ -25,7 +25,7 @@ export interface ToastOptions {
   readonly title: string;
   readonly description?: string;
   readonly tone?: Tone;
-  /** `0` keeps the toast until it is dismissed. Defaults to 6000 ms. */
+  /** `0` keeps the toast until it is dismissed. Defaults to 2500 ms (errors 4500 ms): a result message announces itself and goes away. */
   readonly durationMs?: number;
   readonly action?: ToastAction;
 }
@@ -85,7 +85,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const show = useCallback(
     (options: ToastOptions): string => {
       const id = createToastId();
-      const durationMs = options.durationMs ?? 6000;
+      const durationMs = options.durationMs ?? (options.tone === 'danger' ? 4500 : 2500);
       setToasts((current) => [...current, { ...options, id }]);
       if (durationMs > 0) {
         const timer = window.setTimeout(() => dismiss(id), durationMs);
@@ -109,7 +109,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       show,
       dismiss,
       success: (title, description) => show({ title, description, tone: 'success' }),
-      error: (title, description) => show({ title, description, tone: 'danger', durationMs: 0 }),
+      error: (title, description) => show({ title, description, tone: 'danger' }),
       info: (title, description) => show({ title, description, tone: 'info' }),
       warning: (title, description) => show({ title, description, tone: 'warning' }),
     }),
