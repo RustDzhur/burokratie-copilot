@@ -1,0 +1,7 @@
+# Overlay for a host that already runs its own reverse proxy (Caddy/nginx) on 80/443: the web container is
+# published on loopback only, and the host proxy terminates TLS and forwards the whole site to it. The web
+# server itself forwards /api/v1/* to the API over the internal network, so one port is all the proxy needs.
+services:
+  web:
+    ports:
+      - "127.0.0.1:${BC_WEB_PORT:-3500}:3000"
