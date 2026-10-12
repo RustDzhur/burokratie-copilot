@@ -337,6 +337,8 @@ export interface SessionUser {
   readonly avatarUrl?: string | null;
   /** False until the first-run wizard was finished; the sign-in sends such a person to it. */
   readonly onboardingCompleted?: boolean;
+  /** The account requires a second factor and this person has none yet: they may only set one up. */
+  readonly mfaEnrolmentRequired?: boolean;
 }
 
 export interface SessionInfo {

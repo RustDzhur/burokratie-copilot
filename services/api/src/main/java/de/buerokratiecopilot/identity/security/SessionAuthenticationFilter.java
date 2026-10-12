@@ -94,12 +94,25 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
         return "/api/v1/auth/mfa/verify".equals(path) || "/api/v1/auth/logout".equals(path);
     }
 
+    private static boolean allowedWhileEnrolling(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.startsWith("/api/v1/mfa/") || path.equals("/api/v1/mfa") || path.equals("/api/v1/auth/me");
+    }
+
     private void authenticate(UserSession session, HttpServletRequest request) {
         // Checked only for sessions not yet marked verified, so the common request costs nothing extra. A
         // session of a person without a second factor passes: there is nothing for it to prove.
-        if (!session.isMfaVerified() && !allowedBeforeSecondFactor(request)
-                && mfa.hasActiveFactor(session.getUserId())) {
-            return;
+        if (!session.isMfaVerified() && !allowedBeforeSecondFactor(request)) {
+            if (mfa.hasActiveFactor(session.getUserId())) {
+                return;
+            }
+            // The account requires a second factor and this person has none yet: enrolling one is all the
+            // session may do.
+            if (session.getTenantId() != null && !allowedWhileEnrolling(request)
+                    && Boolean.TRUE.equals(RequestContext.runAs(session.getTenantId(),
+                            () -> mfa.isMfaRequired(session.getTenantId())))) {
+                return;
+            }
         }
         RequestContext.setTenantId(session.getTenantId());
         RequestContext.setUserId(session.getUserId());

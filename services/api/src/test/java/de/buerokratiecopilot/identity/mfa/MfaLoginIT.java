@@ -118,4 +118,44 @@ class MfaLoginIT {
         }
         return out.toByteArray();
     }
+
+    @Test
+    @DisplayName("an account that requires a second factor lets a person without one only enrol it")
+    void requiredFactorForcesEnrolment() throws Exception {
+        String email = "req-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de";
+        var registration = mvc.perform(post("/api/v1/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"%s\",\"password\":\"%s\",\"displayName\":\"Req Test\",\"accountType\":\"COMPANY\"}"
+                                .formatted(email, PASSWORD)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        UUID userId = UUID.fromString(JsonPath.read(registration, "$.userId"));
+        UUID tenantId = UUID.fromString(JsonPath.read(registration, "$.tenantId"));
+        RequestContext.runAs(tenantId, () -> {
+            User user = users.findById(userId).orElseThrow();
+            user.markEmailVerified(Instant.now());
+            user.setStatus(User.Status.ACTIVE);
+            return users.save(user);
+        });
+
+        Cookie owner = login(email);
+        mvc.perform(post("/api/v1/mfa/requirement").with(csrf()).cookie(owner).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"required\":true}"))
+                .andExpect(status().isOk());
+
+        Cookie fresh = login(email);
+        mvc.perform(get("/api/v1/dashboard/summary").cookie(fresh)).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/auth/me").cookie(fresh)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.mfaEnrolmentRequired").value(true));
+
+        String enrol = mvc.perform(post("/api/v1/mfa/enrol").with(csrf()).cookie(fresh)
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String methodId = JsonPath.read(enrol, "$.methodId");
+        String code = Totp.code(base32(JsonPath.read(enrol, "$.secret")), Totp.stepAt(Instant.now().getEpochSecond()));
+        mvc.perform(post("/api/v1/mfa/methods/" + methodId + "/confirm").with(csrf()).cookie(fresh)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"code\":\"" + code + "\"}"))
+                .andExpect(status().isOk());
+
+        // The session that enrolled the factor is fully signed in from then on.
+        mvc.perform(get("/api/v1/dashboard/summary").cookie(fresh)).andExpect(status().isOk());
+    }
 }

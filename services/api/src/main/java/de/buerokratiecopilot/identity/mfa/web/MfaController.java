@@ -51,9 +51,11 @@ public class MfaController {
     private static final String AUTHENTICATED = "isAuthenticated()";
 
     private final MfaService mfa;
+    private final de.buerokratiecopilot.identity.auth.SessionService sessions;
 
-    public MfaController(MfaService mfa) {
+    public MfaController(MfaService mfa, de.buerokratiecopilot.identity.auth.SessionService sessions) {
         this.mfa = mfa;
+        this.sessions = sessions;
     }
 
     /** What a caller sends to confirm or to disable. */
@@ -119,7 +121,16 @@ public class MfaController {
         if (body == null || body.code() == null || body.code().isBlank()) {
             throw new ApiException(ErrorCode.INVALID_REQUEST, "Ein Bestätigungscode ist erforderlich");
         }
-        return mfa.confirm(tenantId, userId, methodId, body.code()).asMap();
+        var confirmation = mfa.confirm(tenantId, userId, methodId, body.code());
+        // The person just proved the code of the new factor: the session that enrolled it is fully signed in,
+        // instead of asking for the same code a second time.
+        if (org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication()
+                != null && org.springframework.security.core.context.SecurityContextHolder.getContext()
+                .getAuthentication().getDetails()
+                instanceof de.buerokratiecopilot.identity.security.SessionAuthenticationFilter.SessionDetails details) {
+            sessions.markMfaVerified(details.sessionId());
+        }
+        return confirmation.asMap();
     }
 
     /**

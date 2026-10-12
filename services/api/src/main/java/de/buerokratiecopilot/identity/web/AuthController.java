@@ -94,7 +94,8 @@ public class AuthController {
 
     public record MeResponse(UUID userId, UUID tenantId, List<String> permissions, String email,
                              String displayName, String locale, String timeZone, String workspaceName,
-                             String accountType, List<String> roles, boolean onboardingCompleted) {
+                             String accountType, List<String> roles, boolean onboardingCompleted,
+                             boolean mfaEnrolmentRequired) {
     }
 
     public record PasswordResetRequest(@NotBlank @Email String email) {
@@ -200,7 +201,8 @@ public class AuthController {
         AuthService.SessionProfile profile = authService.describeSession(userId, tenantId);
         return ResponseEntity.ok(new MeResponse(userId, tenantId, permissions, profile.email(),
                 profile.displayName(), profile.locale(), profile.timeZone(), profile.workspaceName(),
-                profile.accountType(), profile.roles(), accountSetup.isCompleted(userId)));
+                profile.accountType(), profile.roles(), accountSetup.isCompleted(userId),
+                enrolmentRequired(authentication, userId, tenantId)));
     }
 
     public record OnboardingRequest(String workspaceName, String workspaceType, List<String> sources,
@@ -221,6 +223,15 @@ public class AuthController {
                 new de.buerokratiecopilot.identity.auth.AccountSetupService.Setup(request.workspaceName(),
                         request.workspaceType(), request.sources(), request.notifications()));
         return ResponseEntity.noContent().build();
+    }
+
+    /** True while the account requires a second factor and this session has none (and so may only enrol one). */
+    private boolean enrolmentRequired(Authentication authentication, UUID userId, UUID tenantId) {
+        return authentication.getDetails()
+                instanceof de.buerokratiecopilot.identity.security.SessionAuthenticationFilter.SessionDetails details
+                && !details.mfaVerified() && tenantId != null && !mfa.hasActiveFactor(userId)
+                && Boolean.TRUE.equals(de.buerokratiecopilot.shared.context.RequestContext.runAs(tenantId,
+                        () -> mfa.isMfaRequired(tenantId)));
     }
 
     @PostMapping("/password-reset")

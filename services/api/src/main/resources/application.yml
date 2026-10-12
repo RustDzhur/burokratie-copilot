@@ -108,6 +108,8 @@ burokratie:
   security:
     # Public base URL used in e-mails and links.
     public-base-url: ${BC_PUBLIC_BASE_URL:http://localhost:3000}
+    # false closes POST /auth/register for everybody (set after the owner has registered).
+    registration-open: ${BC_REGISTRATION_OPEN:true}
     session:
       cookie-name: bc_session
       # 12 hours idle timeout, 30 days absolute lifetime.

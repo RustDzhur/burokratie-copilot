@@ -148,6 +148,7 @@ interface MeResponse {
   readonly accountType: string | null;
   readonly roles: readonly string[];
   readonly onboardingCompleted?: boolean;
+  readonly mfaEnrolmentRequired?: boolean;
 }
 
 const ROLE_FROM_BACKEND: Readonly<Record<string, MemberRole>> = {
@@ -187,6 +188,7 @@ export function sessionUserFromMe(me: MeResponse): SessionUser {
     workspaceName: me.workspaceName ?? '',
     workspaceType: workspaceTypeFromBackend(me.accountType),
     onboardingCompleted: me.onboardingCompleted ?? true,
+    mfaEnrolmentRequired: me.mfaEnrolmentRequired ?? false,
   };
 }
 

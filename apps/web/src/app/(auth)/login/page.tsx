@@ -48,7 +48,13 @@ function LoginForm() {
       const user = outcome;
       toast.success(t('login.title'), tCommon('app.name'));
       // A person who has not been through the first-run wizard goes there before anything else.
-      router.push(user.onboardingCompleted === false ? '/onboarding' : (next ?? '/dashboard'));
+      router.push(
+        user.mfaEnrolmentRequired
+          ? '/security'
+          : user.onboardingCompleted === false
+            ? '/onboarding'
+            : (next ?? '/dashboard'),
+      );
     } catch (caught) {
       setError(toApiError(caught));
     } finally {

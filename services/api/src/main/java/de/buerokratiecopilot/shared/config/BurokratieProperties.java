@@ -61,6 +61,11 @@ public class BurokratieProperties {
     public static class Security {
 
         private String publicBaseUrl = "http://localhost:3000";
+        /**
+         * Whether anybody may open an account. A public installation closes it once the owner has registered:
+         * the endpoint is reachable from the internet and each registration creates a tenant.
+         */
+        private boolean registrationOpen = true;
         private final Session session = new Session();
         private final Password password = new Password();
         private final Login login = new Login();
@@ -70,6 +75,14 @@ public class BurokratieProperties {
 
         public String getPublicBaseUrl() {
             return publicBaseUrl;
+        }
+
+        public boolean isRegistrationOpen() {
+            return registrationOpen;
+        }
+
+        public void setRegistrationOpen(boolean registrationOpen) {
+            this.registrationOpen = registrationOpen;
         }
 
         public void setPublicBaseUrl(String publicBaseUrl) {

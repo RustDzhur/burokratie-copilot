@@ -118,6 +118,10 @@ public class AuthService {
 
     @Transactional
     public RegistrationResult register(RegisterCommand command, String ipAddress, String userAgent) {
+        if (!properties.getSecurity().isRegistrationOpen()) {
+            // Said plainly rather than as a generic refusal: a person who tries to register should know why.
+            throw new ApiException(ErrorCode.FORBIDDEN, "Registration is closed on this installation");
+        }
         String email = normalizeEmail(command.email());
         String displayName = command.displayName() == null || command.displayName().isBlank()
                 ? email
@@ -292,15 +296,24 @@ public class AuthService {
         UUID tenantId = membership.getTenantId();
         UUID membershipId = membership.getId();
 
+        // A person with a second factor gets a session that is not yet usable: the filter lets it reach
+        // only the code check and sign-out until the code has been proven.
+        boolean secondFactor = mfa.hasActiveFactor(userId);
+        // An account that requires a second factor does not let a person without one in either: that
+        // session may only enrol one (see SessionAuthenticationFilter).
+        // Read before the transaction opens and inside the tenant: the setting is a tenant row, row level security
+        // hides it from a request that has no tenant yet (sign-in), and a connection that is already open keeps the
+        // tenant it was borrowed with.
+        boolean enrolmentRequired = !secondFactor
+                && Boolean.TRUE.equals(de.buerokratiecopilot.shared.context.RequestContext.runAs(tenantId,
+                    () -> mfa.isMfaRequired(tenantId)));
         return inNewTransaction(() -> {
             User current = users.findById(userId).orElseThrow();
             current.registerSuccessfulLogin(Instant.now());
             users.save(current);
 
-            // A person with a second factor gets a session that is not yet usable: the filter lets it reach
-            // only the code check and sign-out until the code has been proven.
-            boolean secondFactor = mfa.hasActiveFactor(current.getId());
-            SessionService.IssuedSession issued = sessionService.issue(current, tenantId, !secondFactor,
+            SessionService.IssuedSession issued = sessionService.issue(current, tenantId,
+                    !secondFactor && !enrolmentRequired,
                     ipAddress, userAgent);
 
             auditService.record(AuditService.AuditEntry
