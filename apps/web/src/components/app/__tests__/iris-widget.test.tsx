@@ -13,8 +13,12 @@ vi.mock('next/navigation', () => ({
 function answerWith(body: unknown): void {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () =>
-      new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    vi.fn(
+      async () =>
+        new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
     ),
   );
 }
@@ -46,7 +50,10 @@ describe('IrisWidget', () => {
     });
     renderWithProviders(<IrisWidget />);
     await userEvent.click(screen.getByRole('button', { name: 'Iris öffnen' }));
-    await userEvent.type(screen.getByLabelText('Frage an Iris …'), 'Wie verbinde ich mein Postfach?');
+    await userEvent.type(
+      screen.getByLabelText('Frage an Iris …'),
+      'Wie verbinde ich mein Postfach?',
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Senden' }));
 
     expect(await screen.findByText(/Postfach verbinden/)).toBeInTheDocument();

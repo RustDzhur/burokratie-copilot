@@ -10,7 +10,7 @@
   border: 0;
   border-radius: 999px;
   background: var(--color-accent, #2f5bea);
-  color: var(--color-on-accent, #fff);
+  color: var(--color-text-on-accent);
   font: inherit;
   font-weight: var(--font-weight-semibold);
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.25);
@@ -18,7 +18,7 @@
 }
 
 .fab:focus-visible {
-  outline: 3px solid var(--color-focus, #ffbf47);
+  outline: 3px solid var(--color-focus-ring);
   outline-offset: 2px;
 }
 
@@ -82,13 +82,13 @@
 
 .assistant {
   align-self: flex-start;
-  background: var(--color-surface-muted, #eef1f6);
+  background: var(--color-surface-inset);
 }
 
 .user {
   align-self: flex-end;
   background: var(--color-accent, #2f5bea);
-  color: var(--color-on-accent, #fff);
+  color: var(--color-text-on-accent);
 }
 
 .open {
