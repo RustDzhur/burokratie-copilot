@@ -902,6 +902,12 @@ export const enScreens: ScreenMessages = {
     'column.receivedAt': 'Received',
     'status.unread': 'Unread',
     'status.read': 'Read',
+    'action.markRead': 'Mark as read',
+    explain:
+      'Click the title to open a message; opening it marks it as read. Bold = not read yet. "Channels" shows where you received it: in the application, by e-mail or as a push message.',
+    'detail.noBody': 'This message has no further text.',
+    'detail.channels': 'Delivered through',
+    'detail.open': 'Go to the item concerned',
     'frequency.label': 'Frequency',
     'frequency.immediate': 'Immediately',
     'frequency.digest': 'Digest',

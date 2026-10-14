@@ -102,8 +102,30 @@
   gap: 2px;
 }
 
+.dayNumberButton {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.dayNumberButton:focus-visible,
+.eventChip:focus-visible,
+.moreEvents:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
 .eventChip {
   display: block;
+  width: 100%;
+  border: 0;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
   padding: 1px var(--space-2);
   border-radius: var(--radius-xs);
   background-color: var(--color-accent-subtle);
@@ -115,8 +137,18 @@
 }
 
 .moreEvents {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
   font-size: var(--font-size-2xs);
   color: var(--color-text-subtle);
+}
+
+.eventChip:hover {
+  filter: brightness(0.95);
 }
 
 .listTable {

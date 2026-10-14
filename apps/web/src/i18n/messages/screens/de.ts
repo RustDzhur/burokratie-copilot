@@ -912,6 +912,12 @@ export const deScreens = {
     'column.receivedAt': 'Erhalten',
     'status.unread': 'Ungelesen',
     'status.read': 'Gelesen',
+    'action.markRead': 'Als gelesen markieren',
+    explain:
+      'Klicken Sie auf den Titel, um die Meldung zu öffnen; sie gilt dann als gelesen. Fett gedruckt = noch nicht gelesen. „Kanäle“ zeigt, wo Sie die Meldung erhalten haben: in der Anwendung, per E-Mail oder als Push-Nachricht.',
+    'detail.noBody': 'Zu dieser Meldung gibt es keinen weiteren Text.',
+    'detail.channels': 'Zugestellt über',
+    'detail.open': 'Zum betroffenen Eintrag',
     'frequency.label': 'Frequenz',
     'frequency.immediate': 'Sofort',
     'frequency.digest': 'Sammelnachricht',

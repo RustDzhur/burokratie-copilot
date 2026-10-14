@@ -201,8 +201,7 @@ export default function CalendarPage() {
                             const outside = day.getMonth() !== month.getMonth();
                             return (
                               <td key={iso} className={outside ? styles.dayOutside : undefined}>
-                                <button
-                                  type="button"
+                                <div
                                   className={[
                                     styles.dayCell,
                                     iso === selectedDate ? styles.daySelected : '',
@@ -210,23 +209,38 @@ export default function CalendarPage() {
                                   ]
                                     .filter(Boolean)
                                     .join(' ')}
-                                  onClick={() => setSelectedDate(iso)}
-                                  aria-pressed={iso === selectedDate}
                                 >
-                                  <span className={styles.dayNumber}>{day.getDate()}</span>
+                                  <button
+                                    type="button"
+                                    className={styles.dayNumberButton}
+                                    onClick={() => setSelectedDate(iso)}
+                                    aria-pressed={iso === selectedDate}
+                                  >
+                                    <span className={styles.dayNumber}>{day.getDate()}</span>
+                                  </button>
                                   <span className={styles.dayEvents}>
                                     {dayEvents.slice(0, 3).map((event) => (
-                                      <span key={event.id} className={styles.eventChip}>
+                                      <button
+                                        type="button"
+                                        key={event.id}
+                                        className={styles.eventChip}
+                                        title={event.title}
+                                        onClick={() => setOpenEvent(event)}
+                                      >
                                         {event.title}
-                                      </span>
+                                      </button>
                                     ))}
                                     {dayEvents.length > 3 ? (
-                                      <span className={styles.moreEvents}>
+                                      <button
+                                        type="button"
+                                        className={styles.moreEvents}
+                                        onClick={() => setSelectedDate(iso)}
+                                      >
                                         {t('moreEvents', { count: dayEvents.length - 3 })}
-                                      </span>
+                                      </button>
                                     ) : null}
                                   </span>
-                                </button>
+                                </div>
                               </td>
                             );
                           })}

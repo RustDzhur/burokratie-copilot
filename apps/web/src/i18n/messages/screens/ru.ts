@@ -903,6 +903,12 @@ export const ruScreens: ScreenMessages = {
     'column.receivedAt': 'Получено',
     'status.unread': 'Не прочитано',
     'status.read': 'Прочитано',
+    'action.markRead': 'Отметить как прочитанное',
+    explain:
+      'Нажмите на заголовок, чтобы открыть сообщение: оно сразу считается прочитанным. Жирный шрифт = ещё не прочитано. «Каналы» показывают, где вы получили сообщение: в приложении, по e-mail или push-уведомлением.',
+    'detail.noBody': 'У этого сообщения нет дополнительного текста.',
+    'detail.channels': 'Доставлено через',
+    'detail.open': 'Перейти к соответствующей записи',
     'frequency.label': 'Частота',
     'frequency.immediate': 'Сразу',
     'frequency.digest': 'Сводка',

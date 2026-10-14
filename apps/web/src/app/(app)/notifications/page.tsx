@@ -1,11 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { ListPage } from '@/components/app/list-page';
 import { Badge, StatusPill } from '@/components/ui';
 import type { Column } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { InlineAlert } from '@/components/ui/feedback';
+import { Dialog } from '@/components/ui/overlay';
 import { useToast } from '@/components/ui/toast';
 import { formatDateTime } from '@/i18n/format';
 import { useLocale, useTranslations } from '@/i18n/provider';
@@ -35,6 +37,7 @@ export default function NotificationsPage() {
   const [reloadToken, setReloadToken] = useState(0);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [opened, setOpened] = useState<NotificationSummary | null>(null);
 
   const channelLabel = (channel: 'in_app' | 'email' | 'push'): string =>
     t(`channel.${channel === 'in_app' ? 'inApp' : channel}` as 'channel.inApp');
@@ -51,12 +54,34 @@ export default function NotificationsPage() {
     }
   };
 
+  // Opening a message is reading it: it is marked as read at once, so "unread" always means "not yet looked at".
+  const open = (row: NotificationSummary): void => {
+    setOpened(row);
+    if (!row.read) {
+      void api.notifications
+        .markRead(row.id)
+        .then(() => setReloadToken((value) => value + 1))
+        .catch(() => undefined);
+    }
+  };
+
   const columns: readonly Column<NotificationSummary>[] = [
     {
       key: 'title',
       header: t('column.title'),
       render: (row) => (
-        <span style={{ fontWeight: row.read ? 400 : 600 }}>{row.title}</span>
+        <button
+          type="button"
+          onClick={() => open(row)}
+          style={{
+            all: 'unset',
+            cursor: 'pointer',
+            textDecoration: 'underline',
+            fontWeight: row.read ? 400 : 600,
+          }}
+        >
+          {row.title}
+        </button>
       ),
     },
     {
@@ -129,7 +154,12 @@ export default function NotificationsPage() {
             </Button>
           </>
         }
-        notice={<InlineAlert tone="info">{t('privacy.notice')}</InlineAlert>}
+        notice={
+          <>
+            <InlineAlert tone="info">{t('explain')}</InlineAlert>
+            <InlineAlert tone="info">{t('privacy.notice')}</InlineAlert>
+          </>
+        }
         rowActions={(row) =>
           row.read ? null : (
             <Button
@@ -138,11 +168,40 @@ export default function NotificationsPage() {
               disabled={busy}
               onClick={() => void run(() => api.notifications.markRead(row.id))}
             >
-              {t('status.read')}
+              {t('action.markRead')}
             </Button>
           )
         }
       />
+      <Dialog
+        open={opened !== null}
+        onClose={() => setOpened(null)}
+        title={opened?.title ?? ''}
+        description={
+          opened
+            ? `${t(`category.${opened.category}` as 'category.task')} · ${formatDateTime(opened.receivedAt, locale)}`
+            : undefined
+        }
+      >
+        {opened ? (
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <p style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+              {opened.body ?? t('detail.noBody')}
+            </p>
+            <p style={{ margin: 0, fontSize: '0.875rem' }}>
+              {t('detail.channels')}:{' '}
+              {opened.channels.length === 0
+                ? tCommon('labels.none')
+                : opened.channels.map((channel) => channelLabel(channel)).join(', ')}
+            </p>
+            {opened.link ? (
+              <p style={{ margin: 0 }}>
+                <Link href={opened.link}>{t('detail.open')}</Link>
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </Dialog>
       <NotificationPreferencesDialog
         open={preferencesOpen}
         onClose={() => setPreferencesOpen(false)}
