@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { DataTable, EmptyState, Pagination, SearchInput, Select } from '@/components/ui';
 import type { Column } from '@/components/ui';
@@ -44,7 +44,17 @@ export interface ListPageProps<T> {
   readonly createTitle?: string;
   /** Renders extra content above the table (e.g. notices). */
   readonly notice?: ReactNode;
-  readonly rowActions?: (row: T) => ReactNode;
+  readonly rowActions?: (row: T, context: { readonly reload: () => void }) => ReactNode;
+  /** Adds checkboxes; the actions appear above the table while something is selected. */
+  readonly selectable?: {
+    readonly allLabel: string;
+    readonly rowLabel: (row: T) => string;
+    readonly actions: (context: {
+      readonly ids: readonly string[];
+      readonly clear: () => void;
+      readonly reload: () => void;
+    }) => ReactNode;
+  };
 }
 
 /**
@@ -75,6 +85,7 @@ export function ListPage<T>({
   createTitle,
   notice,
   rowActions,
+  selectable,
 }: ListPageProps<T>) {
   const screen = getScreen(screenId);
   const tNav = useTranslations('nav');
@@ -118,6 +129,12 @@ export function ListPage<T>({
     [params],
     { keepPreviousData: true },
   );
+
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  // What is on screen changes with the page, the search and the filters: a selection must not reach rows nobody sees.
+  useEffect(() => {
+    setSelected(new Set());
+  }, [params]);
 
   const title = tNav(screen.titleKey);
   const canCreate = Boolean(createFields && onCreate);
@@ -216,6 +233,15 @@ export function ListPage<T>({
       >
         {(data) => (
           <>
+            {selectable && selected.size > 0 ? (
+              <div style={{ marginBottom: '0.75rem' }}>
+                {selectable.actions({
+                  ids: [...selected],
+                  clear: () => setSelected(new Set()),
+                  reload,
+                })}
+              </div>
+            ) : null}
             <DataTable
               caption={caption ?? title}
               columns={columns}
@@ -230,7 +256,32 @@ export function ListPage<T>({
                     }
                   : undefined
               }
-              rowActions={rowActions}
+              rowActions={rowActions ? (row) => rowActions(row, { reload }) : undefined}
+              selection={
+                selectable
+                  ? {
+                      selected,
+                      allLabel: selectable.allLabel,
+                      rowLabel: selectable.rowLabel,
+                      onToggle: (key) =>
+                        setSelected((current) => {
+                          const next = new Set(current);
+                          if (next.has(key)) next.delete(key);
+                          else next.add(key);
+                          return next;
+                        }),
+                      onToggleAll: (keys, checked) =>
+                        setSelected((current) => {
+                          const next = new Set(current);
+                          for (const key of keys) {
+                            if (checked) next.add(key);
+                            else next.delete(key);
+                          }
+                          return next;
+                        }),
+                    }
+                  : undefined
+              }
             />
             <Pagination
               page={data.page}

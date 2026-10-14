@@ -294,6 +294,7 @@ export interface ApiResources {
     upload: (file: File, options?: UploadOptions) => Promise<DocumentSummary>;
     reprocess: (id: string) => Promise<void>;
     remove: (id: string) => Promise<void>;
+    removeMany: (ids: readonly string[]) => Promise<{ deleted: number; refused: string[] }>;
     pipeline: (id: string, signal?: AbortSignal) => Promise<ProcessingFlow>;
     categoryCounts: (signal?: AbortSignal) => Promise<Readonly<Record<string, number>>>;
     createTask: (id: string) => Promise<void>;
@@ -747,6 +748,12 @@ export function createResources(client: ApiClient): ApiResources {
       },
       upload: async (file, options) =>
         documentFromWire((await client.upload<UploadWire>('/documents', file, options)).document),
+      removeMany: (ids) =>
+        client.post<{ deleted: number; refused: string[] }>(
+          '/documents/bulk-delete',
+          { ids },
+          { idempotencyKey: true },
+        ),
       remove: async (id) => {
         await client.delete<unknown>(`/documents/${id}`, { idempotencyKey: true });
       },

@@ -239,6 +239,14 @@ export interface DataTableProps<T> {
   /** Rendered inside the table when there is no data (never a blank table). */
   readonly emptyState?: ReactNode;
   readonly rowActions?: (row: T) => ReactNode;
+  /** Adds a checkbox column; the table only reports clicks, the owner keeps the selection. */
+  readonly selection?: {
+    readonly selected: ReadonlySet<string>;
+    readonly onToggle: (key: string) => void;
+    readonly onToggleAll: (keys: readonly string[], checked: boolean) => void;
+    readonly rowLabel: (row: T) => string;
+    readonly allLabel: string;
+  };
   readonly dense?: boolean;
   readonly className?: string;
 }
@@ -254,6 +262,7 @@ export function DataTable<T>({
   skeletonRows = 6,
   emptyState,
   rowActions,
+  selection,
   dense = false,
   className,
 }: DataTableProps<T>) {
@@ -273,6 +282,16 @@ export function DataTable<T>({
         <caption className={styles.visuallyHidden}>{caption}</caption>
         <thead>
           <tr>
+            {selection ? (
+              <th scope="col" className={styles.th} style={{ width: '2.5rem' }}>
+                <input
+                  type="checkbox"
+                  aria-label={selection.allLabel}
+                  checked={rows.length > 0 && rows.every((row) => selection.selected.has(rowKey(row)))}
+                  onChange={(event) => selection.onToggleAll(rows.map(rowKey), event.target.checked)}
+                />
+              </th>
+            ) : null}
             {columns.map((column) => {
               const isSorted = sort?.key === column.key;
               const ariaSort = isSorted
@@ -328,14 +347,14 @@ export function DataTable<T>({
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan={columns.length + (rowActions ? 1 : 0)} className={styles.stateCell}>
+              <td colSpan={columns.length + (rowActions ? 1 : 0) + (selection ? 1 : 0)} className={styles.stateCell}>
                 <SkeletonTable rows={skeletonRows} columns={columns.length} />
               </td>
             </tr>
           ) : null}
           {showEmpty ? (
             <tr>
-              <td colSpan={columns.length + (rowActions ? 1 : 0)} className={styles.stateCell}>
+              <td colSpan={columns.length + (rowActions ? 1 : 0) + (selection ? 1 : 0)} className={styles.stateCell}>
                 {emptyState}
               </td>
             </tr>
@@ -343,6 +362,16 @@ export function DataTable<T>({
           {!loading
             ? rows.map((row) => (
                 <tr key={rowKey(row)} className={styles.tr}>
+                  {selection ? (
+                    <td className={styles.td}>
+                      <input
+                        type="checkbox"
+                        aria-label={selection.rowLabel(row)}
+                        checked={selection.selected.has(rowKey(row))}
+                        onChange={() => selection.onToggle(rowKey(row))}
+                      />
+                    </td>
+                  ) : null}
                   {columns.map((column) => {
                     const content = column.render(row);
                     return (

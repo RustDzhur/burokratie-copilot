@@ -197,6 +197,31 @@ class DocumentUploadIT {
     }
 
     @Test
+    @DisplayName("several documents are deleted at once; one that is not found is reported as refused, not fatal")
+    void bulkDelete() throws Exception {
+        Session session = signIn("bulk");
+        String a = JsonPath.read(upload(session, "a.pdf", invoicePdf("bulk-a"), 201)
+                .getResponse().getContentAsString(), "$.document.id");
+        String b = JsonPath.read(upload(session, "b.pdf", invoicePdf("bulk-b"), 201)
+                .getResponse().getContentAsString(), "$.document.id");
+        String missing = UUID.randomUUID().toString();
+
+        MvcResult result = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/v1/documents/bulk-delete")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .cookie(session.cookie())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[\"" + a + "\",\"" + b + "\",\"" + missing + "\"]}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        String body = result.getResponse().getContentAsString();
+        assertThat(JsonPath.<Integer>read(body, "$.deleted")).isEqualTo(2);
+        assertThat(JsonPath.<java.util.List<String>>read(body, "$.refused")).containsExactly(missing);
+        mockMvc.perform(get("/api/v1/documents/{id}", a).cookie(session.cookie())).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/documents/{id}", b).cookie(session.cookie())).andExpect(status().isNotFound());
+    }
+
+    @Test
     @DisplayName("a document of another tenant does not exist from this session's point of view")
     void crossTenantAccessIsRefused() throws Exception {
         Session tenantA = signIn("tenant-a");

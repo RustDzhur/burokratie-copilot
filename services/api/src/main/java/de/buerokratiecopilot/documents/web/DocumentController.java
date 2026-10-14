@@ -219,6 +219,37 @@ public class DocumentController {
         return ResponseEntity.noContent().build();
     }
 
+    public record BulkDeleteRequest(java.util.List<UUID> ids) {
+    }
+
+    public record BulkDeleteResponse(int deleted, java.util.List<UUID> refused) {
+    }
+
+    /** Deletes many documents at once; one that cannot be deleted (legal hold, not found) is reported, not fatal. */
+    @PostMapping("/bulk-delete")
+    @PreAuthorize("hasAuthority('documents.delete')")
+    @Operation(summary = "Delete several documents; the ones that cannot be deleted are listed as refused")
+    public BulkDeleteResponse bulkDelete(@org.springframework.web.bind.annotation.RequestBody BulkDeleteRequest request) {
+        java.util.List<UUID> ids = request.ids() == null ? java.util.List.of()
+                : request.ids().stream().distinct().toList();
+        if (ids.isEmpty() || ids.size() > 200) {
+            throw new de.buerokratiecopilot.shared.error.ApiException(
+                    de.buerokratiecopilot.shared.error.ErrorCode.INVALID_REQUEST, "Between 1 and 200 documents");
+        }
+        int deleted = 0;
+        java.util.List<UUID> refused = new java.util.ArrayList<>();
+        for (UUID id : ids) {
+            try {
+                documentService.delete(id, "bulk");
+                deleted++;
+            }
+            catch (de.buerokratiecopilot.shared.error.ApiException ex) {
+                refused.add(id);
+            }
+        }
+        return new BulkDeleteResponse(deleted, refused);
+    }
+
     @PostMapping("/{id}/reprocess")
     @PreAuthorize("hasAuthority('documents.review')")
     @Operation(summary = "Retry the failed processing stages of a document and let it continue")

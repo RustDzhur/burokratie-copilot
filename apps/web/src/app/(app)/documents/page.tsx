@@ -4,6 +4,9 @@ import { useState } from 'react';
 import { ExportButton } from '@/components/app/export-button';
 import { ListPage } from '@/components/app/list-page';
 import { StatusPill } from '@/components/ui';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
+import { toApiError } from '@/lib/api/errors';
 import type { Column } from '@/components/ui';
 import { formatDate } from '@/i18n/format';
 import { useLocale, useTranslations } from '@/i18n/provider';
@@ -41,11 +44,32 @@ export default function DocumentsPage() {
   const locale = useLocale();
   const statusLabel = useStatusLabels('documents');
   const [category, setCategory] = useState<(typeof CATEGORY_TABS)[number]>('ALL');
-  const { state: counts } = useApiResource((signal) => api.documents.categoryCounts(signal), []);
+  const toast = useToast();
+  const tErrors = useTranslations('errors');
+  const { state: counts, reload: reloadCounts } = useApiResource((signal) => api.documents.categoryCounts(signal), []);
   const countOf = (tab: string): number | null => {
     if (counts.status !== 'ready') return null;
     if (tab === 'ALL') return Object.values(counts.data).reduce((sum, value) => sum + value, 0);
     return counts.data[tab] ?? 0;
+  };
+
+  const deleteMany = async (ids: readonly string[]): Promise<boolean> => {
+    if (!window.confirm(ids.length === 1 ? t('row.confirm') : t('bulk.confirm', { count: ids.length }))) {
+      return false;
+    }
+    try {
+      const result = await api.documents.removeMany(ids);
+      if (result.refused.length === 0) {
+        toast.success(ids.length === 1 ? t('row.done') : t('bulk.done', { count: result.deleted }));
+      } else {
+        toast.warning(t('bulk.partial', { count: result.deleted, refused: result.refused.length }));
+      }
+      reloadCounts();
+      return true;
+    } catch (error) {
+      toast.error(tErrors(toApiError(error).kind));
+      return false;
+    }
   };
 
   const columns: readonly Column<DocumentSummary>[] = [
@@ -126,6 +150,42 @@ export default function DocumentsPage() {
             options: STATUS_VALUES.map((value) => ({ value, label: statusLabel(value) })),
           },
         ]}
+        selectable={{
+          allLabel: t('bulk.selectAll'),
+          rowLabel: (row) => t('bulk.selectRow', { name: row.title }),
+          actions: ({ ids, clear, reload }) => (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <span>{t('bulk.count', { count: ids.length })}</span>
+              <Button
+                variant="danger"
+                iconLeft="trash"
+                onClick={() =>
+                  void deleteMany(ids).then((done) => {
+                    if (done) {
+                      clear();
+                      reload();
+                    }
+                  })
+                }
+              >
+                {t('bulk.delete')}
+              </Button>
+              <Button variant="ghost" onClick={clear}>
+                {t('bulk.clear')}
+              </Button>
+            </div>
+          ),
+        }}
+        rowActions={(row, { reload }) => (
+          <Button
+            variant="ghost"
+            iconLeft="trash"
+            aria-label={`${t('row.delete')}: ${row.title}`}
+            onClick={() => void deleteMany([row.id]).then((done) => done && reload())}
+          >
+            {t('row.delete')}
+          </Button>
+        )}
         headerActions={
           <ExportButton
             label={t('action.export')}
