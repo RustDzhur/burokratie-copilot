@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import de.buerokratiecopilot.memory.FactService;
 import de.buerokratiecopilot.memory.RelationshipService;
 import de.buerokratiecopilot.shared.context.CurrentUser;
 import de.buerokratiecopilot.shared.context.RequestContext;
@@ -22,9 +23,14 @@ import de.buerokratiecopilot.shared.context.RequestContext;
 public class MemoryController {
 
     private final RelationshipService relationships;
+    private final FactService facts;
 
-    public MemoryController(RelationshipService relationships) {
+    public MemoryController(RelationshipService relationships, FactService facts) {
         this.relationships = relationships;
+        this.facts = facts;
+    }
+
+    public record SubjectRequest(String type, UUID id) {
     }
 
     private static UUID tenant() {
@@ -65,5 +71,29 @@ public class MemoryController {
     @PreAuthorize("hasAuthority('memory.reject')")
     public Map<String, Object> reject(@PathVariable UUID id) {
         return relationships.reject(tenant(), id, CurrentUser.required());
+    }
+
+    @GetMapping("/documents/{id}/facts")
+    @PreAuthorize("hasAuthority('memory.view')")
+    public List<Map<String, Object>> factsOfDocument(@PathVariable UUID id) {
+        return facts.factsOfDocument(tenant(), id);
+    }
+
+    @GetMapping("/facts/{id}/revisions")
+    @PreAuthorize("hasAuthority('memory.view')")
+    public List<Map<String, Object>> revisions(@PathVariable UUID id) {
+        return facts.revisions(tenant(), id);
+    }
+
+    @GetMapping("/entities/{type}/{id}/facts")
+    @PreAuthorize("hasAuthority('memory.view')")
+    public List<Map<String, Object>> factsOfSubject(@PathVariable String type, @PathVariable UUID id) {
+        return facts.factsOfSubject(tenant(), type.toUpperCase(java.util.Locale.ROOT), id);
+    }
+
+    @PostMapping("/facts/{id}/subject")
+    @PreAuthorize("hasAuthority('memory.confirm')")
+    public Map<String, Object> assignSubject(@PathVariable UUID id, @org.springframework.web.bind.annotation.RequestBody SubjectRequest request) {
+        return facts.assignSubject(tenant(), id, request.type() == null ? null : request.type().toUpperCase(java.util.Locale.ROOT), request.id());
     }
 }
