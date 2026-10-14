@@ -103,6 +103,32 @@ class ImapIngestionIT {
     }
 
     @Test
+    @DisplayName("two collections of the same mailbox at once store the message once and neither fails")
+    void simultaneousCollectionsDoNotCollide() throws Exception {
+        UUID tenantId = tenant();
+        UUID accountId = mailbox(tenantId);
+        GreenMailUtil.sendTextEmailTest(USER, "absender@example.de", "Gleichzeitig", "Guten Tag");
+
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(4);
+        try {
+            java.util.List<java.util.concurrent.Future<ImapMailIngester.SyncResult>> runs = new java.util.ArrayList<>();
+            for (int i = 0; i < 4; i++) {
+                runs.add(pool.submit(() -> de.buerokratiecopilot.shared.context.RequestContext.runAs(tenantId,
+                        () -> ingester.ingest(tenantId, accountId, 10))));
+            }
+            for (var run : runs) {
+                run.get(); // none of them throws
+            }
+        }
+        finally {
+            pool.shutdownNow();
+        }
+
+        assertThat(jdbc.queryForObject("select count(*) from mail_messages where tenant_id = ?",
+                Integer.class, tenantId)).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("the message itself is stored with its sender and subject")
     void messageIsStored() {
         UUID tenantId = tenant();

@@ -107,6 +107,15 @@ public class ImapMailIngester {
         if (!accounts.maySync(tenantId, accountId)) {
             throw ApiException.conflict("Dieses Postfach ist nicht verbunden; es wird nichts abgerufen");
         }
+        // One collection per mailbox at a time. The scheduler, the "fetch now" button and a second server can all
+        // start together; without this they all see the same new message, all try to store it, and all but one
+        // fail on the unique key with a raw database error.
+        Boolean mine = jdbc.queryForObject("select pg_try_advisory_xact_lock(hashtextextended(?, 0))",
+                Boolean.class, "mail-collect:" + accountId);
+        if (!Boolean.TRUE.equals(mine)) {
+            log.info("Mailbox {} is already being collected, this run does nothing", accountId);
+            return new SyncResult(0, 0, 0, 0);
+        }
         String password = accounts.passwordOf(tenantId, accountId);
         String username = username(tenantId, accountId);
         String host = host(tenantId, accountId);
@@ -133,6 +142,11 @@ public class ImapMailIngester {
                     continue;
                 }
                 UUID messageId = storeMessage(tenantId, accountId, message, externalId);
+                if (messageId == null) {
+                    // Stored by somebody else between the check and the insert: not an error.
+                    skipped++;
+                    continue;
+                }
                 stored++;
                 documents += storeAttachments(tenantId, messageId, message);
             }
@@ -182,7 +196,7 @@ public class ImapMailIngester {
         String to = firstAddress(message, false);
         boolean hasAttachments = hasAttachments(message);
 
-        return jdbc.queryForObject("""
+        List<UUID> inserted = jdbc.query("""
                 insert into mail_messages (id, tenant_id, mail_account_id, direction, external_id,
                                            subject, from_address, to_addresses, cc_addresses,
                                            bcc_addresses, received_at, body_text, body_html,
@@ -190,9 +204,11 @@ public class ImapMailIngester {
                                            is_suspicious, processing_status)
                 values (gen_random_uuid(), ?, ?, 'INBOUND', ?, ?, ?, ?::jsonb, '[]'::jsonb, '[]'::jsonb,
                         now(), ?, null, ?, ?, 'OTHER', false, 'RECEIVED')
+                on conflict do nothing
                 returning id
-                """, UUID.class, tenantId, accountId, externalId, subject, from, jsonArray(List.of(to)),
-                bodyText(message), hasAttachments, countAttachments(message));
+                """, (rs, row) -> rs.getObject("id", UUID.class), tenantId, accountId, externalId, subject, from,
+                jsonArray(List.of(to)), bodyText(message), hasAttachments, countAttachments(message));
+        return inserted.isEmpty() ? null : inserted.getFirst();
     }
 
     /**
