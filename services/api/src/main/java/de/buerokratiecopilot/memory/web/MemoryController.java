@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import de.buerokratiecopilot.memory.FactService;
 import de.buerokratiecopilot.memory.RelationshipService;
+import de.buerokratiecopilot.memory.TimelineService;
 import de.buerokratiecopilot.shared.context.CurrentUser;
 import de.buerokratiecopilot.shared.context.RequestContext;
 
@@ -24,10 +25,12 @@ public class MemoryController {
 
     private final RelationshipService relationships;
     private final FactService facts;
+    private final TimelineService timeline;
 
-    public MemoryController(RelationshipService relationships, FactService facts) {
+    public MemoryController(RelationshipService relationships, FactService facts, TimelineService timeline) {
         this.relationships = relationships;
         this.facts = facts;
+        this.timeline = timeline;
     }
 
     public record SubjectRequest(String type, UUID id) {
@@ -95,5 +98,26 @@ public class MemoryController {
     @PreAuthorize("hasAuthority('memory.confirm')")
     public Map<String, Object> assignSubject(@PathVariable UUID id, @org.springframework.web.bind.annotation.RequestBody SubjectRequest request) {
         return facts.assignSubject(tenant(), id, request.type() == null ? null : request.type().toUpperCase(java.util.Locale.ROOT), request.id());
+    }
+
+    @GetMapping("/entities/{contactId}/timeline")
+    @PreAuthorize("hasAuthority('memory.view')")
+    public List<Map<String, Object>> contactTimeline(@PathVariable UUID contactId,
+            @RequestParam(required = false) java.time.Instant before, @RequestParam(defaultValue = "50") int limit) {
+        return timeline.timeline(tenant(), CurrentUser.required(), TimelineService.Subject.CONTACT, contactId, before, limit);
+    }
+
+    @GetMapping("/contracts/{id}/timeline")
+    @PreAuthorize("hasAuthority('memory.view')")
+    public List<Map<String, Object>> contractTimeline(@PathVariable UUID id,
+            @RequestParam(required = false) java.time.Instant before, @RequestParam(defaultValue = "50") int limit) {
+        return timeline.timeline(tenant(), CurrentUser.required(), TimelineService.Subject.CONTRACT, id, before, limit);
+    }
+
+    @GetMapping("/cases/{id}/timeline")
+    @PreAuthorize("hasAuthority('memory.view')")
+    public List<Map<String, Object>> caseTimeline(@PathVariable UUID id,
+            @RequestParam(required = false) java.time.Instant before, @RequestParam(defaultValue = "50") int limit) {
+        return timeline.timeline(tenant(), CurrentUser.required(), TimelineService.Subject.CASE, id, before, limit);
     }
 }
