@@ -137,6 +137,7 @@ export const ruCore: CoreMessages = {
     'items.documentViewer': 'Просмотр документа',
     'items.cases': 'Дела и производства',
     'items.tasks': 'Задачи и процессы',
+    'items.radar': 'Радар',
     'items.calendar': 'Календарь и сроки',
     'items.contracts': 'Договоры',
     'items.invoices': 'Счета и расходы',

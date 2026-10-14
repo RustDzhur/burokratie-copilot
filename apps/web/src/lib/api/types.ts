@@ -330,7 +330,7 @@ export interface ArchiveEntry {
 }
 
 export type NotificationCategory =
-  'task' | 'deadline' | 'mail' | 'review' | 'approval' | 'integration' | 'automation' | 'archive';
+  'task' | 'deadline' | 'mail' | 'review' | 'approval' | 'integration' | 'automation' | 'archive' | 'radar';
 
 export interface NotificationSummary {
   readonly id: string;
@@ -630,3 +630,79 @@ export interface CaseDetail {
   }[];
   readonly requiredDocuments: readonly string[];
 }
+
+
+/* -------------------------------------------------------------------------- */
+/* Radar                                                                       */
+/* -------------------------------------------------------------------------- */
+
+export type RadarStatus = 'NEW' | 'UNDER_REVIEW' | 'CONFIRMED' | 'DISMISSED' | 'SNOOZED' | 'RESOLVED' | 'REOPENED';
+export type RadarSeverity = 'INFO' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+/** A signal the platform raised. It is a hint for a person to judge, never a verdict. */
+export interface RadarFinding {
+  readonly id: string;
+  readonly type: string;
+  readonly ruleId: string;
+  readonly ruleVersion: number;
+  readonly title: string;
+  readonly description: string | null;
+  readonly status: RadarStatus;
+  readonly severity: RadarSeverity;
+  readonly confidence: number | null;
+  readonly detectedAt: string;
+  readonly lastEvaluatedAt: string;
+  readonly caseId: string | null;
+  readonly contactId: string | null;
+  readonly contractId: string | null;
+  readonly assignedTo: string | null;
+  readonly snoozedUntil: string | null;
+  readonly resolvedAt: string | null;
+  readonly resolutionReason: string | null;
+  readonly explanation: string | null;
+  readonly reopenCount: number;
+  readonly evidenceCount: number;
+  readonly reasonCodes: readonly string[];
+  /** The moves the backend allows from the current status; the screen offers exactly these. */
+  readonly allowedStatuses: readonly RadarStatus[];
+}
+
+export interface RadarEvidence {
+  readonly id: string;
+  readonly role: 'PRIMARY' | 'COMPARISON' | 'CONTEXT';
+  readonly documentId: string | null;
+  readonly documentName: string | null;
+  readonly page: number | null;
+  readonly snippet: string | null;
+}
+
+export interface RadarEvent {
+  readonly id: string;
+  readonly eventType: string;
+  readonly fromStatus: string | null;
+  readonly toStatus: string | null;
+  readonly reason: string | null;
+  readonly createdAt: string;
+}
+
+export interface RadarFindingDetail extends RadarFinding {
+  readonly evidence: readonly RadarEvidence[];
+  readonly history: readonly RadarEvent[];
+}
+
+export interface RadarSummary {
+  readonly byStatus: Readonly<Record<string, number>>;
+  readonly openBySeverity: Readonly<Record<string, number>>;
+  readonly recentlyResolved: readonly { readonly id: string; readonly title: string; readonly severity: RadarSeverity; readonly resolvedAt: string }[];
+}
+
+export type RadarAction =
+  | { readonly kind: 'review' }
+  | { readonly kind: 'confirm'; readonly reason?: string }
+  | { readonly kind: 'dismiss'; readonly reason: string }
+  | { readonly kind: 'resolve'; readonly reason: string }
+  | { readonly kind: 'snooze'; readonly until: string; readonly reason?: string }
+  | { readonly kind: 'reopen'; readonly reason?: string }
+  | { readonly kind: 'assign'; readonly userId: string }
+  | { readonly kind: 'create-case' }
+  | { readonly kind: 're-evaluate' };

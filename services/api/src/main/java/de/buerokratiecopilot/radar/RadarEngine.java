@@ -38,9 +38,11 @@ public class RadarEngine {
     private final SettingsService settings;
     private final OwnerNotifier notifier;
     private final JdbcTemplate jdbc;
+    private final de.buerokratiecopilot.billing.PlanFeatures plans;
 
     public RadarEngine(List<RadarRule> rules, RadarFindingService findings, SettingsService settings, OwnerNotifier notifier,
-                       JdbcTemplate jdbc) {
+                       JdbcTemplate jdbc, de.buerokratiecopilot.billing.PlanFeatures plans) {
+        this.plans = plans;
         this.rules = rules;
         this.findings = findings;
         this.settings = settings;
@@ -52,9 +54,16 @@ public class RadarEngine {
         return rules.stream().map(RadarRule::describe).toList();
     }
 
+    /** The Radar is part of the Personal plan and above (the same tier the API gate asks for). */
+    private boolean active(UUID tenantId) {
+        return settings.getBoolean("radar.enabled", true) && plans.tierOf(tenantId) >= RADAR_MIN_TIER;
+    }
+
+    static final int RADAR_MIN_TIER = 1;
+
     /** The rules that look at a document that was just processed. */
     public Report evaluateDocument(UUID tenantId, UUID documentId) {
-        if (!settings.getBoolean("radar.enabled", true)) {
+        if (!active(tenantId)) {
             return new Report(0, 0, 0, 0, 0, 0);
         }
         Counter counter = new Counter();
@@ -74,7 +83,7 @@ public class RadarEngine {
 
     /** The rules that look at the whole tenant, plus the snoozes whose time is up. */
     public Report sweep(UUID tenantId) {
-        if (!settings.getBoolean("radar.enabled", true)) {
+        if (!active(tenantId)) {
             return new Report(0, 0, 0, 0, 0, 0);
         }
         Counter counter = new Counter();

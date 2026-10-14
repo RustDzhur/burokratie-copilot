@@ -93,6 +93,7 @@ class RelationshipsIT {
         assertThat((Object) JsonPath.read(list, "$[0].status")).isEqualTo("CONFIRMED");
         assertThat((Object) JsonPath.read(list, "$[0].other_document_id")).isEqualTo(original);
         assertThat(list).contains("identical content hash");
+        assertThat((Object) JsonPath.read(list, "$[0].evidence.rule")).as("evidence is JSON, not a database object").isEqualTo("identical content hash");
         String relationId = JsonPath.read(list, "$[0].id");
 
         // Another tenant sees nothing and cannot decide.

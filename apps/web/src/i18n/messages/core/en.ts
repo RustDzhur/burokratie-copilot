@@ -135,6 +135,7 @@ export const enCore: CoreMessages = {
     'items.documentViewer': 'Document view',
     'items.cases': 'Cases and files',
     'items.tasks': 'Tasks and workflows',
+    'items.radar': 'Radar',
     'items.calendar': 'Calendar and deadlines',
     'items.contracts': 'Contracts',
     'items.invoices': 'Invoices and expenses',

@@ -14,6 +14,7 @@ import { useFormatters, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { useApiResource } from '@/lib/api/hooks';
 import type { DashboardSummary } from '@/lib/api/types';
+import { RadarDashboardBlock } from '@/components/app/radar-dashboard-block';
 import styles from './dashboard.module.css';
 
 interface AttentionCard {
@@ -151,6 +152,7 @@ export default function DashboardPage() {
       >
         {(data) => (
           <>
+            <RadarDashboardBlock />
             <PageSection title={t('sections.attention')}>
               <ul className={styles.cardGrid}>
                 {ATTENTION_CARDS.map((card) => {

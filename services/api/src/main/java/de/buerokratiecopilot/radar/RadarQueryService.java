@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import de.buerokratiecopilot.shared.error.ApiException;
+import de.buerokratiecopilot.shared.util.JsonColumns;
 
 /**
  * Reads findings for people. A finding that belongs to a private case is visible only to those who may see that case.
@@ -92,6 +93,7 @@ public class RadarQueryService {
                           f.detected_at desc
                  limit ? offset ?
                 """, pageArgs.toArray());
+        JsonColumns.parse(items);
         for (Map<String, Object> item : items) {
             item.put("allowedStatuses", allowed((String) item.get("status")));
         }
@@ -142,7 +144,7 @@ public class RadarQueryService {
         if (rows.isEmpty()) {
             throw ApiException.notFound("Befund");
         }
-        Map<String, Object> finding = new LinkedHashMap<>(rows.get(0));
+        Map<String, Object> finding = JsonColumns.parse(new LinkedHashMap<>(rows.get(0)));
         finding.remove("material_hash");
         finding.put("allowedStatuses", allowed((String) finding.get("status")));
         finding.put("evidence", jdbc.queryForList("""
@@ -151,10 +153,10 @@ public class RadarQueryService {
                 from radar_finding_evidence e left join documents d on d.id = e.document_id
                 where e.finding_id = ? order by e.role, e.created_at
                 """, findingId));
-        finding.put("history", jdbc.queryForList("""
+        finding.put("history", JsonColumns.parse(jdbc.queryForList("""
                 select id, event_type, from_status, to_status, actor_user_id, reason, details, created_at
                 from radar_finding_events where finding_id = ? order by created_at desc, id desc
-                """, findingId));
+                """, findingId)));
         return finding;
     }
 

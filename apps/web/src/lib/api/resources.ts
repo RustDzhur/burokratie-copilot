@@ -29,6 +29,7 @@ import {
   type UploadWire,
 } from './wire/documents';
 import type { ProcessingFlow } from './processing';
+import { radarDetailFromWire, radarFindingFromWire, radarSummaryFromWire, type RadarFindingWire } from './wire/radar';
 import {
   CASE_SORT,
   CONTRACT_SORT,
@@ -144,6 +145,10 @@ import type {
   TaskSummary,
   TemplateSummary,
   CaseDeadline,
+  RadarAction,
+  RadarFinding,
+  RadarFindingDetail,
+  RadarSummary,
   CaseDetail,
   CatalogueEntry,
   DeletionKind,
@@ -487,6 +492,12 @@ export interface ApiResources {
     setPreferences: (payload: { level?: TelegramStatus['level']; enabled?: boolean }) => Promise<void>;
     test: () => Promise<void>;
     unlink: () => Promise<void>;
+  };
+  readonly radar: {
+    list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<RadarFinding>>;
+    summary: (signal?: AbortSignal) => Promise<RadarSummary>;
+    detail: (id: string, signal?: AbortSignal) => Promise<RadarFindingDetail>;
+    act: (id: string, action: RadarAction) => Promise<RadarFindingDetail>;
   };
   readonly deletion: {
     remove: (kind: DeletionKind, ids: readonly string[]) => Promise<{ deleted: number; refused: string[] }>;
@@ -1394,6 +1405,71 @@ export function createResources(client: ApiClient): ApiResources {
       },
       unlink: async () => {
         await client.delete<unknown>('/telegram/link', { idempotencyKey: true });
+      },
+    },
+    radar: {
+      list: async (params, signal) => {
+        const { page = 0, size = 25, status, severity, type, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
+        const wire = await client.get<{ readonly items: readonly RadarFindingWire[]; readonly total: number }>(
+          '/radar/findings',
+          {
+            query: {
+              ...rest,
+              page,
+              size,
+              status: typeof status === 'string' && status ? status : undefined,
+              severity: typeof severity === 'string' && severity ? severity : undefined,
+              type: typeof type === 'string' && type ? type : undefined,
+            },
+            ...withSignal(signal),
+          },
+        );
+        const pageSize = Number(size) || 25;
+        return {
+          items: wire.items.map((item) => radarFindingFromWire(item)),
+          page: Number(page),
+          size: pageSize,
+          totalItems: wire.total,
+          totalPages: Math.max(1, Math.ceil(wire.total / pageSize)),
+        };
+      },
+      summary: async (signal) =>
+        radarSummaryFromWire(await client.get<Parameters<typeof radarSummaryFromWire>[0]>('/radar/summary', withSignal(signal))),
+      detail: async (id, signal) =>
+        radarDetailFromWire(await client.get<RadarFindingWire>(`/radar/findings/${id}`, withSignal(signal))),
+      act: async (id, action) => {
+        const key = { idempotencyKey: true } as const;
+        let wire: RadarFindingWire;
+        switch (action.kind) {
+          case 'review':
+            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/review`, undefined, key);
+            break;
+          case 'confirm':
+            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/confirm`, { reason: action.reason }, key);
+            break;
+          case 'dismiss':
+            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/dismiss`, { reason: action.reason }, key);
+            break;
+          case 'resolve':
+            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/resolve`, { reason: action.reason }, key);
+            break;
+          case 'snooze':
+            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/snooze`, { until: action.until, reason: action.reason }, key);
+            break;
+          case 'reopen':
+            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/reopen`, { reason: action.reason }, key);
+            break;
+          case 'assign':
+            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/assign`, { userId: action.userId }, key);
+            break;
+          case 'create-case':
+            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/create-case`, undefined, key);
+            break;
+          case 're-evaluate':
+            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/re-evaluate`, undefined, key);
+            break;
+        }
+        return radarDetailFromWire(wire);
       },
     },
     deletion: {

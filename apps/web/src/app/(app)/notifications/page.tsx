@@ -26,6 +26,7 @@ const CATEGORIES = [
   'integration',
   'automation',
   'archive',
+  'radar',
 ] as const;
 
 export default function NotificationsPage() {

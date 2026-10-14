@@ -20,6 +20,7 @@ const CATEGORIES = [
   'integration',
   'automation',
   'archive',
+  'radar',
 ] as const;
 const CHANNELS = ['in_app', 'email', 'push'] as const;
 const FREQUENCIES = ['immediate', 'digest', 'off'] as const;

@@ -42,7 +42,8 @@ public class PlanFeatures {
             new Gate("/api/v1/calendar/feeds", 1, null),
             new Gate("/api/v1/devices", 1, null),
             new Gate("/api/v1/printing", 1, null),
-            new Gate("/api/v1/ai/assistant", 1, null));
+            new Gate("/api/v1/ai/assistant", 1, null),
+            new Gate("/api/v1/radar", 1, null));
     // Not gated on purpose: /api/v1/audit (the history tab of every document reads it) and /api/v1/advisor (a client
     // invites its advisor whatever the client pays). The menu hides the audit screen below Professional.
 

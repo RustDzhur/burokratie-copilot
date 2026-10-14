@@ -122,6 +122,7 @@ const NOTIFICATION_CATEGORY_FROM_WIRE: Readonly<Record<string, NotificationCateg
   SYSTEM: 'integration',
   AUTOMATION_RESULT: 'automation',
   ARCHIVING: 'archive',
+  RADAR: 'radar',
 };
 
 const CHANNEL_FROM_WIRE: Readonly<Record<string, 'in_app' | 'email' | 'push'>> = {
@@ -184,6 +185,7 @@ const SCREEN_CATEGORIES: readonly NotificationCategory[] = [
   'integration',
   'automation',
   'archive',
+  'radar',
 ];
 
 /**

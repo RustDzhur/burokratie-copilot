@@ -15,6 +15,7 @@ import de.buerokratiecopilot.audit.domain.AuditEvent;
 import de.buerokratiecopilot.documents.domain.DocumentMatch;
 import de.buerokratiecopilot.documents.matching.MatchingService;
 import de.buerokratiecopilot.shared.error.ApiException;
+import de.buerokratiecopilot.shared.util.JsonColumns;
 
 /**
  * The relationships of the business memory, read and decided in one place.
@@ -78,7 +79,7 @@ public class RelationshipService {
                     order by r.created_at desc
                     """, subjectId, subjectId, tenantId, subjectId, subjectId, wanted, wanted));
         }
-        return out;
+        return JsonColumns.parse(out);
     }
 
     /** A person confirms a relationship. */

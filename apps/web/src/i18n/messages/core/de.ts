@@ -144,6 +144,7 @@ export const deCore = {
     'items.documentViewer': 'Dokumentansicht',
     'items.cases': 'Vorgänge und Akten',
     'items.tasks': 'Aufgaben und Abläufe',
+    'items.radar': 'Radar',
     'items.calendar': 'Kalender und Fristen',
     'items.contracts': 'Verträge',
     'items.invoices': 'Rechnungen und Ausgaben',

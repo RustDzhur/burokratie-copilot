@@ -49,6 +49,10 @@ class RadarControllerIT {
     private RadarFindingService findings;
     @Autowired
     private CaseTestSupport support;
+    @Autowired
+    private de.buerokratiecopilot.billing.PlanFeatures planFeatures;
+    @Autowired
+    private RadarEngine engine;
 
     private record Account(UUID tenantId, UUID userId, String email, Cookie cookie) {
     }
@@ -110,6 +114,8 @@ class RadarControllerIT {
         String detail = json(a.cookie(), "/api/v1/radar/findings/" + id);
         assertThat((Object) JsonPath.read(detail, "$.evidence[0].document_name")).isEqualTo("Beleg.pdf");
         assertThat((List<?>) JsonPath.read(detail, "$.history")).hasSize(1);
+        assertThat((Object) JsonPath.read(detail, "$.reason_codes[0]")).as("json columns are JSON").isEqualTo("AMOUNT_DIFFERS_FROM_PREVIOUS_INVOICE");
+        assertThat((Object) JsonPath.read(detail, "$.history[0].details.ruleVersion")).isEqualTo(1);
 
         mockMvc.perform(post("/api/v1/radar/findings/" + id + "/confirm").with(csrf()).cookie(a.cookie())).andExpect(status().isOk());
         mockMvc.perform(post("/api/v1/radar/findings/" + id + "/confirm").with(csrf()).cookie(a.cookie())).andExpect(status().isOk());
@@ -218,5 +224,17 @@ class RadarControllerIT {
                 .andExpect(status().isOk());
         assertThat((Object) JsonPath.read(json(a.cookie(), "/api/v1/radar/findings/" + id), "$.assigned_to"))
                 .isEqualTo(a.userId().toString());
+    }
+
+    @Test
+    @DisplayName("the Radar belongs to the Personal plan and above: a free workspace gets no API access and no new findings")
+    void freePlanHasNoRadar() throws Exception {
+        Account a = newTenant();
+        jdbc.update("update subscriptions set plan_code = 'FREE' where tenant_id = ?", a.tenantId());
+        planFeatures.forget(a.tenantId());
+
+        mockMvc.perform(get("/api/v1/radar/findings").cookie(a.cookie())).andExpect(status().isPaymentRequired());
+        RadarEngine.Report report = RequestContext.runAs(a.tenantId(), () -> engine.sweep(a.tenantId()));
+        assertThat(report.created() + report.unchanged() + report.updated()).isZero();
     }
 }

@@ -45,6 +45,7 @@ export type ScreenId =
   | 'documents'
   | 'cases'
   | 'tasks'
+  | 'radar'
   | 'calendar'
   | 'contracts'
   | 'invoices'
@@ -147,6 +148,8 @@ export const screens: readonly ScreenDefinition[] = [
   screen('cases', '/cases', 'briefcase', 'documents'),
   // §5.2.10 — tasks and workflows
   screen('tasks', '/tasks', 'check-circle', 'workspace'),
+  // Bürokratie-Radar (ТЗ v2.0): signals that several sources point to together
+  screen('radar', '/radar', 'alert-triangle', 'workspace', { minTier: 1 }),
   // §5.2.11 — calendar and deadlines
   screen('calendar', '/calendar', 'calendar', 'workspace'),
   // §5.2.12 — contracts
