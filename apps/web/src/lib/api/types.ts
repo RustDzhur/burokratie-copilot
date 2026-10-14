@@ -590,6 +590,20 @@ export interface TelegramStatus {
   readonly deepLink: string | null;
 }
 
+/** A date of a case with where it comes from; `confirmation` says whether a person checked it. */
+export interface CaseDeadline {
+  readonly id: string;
+  readonly type: string;
+  readonly dueDate: string | null;
+  readonly source: 'DOCUMENT' | 'RULE' | 'MANUAL' | 'WORKFLOW' | 'AI';
+  readonly confirmation: 'CONFIRMED' | 'UNCONFIRMED';
+  readonly sourceDocumentId: string | null;
+  readonly sourcePage: number | null;
+  readonly sourceSnippet: string | null;
+  readonly ruleVersion: number | null;
+  readonly note: string | null;
+}
+
 /** A case with what belongs to it: its documents, its history, what is still missing. */
 export interface CaseDetail {
   readonly id: string;

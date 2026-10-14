@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { DeadlineList } from '@/components/app/deadline-list';
 import { PageHeader, PageSection, ResourceView } from '@/components/app/resource-view';
 import { Badge, Card, CardBody, DataTable, EmptyState, StatusPill } from '@/components/ui';
 import type { Column } from '@/components/ui';
@@ -28,6 +29,7 @@ export default function CaseDetailPage() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const { state, reload, isRefreshing } = useApiResource((signal) => api.cases.detail(id, signal), [id]);
+  const { state: deadlineState } = useApiResource((signal) => api.cases.deadlines(id, signal), [id]);
 
   const remove = async (): Promise<void> => {
     if (!window.confirm(t('detail.deleteConfirm'))) return;
@@ -102,6 +104,14 @@ export default function CaseDetailPage() {
                 {item.description ? <p style={{ whiteSpace: 'pre-wrap' }}>{item.description}</p> : null}
               </CardBody>
             </Card>
+
+            <PageSection title={t('detail.deadlines')}>
+              {deadlineState.status === 'ready' && deadlineState.data.length > 0 ? (
+                <DeadlineList deadlines={deadlineState.data} />
+              ) : (
+                <p>{t('detail.noDeadlines')}</p>
+              )}
+            </PageSection>
 
             <PageSection title={t('detail.documents')}>
               {item.documents.length === 0 ? (

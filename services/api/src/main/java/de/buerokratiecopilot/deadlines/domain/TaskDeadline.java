@@ -70,6 +70,12 @@ public class TaskDeadline {
     @Column(name = "rule_id")
     private UUID ruleId;
 
+    @Column(name = "source_page")
+    private Integer sourcePage;
+
+    @Column(name = "rule_version")
+    private Integer ruleVersion;
+
     /** True while the date rests on an unverified rule. */
     @Column(name = "requires_verification", nullable = false)
     private boolean requiresVerification = true;
@@ -163,6 +169,22 @@ public class TaskDeadline {
 
     public void setSource(Source source) {
         this.source = source;
+    }
+
+    public Integer getSourcePage() {
+        return sourcePage;
+    }
+
+    public void setSourcePage(Integer sourcePage) {
+        this.sourcePage = sourcePage;
+    }
+
+    public Integer getRuleVersion() {
+        return ruleVersion;
+    }
+
+    public void setRuleVersion(Integer ruleVersion) {
+        this.ruleVersion = ruleVersion;
     }
 
     public UUID getSourceDocumentId() {

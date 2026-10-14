@@ -169,6 +169,7 @@ public class DeadlineService {
         deadline.setDueDate(dueDate);
         deadline.setSource(TaskDeadline.Source.RULE);
         deadline.setRuleId(rule.getId());
+        deadline.setRuleVersion(rule.getVersion());
         deadline.setCalculatedAt(java.time.Instant.now());
         deadline.setCreatedBy(userId);
         deadline.setTimeZone("Europe/Berlin");

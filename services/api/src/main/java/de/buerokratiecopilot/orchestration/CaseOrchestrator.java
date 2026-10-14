@@ -367,6 +367,7 @@ public class CaseOrchestrator {
             stated.setSource(TaskDeadline.Source.DOCUMENT);
             stated.setSourceDocumentId(documentId);
             stated.setSourceSnippet(dueSnippet);
+            stated.setSourcePage(dueValue == null ? null : dueValue.page());
             stated.setTimeZone("Europe/Berlin");
             stated.setCreatedBy(actor);
             stated.setNote((scenario.legalDeadline()
@@ -583,7 +584,7 @@ public class CaseOrchestrator {
     }
 
     /** A value found in the document, with the line it was found on. */
-    record Extracted(String value, String normalized, String snippet) {
+    record Extracted(String value, String normalized, String snippet, Integer page) {
 
         LocalDate date() {
             try {
@@ -598,11 +599,12 @@ public class CaseOrchestrator {
     private Map<String, Extracted> extractedValues(UUID documentId) {
         Map<String, Extracted> result = new LinkedHashMap<>();
         jdbc.query("""
-                select field_key, field_value, normalized_value, source_snippet
+                select field_key, field_value, normalized_value, source_snippet, source_page
                 from document_extractions where document_id = ? order by created_at
                 """, rs -> {
             result.putIfAbsent(rs.getString("field_key"), new Extracted(rs.getString("field_value"),
-                    rs.getString("normalized_value"), rs.getString("source_snippet")));
+                    rs.getString("normalized_value"), rs.getString("source_snippet"),
+                    (Integer) rs.getObject("source_page")));
         }, documentId);
         return result;
     }

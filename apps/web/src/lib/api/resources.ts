@@ -143,6 +143,7 @@ import type {
   SessionUser,
   TaskSummary,
   TemplateSummary,
+  CaseDeadline,
   CaseDetail,
   CatalogueEntry,
   DeletionKind,
@@ -326,6 +327,7 @@ export interface ApiResources {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<CaseSummary>>;
     get: (id: string, signal?: AbortSignal) => Promise<CaseSummary>;
     detail: (id: string, signal?: AbortSignal) => Promise<CaseDetail>;
+    deadlines: (id: string, signal?: AbortSignal) => Promise<readonly CaseDeadline[]>;
     create: (payload: {
       readonly title: string;
       readonly caseType?: string;
@@ -885,6 +887,24 @@ export function createResources(client: ApiClient): ApiResources {
           timeline: wire.timeline ?? [],
           requiredDocuments: wire.requiredDocuments ?? [],
         };
+      },
+      deadlines: async (id, signal) => {
+        const wire = await client.get<readonly (Omit<CaseDeadline, 'dueDate'> & { readonly dueDate?: string | null })[]>(
+          `/cases/${id}/deadlines`,
+          withSignal(signal),
+        );
+        return wire.map((row) => ({
+          id: row.id,
+          type: row.type,
+          dueDate: row.dueDate ?? null,
+          source: row.source,
+          confirmation: row.confirmation === 'CONFIRMED' ? 'CONFIRMED' : 'UNCONFIRMED',
+          sourceDocumentId: row.sourceDocumentId ?? null,
+          sourcePage: row.sourcePage ?? null,
+          sourceSnippet: row.sourceSnippet ?? null,
+          ruleVersion: row.ruleVersion ?? null,
+          note: row.note ?? null,
+        }));
       },
       get: async (id, signal) =>
         caseDetailFromWire(await client.get<CaseDetailWire>(`/cases/${id}`, withSignal(signal))),

@@ -73,7 +73,8 @@ public class DeadlineController {
 
     public record DeadlineResponse(String id, String caseId, String taskId, String type, String dueDate,
                                    String source, String ruleId, boolean requiresVerification,
-                                   String note, String confirmedAt) {
+                                   String note, String confirmedAt, String sourceDocumentId, Integer sourcePage,
+                                   String sourceSnippet, Integer ruleVersion, String confirmation) {
 
         static DeadlineResponse from(TaskDeadline deadline) {
             return new DeadlineResponse(deadline.getId().toString(),
@@ -84,7 +85,11 @@ public class DeadlineController {
                     deadline.getSource().name(),
                     deadline.getRuleId() == null ? null : deadline.getRuleId().toString(),
                     deadline.isRequiresVerification(), deadline.getNote(),
-                    deadline.getConfirmedAt() == null ? null : deadline.getConfirmedAt().toString());
+                    deadline.getConfirmedAt() == null ? null : deadline.getConfirmedAt().toString(),
+                    deadline.getSourceDocumentId() == null ? null : deadline.getSourceDocumentId().toString(),
+                    deadline.getSourcePage(), deadline.getSourceSnippet(), deadline.getRuleVersion(),
+                    // A date is called confirmed only when a person (or a rule a person verified) confirmed it.
+                    deadline.getConfirmedAt() != null ? "CONFIRMED" : "UNCONFIRMED");
         }
     }
 
