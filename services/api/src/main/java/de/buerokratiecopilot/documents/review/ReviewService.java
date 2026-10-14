@@ -51,11 +51,15 @@ public class ReviewService {
     private final DocumentExtractionRepository extractions;
     private final DocumentMatchRepository matches;
     private final FieldExtractionService fieldExtraction;
+    private final de.buerokratiecopilot.documents.DocumentClassificationRepository classifications;
+    private final de.buerokratiecopilot.documents.DocumentProcessingStepRepository processingSteps;
 
     public ReviewService(DocumentReviewRepository reviews, DocumentRepository documents,
                          DocumentTypeRepository types, DocumentTypeFieldRepository fieldDefinitions,
                          DocumentExtractionRepository extractions, DocumentMatchRepository matches,
-                         FieldExtractionService fieldExtraction) {
+                         FieldExtractionService fieldExtraction,
+                         de.buerokratiecopilot.documents.DocumentClassificationRepository classifications,
+                         de.buerokratiecopilot.documents.DocumentProcessingStepRepository processingSteps) {
         this.reviews = reviews;
         this.documents = documents;
         this.types = types;
@@ -63,6 +67,8 @@ public class ReviewService {
         this.extractions = extractions;
         this.matches = matches;
         this.fieldExtraction = fieldExtraction;
+        this.classifications = classifications;
+        this.processingSteps = processingSteps;
     }
 
     /** One entry of the queue. */
@@ -187,8 +193,17 @@ public class ReviewService {
         Document document = documents.findById(review.getDocumentId()).orElseThrow();
         Map<String, Object> applied = new LinkedHashMap<>();
 
+        boolean hadType = document.getDocumentTypeId() != null;
         if (decision == DocumentReview.Status.APPROVED && changes != null) {
             applyTypeChange(document, changes, applied);
+        }
+        if (decision == DocumentReview.Status.APPROVED) {
+            acceptSuggestedType(document, review, applied);
+        }
+        if (decision == DocumentReview.Status.APPROVED && document.getDocumentTypeId() != null && !hadType) {
+            reopenStepsThatNeededTheType(document.getId());
+        }
+        if (decision == DocumentReview.Status.APPROVED && changes != null) {
             applyFieldChanges(document, review, changes, userId, applied);
             applyMatchDecisions(review, changes, userId, applied);
         }
@@ -207,6 +222,44 @@ public class ReviewService {
         review.decide(decision, userId, note, applied);
         log.info("Review {} for document {} decided as {}", reviewId, document.getId(), decision);
         return reviews.save(review);
+    }
+
+    /**
+     * Approving a classification review means "yes, the type the platform suggested is right".
+     *
+     * <p>The suggestion is stored with the classification but is not applied to the document while it waits for a
+     * person (acting on a guess would be automation on a coin toss). Before this existed, pressing "confirm"
+     * left the document without a type, so nothing ever acted on the approved suggestion; only a reviewer who
+     * chose a type by hand got one. A reviewer who chose a type explicitly is not overridden.</p>
+     */
+    private void acceptSuggestedType(Document document, DocumentReview review, Map<String, Object> applied) {
+        if (document.getDocumentTypeId() != null
+                || review.getReviewType() != DocumentReview.ReviewType.CLASSIFICATION) {
+            return;
+        }
+        classifications.findByDocumentIdAndCurrentTrue(document.getId()).ifPresent(suggestion -> {
+            document.setDocumentTypeId(suggestion.getDocumentTypeId());
+            documents.save(document);
+            types.findById(suggestion.getDocumentTypeId())
+                    .ifPresent(type -> applied.put("documentTypeCode", type.getCode()));
+            applied.put("acceptedSuggestion", true);
+        });
+    }
+
+    /**
+     * Stages that were skipped only because the document had no type yet have to run now that it has one:
+     * the field extraction cannot read what it was never told to look for, and the matching works on the
+     * extracted values. A skipped stage counts as finished, so without this the pipeline would resume
+     * straight past them and the document would be "ready" with no data read from it.
+     */
+    private void reopenStepsThatNeededTheType(UUID documentId) {
+        for (var step : List.of(de.buerokratiecopilot.documents.domain.DocumentProcessingStep.Step.FIELD_EXTRACT,
+                de.buerokratiecopilot.documents.domain.DocumentProcessingStep.Step.MATCHING)) {
+            processingSteps.findByDocumentIdAndStep(documentId, step)
+                    .filter(row -> row.getStatus()
+                            == de.buerokratiecopilot.documents.domain.DocumentProcessingStep.Status.SKIPPED)
+                    .ifPresent(processingSteps::delete);
+        }
     }
 
     private void applyTypeChange(Document document, Map<String, Object> changes,

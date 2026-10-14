@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createApiClient } from '../client';
 import { createResources } from '../resources';
+import { notificationFromWire } from '../wire/people';
 import {
   approvalFromFields,
   documentFromWire,
@@ -93,6 +94,33 @@ describe('documents ↔ backend', () => {
     expect(detail.fields?.[0]).toMatchObject({ name: 'invoice.total', value: '12.50', confidence: 0.91 });
     expect(detail.fields?.[0]?.source).toContain('p. 1');
     expect(detail.history).toEqual([]);
+  });
+
+  it('reads what the platform did with a document from /documents/{id}/pipeline', async () => {
+    const { api, calls } = resourcesWith(() =>
+      json({
+        documentId: 'd1',
+        processingStatus: 'READY',
+        steps: [{ step: 'CLASSIFY', status: 'SUCCEEDED', attempt: 1, startedAt: null, finishedAt: null, error: null }],
+        outcome: { result: 'TASK_CREATED', explanation: 'Mahnung erkannt.', next: 'Die Aufgabe wartet auf Bearbeitung.' },
+      }),
+    );
+    const flow = await api.documents.pipeline('d1');
+    expect(calls[0]?.url).toContain('/documents/d1/pipeline');
+    expect(flow.outcome.result).toBe('TASK_CREATED');
+    expect(flow.steps[0]?.step).toBe('CLASSIFY');
+  });
+
+  it('shows the text the platform wrote for a notification, and falls back to the key only without one', () => {
+    const base = { id: 'n1', category: 'TASK', read: false, createdAt: '2026-10-14T10:00:00Z' };
+    expect(
+      notificationFromWire({
+        ...base,
+        titleKey: 'document.action_required',
+        parameters: { title: 'Mahnung prüfen', body: 'Frist laut Dokument: 2026-10-28' },
+      }),
+    ).toMatchObject({ title: 'Mahnung prüfen', body: 'Frist laut Dokument: 2026-10-28' });
+    expect(notificationFromWire({ ...base, titleKey: 'task.assigned' }).title).toBe('Assigned');
   });
 
   it('archives through the status endpoint and uploads the file as multipart `file`', async () => {

@@ -82,7 +82,7 @@ class ImapIngestionIT {
         UUID accountId = mailbox(tenantId);
 
         GreenMailUtil.sendAttachmentEmail(USER, USER, "Rechnung März", "Anbei die Rechnung.",
-                "PDF-Inhalt".getBytes(StandardCharsets.UTF_8), "application/pdf", "rechnung.pdf",
+                "%PDF-1.4\nPDF-Inhalt".getBytes(StandardCharsets.UTF_8), "application/pdf", "rechnung.pdf",
                 "Rechnungsdienst", ServerSetupTest.SMTP);
 
         ImapMailIngester.SyncResult result = ingester.ingest(tenantId, accountId, 10);
@@ -142,7 +142,7 @@ class ImapIngestionIT {
     void theSameAttachmentIsNotStoredTwice() {
         UUID tenantId = tenant();
         UUID accountId = mailbox(tenantId);
-        byte[] content = "Identische Rechnung".getBytes(StandardCharsets.UTF_8);
+        byte[] content = "%PDF-1.4\nIdentische Rechnung".getBytes(StandardCharsets.UTF_8);
 
         GreenMailUtil.sendAttachmentEmail(USER, USER, "Rechnung 1", "Erste", content, "application/pdf",
                 "rechnung.pdf", "Dienst", ServerSetupTest.SMTP);

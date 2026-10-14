@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
+import { ProcessingPanel } from '@/components/app/processing-panel';
 import { PageHeader, PageSection, ResourceView } from '@/components/app/resource-view';
 import { Badge, Card, CardBody, CardHeader, EmptyState, StatusPill, Tabs } from '@/components/ui';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ export default function DocumentViewerPage() {
   const statusLabel = useStatusLabels('documents');
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [processingKey, setProcessingKey] = useState(0);
 
   const { state, reload, isRefreshing } = useApiResource<DocumentDetail>(
     (signal) => api.documents.get(id, signal),
@@ -60,6 +62,7 @@ export default function DocumentViewerPage() {
     try {
       await api.documents.reprocess(id);
       toast.success(t('action.reprocess'));
+      setProcessingKey((value) => value + 1);
       reload();
     } catch (error) {
       toast.error(tErrors(toApiError(error).kind));
@@ -129,6 +132,8 @@ export default function DocumentViewerPage() {
             {document.status === 'processing' ? (
               <InlineAlert tone="info">{t('processing.inProgress')}</InlineAlert>
             ) : null}
+
+            <ProcessingPanel documentId={id} reloadKey={processingKey} />
 
             <div className={styles.summaryRow}>
               <StatusPill label={statusLabel(document.status)} status={document.status} />

@@ -28,6 +28,7 @@ import {
   type ReviewQueueEntryWire,
   type UploadWire,
 } from './wire/documents';
+import type { ProcessingFlow } from './processing';
 import {
   CASE_SORT,
   CONTRACT_SORT,
@@ -292,6 +293,7 @@ export interface ApiResources {
     history: (id: string, signal?: AbortSignal) => Promise<Page<DocumentHistoryEntry>>;
     upload: (file: File, options?: UploadOptions) => Promise<DocumentSummary>;
     reprocess: (id: string) => Promise<void>;
+    pipeline: (id: string, signal?: AbortSignal) => Promise<ProcessingFlow>;
     downloadOriginal: (id: string) => Promise<Blob>;
     confirmFields: (id: string, payload: ConfirmFieldsPayload) => Promise<void>;
     archive: (id: string) => Promise<void>;
@@ -735,6 +737,7 @@ export function createResources(client: ApiClient): ApiResources {
       reprocess: async (id) => {
         await client.post<unknown>(`/documents/${id}/reprocess`, undefined, { idempotencyKey: true });
       },
+      pipeline: (id, signal) => client.get<ProcessingFlow>(`/documents/${id}/pipeline`, withSignal(signal)),
       downloadOriginal: (id) => client.request<Blob>(`/documents/${id}/content`, { parse: 'blob' }),
       confirmFields: async (id, payload) => decideOpenReview(client, id, approvalFromFields(payload.fields)),
       archive: async (id) => {

@@ -44,13 +44,16 @@ public class TaskService {
     private final TaskAssigneeRepository assignees;
     private final TaskChecklistItemRepository checklist;
     private final TaskCommentRepository comments;
+    private final de.buerokratiecopilot.shared.outbox.OutboxWriter outbox;
 
     public TaskService(TaskRepository tasks, TaskAssigneeRepository assignees,
-                       TaskChecklistItemRepository checklist, TaskCommentRepository comments) {
+                       TaskChecklistItemRepository checklist, TaskCommentRepository comments,
+                       de.buerokratiecopilot.shared.outbox.OutboxWriter outbox) {
         this.tasks = tasks;
         this.assignees = assignees;
         this.checklist = checklist;
         this.comments = comments;
+        this.outbox = outbox;
     }
 
     /** What is needed to create a task. */
@@ -241,7 +244,13 @@ public class TaskService {
         merged.put("completion", completion);
         task.setMetadata(Map.copyOf(merged));
 
-        return tasks.save(task);
+        Task saved = tasks.save(task);
+        // Completing a task is not the end of the matter when the task was about waiting for somebody
+        // else's confirmation: the follow-up is decided by a handler of this event, in the same
+        // transaction as the completion, so the two cannot disagree after a crash.
+        outbox.publish(new de.buerokratiecopilot.shared.outbox.DomainEvent("task.completed", "tasks",
+                saved.getId(), saved.getTenantId(), Map.of("taskId", saved.getId().toString())));
+        return saved;
     }
 
     /** Approves a task that requires it, which is what unblocks its completion. */

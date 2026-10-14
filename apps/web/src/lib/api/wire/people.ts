@@ -94,6 +94,7 @@ export interface NotificationWire {
   readonly category: string;
   readonly titleKey: string;
   readonly bodyKey?: string | null;
+  readonly parameters?: Readonly<Record<string, unknown>> | null;
   readonly actionUrl?: string | null;
   readonly read: boolean;
   readonly createdAt: string;
@@ -136,11 +137,18 @@ export function humanizeKey(key: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+function textParameter(wire: NotificationWire, name: string): string | null {
+  const value = wire.parameters?.[name];
+  return typeof value === 'string' && value.trim() !== '' ? value : null;
+}
+
 export function notificationFromWire(wire: NotificationWire): NotificationSummary {
   return {
     id: wire.id,
-    title: humanizeKey(wire.titleKey),
-    body: wire.bodyKey ? humanizeKey(wire.bodyKey) : null,
+    // The platform writes the title and body of what it reports (a document that needs a decision, a task
+    // that is overdue); the key is only a stand-in for notifications that carry no text of their own.
+    title: textParameter(wire, 'title') ?? humanizeKey(wire.titleKey),
+    body: textParameter(wire, 'body') ?? (wire.bodyKey ? humanizeKey(wire.bodyKey) : null),
     category: NOTIFICATION_CATEGORY_FROM_WIRE[wire.category] ?? 'task',
     channels: [
       ...new Set(

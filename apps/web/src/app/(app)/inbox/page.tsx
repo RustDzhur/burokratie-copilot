@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ListPage } from '@/components/app/list-page';
 import { Badge, StatusPill } from '@/components/ui/data';
 import type { Column } from '@/components/ui';
@@ -45,23 +46,35 @@ export default function InboxPage() {
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
+  const router = useRouter();
+  // A person who uploads one document wants to see what happens to it, so they are taken to it; several
+  // files stay in the list, where each one has its own status.
+  const lastUploadedId = useRef<string | null>(null);
+  const queueSize = useRef(0);
 
   const queue = useUploadQueue({
     upload: async (file, context) => {
-      await api.documents.upload(file, {
+      const uploaded = await api.documents.upload(file, {
         onProgress: context.onProgress,
         signal: context.signal,
         idempotencyKey: true,
       });
+      lastUploadedId.current = uploaded.id;
     },
     onUploaded: () => {
       toast.success(tStates('success.created'), t('action.upload'));
       setReloadToken((value) => value + 1);
+      if (queueSize.current <= 1 && lastUploadedId.current) {
+        setUploadOpen(false);
+        router.push(`/documents/${lastUploadedId.current}`);
+      }
     },
     onFailed: (file, message) => {
       toast.error(tErrors('network'), `${file.name}: ${message}`);
     },
   });
+
+  queueSize.current = queue.items.length;
 
   const columns = useMemo<readonly Column<DocumentSummary>[]>(
     () => [

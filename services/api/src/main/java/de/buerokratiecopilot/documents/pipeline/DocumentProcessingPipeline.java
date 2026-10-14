@@ -70,12 +70,15 @@ public class DocumentProcessingPipeline {
     private final de.buerokratiecopilot.documents.review.ReviewService reviews;
     private final Map<DocumentProcessingStep.Step, ProcessingStepHandler> handlers =
             new EnumMap<>(DocumentProcessingStep.Step.class);
+    /** One transaction per unit of work; see {@link #advance}. */
+    private final org.springframework.transaction.support.TransactionTemplate tx;
 
     public DocumentProcessingPipeline(DocumentRepository documents, DocumentVersionRepository versions,
                                       DocumentBlobRepository blobs, DocumentProcessingStepRepository steps,
                                       AuditService auditService, OutboxWriter outbox,
                                       de.buerokratiecopilot.documents.review.ReviewService reviews,
-                                      List<ProcessingStepHandler> stepHandlers) {
+                                      List<ProcessingStepHandler> stepHandlers,
+                                      org.springframework.transaction.PlatformTransactionManager transactionManager) {
         this.documents = documents;
         this.versions = versions;
         this.blobs = blobs;
@@ -83,6 +86,13 @@ public class DocumentProcessingPipeline {
         this.auditService = auditService;
         this.outbox = outbox;
         this.reviews = reviews;
+        this.tx = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        // REQUIRES_NEW, not REQUIRED: the pipeline is usually started from inside the outbox delivery, which
+        // runs in a transaction of its own. Joining it would put every step back into one transaction, and a
+        // step that fails would again poison the record of its own failure. Everything the steps read has
+        // been committed by the upload that announced the document.
+        this.tx.setPropagationBehavior(
+                org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         for (ProcessingStepHandler handler : stepHandlers) {
             ProcessingStepHandler previous = handlers.put(handler.step(), handler);
             if (previous != null) {
@@ -107,103 +117,142 @@ public class DocumentProcessingPipeline {
      * <p>Stops at the first step that has no handler, fails, or is skipped, and returns the reason. The
      * document status always reflects the last stage that really completed.</p>
      */
-    @Transactional
     public AdvanceResult advance(UUID documentId) {
-        Document document = documents.findById(documentId)
-                .orElseThrow(() -> new IllegalArgumentException("Unknown document " + documentId));
-        DocumentVersion version = versions.findFirstByDocumentIdOrderByVersionDesc(documentId).orElse(null);
-        DocumentBlob blob = version == null ? null : blobs.findById(version.getBlobId()).orElse(null);
+        // Every step runs in a transaction of its own. A step that throws (an unreadable PDF, say) passes its
+        // exception through transactional services, and each of them marks the surrounding transaction
+        // rollback-only. In one big transaction the failure could be caught but never saved: the document
+        // stayed "received" for ever and nobody was told why. Here the failed step rolls back alone, what
+        // earlier steps produced stays committed, and the failure is recorded in a fresh transaction.
+        tx.execute(status -> {
+            documents.findById(documentId)
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown document " + documentId));
+            return null;
+        });
 
         List<DocumentProcessingStep.Step> executed = new java.util.ArrayList<>();
-
         for (DocumentProcessingStep.Step step : ORDER) {
-            DocumentProcessingStep row = stepRow(documentId, version, step);
-            if (row.isFinished()) {
-                continue;
-            }
-
-            ProcessingStepHandler handler = handlers.get(step);
-            if (handler == null) {
-                String reason = "No handler is registered for this step yet"
-                        + (handlerNote(step).isEmpty() ? "" : " (" + handlerNote(step) + ")");
-                // Left PENDING on purpose: the step is waiting for its implementation, not skipped.
-                return new AdvanceResult(documentId, step, reason, document.getProcessingStatus(), executed);
-            }
-            if (version == null || blob == null) {
-                return new AdvanceResult(documentId, step, "The stored version is missing",
-                        document.getProcessingStatus(), executed);
-            }
-
-            row.start();
-            steps.save(row);
-
-            ProcessingStepHandler.StepResult result;
+            StepOutcome outcome;
             try {
-                result = handler.handle(new ProcessingStepHandler.ProcessingContext(
-                        document.getTenantId(), document, version, blob));
+                outcome = tx.execute(status -> runStep(documentId, step));
             }
             catch (RuntimeException ex) {
                 log.warn("Pipeline step {} failed for document {}", step, documentId, ex);
-                row.fail("STEP_EXCEPTION", rootMessage(ex));
-                steps.save(row);
-                auditFailure(document, step, rootMessage(ex));
-                return new AdvanceResult(documentId, step, rootMessage(ex), document.getProcessingStatus(),
+                return tx.execute(status -> recordCrash(documentId, step, ex, executed));
+            }
+            if (outcome.ran()) {
+                executed.add(step);
+            }
+            if (outcome.stoppedAt() != null) {
+                return new AdvanceResult(documentId, outcome.stoppedAt(), outcome.reason(), outcome.status(),
                         executed);
-            }
-
-            if (result.isFailed()) {
-                row.fail("STEP_FAILED", result.reason());
-                steps.save(row);
-                auditFailure(document, step, result.reason());
-                return new AdvanceResult(documentId, step, result.reason(), document.getProcessingStatus(),
-                        executed);
-            }
-
-            if (result.isSkipped()) {
-                row.skip(result.reason());
-            }
-            else {
-                row.succeed(result.diagnostics());
-            }
-            steps.save(row);
-            executed.add(step);
-
-            if (result.nextStatus() != null && result.nextStatus() != document.getProcessingStatus()) {
-                DocumentStatusMachine.requireTransition(document.getProcessingStatus(), result.nextStatus());
-                document.setProcessingStatus(result.nextStatus());
-                if (result.nextStatus() == Document.ProcessingStatus.REVIEW_REQUIRED) {
-                    // A document waiting for a human must also say so in its review state and appear
-                    // in the review centre, otherwise it would wait forever without anyone knowing
-                    // what for. The reason travels with the entry: a queue a person cannot act on is
-                    // just a backlog.
-                    document.setReviewStatus(Document.ReviewStatus.PENDING);
-                    reviews.raise(document, version, reviewTypeFor(step), describe(step, result), null);
-                }
-                documents.save(document);
-            }
-
-            if (result.isSkipped()) {
-                // A skipped step is a decision, not a failure: the pipeline stops here so the reason
-                // stays attached to the exact stage that produced it.
-                return new AdvanceResult(documentId, step, result.reason(), document.getProcessingStatus(),
-                        executed);
-            }
-
-            if (document.getProcessingStatus() == Document.ProcessingStatus.REVIEW_REQUIRED) {
-                // A document waiting for a human must not keep moving. Without this the next stage
-                // would overwrite the status and later stages would act on data nobody has confirmed
-                // - classification that a person still has to accept, for example. The pipeline
-                // resumes from here once the review is decided.
-                return new AdvanceResult(documentId, step,
-                        "The document requires human review before processing can continue",
-                        document.getProcessingStatus(), executed);
             }
         }
 
-        outbox.publish(new DomainEvent("document.processing_completed", "documents", documentId,
-                document.getTenantId(), Map.of("status", document.getProcessingStatus().name())));
+        return tx.execute(status -> {
+            Document document = documents.findById(documentId).orElseThrow();
+            outbox.publish(new DomainEvent("document.processing_completed", "documents", documentId,
+                    document.getTenantId(), Map.of("status", document.getProcessingStatus().name())));
+            return new AdvanceResult(documentId, null, null, document.getProcessingStatus(), executed);
+        });
+    }
 
-        return new AdvanceResult(documentId, null, null, document.getProcessingStatus(), executed);
+    /** What one step did: whether it ran, and whether and why the pipeline has to stop after it. */
+    private record StepOutcome(boolean ran, DocumentProcessingStep.Step stoppedAt, String reason,
+                               Document.ProcessingStatus status) {
+
+        static StepOutcome next(boolean ran) {
+            return new StepOutcome(ran, null, null, null);
+        }
+
+        static StepOutcome stop(boolean ran, DocumentProcessingStep.Step step, String reason,
+                                Document.ProcessingStatus status) {
+            return new StepOutcome(ran, step, reason, status);
+        }
+    }
+
+    private AdvanceResult recordCrash(UUID documentId, DocumentProcessingStep.Step step, RuntimeException ex,
+                                      List<DocumentProcessingStep.Step> executed) {
+        Document document = documents.findById(documentId).orElseThrow();
+        DocumentVersion version = versions.findFirstByDocumentIdOrderByVersionDesc(documentId).orElse(null);
+        DocumentProcessingStep row = stepRow(documentId, version, step);
+        row.fail("STEP_EXCEPTION", rootMessage(ex));
+        steps.save(row);
+        auditFailure(document, step, rootMessage(ex));
+        return new AdvanceResult(documentId, step, rootMessage(ex), document.getProcessingStatus(), executed);
+    }
+
+    private StepOutcome runStep(UUID documentId, DocumentProcessingStep.Step step) {
+        Document document = documents.findById(documentId).orElseThrow();
+        DocumentVersion version = versions.findFirstByDocumentIdOrderByVersionDesc(documentId).orElse(null);
+        DocumentBlob blob = version == null ? null : blobs.findById(version.getBlobId()).orElse(null);
+
+        DocumentProcessingStep row = stepRow(documentId, version, step);
+        if (row.isFinished()) {
+            return StepOutcome.next(false);
+        }
+
+        ProcessingStepHandler handler = handlers.get(step);
+        if (handler == null) {
+            String reason = "No handler is registered for this step yet"
+                    + (handlerNote(step).isEmpty() ? "" : " (" + handlerNote(step) + ")");
+            // Left PENDING on purpose: the step is waiting for its implementation, not skipped.
+            return StepOutcome.stop(false, step, reason, document.getProcessingStatus());
+        }
+        if (version == null || blob == null) {
+            return StepOutcome.stop(false, step, "The stored version is missing", document.getProcessingStatus());
+        }
+
+        row.start();
+        steps.save(row);
+
+        ProcessingStepHandler.StepResult result = handler.handle(new ProcessingStepHandler.ProcessingContext(
+                document.getTenantId(), document, version, blob));
+
+        if (result.isFailed()) {
+            row.fail("STEP_FAILED", result.reason());
+            steps.save(row);
+            auditFailure(document, step, result.reason());
+            return StepOutcome.stop(false, step, result.reason(), document.getProcessingStatus());
+        }
+
+        if (result.isSkipped()) {
+            row.skip(result.reason());
+        }
+        else {
+            row.succeed(result.diagnostics());
+        }
+        steps.save(row);
+
+        if (result.nextStatus() != null && result.nextStatus() != document.getProcessingStatus()) {
+            DocumentStatusMachine.requireTransition(document.getProcessingStatus(), result.nextStatus());
+            document.setProcessingStatus(result.nextStatus());
+            if (result.nextStatus() == Document.ProcessingStatus.REVIEW_REQUIRED) {
+                // A document waiting for a human must also say so in its review state and appear
+                // in the review centre, otherwise it would wait forever without anyone knowing
+                // what for. The reason travels with the entry: a queue a person cannot act on is
+                // just a backlog.
+                document.setReviewStatus(Document.ReviewStatus.PENDING);
+                reviews.raise(document, version, reviewTypeFor(step), describe(step, result), null);
+            }
+            documents.save(document);
+        }
+
+        if (result.isSkipped()) {
+            // A skipped step is a decision, not a failure: the pipeline stops here so the reason
+            // stays attached to the exact stage that produced it.
+            return StepOutcome.stop(true, step, result.reason(), document.getProcessingStatus());
+        }
+
+        if (document.getProcessingStatus() == Document.ProcessingStatus.REVIEW_REQUIRED) {
+            // A document waiting for a human must not keep moving. Without this the next stage
+            // would overwrite the status and later stages would act on data nobody has confirmed
+            // - classification that a person still has to accept, for example. The pipeline
+            // resumes from here once the review is decided.
+            return StepOutcome.stop(true, step,
+                    "The document requires human review before processing can continue",
+                    document.getProcessingStatus());
+        }
+        return StepOutcome.next(true);
     }
 
     /** Which kind of question a stage leaves for a person. */

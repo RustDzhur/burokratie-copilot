@@ -25,8 +25,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import de.buerokratiecopilot.shared.context.RequestContext;
 import de.buerokratiecopilot.shared.error.ApiException;
-import de.buerokratiecopilot.shared.storage.BlobStore;
+import de.buerokratiecopilot.documents.DocumentService;
+import de.buerokratiecopilot.documents.domain.Document;
 
 /**
  * Reads mailboxes over IMAP (spec §7.2, B-014).
@@ -51,7 +53,8 @@ public class ImapMailIngester {
 
     private final JdbcTemplate jdbc;
     private final MailAccountService accounts;
-    private final BlobStore blobStore;
+    private final DocumentService documentService;
+    private final org.springframework.transaction.support.TransactionTemplate attachmentTransaction;
 
     /**
      * Whether the TLS certificate must match the server name.
@@ -66,10 +69,18 @@ public class ImapMailIngester {
             "${burokratie.mail.imap.check-server-identity:true}")
     private boolean checkServerIdentity = true;
 
-    public ImapMailIngester(JdbcTemplate jdbc, MailAccountService accounts, BlobStore blobStore) {
+    public ImapMailIngester(JdbcTemplate jdbc, MailAccountService accounts, DocumentService documentService,
+                            org.springframework.transaction.PlatformTransactionManager transactionManager) {
         this.jdbc = jdbc;
         this.accounts = accounts;
-        this.blobStore = blobStore;
+        this.documentService = documentService;
+        // One attachment per transaction: a file the security check refuses throws out of the document service,
+        // which marks the surrounding transaction rollback-only even though the exception is caught here; the
+        // whole message, and every attachment before it, would then be lost on commit.
+        this.attachmentTransaction = new org.springframework.transaction.support.TransactionTemplate(
+                transactionManager);
+        this.attachmentTransaction.setPropagationBehavior(
+                org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     /** What a synchronisation produced. */
@@ -194,6 +205,7 @@ public class ImapMailIngester {
      */
     private int storeAttachments(UUID tenantId, UUID messageId, Message message) {
         List<Part> attachments = attachmentsOf(message);
+        String sender = firstAddress(message, true);
         int created = 0;
         for (Part part : attachments) {
             try {
@@ -210,15 +222,27 @@ public class ImapMailIngester {
                         : part.getContentType().split(";")[0].trim()
                                 .toLowerCase(java.util.Locale.ROOT);
 
-                // The file is kept as a source document, like every other incoming file.
-                BlobStore.StoredBlob blob = blobStore.store(tenantId,
-                        new java.io.ByteArrayInputStream(content), content.length, mimeType);
-                UUID blobRowId = insertBlob(tenantId, blob, mimeType);
-
+                // An attachment takes exactly the path of an uploaded file: stored, checked for malware and
+                // for a structure that contradicts its type, versioned, announced and audited. The earlier
+                // direct insert skipped every one of those steps, marked the file clean without scanning it,
+                // and left the document without a version, so it could never be processed.
                 UUID existing = existingDocument(tenantId, hash);
-                UUID documentId = existing != null ? existing
-                        : insertDocument(tenantId, filename, mimeType, content.length, hash);
-                if (existing == null) {
+                UUID documentId;
+                UUID blobRowId;
+                if (existing != null) {
+                    documentId = existing;
+                    blobRowId = blobOf(existing);
+                }
+                else {
+                    // The tenant is set before the transaction opens: the connection takes its tenant when it is
+                    // acquired, so the order matters.
+                    DocumentService.ReceivedDocument received = RequestContext.runAs(tenantId, () ->
+                            attachmentTransaction.execute(status -> documentService.receive(
+                                    new DocumentService.UploadRequest(
+                                            new ByteArrayMultipartFile(filename, mimeType, content), null, null,
+                                            Document.Source.EMAIL, sender))));
+                    documentId = received.document().getId();
+                    blobRowId = blobOf(documentId);
                     created++;
                 }
 
@@ -247,24 +271,11 @@ public class ImapMailIngester {
         return found.isEmpty() ? null : found.getFirst();
     }
 
-    private UUID insertBlob(UUID tenantId, BlobStore.StoredBlob blob, String contentType) {
-        return jdbc.queryForObject("""
-                insert into document_blobs (id, tenant_id, storage_key, storage_backend, bucket,
-                                            size_bytes, content_hash, content_type, scan_status,
-                                            scan_details, quarantined)
-                values (gen_random_uuid(), ?, ?, ?, null, ?, ?, ?, 'CLEAN', '{}'::jsonb, false)
-                returning id
-                """, UUID.class, tenantId, blob.storageKey(), blob.backend(), blob.sizeBytes(),
-                blob.contentHash(), contentType);
-    }
-
-    private UUID insertDocument(UUID tenantId, String filename, String mimeType, long size, String hash) {
-        return jdbc.queryForObject("""
-                insert into documents (id, tenant_id, original_filename, internal_name, mime_type,
-                                       size_bytes, content_hash, source, processing_status, review_status)
-                values (gen_random_uuid(), ?, ?, ?, ?, ?, ?, 'EMAIL', 'RECEIVED', 'PENDING')
-                returning id
-                """, UUID.class, tenantId, filename, filename, mimeType, size, hash);
+    private UUID blobOf(UUID documentId) {
+        List<UUID> found = jdbc.query("""
+                select blob_id from document_versions where document_id = ? order by version desc limit 1
+                """, (rs, row) -> rs.getObject("blob_id", UUID.class), documentId);
+        return found.isEmpty() ? null : found.getFirst();
     }
 
     private String username(UUID tenantId, UUID accountId) {

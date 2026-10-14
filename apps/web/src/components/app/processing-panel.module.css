@@ -1,0 +1,44 @@
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2, 0.5rem);
+  margin-block: var(--space-3, 0.75rem);
+}
+
+.meta {
+  color: var(--text-secondary, inherit);
+  font-size: 0.875rem;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3, 0.75rem);
+  margin-block: var(--space-3, 0.75rem);
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2, 0.5rem);
+}
+
+.step {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2, 0.5rem);
+}
+
+.stepName {
+  min-width: 12rem;
+}
+
+.stepError {
+  color: var(--text-danger, inherit);
+  font-size: 0.875rem;
+}
