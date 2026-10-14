@@ -27,7 +27,7 @@ import org.hibernate.type.SqlTypes;
 public class DocumentMatch {
 
     public enum MatchType {
-        CASE, CONTACT, CONTRACT, INVOICE
+        CASE, CONTACT, CONTRACT, INVOICE, OBLIGATION, TASK
     }
 
     public enum Status {

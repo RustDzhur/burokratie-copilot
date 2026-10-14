@@ -32,9 +32,41 @@ import de.buerokratiecopilot.shared.context.RequestContext;
 public class ContactController {
 
     private final ContactService contacts;
+    private final de.buerokratiecopilot.contacts.identifiers.ContactIdentifierService identifiers;
 
-    public ContactController(ContactService contacts) {
+    public ContactController(ContactService contacts,
+                             de.buerokratiecopilot.contacts.identifiers.ContactIdentifierService identifiers) {
         this.contacts = contacts;
+        this.identifiers = identifiers;
+    }
+
+    public record IdentifierRequest(de.buerokratiecopilot.contacts.identifiers.IdentifierKind kind, String value) {
+    }
+
+    @GetMapping("/{contactId}/identifiers")
+    @PreAuthorize("hasAuthority('contacts.view')")
+    @Operation(summary = "The identifiers a contact is recognised by")
+    public List<Map<String, Object>> identifiers(@org.springframework.web.bind.annotation.PathVariable java.util.UUID contactId) {
+        return identifiers.list(RequestContext.tenantId().orElseThrow(), contactId);
+    }
+
+    @PostMapping("/{contactId}/identifiers")
+    @PreAuthorize("hasAuthority('contacts.edit')")
+    @Operation(summary = "Adds an identifier; one already used by another contact is refused with that contact named")
+    public ResponseEntity<Map<String, Object>> addIdentifier(
+            @org.springframework.web.bind.annotation.PathVariable java.util.UUID contactId,
+            @RequestBody IdentifierRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(identifiers.add(RequestContext.tenantId().orElseThrow(),
+                contactId, request.kind(), request.value(), CurrentUser.required()));
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/{contactId}/identifiers/{identifierId}")
+    @PreAuthorize("hasAuthority('contacts.edit')")
+    @Operation(summary = "Removes an identifier")
+    public ResponseEntity<Void> removeIdentifier(@org.springframework.web.bind.annotation.PathVariable java.util.UUID contactId,
+                                                 @org.springframework.web.bind.annotation.PathVariable java.util.UUID identifierId) {
+        identifiers.remove(RequestContext.tenantId().orElseThrow(), contactId, identifierId);
+        return ResponseEntity.noContent().build();
     }
 
     public record CreateContactRequest(String name, ContactService.Kind kind, String email, String phone) {

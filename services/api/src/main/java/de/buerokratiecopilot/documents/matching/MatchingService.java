@@ -96,6 +96,8 @@ public class MatchingService {
         proposals.addAll(matchCases(document, pages));
         proposals.addAll(matchContracts(document, pages));
         proposals.addAll(matchContacts(document, pages, senderContactId));
+        proposals.addAll(matchContactsByIdentifier(document, pages));
+        proposals = keepBestPerTarget(proposals);
 
         // The unique index keeps one row per document and target, so re-running the stage after a fix
         // updates the score instead of asking the user to decide about the same pair twice.
@@ -254,6 +256,53 @@ public class MatchingService {
             }
         }, document.getTenantId());
         return proposals;
+    }
+
+    /**
+     * Contacts found by the identifiers written in the letter: IBAN (check digits verified), USt-IdNr., Steuernummer,
+     * e-mail, in any spelling (blocks of four, dots, slashes). The identifiers of the contacts are compared after
+     * normalisation; a name never counts.
+     */
+    private List<Proposal> matchContactsByIdentifier(Document document, List<PageText> pages) {
+        List<Proposal> proposals = new ArrayList<>();
+        for (PageText page : pages) {
+            for (var found : de.buerokratiecopilot.contacts.identifiers.IdentifierExtractor.extract(page.text())) {
+                List<Map<String, Object>> owners = jdbc.queryForList("""
+                        select c.id, coalesce(nullif(c.organization_name, ''), c.display_name) as name
+                        from contact_identifiers i join contacts c on c.id = i.contact_id
+                        where i.tenant_id = ? and i.kind = ? and i.normalized_value = ? and c.deleted_at is null
+                        """, document.getTenantId(), found.kind().name(), found.normalized());
+                for (Map<String, Object> owner : owners) {
+                    String label = switch (found.kind()) {
+                        case IBAN -> "IBAN";
+                        case VAT_ID -> "USt-IdNr.";
+                        case TAX_NUMBER -> "Steuernummer";
+                        case EMAIL -> "E-Mail-Adresse";
+                        default -> found.kind().name();
+                    };
+                    double score = switch (found.kind()) {
+                        case IBAN -> 0.95;
+                        case VAT_ID -> 0.92;
+                        default -> 0.90;
+                    };
+                    Needle needle = new Needle(found.raw(), label, page.number(), snippetAt(page.text(), found.position()));
+                    proposals.add(new Proposal(DocumentMatch.MatchType.CONTACT, (UUID) owner.get("id"), score,
+                            "%s \"%s\" des Kontakts steht auf Seite %d im Dokument".formatted(label, found.raw(), page.number()),
+                            evidence(label, needle, String.valueOf(owner.get("name")))));
+                }
+            }
+        }
+        return proposals;
+    }
+
+    /** One proposal per target: the strongest. */
+    private static List<Proposal> keepBestPerTarget(List<Proposal> proposals) {
+        Map<String, Proposal> best = new java.util.LinkedHashMap<>();
+        for (Proposal proposal : proposals) {
+            best.merge(proposal.type() + ":" + proposal.targetId(), proposal,
+                    (a, b) -> b.score() > a.score() ? b : a);
+        }
+        return new ArrayList<>(best.values());
     }
 
     /**

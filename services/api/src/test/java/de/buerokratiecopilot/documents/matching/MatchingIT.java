@@ -88,11 +88,18 @@ class MatchingIT {
     @Autowired
     private de.buerokratiecopilot.documents.DocumentVersionRepository versions;
 
+    @Autowired
+    private de.buerokratiecopilot.contacts.identifiers.ContactIdentifierService identifiers;
+
     private record Tenant(UUID tenantId, UUID caseId, UUID contactId, UUID userId, UUID documentId) {
     }
 
     /** Creates a tenant with one case and one contact, the way a first customer would have them. */
     private Tenant setUpTenant(String caseReference) throws Exception {
+        return setUpTenant(caseReference, invoiceText(caseReference));
+    }
+
+    private Tenant setUpTenant(String caseReference, String documentText) throws Exception {
         String email = "match-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de";
         MvcResult registration = mockMvc.perform(post("/api/v1/auth/register").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -139,7 +146,7 @@ class MatchingIT {
                 .andExpect(status().isOk())
                 .andReturn();
         Cookie session = login.getResponse().getCookie("bc_session");
-        UUID documentId = UUID.fromString(uploadDocument(session, invoiceText(caseReference)));
+        UUID documentId = UUID.fromString(uploadDocument(session, documentText));
         return new Tenant(tenantId, ids[0], ids[1], userId, documentId);
     }
 
@@ -301,6 +308,60 @@ class MatchingIT {
                 .toList());
         assertThat(rows).as("one row for the pair, not a second suggestion").hasSize(1);
         assertThat(rows.get(0).getStatus()).isEqualTo(DocumentMatch.Status.REJECTED);
+    }
+
+    @Test
+    @DisplayName("a contact is found by the IBAN or VAT id written in the letter, in any spelling, and only proposed")
+    void contactFoundByIdentifierInAnySpelling() throws Exception {
+        String text = invoiceText("2026-120") + "USt-IdNr.: DE 123 456 789\n"
+                + "IBAN: DE89 3704 0044 0532 0130 00\n";
+        Tenant tenant = setUpTenant("2026-120", text);
+        asTenant(tenant.tenantId(), () -> identifiers.add(tenant.tenantId(), tenant.contactId(),
+                de.buerokratiecopilot.contacts.identifiers.IdentifierKind.IBAN, "DE89370400440532013000", tenant.userId()));
+        advance(tenant.documentId());
+
+        var proposals = asTenant(tenant.tenantId(), () -> matches.findByDocumentId(tenant.documentId()).stream()
+                .filter(m -> m.getMatchType() == DocumentMatch.MatchType.CONTACT
+                        && m.getTargetId().equals(tenant.contactId()))
+                .toList());
+        assertThat(proposals).hasSize(1);
+        assertThat(proposals.get(0).getScore().doubleValue()).isGreaterThanOrEqualTo(0.92);
+        assertThat(proposals.get(0).getStatus()).as("a contact is never linked silently")
+                .isEqualTo(DocumentMatch.Status.SUGGESTED);
+    }
+
+    @Test
+    @DisplayName("two contacts with the same name are not mistaken for one: a name alone proposes nothing")
+    void nameAloneProposesNothing() throws Exception {
+        String text = "Beispiel Handels GmbH\n" + invoiceText("2026-121");
+        Tenant tenant = setUpTenant("2026-121", text);
+        UUID namesake = asTenant(tenant.tenantId(), () -> jdbc.queryForObject("""
+                insert into contacts (id, tenant_id, contact_type, display_name, organization_name)
+                values (gen_random_uuid(), ?, 'ORGANIZATION', 'Beispiel Handels GmbH', 'Beispiel Handels GmbH')
+                returning id
+                """, UUID.class, tenant.tenantId()));
+        advance(tenant.documentId());
+
+        var forNamesake = asTenant(tenant.tenantId(), () -> matches.findByDocumentId(tenant.documentId()).stream()
+                .filter(m -> m.getTargetId().equals(namesake)).toList());
+        assertThat(forNamesake).isEmpty();
+    }
+
+    @Test
+    @DisplayName("an identifier already held by another contact is refused, naming that contact")
+    void identifierIsHeldByOneContactOnly() throws Exception {
+        Tenant tenant = setUpTenant("2026-122");
+        UUID other = asTenant(tenant.tenantId(), () -> jdbc.queryForObject("""
+                insert into contacts (id, tenant_id, contact_type, display_name)
+                values (gen_random_uuid(), ?, 'ORGANIZATION', 'Zweite Firma') returning id
+                """, UUID.class, tenant.tenantId()));
+        asTenant(tenant.tenantId(), () -> identifiers.add(tenant.tenantId(), tenant.contactId(),
+                de.buerokratiecopilot.contacts.identifiers.IdentifierKind.VAT_ID, "DE 987 654 321", tenant.userId()));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> asTenant(tenant.tenantId(), () -> identifiers.add(
+                        tenant.tenantId(), other, de.buerokratiecopilot.contacts.identifiers.IdentifierKind.VAT_ID,
+                        "DE987654321", tenant.userId())))
+                .hasMessageContaining("Muster GmbH");
     }
 
     @Test

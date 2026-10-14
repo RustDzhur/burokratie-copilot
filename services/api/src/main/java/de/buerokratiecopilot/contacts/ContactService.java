@@ -34,10 +34,13 @@ public class ContactService {
 
     private final JdbcTemplate jdbc;
     private final AuditService audit;
+    private final de.buerokratiecopilot.contacts.identifiers.ContactIdentifierService identifiers;
 
-    public ContactService(JdbcTemplate jdbc, AuditService audit) {
+    public ContactService(JdbcTemplate jdbc, AuditService audit,
+                          de.buerokratiecopilot.contacts.identifiers.ContactIdentifierService identifiers) {
         this.jdbc = jdbc;
         this.audit = audit;
+        this.identifiers = identifiers;
     }
 
     @Transactional(readOnly = true)
@@ -91,6 +94,8 @@ public class ContactService {
                 returning id
                 """, UUID.class, tenantId, kind == Kind.PERSON ? "PERSON" : "ORGANIZATION",
                 draft.name().strip(), email, phone, kind == Kind.AUTHORITY, createdBy);
+
+        identifiers.register(tenantId, id, email, phone, createdBy);
 
         audit.record(AuditService.AuditEntry.builder(AuditEvent.Category.CASE, "CONTACT_CREATED")
                 .tenant(tenantId)

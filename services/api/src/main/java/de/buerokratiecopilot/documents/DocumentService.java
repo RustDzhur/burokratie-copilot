@@ -208,6 +208,18 @@ public class DocumentService {
         source.setRawMetadata(Map.of("declaredContentType", String.valueOf(file.getContentType())));
         sources.save(source);
 
+        if (duplicate && document.getDuplicateOfDocumentId() != null) {
+            // The copy is related to its original, with the reason: the same bytes.
+            documents.flush();
+            jdbc.update("""
+                    insert into document_relations (tenant_id, source_document_id, target_document_id, relation_type,
+                                                    confidence, status, evidence)
+                    values (?, ?, ?, 'DUPLICATE', 1.0, 'CONFIRMED', jsonb_build_object('rule', 'identical content hash',
+                                                                                      'contentHash', ?::text))
+                    on conflict do nothing
+                    """, tenantId, document.getId(), document.getDuplicateOfDocumentId(), stored.contentHash());
+        }
+
         // The upload path already performed three pipeline steps; recording them keeps the pipeline
         // history complete instead of starting with a gap.
         pipeline.recordCompletedStep(document.getId(), version.getId(),
