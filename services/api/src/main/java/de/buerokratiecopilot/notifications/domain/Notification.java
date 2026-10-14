@@ -36,7 +36,7 @@ public class Notification {
     /** The categories of the specification; the schema fixes the values. */
     public enum Category {
         TASK, DEADLINE, MISSED_DEADLINE, NEW_MAIL, DOCUMENT_REVIEW, APPROVAL, INTEGRATION_ERROR,
-        AUTOMATION_RESULT, EXTERNAL_RESPONSE, CONTRACT_CHANGE, ARCHIVING, SECURITY, SYSTEM
+        AUTOMATION_RESULT, EXTERNAL_RESPONSE, CONTRACT_CHANGE, ARCHIVING, SECURITY, SYSTEM, RADAR
     }
 
     @Id

@@ -46,6 +46,9 @@ burokratie:
   orchestration:
     # The watchdog is called explicitly by its own tests; it must not touch the other tests' documents.
     watchdog-enabled: false
+  radar:
+    # The sweep is called explicitly by the Radar tests; it must not touch the other tests' data.
+    sweep-enabled: false
   outbox:
     # The dispatcher is invoked explicitly by tests; the schedule must not fire during them.
     poll-interval-ms: 3600000
