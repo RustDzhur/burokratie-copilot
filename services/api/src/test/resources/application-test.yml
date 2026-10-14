@@ -11,7 +11,11 @@ spring:
     username: ${BC_TEST_DB_USER:burokratie}
     password: ${BC_TEST_DB_PASSWORD:burokratie_dev_password}
     hikari:
-      maximum-pool-size: 8
+      # HD-TEST-01: every cached Spring context keeps its own pool; with 8 per context and some 30 contexts the
+      # database ran out of connections in a full run (9 errors, all 'remaining connection slots are reserved').
+      maximum-pool-size: 4
+      minimum-idle: 1
+      idle-timeout: 30000
   jpa:
     hibernate:
       ddl-auto: validate

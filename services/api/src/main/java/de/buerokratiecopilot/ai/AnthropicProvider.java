@@ -52,6 +52,11 @@ public class AnthropicProvider implements AiProvider {
     }
 
     @Override
+    public String defaultModel() {
+        return config.getModel().isBlank() ? DEFAULT_MODEL : config.getModel();
+    }
+
+    @Override
     public boolean isAvailable() {
         return config.isEnabled() && NAME.equalsIgnoreCase(config.getProvider()) && !config.getApiKey().isBlank();
     }

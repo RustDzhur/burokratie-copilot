@@ -89,3 +89,11 @@ BC_PLATFORM_ADMINS=ihre.adresse@example.de
 ```
 
 Danach in der Oberfläche anmelden → *Administration* → *Zahlungsdaten* ausfüllen.
+
+## Welche neuen Funktionen in welchem Tarif (Entscheidung D-15, Standardwert)
+
+* **Radar** (`/api/v1/radar`, Seite *Radar*, Block auf dem Dashboard): ab **Personal**. In *Free* ist der Pfad gesperrt
+  (`402`), der Menüpunkt ausgeblendet und die Radar-Prüfung erzeugt keine Befunde.
+* **Business Memory** (`/api/v1/memory`: Verknüpfungen, Fakten, Verlauf, Fragen mit Quellen): in jedem Tarif, weil das
+  Profil eines Kontakts nicht vom Preis abhängen soll.
+* Die Schwellen des Radars (`radar.*` in den Einstellungen) sind **technische Startwerte**, keine rechtlichen Regeln.

@@ -498,6 +498,8 @@ export interface ApiResources {
     summary: (signal?: AbortSignal) => Promise<RadarSummary>;
     detail: (id: string, signal?: AbortSignal) => Promise<RadarFindingDetail>;
     act: (id: string, action: RadarAction) => Promise<RadarFindingDetail>;
+    /** Asks the language model for a plain-words explanation; `kind` says what came of it. */
+    explain: (id: string) => Promise<{ readonly kind: 'EXPLAINED' | 'REJECTED' | 'UNAVAILABLE' | 'DISABLED' | 'NO_EVIDENCE'; readonly explanation: string | null }>;
   };
   readonly deletion: {
     remove: (kind: DeletionKind, ids: readonly string[]) => Promise<{ deleted: number; refused: string[] }>;
@@ -1471,6 +1473,12 @@ export function createResources(client: ApiClient): ApiResources {
         }
         return radarDetailFromWire(wire);
       },
+      explain: (id) =>
+        client.post<{ kind: 'EXPLAINED' | 'REJECTED' | 'UNAVAILABLE' | 'DISABLED' | 'NO_EVIDENCE'; explanation: string | null }>(
+          `/radar/findings/${id}/explain`,
+          undefined,
+          { idempotencyKey: true },
+        ),
     },
     deletion: {
       remove: (kind, ids) =>

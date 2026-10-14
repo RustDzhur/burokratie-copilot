@@ -73,6 +73,14 @@ public interface AiProvider {
      */
     Completion complete(Request request);
 
+    /**
+     * The model this provider uses when a caller does not name one. A run is always recorded with the model that answered,
+     * never with an empty one: the record is how a bill and a bad answer are traced back.
+     */
+    default String defaultModel() {
+        return "default";
+    }
+
     /** Whether this provider could answer right now, without sending anything. */
     boolean isAvailable();
 

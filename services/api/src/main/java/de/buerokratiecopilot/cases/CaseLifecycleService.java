@@ -47,8 +47,10 @@ public class CaseLifecycleService {
     private final CaseRepository cases;
     private final CaseService caseService;
     private final JdbcTemplate jdbc;
+    private final CaseCriteriaService criteria;
 
-    public CaseLifecycleService(CaseRepository cases, CaseService caseService, JdbcTemplate jdbc) {
+    public CaseLifecycleService(CaseRepository cases, CaseService caseService, JdbcTemplate jdbc, CaseCriteriaService criteria) {
+        this.criteria = criteria;
         this.cases = cases;
         this.caseService = caseService;
         this.jdbc = jdbc;
@@ -101,6 +103,11 @@ public class CaseLifecycleService {
             open.add(new OpenObligation("DOCUMENT", "Erforderliche Unterlage fehlt: " + document));
         }
 
+        // The completion criteria of the case that are not yet met: each is one fact the case still lacks.
+        for (Map<String, Object> criterion : criteria.open(caseRecord.getId())) {
+            open.add(new OpenObligation("CRITERION", "Abschlusskriterium offen: " + criterion.get("description")));
+        }
+
         return new Obligations(open, tasks.size(), missing);
     }
 
@@ -146,6 +153,15 @@ public class CaseLifecycleService {
         CaseStatusMachine.requireTransition(from, to);
 
         if (CaseStatusMachine.isClosing(to)) {
+            // The platform looks at its facts first: a task that is done, a document that arrived, a letter that was delivered.
+            criteria.evaluate(caseId);
+            if (to == Case.Status.COMPLETED && !criteria.open(caseId).isEmpty()) {
+                // COMPLETED says the result was reached; with a criterion open that is a claim the platform can see to be
+                // false. Closing for another reason stays possible, as a deliberate act (status CLOSED).
+                throw ApiException.conflict("The case cannot be completed while its completion criteria are open: "
+                        + String.join("; ", criteria.open(caseId).stream().map(c -> String.valueOf(c.get("description"))).toList())
+                        + ". Meet or give up each criterion, or close the case deliberately instead.");
+            }
             applyClosure(caseRecord, request, userId, from);
         }
         else {

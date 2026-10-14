@@ -170,20 +170,22 @@ public class AiOrchestrator {
                 long latency = System.currentTimeMillis() - started;
 
                 failures.remove(provider.name());
+                // The model that answered: the one asked for, or else the provider's own.
+                String usedModel = model != null && !model.isBlank() ? model : provider.defaultModel();
                 // The log line carries the metadata and never the input.
                 log.info("AI job {} answered by {} in {} ms: {}", jobId, provider.name(), latency,
                         AiLogRedaction.describe(request));
 
-                UUID runId = recordRun(tenantId, jobId, provider.name(), model, instructionVersion,
+                UUID runId = recordRun(tenantId, jobId, provider.name(), usedModel, instructionVersion,
                         instructionHash, "SUCCEEDED", completion, latency, null);
                 jdbc.update("""
                         update ai_jobs set status = 'SUCCEEDED', finished_at = now(),
                                result_run_id = ?, provider = ?, attempts = ?
                         where id = ? and tenant_id = ?
                         """, runId, provider.name(), attempts.size() + 1, jobId, tenantId);
-                recordUsage(tenantId, provider.name(), model, jobType, completion);
+                recordUsage(tenantId, provider.name(), usedModel, jobType, completion);
 
-                return new Outcome(jobId, "SUCCEEDED", provider.name(), model, completion.text(),
+                return new Outcome(jobId, "SUCCEEDED", provider.name(), usedModel, completion.text(),
                         completion.structured(), completion.inputTokens(), completion.outputTokens(),
                         completion.costAmount(), null, attempts);
             }
@@ -195,8 +197,8 @@ public class AiOrchestrator {
 
                 // The failure is recorded, and the next provider is tried: a provider being down is not
                 // the system being down.
-                recordRun(tenantId, jobId, provider.name(), model, instructionVersion, instructionHash,
-                        "FAILED", null, 0, code);
+                recordRun(tenantId, jobId, provider.name(), model != null && !model.isBlank() ? model : provider.defaultModel(),
+                        instructionVersion, instructionHash, "FAILED", null, 0, code);
                 log.warn("AI job {} failed at provider {}: {}", jobId, provider.name(),
                         AiLogRedaction.redact(ex.getMessage()));
             }

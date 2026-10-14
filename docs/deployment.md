@@ -477,3 +477,12 @@ Nothing in this list can be produced by the repository. Each row states what it 
 - [`README.md`](../README.md) — local setup (with and without Docker), tests, status table, known blockers
 - [`infra/.env.example`](../infra/.env.example) — every environment variable with its meaning
 - [`tests/load/README.md`](../tests/load/README.md) — how performance figures must be produced and recorded
+
+
+## AI-чтение, Telegram и состояние worker (дополнение 2026-10-15)
+
+* **AI-чтение рукописи и объяснения** включает `scripts/enable-ai.sh` (спрашивает ключ скрытым вводом, проверяет связь и перезапускает только `api` и `worker`; `--eu` — европейский адрес OpenAI, `--anthropic`, `--off`). Месячный предел и дневное число автоматических чтений — в `infra/.env` (`BC_AI_MONTHLY_BUDGET_EUR`, `BC_AI_AUTO_READ_DAILY_LIMIT`).
+* **Telegram-информатор:** `scripts/enable-telegram.sh` (токен бота от @BotFather), затем в интерфейсе Integrations → Telegram → «Подключить».
+* **Worker не имеет веб-сервера**, поэтому его состояние проверяется не по HTTP: профиль `worker` каждые 15 секунд обновляет файл `/tmp/worker-heartbeat`, проверка контейнера — «файл обновлялся менее 60 секунд назад» (`infra/docker-compose*.yml`, `WorkerHeartbeat`). Контейнер `bc-worker` в состоянии `unhealthy` теперь означает, что планировщик действительно остановился.
+* **Мёртвые события очереди:** `GET /api/v1/admin/outbox/dead-letters` показывает, `POST /api/v1/admin/outbox/requeue` возвращает в работу события тех типов, для которых есть обработчик (только администратор платформы).
+* **Радар** выполняет ежечасный обход арендаторов (`burokratie.radar.sweep-interval-ms`, отключение `burokratie.radar.sweep-enabled=false`).

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import de.buerokratiecopilot.radar.RadarActionService;
 import de.buerokratiecopilot.radar.RadarEngine;
+import de.buerokratiecopilot.radar.RadarExplanationService;
 import de.buerokratiecopilot.radar.RadarFindingStatus;
 import de.buerokratiecopilot.radar.RadarQueryService;
 import de.buerokratiecopilot.radar.RadarRule;
@@ -30,8 +31,11 @@ public class RadarController {
     private final RadarQueryService queries;
     private final RadarActionService actions;
     private final RadarEngine engine;
+    private final RadarExplanationService explanations;
 
-    public RadarController(RadarQueryService queries, RadarActionService actions, RadarEngine engine) {
+    public RadarController(RadarQueryService queries, RadarActionService actions, RadarEngine engine,
+                           RadarExplanationService explanations) {
+        this.explanations = explanations;
         this.queries = queries;
         this.actions = actions;
         this.engine = engine;
@@ -140,6 +144,13 @@ public class RadarController {
     @PreAuthorize("hasAuthority('radar.triage')")
     public Map<String, Object> reEvaluate(@PathVariable UUID id) {
         return actions.reEvaluate(tenant(), CurrentUser.required(), id);
+    }
+
+    @PostMapping("/findings/{id}/explain")
+    @PreAuthorize("hasAuthority('radar.triage')")
+    public Map<String, Object> explain(@PathVariable UUID id) {
+        queries.requireVisible(tenant(), CurrentUser.required(), id);
+        return explanations.explain(tenant(), CurrentUser.required(), id).asMap();
     }
 
     @GetMapping("/rules")

@@ -48,6 +48,20 @@ export default function RadarFindingPage() {
     }
   };
 
+  const explain = async (): Promise<void> => {
+    setBusy(true);
+    try {
+      const result = await api.radar.explain(id);
+      if (result.kind === 'EXPLAINED') toast.success(t('explain.EXPLAINED'));
+      else toast.info(t(`explain.${result.kind}` as 'explain.DISABLED'));
+      reload();
+    } catch (error) {
+      toast.error(tErrors(toApiError(error).kind));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const needReason = (action: RadarAction): void => {
     if (reason.trim().length === 0) {
       setProblem(t('reasonRequired'));
@@ -103,7 +117,12 @@ export default function RadarFindingPage() {
                   <p>{t('detail.advisory')}</p>
                   <h2>{t('detail.why')}</h2>
                   {finding.description ? <p style={{ whiteSpace: 'pre-wrap' }}>{finding.description}</p> : null}
-                  {finding.explanation ? <p style={{ whiteSpace: 'pre-wrap' }}>{finding.explanation}</p> : null}
+                  {finding.explanation ? (
+                    <>
+                      <h3>{t('detail.explanation')}</h3>
+                      <p style={{ whiteSpace: 'pre-wrap' }}>{finding.explanation}</p>
+                    </>
+                  ) : null}
                   {finding.snoozedUntil && finding.status === 'SNOOZED' ? <p>{t('detail.snoozedUntil', { date: formatDate(finding.snoozedUntil, locale) })}</p> : null}
                   {finding.resolutionReason ? <p>{t('detail.resolution', { reason: finding.resolutionReason })}</p> : null}
                   {finding.caseId ? (
@@ -161,6 +180,7 @@ export default function RadarFindingPage() {
                         {session ? <Button variant="secondary" loading={busy} onClick={() => void act({ kind: 'assign', userId: session.id })}>{t('action.assignMe')}</Button> : null}
                         {finding.caseId ? null : <Button variant="secondary" loading={busy} onClick={() => void act({ kind: 'create-case' })}>{t('action.createCase')}</Button>}
                         <Button variant="secondary" loading={busy} onClick={() => void act({ kind: 're-evaluate' })}>{t('action.reEvaluate')}</Button>
+                        <Button variant="secondary" loading={busy} onClick={() => void explain()}>{t('action.explain')}</Button>
                       </div>
                     </CardBody>
                   </Card>
