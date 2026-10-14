@@ -159,6 +159,21 @@ class DocumentUploadIT {
         assertThat(JsonPath.<String>read(body, "$.duplicateOf")).isEqualTo(firstId);
         assertThat(JsonPath.<String>read(body, "$.document.processingStatus")).isEqualTo("DUPLICATE");
         assertThat(JsonPath.<String>read(body, "$.document.duplicateOfDocumentId")).isEqualTo(firstId);
+
+        // "Process again" on a duplicate must leave it a duplicate, not fail trying to move it on.
+        String duplicateId = JsonPath.read(body, "$.document.id");
+        MvcResult again = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/v1/documents/{id}/reprocess", duplicateId)
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(JsonPath.<String>read(again.getResponse().getContentAsString(), "$.processingStatus"))
+                .isEqualTo("DUPLICATE");
+        mockMvc.perform(get("/api/v1/documents/{id}/pipeline", duplicateId).cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.steps[?(@.status == 'FAILED')]").isEmpty());
     }
 
     @Test

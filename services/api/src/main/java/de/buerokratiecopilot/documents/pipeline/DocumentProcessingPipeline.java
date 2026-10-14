@@ -188,6 +188,13 @@ public class DocumentProcessingPipeline {
 
         DocumentProcessingStep row = stepRow(documentId, version, step);
         if (row.isFinished()) {
+            // A duplicate was stopped at its check when it arrived. Running the pipeline again (the "process again"
+            // button) must stop there again, not walk on and fail trying to move a duplicate to another status.
+            if (step == DocumentProcessingStep.Step.DUPLICATE_CHECK
+                    && row.getStatus() == DocumentProcessingStep.Status.SKIPPED
+                    && document.getProcessingStatus() == Document.ProcessingStatus.DUPLICATE) {
+                return StepOutcome.stop(false, step, row.getErrorMessage(), document.getProcessingStatus());
+            }
             return StepOutcome.next(false);
         }
 

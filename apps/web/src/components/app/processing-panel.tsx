@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Badge, Card, CardBody, CardHeader } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
@@ -85,7 +85,19 @@ export function ProcessingPanel({ documentId, reloadKey = 0 }: ProcessingPanelPr
     setPolling(true);
   }, [reloadKey]);
 
-  if (state.status === 'loading') {
+  // A poll that fails or is still on its way must not take the panel away: the last known state stays on screen.
+  const lastFlow = useRef<ProcessingFlow | null>(null);
+  const lastDocument = useRef(documentId);
+  if (lastDocument.current !== documentId) {
+    lastDocument.current = documentId;
+    lastFlow.current = null;
+  }
+  if (state.status === 'ready') {
+    lastFlow.current = state.data;
+  }
+  const shown: ProcessingFlow | null = state.status === 'ready' ? state.data : lastFlow.current;
+
+  if (shown === null && state.status === 'loading') {
     return (
       <Card>
         <CardBody>
@@ -94,11 +106,11 @@ export function ProcessingPanel({ documentId, reloadKey = 0 }: ProcessingPanelPr
       </Card>
     );
   }
-  if (state.status !== 'ready') {
+  if (shown === null) {
     return null;
   }
 
-  const flow = state.data;
+  const flow = shown;
   const outcome = flow.outcome;
   // Every sentence below is built here from facts, in the interface language; the backend's own sentences are
   // German and are only the fallback for a result this client does not know.

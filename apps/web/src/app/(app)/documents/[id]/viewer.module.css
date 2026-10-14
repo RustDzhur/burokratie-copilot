@@ -5,6 +5,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
+  margin-top: var(--space-5);
   margin-bottom: var(--space-5);
 }
 
