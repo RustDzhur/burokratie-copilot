@@ -222,6 +222,60 @@ class DocumentUploadIT {
     }
 
     @Test
+    @DisplayName("a cabinet starts with its first party, a family adds members, and a document can be addressed to one")
+    void parties() throws Exception {
+        Session session = signIn("party");
+        String first = mockMvc.perform(get("/api/v1/parties").cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.length()").value(1))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$[0].primary").value(true))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(JsonPath.<String>read(first, "$[0].kind")).isIn("PERSON", "ORGANIZATION");
+
+        MvcResult created = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/v1/parties")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .cookie(session.cookie())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"displayName\":\"Lena Beispiel\",\"relation\":\"child\",\"birthDate\":\"2015-09-01\"}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String partyId = JsonPath.read(created.getResponse().getContentAsString(), "$.id");
+
+        String documentId = JsonPath.read(upload(session, "schule.pdf", invoicePdf("party-doc"), 201)
+                .getResponse().getContentAsString(), "$.document.id");
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .put("/api/v1/documents/{id}/party", documentId)
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .cookie(session.cookie())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"partyId\":\"" + partyId + "\"}"))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/documents").param("party", partyId).cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content.length()").value(1));
+        mockMvc.perform(get("/api/v1/documents").param("party", "NONE").cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content.length()").value(0));
+
+        // The main party cannot be removed; a member can, and the document stays without an addressee.
+        String mainId = JsonPath.read(first, "$[0].id");
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .delete("/api/v1/parties/{id}", mainId)
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .cookie(session.cookie()))
+                .andExpect(status().isConflict());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .delete("/api/v1/parties/{id}", partyId)
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .cookie(session.cookie()))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/v1/documents/{id}", documentId).cookie(session.cookie()))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.partyId").doesNotExist());
+    }
+
+    @Test
     @DisplayName("a document of another tenant does not exist from this session's point of view")
     void crossTenantAccessIsRefused() throws Exception {
         Session tenantA = signIn("tenant-a");

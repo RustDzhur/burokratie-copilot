@@ -21,8 +21,12 @@ public class DocumentProcessedHandler implements OutboxEventHandler {
     private final CaseOrchestrator orchestrator;
     private final de.buerokratiecopilot.documents.reading.AiDocumentReader reader;
 
+    private final de.buerokratiecopilot.parties.AddresseeResolver addressees;
+
     public DocumentProcessedHandler(CaseOrchestrator orchestrator,
-                                    de.buerokratiecopilot.documents.reading.AiDocumentReader reader) {
+                                    de.buerokratiecopilot.documents.reading.AiDocumentReader reader,
+                                    de.buerokratiecopilot.parties.AddresseeResolver addressees) {
+        this.addressees = addressees;
         this.orchestrator = orchestrator;
         this.reader = reader;
     }
@@ -42,6 +46,13 @@ public class DocumentProcessedHandler implements OutboxEventHandler {
         catch (RuntimeException ex) {
             log.warn("AI reading of document {} failed, continuing without it: {}", event.getAggregateId(),
                     ex.getMessage());
+        }
+        // Whom the document is addressed to decides whom the work is for; a failure here never stops the document.
+        try {
+            addressees.resolve(event.getAggregateId());
+        }
+        catch (RuntimeException ex) {
+            log.warn("Addressee of document {} could not be determined: {}", event.getAggregateId(), ex.getMessage());
         }
         orchestrator.orchestrate(event.getAggregateId());
     }

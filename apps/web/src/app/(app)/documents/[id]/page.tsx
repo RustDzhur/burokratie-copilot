@@ -9,6 +9,7 @@ import { Badge, Card, CardBody, CardHeader, EmptyState, StatusPill, Tabs } from 
 import { Button } from '@/components/ui/button';
 import { buttonClass } from '@/components/ui/button-class';
 import { InlineAlert, SkeletonText } from '@/components/ui/feedback';
+import { Select } from '@/components/ui/form';
 import { useToast } from '@/components/ui/toast';
 import { formatDate, formatDateTime, formatPercent } from '@/i18n/format';
 import { useFormatters, useLocale, useTranslations } from '@/i18n/provider';
@@ -27,6 +28,41 @@ import styles from './viewer.module.css';
  * history and relations. Preview is only claimed when the backend reports it;
  * otherwise the download path is offered instead of a broken frame.
  */
+function PartyPicker({
+  documentId,
+  current,
+  onChanged,
+}: {
+  readonly documentId: string;
+  readonly current: string | null;
+  readonly onChanged: () => void;
+}) {
+  const t = useTranslations('documentViewer');
+  const tErrors = useTranslations('errors');
+  const toast = useToast();
+  const parties = useApiResource((signal) => api.parties.list(signal), []);
+  if (parties.state.status !== 'ready' || parties.state.data.length < 2) return null;
+  const change = async (value: string): Promise<void> => {
+    try {
+      await api.documents.setParty(documentId, value === '' ? null : value);
+      toast.success(t('party.saved'));
+      onChanged();
+    } catch (error) {
+      toast.error(tErrors(toApiError(error).kind));
+    }
+  };
+  return (
+    <Select
+      label={t('party.label')}
+      hint={t('party.hint')}
+      placeholder={t('party.none')}
+      options={parties.state.data.map((party) => ({ value: party.id, label: party.displayName }))}
+      value={current ?? ''}
+      onChange={(event) => void change(event.target.value)}
+    />
+  );
+}
+
 export default function DocumentViewerPage() {
   const params = useParams<{ id: string }>();
   const id = typeof params.id === 'string' ? params.id : '';
@@ -188,6 +224,8 @@ export default function DocumentViewerPage() {
             ) : null}
 
             <ProcessingPanel documentId={id} reloadKey={processingKey} />
+
+            <PartyPicker documentId={id} current={document.partyId ?? null} onChanged={reload} />
 
             <div className={styles.summaryRow}>
               <StatusPill label={statusLabel(document.status)} status={document.status} />

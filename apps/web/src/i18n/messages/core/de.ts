@@ -141,6 +141,7 @@ export const deCore = {
     'items.automations': 'Automatisierungen',
     'items.integrations': 'Integrationen',
     'items.scan': 'Scannen und Import',
+    'items.parties': 'Personen und Profil',
     'items.family': 'Familien-Cockpit',
     'items.company': 'Unternehmens-Arbeitsbereich',
     'items.employees': 'Mitarbeitende und Rollen',

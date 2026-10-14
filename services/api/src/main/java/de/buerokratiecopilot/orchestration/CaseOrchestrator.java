@@ -129,7 +129,8 @@ public class CaseOrchestrator {
                 select d.id, d.tenant_id, d.original_filename, d.sender, d.created_by, d.processing_status,
                        d.document_type_id, t.code as type_code, t.name ->> 'de' as type_name,
                        (select c.confidence from document_classifications c
-                         where c.document_id = d.id and c.is_current) as confidence
+                         where c.document_id = d.id and c.is_current) as confidence,
+                       (select p.display_name from parties p where p.id = d.party_id) as party_name
                 from documents d left join document_types t on t.id = d.document_type_id
                 where d.id = ? and d.deleted_at is null
                 """, documentId);
@@ -746,6 +747,9 @@ public class CaseOrchestrator {
         text.append("Dokument: ").append(doc.get("original_filename")).append('\n');
         if (doc.get("sender") != null) {
             text.append("Absender: ").append(doc.get("sender")).append('\n');
+        }
+        if (doc.get("party_name") != null) {
+            text.append("Betrifft: ").append(doc.get("party_name")).append('\n');
         }
         text.append("Dokumenttyp: ").append(typeName);
         if (doc.get("confidence") != null) {

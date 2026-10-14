@@ -30,6 +30,7 @@ export interface DocumentWire {
   readonly documentTypeCode?: string | null;
   readonly documentTypeNames?: Readonly<Record<string, string>> | null;
   readonly category?: string | null;
+  readonly partyId?: string | null;
   readonly legalHold?: boolean;
   readonly receivedAt: string;
 }
@@ -171,6 +172,7 @@ export function documentFromWire(wire: DocumentWire): DocumentSummary {
     typeCode: wire.documentTypeCode ?? null,
     typeNames: wire.documentTypeNames ?? null,
     category: wire.category ?? null,
+    partyId: wire.partyId ?? null,
     status: STATUS_FROM_WIRE[wire.processingStatus] ?? 'received',
     channel: CHANNEL_FROM_WIRE[wire.source] ?? 'upload',
     senderName: null,

@@ -134,6 +134,7 @@ export const ruCore: CoreMessages = {
     'items.automations': 'Автоматизации',
     'items.integrations': 'Интеграции',
     'items.scan': 'Сканирование и импорт',
+    'items.parties': 'Люди и профиль',
     'items.family': 'Семейный кабинет',
     'items.company': 'Рабочее пространство компании',
     'items.employees': 'Сотрудники и роли',

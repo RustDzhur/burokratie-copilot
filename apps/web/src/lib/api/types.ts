@@ -37,6 +37,40 @@ export interface DocumentSummary {
   readonly typeNames?: Readonly<Record<string, string>> | null;
   readonly typeCode?: string | null;
   readonly category?: string | null;
+  /** Whom the document is addressed to (a person of the household, the owner, the company). */
+  readonly partyId?: string | null;
+}
+
+export interface PartySummary {
+  readonly id: string;
+  readonly kind: 'PERSON' | 'ORGANIZATION';
+  readonly displayName: string;
+  readonly relation: string;
+  readonly birthDate: string | null;
+  readonly aliases: string;
+  readonly address: string;
+  readonly identifiers: string;
+  readonly primary: boolean;
+  readonly notes: string | null;
+  readonly documentCount: number;
+}
+
+export interface PartyInput {
+  readonly displayName: string;
+  readonly relation: string;
+  readonly birthDate?: string | null;
+  readonly aliases: string;
+  readonly address: string;
+  readonly identifiers: string;
+  readonly notes?: string | null;
+}
+
+/** One document type of the catalogue the platform recognises, and the kinds of cabinet it is meant for. */
+export interface CatalogueEntry {
+  readonly code: string;
+  readonly category: string;
+  readonly names: Readonly<Record<string, string>>;
+  readonly audiences: string;
 }
 
 export interface ExtractedField {

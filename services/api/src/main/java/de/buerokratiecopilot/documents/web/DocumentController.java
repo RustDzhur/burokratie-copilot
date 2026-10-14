@@ -77,7 +77,8 @@ public class DocumentController {
             Instant updatedAt,
             String documentTypeCode,
             String category,
-            java.util.Map<String, String> documentTypeNames) {
+            java.util.Map<String, String> documentTypeNames,
+            UUID partyId) {
 
         static DocumentResponse from(Document document) {
             return from(document, null);
@@ -96,7 +97,8 @@ public class DocumentController {
                     document.getReceivedAt(), document.getUpdatedAt(),
                     type == null ? null : type.getCode(), type == null ? null : type.getCategory(),
                     type == null ? null : java.util.Map.of("de", type.nameIn("de"), "en", type.nameIn("en"),
-                            "ru", type.nameIn("ru")));
+                            "ru", type.nameIn("ru")),
+                    document.getPartyId());
         }
     }
 
@@ -135,16 +137,36 @@ public class DocumentController {
             @RequestParam(required = false) java.util.List<Document.Source> source,
             @RequestParam(required = false) @Size(max = 40) String category,
             @RequestParam(required = false) @Size(max = 80) String type,
+            @RequestParam(required = false) @Size(max = 40) String party,
             @PageableDefault(size = 25, sort = "receivedAt") Pageable pageable) {
 
         // The types are few and shared by every account; reading them once per request is cheaper than a join per row.
         java.util.Map<java.util.UUID, de.buerokratiecopilot.documents.domain.DocumentType> byId =
                 new java.util.HashMap<>();
         documentTypes.findAll().forEach(documentType -> byId.put(documentType.getId(), documentType));
-        Page<DocumentResponse> page = documentService.list(q, status, source, category, type, pageable)
+        Page<DocumentResponse> page = documentService.list(q, status, source, category, type, party, pageable)
                 .map(document -> DocumentResponse.from(document,
                         document.getDocumentTypeId() == null ? null : byId.get(document.getDocumentTypeId())));
         return ResponseEntity.ok(page);
+    }
+
+    /** One entry of the catalogue of document types the platform recognises. */
+    public record CatalogueEntry(String code, String category, java.util.Map<String, String> names, String audiences) {
+    }
+
+    @GetMapping("/types")
+    @PreAuthorize("hasAuthority('documents.view')")
+    @Operation(summary = "Every document type the platform recognises, with the kinds of cabinet it is meant for")
+    public java.util.List<CatalogueEntry> catalogue() {
+        return documentTypes.findAll().stream()
+                .filter(de.buerokratiecopilot.documents.domain.DocumentType::isActive)
+                .sorted(java.util.Comparator
+                        .comparing(de.buerokratiecopilot.documents.domain.DocumentType::getCategory)
+                        .thenComparing(type -> type.nameIn("de")))
+                .map(type -> new CatalogueEntry(type.getCode(), type.getCategory(),
+                        java.util.Map.of("de", type.nameIn("de"), "en", type.nameIn("en"), "ru", type.nameIn("ru")),
+                        type.getAudiences()))
+                .toList();
     }
 
     @GetMapping("/categories")

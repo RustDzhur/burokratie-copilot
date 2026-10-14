@@ -56,6 +56,7 @@ export type ScreenId =
   | 'automations'
   | 'integrations'
   | 'scan'
+  | 'parties'
   | 'family'
   | 'company'
   | 'employees'
@@ -146,7 +147,7 @@ export const screens: readonly ScreenDefinition[] = [
   // §5.2.12 — contracts
   screen('contracts', '/contracts', 'layout', 'finance'),
   // §5.2.13 — invoices and expenses
-  screen('invoices', '/invoices', 'receipt', 'finance'),
+  screen('invoices', '/invoices', 'receipt', 'finance', { audience: ['company'] }),
   // §5.2.14 — payments and reconciliation
   screen('payments', '/payments', 'credit-card', 'finance'),
   // §5.2.15 — contacts and organisations
@@ -163,6 +164,8 @@ export const screens: readonly ScreenDefinition[] = [
   screen('integrations', '/integrations', 'plug', 'automation'),
   // §5.2.21 — scanning and import
   screen('scan', '/scan', 'printer', 'automation'),
+  // whom the cabinet belongs to: the person, the household members, the company
+  screen('parties', '/parties', 'users', 'organisation'),
   // §5.2.22 — family cockpit
   screen('family', '/family', 'shield-heart', 'organisation', { audience: ['family'] }),
   // §5.2.23 — company workspace

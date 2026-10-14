@@ -132,6 +132,7 @@ export const enCore: CoreMessages = {
     'items.automations': 'Automations',
     'items.integrations': 'Integrations',
     'items.scan': 'Scanning and import',
+    'items.parties': 'People and profile',
     'items.family': 'Family cockpit',
     'items.company': 'Company workspace',
     'items.employees': 'Employees and roles',

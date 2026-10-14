@@ -13,6 +13,7 @@ import { useLocale, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { useApiResource } from '@/lib/api/hooks';
 import type { DocumentSummary } from '@/lib/api/types';
+import { useSession } from '@/lib/auth/session-context';
 import { useStatusLabels } from '@/lib/format/status';
 
 /** The drawers documents are sorted into, in the order a person looks for them. */
@@ -44,8 +45,14 @@ export default function DocumentsPage() {
   const locale = useLocale();
   const statusLabel = useStatusLabels('documents');
   const [category, setCategory] = useState<(typeof CATEGORY_TABS)[number]>('ALL');
+  const user = useSession();
   const toast = useToast();
   const tErrors = useTranslations('errors');
+  const parties = useApiResource((signal) => api.parties.list(signal), []);
+  const catalogue = useApiResource((signal) => api.documents.catalogue(signal), []);
+  const partyName = (id: string | null | undefined): string =>
+    (parties.state.status === 'ready' ? parties.state.data.find((party) => party.id === id)?.displayName : null) ??
+    '—';
   const { state: counts, reload: reloadCounts } = useApiResource((signal) => api.documents.categoryCounts(signal), []);
   const countOf = (tab: string): number | null => {
     if (counts.status !== 'ready') return null;
@@ -86,6 +93,9 @@ export default function DocumentsPage() {
       render: (row) =>
         row.typeNames?.[locale] ?? row.typeNames?.de ?? (row.documentType || t('category.UNSORTED')),
     },
+    ...(parties.state.status === 'ready' && parties.state.data.length > 1
+      ? [{ key: 'party', header: t('column.party'), render: (row: DocumentSummary) => partyName(row.partyId) }]
+      : []),
     {
       key: 'status',
       header: t('column.status'),
@@ -144,6 +154,32 @@ export default function DocumentsPage() {
         columns={columns}
         sortableKeys={['title', 'receivedAt']}
         filters={[
+          ...(parties.state.status === 'ready' && parties.state.data.length > 1
+            ? [
+                {
+                  key: 'party',
+                  label: t('filter.party'),
+                  options: [
+                    ...parties.state.data.map((party) => ({ value: party.id, label: party.displayName })),
+                    { value: 'NONE', label: t('party.none') },
+                  ],
+                },
+              ]
+            : []),
+          ...(catalogue.state.status === 'ready'
+            ? [
+                {
+                  key: 'type',
+                  label: t('filter.type'),
+                  options: catalogue.state.data
+                    .filter((entry) => !user?.workspaceType || entry.audiences.split(',').includes(user.workspaceType))
+                    .map((entry) => ({
+                      value: entry.code,
+                      label: `${t(`category.${entry.category}` as 'category.ALL')} · ${entry.names[locale] ?? entry.names.de}`,
+                    })),
+                },
+              ]
+            : []),
           {
             key: 'status',
             label: t('filter.status'),

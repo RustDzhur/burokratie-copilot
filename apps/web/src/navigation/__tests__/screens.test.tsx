@@ -19,11 +19,11 @@ vi.mock('next/navigation', () => ({
 }));
 
 describe('screen registry', () => {
-  it('covers all 30 screens required by the specification', () => {
+  it('covers all 30 screens required by the specification, and the people screen of the cabinets', () => {
     // §5.2.2 (registration and sign-in) is four routes, hence 33 in total.
-    expect(screens).toHaveLength(36);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(36);
-    expect(new Set(screens.map((screen) => screen.href)).size).toBe(36);
+    expect(screens).toHaveLength(37);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(37);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(37);
   });
 
   it('puts every workspace screen into a sidebar section', () => {
@@ -33,7 +33,7 @@ describe('screen registry', () => {
         expect(sectionIds.has(screen.section)).toBe(true);
       }
     }
-    expect(sidebarScreens).toHaveLength(28);
+    expect(sidebarScreens).toHaveLength(29);
   });
 
   it('has a German, English and Russian title for every screen', () => {
@@ -71,7 +71,7 @@ describe('Sidebar', () => {
 
     const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
     // 27 workspace screens (the admin area is hidden from everybody but the platform administrator) plus the brand link back to the dashboard.
-    expect(within(nav).getAllByRole('link')).toHaveLength(28);
+    expect(within(nav).getAllByRole('link')).toHaveLength(29);
 
     for (const section of navSections) {
       expect(within(nav).getByText(catalogues.de.nav[section.labelKey])).toBeInTheDocument();
@@ -95,6 +95,11 @@ describe('Sidebar', () => {
     expect(names({ workspaceType: 'family' })).not.toContain('employees');
     expect(names({ workspaceType: 'company' })).toContain('employees');
     expect(names({ workspaceType: 'company' })).not.toContain('family');
+    expect(names({ workspaceType: 'private' })).not.toContain('invoices');
+    expect(names({ workspaceType: 'company' })).toContain('invoices');
+    for (const kind of ['private', 'family', 'company'] as const) {
+      expect(names({ workspaceType: kind })).toContain('parties');
+    }
     expect(names({ workspaceType: 'company' })).not.toContain('admin');
     expect(names({ workspaceType: 'company', platformAdmin: true })).toContain('admin');
     expect(base.id).toBe('u');

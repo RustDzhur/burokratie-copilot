@@ -143,6 +143,9 @@ import type {
   SessionUser,
   TaskSummary,
   TemplateSummary,
+  CatalogueEntry,
+  PartyInput,
+  PartySummary,
 } from './types';
 
 export interface LoginPayload {
@@ -297,6 +300,8 @@ export interface ApiResources {
     removeMany: (ids: readonly string[]) => Promise<{ deleted: number; refused: string[] }>;
     pipeline: (id: string, signal?: AbortSignal) => Promise<ProcessingFlow>;
     categoryCounts: (signal?: AbortSignal) => Promise<Readonly<Record<string, number>>>;
+    catalogue: (signal?: AbortSignal) => Promise<readonly CatalogueEntry[]>;
+    setParty: (id: string, partyId: string | null) => Promise<void>;
     createTask: (id: string) => Promise<void>;
     /** Reads the pages with AI vision (handwriting); the values come back as proposals. */
     aiRead: (id: string) => Promise<{ readonly status: string; readonly found: Readonly<Record<string, string>>; readonly summary: string | null }>;
@@ -460,6 +465,12 @@ export interface ApiResources {
   readonly devices: {
     list: (signal?: AbortSignal) => Promise<Page<DeviceSummary>>;
     scan: (id: string, profile?: string) => Promise<void>;
+  };
+  readonly parties: {
+    list: (signal?: AbortSignal) => Promise<readonly PartySummary[]>;
+    create: (input: PartyInput) => Promise<void>;
+    update: (id: string, input: PartyInput) => Promise<void>;
+    remove: (id: string) => Promise<void>;
   };
   readonly members: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<MemberSummary>>;
@@ -769,6 +780,10 @@ export function createResources(client: ApiClient): ApiResources {
         ),
       createTask: async (id) => {
         await client.post<unknown>(`/documents/${id}/create-task`, undefined, { idempotencyKey: true });
+      },
+      catalogue: (signal) => client.get<readonly CatalogueEntry[]>('/documents/types', withSignal(signal)),
+      setParty: async (id, partyId) => {
+        await client.put<unknown>(`/documents/${id}/party`, { partyId }, { idempotencyKey: true });
       },
       categoryCounts: (signal) => client.get<Record<string, number>>('/documents/categories', withSignal(signal)),
       downloadOriginal: (id) =>
@@ -1282,6 +1297,18 @@ export function createResources(client: ApiClient): ApiResources {
       },
       scan: (id, profile) =>
         client.post<void>(`/devices/${id}/scan`, { profile }, { idempotencyKey: true }),
+    },
+    parties: {
+      list: (signal) => client.get<readonly PartySummary[]>('/parties', withSignal(signal)),
+      create: async (input) => {
+        await client.post<unknown>('/parties', input, { idempotencyKey: true });
+      },
+      update: async (id, input) => {
+        await client.put<unknown>(`/parties/${id}`, input, { idempotencyKey: true });
+      },
+      remove: async (id) => {
+        await client.delete<unknown>(`/parties/${id}`, { idempotencyKey: true });
+      },
     },
     members: {
       list: async (params, signal) => {
