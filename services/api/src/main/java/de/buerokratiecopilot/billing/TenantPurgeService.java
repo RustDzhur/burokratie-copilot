@@ -29,8 +29,11 @@ public class TenantPurgeService {
     private final JdbcTemplate jdbc;
     private final TransactionTemplate transaction;
     private final BlobStore blobStore;
+    private final PlatformAdminResolver admins;
 
-    public TenantPurgeService(JdbcTemplate jdbc, TransactionTemplate transaction, BlobStore blobStore) {
+    public TenantPurgeService(JdbcTemplate jdbc, TransactionTemplate transaction, BlobStore blobStore,
+                              PlatformAdminResolver admins) {
+        this.admins = admins;
         this.jdbc = jdbc;
         this.transaction = transaction;
         this.blobStore = blobStore;
@@ -40,6 +43,10 @@ public class TenantPurgeService {
     }
 
     public Result purge(UUID tenantId) {
+        if (admins.protectsTenant(tenantId)) {
+            throw de.buerokratiecopilot.shared.error.ApiException.conflict(
+                    "Der Arbeitsbereich des Plattform-Administrators kann nicht gelöscht werden");
+        }
         List<String> keys = jdbc.queryForList("select storage_key from document_blobs where tenant_id = ?",
                 String.class, tenantId);
         List<UUID> members = jdbc.queryForList("select user_id from memberships where tenant_id = ?", UUID.class,

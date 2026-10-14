@@ -476,6 +476,9 @@ export interface ApiResources {
     list: (signal?: AbortSignal) => Promise<Page<DeviceSummary>>;
     scan: (id: string, profile?: string) => Promise<void>;
   };
+  readonly account: {
+    setType: (accountType: 'private' | 'family' | 'company') => Promise<void>;
+  };
   readonly telegram: {
     status: (signal?: AbortSignal) => Promise<TelegramStatus>;
     createLinkCode: () => Promise<TelegramStatus>;
@@ -1350,6 +1353,15 @@ export function createResources(client: ApiClient): ApiResources {
       },
       scan: (id, profile) =>
         client.post<void>(`/devices/${id}/scan`, { profile }, { idempotencyKey: true }),
+    },
+    account: {
+      setType: async (accountType) => {
+        await client.post<unknown>(
+          '/account/type',
+          { accountType: ACCOUNT_TYPE_TO_BACKEND[accountType] },
+          { idempotencyKey: true },
+        );
+      },
     },
     telegram: {
       status: (signal) => client.get<TelegramStatus>('/telegram/status', withSignal(signal)),

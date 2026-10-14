@@ -61,6 +61,15 @@ export function Sidebar({
         ) : null}
       </div>
 
+      {!isCollapsed && session?.workspaceType ? (
+        <p className={styles.cabinet} data-testid="cabinet-badge">
+          {t('cabinet.badge', {
+            cabinet: t(`cabinet.${session.workspaceType}` as 'cabinet.private'),
+            plan: session.subscription?.planName ?? '—',
+          })}
+        </p>
+      ) : null}
+
       <div className={styles.scrollArea}>
         {navSections.map((section) => {
           const items = screensVisibleFor(screensBySection(section.id), session);

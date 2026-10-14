@@ -51,9 +51,14 @@ public class AccountModeController {
     private static final String CONFIGURE = "hasAuthority('settings.edit')";
 
     private final AccountModeService modes;
+    private final de.buerokratiecopilot.billing.SubscriptionService subscriptions;
+    private final de.buerokratiecopilot.billing.PlanFeatures planFeatures;
 
-    public AccountModeController(AccountModeService modes) {
+    public AccountModeController(AccountModeService modes, de.buerokratiecopilot.billing.SubscriptionService subscriptions,
+                                 de.buerokratiecopilot.billing.PlanFeatures planFeatures) {
         this.modes = modes;
+        this.subscriptions = subscriptions;
+        this.planFeatures = planFeatures;
     }
 
     /** What a caller sends to switch a module on or off. */
@@ -162,6 +167,8 @@ public class AccountModeController {
     public Map<String, Object> changeType(@RequestBody TypeBody body) {
         UUID tenantId = tenant();
         modes.changeAccountType(tenantId, body.accountType(), CurrentUser.required());
+        subscriptions.alignPlanToAccountType(tenantId);
+        planFeatures.forget(tenantId);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("accountType", modes.accountTypeOf(tenantId));

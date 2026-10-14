@@ -34,9 +34,11 @@ public class SubscriptionService {
 
     private final JdbcTemplate jdbc;
     private final PlatformSettings settings;
+    private final PlatformAdminResolver admins;
     private final Map<UUID, Cached> cache = new ConcurrentHashMap<>();
 
-    public SubscriptionService(JdbcTemplate jdbc, PlatformSettings settings) {
+    public SubscriptionService(JdbcTemplate jdbc, PlatformSettings settings, PlatformAdminResolver admins) {
+        this.admins = admins;
         this.jdbc = jdbc;
         this.settings = settings;
     }
@@ -126,6 +128,24 @@ public class SubscriptionService {
         cache.remove(tenantId);
     }
 
+    /**
+     * After the kind of account changed: a plan that is not offered to the new kind (a family plan for a company) gives
+     * way to the plan of the new kind, so the cabinet and the plan always fit together.
+     */
+    @Transactional
+    public void alignPlanToAccountType(UUID tenantId) {
+        String accountType = jdbc.queryForObject("select account_type from tenants where id = ?", String.class, tenantId);
+        String cabinet = PlanFeatures.cabinetOf(accountType);
+        Integer fits = jdbc.queryForObject("""
+                select count(*) from subscriptions s join plans p on p.code = s.plan_code
+                where s.tenant_id = ? and position(? in p.audiences) > 0
+                """, Integer.class, tenantId, cabinet);
+        if (fits == null || fits == 0) {
+            jdbc.update("update subscriptions set plan_code = ? where tenant_id = ?", planFor(accountType), tenantId);
+        }
+        cache.remove(tenantId);
+    }
+
     /** Adds paid time. Time left over from the trial or a previous payment is kept, not thrown away. */
     @Transactional
     public void extend(UUID tenantId, int months) {
@@ -155,6 +175,9 @@ public class SubscriptionService {
 
     @Transactional
     public void setSuspended(UUID tenantId, boolean suspended) {
+        if (suspended && admins.protectsTenant(tenantId)) {
+            throw ApiException.conflict("Der Arbeitsbereich des Plattform-Administrators kann nicht gesperrt werden");
+        }
         jdbc.update("""
                 update subscriptions set status = case
                     when ? then 'SUSPENDED'

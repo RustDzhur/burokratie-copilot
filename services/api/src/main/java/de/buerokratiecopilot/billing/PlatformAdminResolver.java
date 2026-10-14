@@ -39,6 +39,37 @@ public class PlatformAdminResolver {
                 .collect(Collectors.toUnmodifiableSet());
     }
 
+    /**
+     * Whether a workspace belongs to a platform administrator. The administrator's own workspace never expires, is never
+     * suspended and is never deleted: losing it would lock the platform's owner out of the platform.
+     */
+    public boolean protectsTenant(UUID tenantId) {
+        if (admins.isEmpty() || tenantId == null) {
+            return false;
+        }
+        Integer found = jdbc.queryForObject("""
+                select count(*) from memberships m join users u on u.id = m.user_id
+                where m.tenant_id = ? and m.status = 'ACTIVE' and u.email_verified_at is not null
+                  and lower(u.email::text) = any (?)
+                """, Integer.class, tenantId, (Object) admins.toArray(new String[0]));
+        return found != null && found > 0;
+    }
+
+    /** Sets the subscriptions of the administrators' workspaces to "no end". Called at start and every hour. */
+    public int keepAdminWorkspacesOpen() {
+        if (admins.isEmpty()) {
+            return 0;
+        }
+        return jdbc.update("""
+                update subscriptions s set status = 'ACTIVE', access_until = now() + interval '100 years',
+                       retention_until = null, data_choice = null, data_choice_at = null
+                where s.tenant_id in (
+                    select m.tenant_id from memberships m join users u on u.id = m.user_id
+                    where m.status = 'ACTIVE' and u.email_verified_at is not null and lower(u.email::text) = any (?))
+                  and (s.status <> 'ACTIVE' or s.access_until < now() + interval '50 years')
+                """, (Object) admins.toArray(new String[0]));
+    }
+
     public boolean isPlatformAdmin(UUID userId) {
         if (admins.isEmpty() || userId == null) {
             return false;

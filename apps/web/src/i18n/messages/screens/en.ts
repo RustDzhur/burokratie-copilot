@@ -5,6 +5,14 @@ import type { ScreenMessages } from './de';
  */
 export const enScreens: ScreenMessages = {
   billing: {
+    'cabinet.title': "Cabinet",
+    'cabinet.hint': "The cabinet decides what the platform shows: a person, a family or a company. Nothing is deleted when you switch; the plan adjusts if it is not offered for the new cabinet.",
+    'cabinet.label': "Cabinet",
+    'cabinet.private': "Individual",
+    'cabinet.family': "Family",
+    'cabinet.company': "Company",
+    'cabinet.confirm': "Switch the cabinet? The menu and functions change; nothing is deleted.",
+    'cabinet.done': "Cabinet switched",
     'subtitle': 'Your plan, its term and your invoices.',
     'banner.trial': 'Free trial: {days, plural, one {# day} other {# days}} left.',
     'banner.ending': 'Your access ends in {days, plural, one {# day} other {# days}}.',

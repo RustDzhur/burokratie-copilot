@@ -6,6 +6,14 @@ import type { ScreenMessages } from './de';
  */
 export const ruScreens: ScreenMessages = {
   billing: {
+    'cabinet.title': "Кабинет",
+    'cabinet.hint': "Кабинет определяет, что показывает платформа: человека, семью или фирму. При переключении ничего не удаляется; тариф подстраивается, если для нового кабинета он не предусмотрен.",
+    'cabinet.label': "Кабинет",
+    'cabinet.private': "Одиночка",
+    'cabinet.family': "Семья",
+    'cabinet.company': "Фирма",
+    'cabinet.confirm': "Переключить кабинет? Меню и функции изменятся, ничего не удаляется.",
+    'cabinet.done': "Кабинет переключён",
     'subtitle': 'Ваш тариф, срок и счета.',
     'banner.trial': 'Бесплатный пробный период: осталось {days, plural, one {# день} few {# дня} many {# дней} other {# дня}}.',
     'banner.ending': 'Доступ закончится через {days, plural, one {# день} few {# дня} many {# дней} other {# дня}}.',

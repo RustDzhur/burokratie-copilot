@@ -7,6 +7,14 @@
 
 export const deScreens = {
   billing: {
+    'cabinet.title': "Kabinett",
+    'cabinet.hint': "Das Kabinett bestimmt, was die Plattform zeigt: Person, Familie oder Firma. Beim Wechsel wird nichts gelöscht; der Tarif passt sich an, wenn er für das neue Kabinett nicht vorgesehen ist.",
+    'cabinet.label': "Kabinett",
+    'cabinet.private': "Einzelperson",
+    'cabinet.family': "Familie",
+    'cabinet.company': "Firma",
+    'cabinet.confirm': "Das Kabinett wechseln? Menü und Funktionen ändern sich; es wird nichts gelöscht.",
+    'cabinet.done': "Kabinett gewechselt",
     'subtitle': 'Ihr Tarif, die Laufzeit und Ihre Rechnungen.',
     'banner.trial': 'Kostenlose Testphase: noch {days, plural, one {# Tag} other {# Tage}}.',
     'banner.ending': 'Ihr Zugang endet in {days, plural, one {# Tag} other {# Tagen}}.',

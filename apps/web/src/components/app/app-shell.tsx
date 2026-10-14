@@ -38,9 +38,10 @@ export function AppShell({ children }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  const { state: sessionState } = useApiResource<SessionUser>(
+  const { state: sessionState, reload: reloadSession } = useApiResource<SessionUser>(
     (signal) => api.auth.session(signal),
     [],
+    { keepPreviousData: true },
   );
   const user = sessionState.status === 'ready' ? sessionState.data : null;
 
@@ -125,7 +126,7 @@ export function AppShell({ children }: AppShellProps) {
   }, [router]);
 
   return (
-    <SessionProvider user={user}>
+    <SessionProvider user={user} reload={reloadSession}>
     <div className={styles.shell}>
       <a className={styles.skipLink} href="#main-content">
         {t('skipToContent')}

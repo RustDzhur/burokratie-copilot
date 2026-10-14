@@ -57,10 +57,15 @@ class PlatformAdminIT {
     private UserRepository users;
     @Autowired
     private JdbcTemplate jdbc;
+    @Autowired
+    private de.buerokratiecopilot.billing.PlatformAdminResolver resolver;
+    @Autowired
+    private de.buerokratiecopilot.billing.TenantPurgeService purge;
 
     private static Cookie session;
     private static Cookie xsrf;
     private static UUID customerTenant;
+    private static UUID bossTenant;
 
     private UUID register(String email, boolean verify) throws Exception {
         MvcResult registration = mvc.perform(post("/api/v1/auth/register").cookie(xsrf)
@@ -87,7 +92,7 @@ class PlatformAdminIT {
     @DisplayName("the listed, verified address is a platform administrator and sees every customer")
     void adminSeesEverything() throws Exception {
         xsrf = mvc.perform(get("/api/v1/auth/csrf")).andReturn().getResponse().getCookie("XSRF-TOKEN");
-        register(BOSS, true);
+        bossTenant = register(BOSS, true);
         customerTenant = register("customer-it-" + UUID.randomUUID().toString().substring(0, 6) + "@example.de", true);
         session = mvc.perform(post("/api/v1/auth/login").cookie(xsrf).header("X-XSRF-TOKEN", xsrf.getValue())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -140,6 +145,29 @@ class PlatformAdminIT {
                         .content("{\"key\":\"anything.else\",\"value\":1}"))).andExpect(status().isBadRequest());
         mvc.perform(authed(get("/api/v1/admin/integrations"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").isString());
+    }
+
+    @Test
+    @Order(4)
+    @DisplayName("the administrator's own workspace never ends, is not suspended and cannot be deleted")
+    void administratorWorkspaceIsPermanent() throws Exception {
+        RequestContext.runAs((UUID) null, () -> jdbc.update(
+                "update subscriptions set status = 'EXPIRED', access_until = now() - interval '1 day' where tenant_id = ?",
+                bossTenant));
+        int changed = RequestContext.runAs((UUID) null, resolver::keepAdminWorkspacesOpen);
+        assertThat(changed).isGreaterThanOrEqualTo(1);
+        var row = RequestContext.runAs((UUID) null, () -> jdbc.queryForMap(
+                "select status, access_until > now() + interval '50 years' as far from subscriptions where tenant_id = ?",
+                bossTenant));
+        assertThat(row.get("status")).isEqualTo("ACTIVE");
+        assertThat(row.get("far")).isEqualTo(true);
+
+        mvc.perform(authed(post("/api/v1/admin/tenants/" + bossTenant + "/suspend"))).andExpect(status().isConflict());
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> RequestContext.runAs((UUID) null, () -> purge.purge(bossTenant)))
+                .isInstanceOf(de.buerokratiecopilot.shared.error.ApiException.class);
+        // An ordinary customer is still not protected.
+        assertThat(resolver.protectsTenant(customerTenant)).isFalse();
     }
 
     private MockHttpServletRequestBuilder authed(MockHttpServletRequestBuilder request) {
