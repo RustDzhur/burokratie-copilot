@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import de.buerokratiecopilot.memory.FactService;
 import de.buerokratiecopilot.memory.MemoryAskService;
 import de.buerokratiecopilot.memory.MemoryRetrievalService;
+import de.buerokratiecopilot.memory.ObligationService;
 import de.buerokratiecopilot.memory.RelationshipService;
 import de.buerokratiecopilot.memory.TimelineService;
 import de.buerokratiecopilot.shared.context.CurrentUser;
@@ -30,9 +31,12 @@ public class MemoryController {
     private final TimelineService timeline;
     private final MemoryRetrievalService search;
     private final MemoryAskService asking;
+    private final ObligationService obligations;
 
     public MemoryController(RelationshipService relationships, FactService facts, TimelineService timeline,
-                            MemoryRetrievalService search, MemoryAskService asking) {
+                            MemoryRetrievalService search, MemoryAskService asking,
+                            ObligationService obligations) {
+        this.obligations = obligations;
         this.search = search;
         this.asking = asking;
         this.relationships = relationships;
@@ -147,5 +151,25 @@ public class MemoryController {
     @PreAuthorize("hasAuthority('memory.view')")
     public Map<String, Object> ask(@org.springframework.web.bind.annotation.RequestBody AskRequest request) {
         return asking.ask(tenant(), CurrentUser.required(), request == null ? null : request.question());
+    }
+
+    @GetMapping("/obligations")
+    @PreAuthorize("hasAuthority('memory.view') and hasAuthority('contracts.view')")
+    public List<Map<String, Object>> openObligations(@RequestParam(defaultValue = "false") boolean unowned,
+            @RequestParam(defaultValue = "false") boolean withoutTask,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dueBefore) {
+        return obligations.open(tenant(), unowned, withoutTask, dueBefore);
+    }
+
+    @PostMapping("/obligations/{id}/tasks/{taskId}")
+    @PreAuthorize("hasAuthority('memory.confirm') and hasAuthority('tasks.edit')")
+    public Map<String, Object> linkTask(@PathVariable UUID id, @PathVariable UUID taskId) {
+        return obligations.link(tenant(), id, taskId);
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/obligations/{id}/tasks/{taskId}")
+    @PreAuthorize("hasAuthority('memory.confirm') and hasAuthority('tasks.edit')")
+    public void unlinkTask(@PathVariable UUID id, @PathVariable UUID taskId) {
+        obligations.unlink(tenant(), id, taskId);
     }
 }
