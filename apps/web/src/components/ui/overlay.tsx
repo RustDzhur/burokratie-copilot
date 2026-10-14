@@ -62,6 +62,10 @@ interface ModalBehaviour {
  */
 function useModalBehaviour(open: boolean, onClose: () => void): ModalBehaviour {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // The latest handler is read through a ref: a caller that passes a new function on every render (typing in a form
+  // inside the dialog re-renders it) must not restart the effect, which would move the focus to the close button.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -76,7 +80,7 @@ function useModalBehaviour(open: boolean, onClose: () => void): ModalBehaviour {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         event.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== 'Tab') return;
@@ -105,7 +109,7 @@ function useModalBehaviour(open: boolean, onClose: () => void): ModalBehaviour {
       document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return { containerRef };
 }

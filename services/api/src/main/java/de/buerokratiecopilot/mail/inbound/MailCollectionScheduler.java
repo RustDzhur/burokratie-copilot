@@ -61,16 +61,23 @@ public class MailCollectionScheduler {
         }
     }
 
-    private List<Due> claimDue() {
+    List<Due> claimDue() {
         return jdbc.query("""
                 update mail_accounts set last_sync_at = now()
                 where id in (
                     select id from mail_accounts
-                    where is_active and status in ('CONNECTED', 'DISCONNECTED')
-                      and credential_encrypted is not null
-                      and consecutive_failures < ?
-                      and (last_sync_at is null
-                           or last_sync_at < now() - greatest(sync_interval::interval, interval '1 minute'))
+                    where is_active and credential_encrypted is not null
+                      and (
+                        (status in ('CONNECTED', 'DISCONNECTED') and consecutive_failures < ?
+                         and (last_sync_at is null
+                              or last_sync_at < now() - greatest(sync_interval::interval, interval '1 minute')))
+                        -- A mailbox in error is tried again, later and later (the interval doubles with every failure,
+                        -- up to six hours): a fixed fault (a bug of ours, a server that was down) heals itself, while a
+                        -- wrong password does not hammer the provider.
+                        or (status = 'ERROR'
+                            and last_sync_at < now() - least(interval '6 hours',
+                                greatest(sync_interval::interval, interval '1 minute')
+                                    * power(2, least(consecutive_failures, 6)))))
                     order by last_sync_at nulls first
                     limit ?
                     for update skip locked)
@@ -79,6 +86,6 @@ public class MailCollectionScheduler {
                 MAX_CONSECUTIVE_FAILURES, BATCH);
     }
 
-    private record Due(UUID tenantId, UUID accountId) {
+    record Due(UUID tenantId, UUID accountId) {
     }
 }

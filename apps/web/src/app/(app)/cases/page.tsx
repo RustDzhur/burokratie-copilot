@@ -18,7 +18,13 @@ export default function CasesPage() {
 
   const columns: readonly Column<CaseSummary>[] = [
     { key: 'reference', header: t('column.reference'), render: (row) => row.reference },
-    { key: 'title', header: t('column.title'), sortable: true, render: (row) => row.title },
+    {
+      key: 'title',
+      header: t('column.title'),
+      sortable: true,
+      link: (row) => `/cases/${row.id}`,
+      render: (row) => row.title,
+    },
     {
       key: 'status',
       header: t('column.status'),

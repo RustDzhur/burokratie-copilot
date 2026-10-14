@@ -223,7 +223,7 @@ export const deCore = {
     timeout: 'Die Anfrage hat zu lange gedauert und wurde abgebrochen.',
     aborted: 'Die Anfrage wurde abgebrochen.',
     unauthorized: 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.',
-    paymentRequired: 'Der Zugang ist abgelaufen. Bitte verlängern Sie den Tarif.',
+    paymentRequired: 'Dafür reicht Ihr Tarif nicht aus, oder der Zugang ist abgelaufen. Siehe Tarife.',
     forbidden: 'Für diese Aktion fehlt Ihnen die Berechtigung.',
     notFound: 'Der angeforderte Datensatz wurde nicht gefunden.',
     conflict: 'Die Aktion steht im Konflikt mit dem aktuellen Datenstand.',

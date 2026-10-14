@@ -210,7 +210,7 @@ export const enCore: CoreMessages = {
     timeout: 'The request took too long and was cancelled.',
     aborted: 'The request was cancelled.',
     unauthorized: 'Your session has expired. Please sign in again.',
-    paymentRequired: 'Access has expired. Please renew the plan.',
+    paymentRequired: 'Your plan does not include this, or access has expired. See the plans.',
     forbidden: 'You do not have permission for this action.',
     notFound: 'The requested record was not found.',
     conflict: 'The action conflicts with the current state of the data.',

@@ -133,7 +133,7 @@ public class DashboardService {
                 select case when coalesce(d.current_version, 0) = 0 then 'draft'
                             when d.is_active then 'active'
                             else 'paused' end as status, count(*) as count
-                from workflow_definitions d where d.tenant_id = ? group by 1 order by 1
+                from workflow_definitions d where d.tenant_id = ? and d.deleted_at is null group by 1 order by 1
                 """, tenant);
     }
 

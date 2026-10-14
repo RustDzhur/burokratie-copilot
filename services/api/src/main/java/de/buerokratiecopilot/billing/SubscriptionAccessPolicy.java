@@ -16,10 +16,18 @@ public class SubscriptionAccessPolicy implements AccessPolicy {
 
     private final SubscriptionService subscriptions;
     private final PlatformAdminResolver admins;
+    private final PlanFeatures features;
 
-    public SubscriptionAccessPolicy(SubscriptionService subscriptions, PlatformAdminResolver admins) {
+    public SubscriptionAccessPolicy(SubscriptionService subscriptions, PlatformAdminResolver admins,
+                                    PlanFeatures features) {
         this.subscriptions = subscriptions;
         this.admins = admins;
+        this.features = features;
+    }
+
+    @Override
+    public String featureDenial(UUID tenantId, String path) {
+        return features.denialFor(tenantId, path);
     }
 
     @Override

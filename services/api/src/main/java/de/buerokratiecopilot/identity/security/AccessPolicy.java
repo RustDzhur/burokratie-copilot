@@ -25,4 +25,12 @@ public interface AccessPolicy {
     boolean blocks(UUID tenantId, String path);
 
     boolean isPlatformAdmin(UUID userId);
+
+    /**
+     * Why this path is closed to the workspace although its access has not ended: its plan or its kind of account does
+     * not include the area. Null when it may be used.
+     */
+    default String featureDenial(UUID tenantId, String path) {
+        return null;
+    }
 }

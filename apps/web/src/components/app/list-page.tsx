@@ -21,6 +21,7 @@ import { toApiError } from '@/lib/api/errors';
 import type { DeletionKind } from '@/lib/api/types';
 import { getScreen, type ScreenId } from '@/navigation/screens';
 import type { IconName } from '@/components/icons';
+import styles from './list-page.module.css';
 
 export interface ListFilterDefinition {
   readonly key: string;
@@ -229,7 +230,7 @@ export function ListPage<T>({
         }
       />
 
-      {notice}
+      {notice ? <div className={styles.notice}>{notice}</div> : null}
 
       <Toolbar>
         {searchable ? (

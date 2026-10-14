@@ -15,6 +15,8 @@ import { api } from '@/lib/api';
 import { toApiError } from '@/lib/api/errors';
 import { useApiResource } from '@/lib/api/hooks';
 import type { BillingInvoice, BillingState, InvoiceRequest } from '@/lib/api/types';
+import { PlanGrid } from '@/components/app/plan-grid';
+import { useSession } from '@/lib/auth/session-context';
 import styles from './billing.module.css';
 import { QrCode } from './qr-code';
 
@@ -30,6 +32,7 @@ export default function BillingPage() {
   const locale = useLocale();
   const toast = useToast();
   const router = useRouter();
+  const user = useSession();
 
   const { state, reload } = useApiResource<BillingState>((signal) => api.billing.state(signal), []);
   const { state: invoiceState, reload: reloadInvoices } = useApiResource<readonly BillingInvoice[]>(
@@ -122,31 +125,20 @@ export default function BillingPage() {
 
             <PageSection title={t('change.title')}>
               <p className={styles.muted}>{t('change.hint')}</p>
-              <ul className={styles.plans}>
-                {data.plans.map((plan) => (
-                  <li key={plan.code}>
-                    <Card>
-                      <CardBody>
-                        <div className={styles.plan}>
-                          <h3 className={styles.planName}>{plan.name}</h3>
-                          <p className={styles.planPrice}>{t('plan.price', { price: euros(plan.priceCents) })}</p>
-                          {plan.code === data.planCode ? (
-                            <StatusPill label={t('change.current')} status="connected" />
-                          ) : (
-                            <Button
-                              variant="secondary"
-                              disabled={!data.owner}
-                              onClick={() => void changePlan(plan.code)}
-                            >
-                              {t('change.action')}
-                            </Button>
-                          )}
-                        </div>
-                      </CardBody>
-                    </Card>
-                  </li>
-                ))}
-              </ul>
+              <PlanGrid
+                plans={data.plans}
+                cabinet={user?.workspaceType}
+                currentCode={data.planCode}
+                action={(plan) =>
+                  plan.code === data.planCode ? (
+                    <StatusPill label={t('change.current')} status="connected" />
+                  ) : (
+                    <Button variant="secondary" disabled={!data.owner} onClick={() => void changePlan(plan.code)}>
+                      {t('change.action')}
+                    </Button>
+                  )
+                }
+              />
             </PageSection>
 
             <PageSection title={t('pay.title')}>

@@ -167,6 +167,10 @@ burokratie:
     auto-read-daily-limit: ${BC_AI_AUTO_READ_DAILY_LIMIT:20}
     price-input-per-million: ${BC_AI_PRICE_INPUT_PER_MILLION:0}
     price-output-per-million: ${BC_AI_PRICE_OUTPUT_PER_MILLION:0}
+  telegram:
+    bot-token: ${BC_TELEGRAM_BOT_TOKEN:}
+    bot-username: ${BC_TELEGRAM_BOT_USERNAME:}
+    poll-enabled: ${BC_TELEGRAM_POLL:true}
   ocr:
     enabled: ${BC_OCR_ENABLED:false}
     engine: ${BC_OCR_ENGINE:tesseract}

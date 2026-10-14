@@ -29,9 +29,12 @@ public class OwnerNotifier {
     private final JdbcTemplate jdbc;
     private final NotificationService notifications;
     private final de.buerokratiecopilot.shared.settings.SettingsService settings;
+    private final de.buerokratiecopilot.telegram.TelegramInformer telegram;
 
     public OwnerNotifier(JdbcTemplate jdbc, NotificationService notifications,
-                         de.buerokratiecopilot.shared.settings.SettingsService settings) {
+                         de.buerokratiecopilot.shared.settings.SettingsService settings,
+                         de.buerokratiecopilot.telegram.TelegramInformer telegram) {
+        this.telegram = telegram;
         this.jdbc = jdbc;
         this.notifications = notifications;
         this.settings = settings;
@@ -125,5 +128,7 @@ public class OwnerNotifier {
                 log.warn("Notification '{}' for {} could not be stored: {}", title, recipient, ex.getMessage());
             }
         }
+        // The same news, in Telegram, for those who linked it (never breaks the notification above).
+        telegram.mirror(tenantId, recipients, type, facts);
     }
 }

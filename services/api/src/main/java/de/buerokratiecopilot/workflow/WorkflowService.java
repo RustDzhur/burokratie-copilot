@@ -219,7 +219,7 @@ public class WorkflowService {
                          order by r.started_at desc nulls last limit 1) as last_run_status,
                        (select count(*) from workflow_runs r where r.definition_id = d.id
                           and r.started_at > now() - interval '30 days') as runs_30d
-                from workflow_definitions d where d.tenant_id = ? order by d.code
+                from workflow_definitions d where d.tenant_id = ? and d.deleted_at is null order by d.code
                 """, tenantId);
     }
 

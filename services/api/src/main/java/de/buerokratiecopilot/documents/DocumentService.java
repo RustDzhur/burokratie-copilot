@@ -73,13 +73,15 @@ public class DocumentService {
     private final MalwareScanner malwareScanner;
     private final DocumentProcessingPipeline pipeline;
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+    private final de.buerokratiecopilot.billing.PlanFeatures planFeatures;
 
     public DocumentService(DocumentRepository documents, DocumentBlobRepository blobs,
                            DocumentVersionRepository versions, DocumentSourceRepository sources,
                            BlobStore blobStore, OutboxWriter outbox, AuditService auditService,
                            BurokratieProperties properties, FileSecurityScanner securityScanner,
                            MalwareScanner malwareScanner, DocumentProcessingPipeline pipeline,
-                           org.springframework.jdbc.core.JdbcTemplate jdbc) {
+                           org.springframework.jdbc.core.JdbcTemplate jdbc,
+                           de.buerokratiecopilot.billing.PlanFeatures planFeatures) {
         this.documents = documents;
         this.blobs = blobs;
         this.versions = versions;
@@ -92,6 +94,7 @@ public class DocumentService {
         this.malwareScanner = malwareScanner;
         this.pipeline = pipeline;
         this.jdbc = jdbc;
+        this.planFeatures = planFeatures;
     }
 
     /** Result of a received document: either a new document or a recognised duplicate. */
@@ -165,6 +168,9 @@ public class DocumentService {
         document.setCreatedBy(RequestContext.userId().orElse(null));
 
         boolean duplicate = existing.isPresent();
+        if (!duplicate) {
+            enforceMonthlyAnalyses(tenantId);
+        }
         if (duplicate) {
             Document original = existing.get();
             document.setProcessingStatus(Document.ProcessingStatus.DUPLICATE);
@@ -370,6 +376,23 @@ public class DocumentService {
                 .changes(Map.of("reason", reason == null ? "" : reason, "tasksRemoved", tasks,
                         "calendarEventsRemoved", events))
                 .build());
+    }
+
+    /** The Free plan analyses a few documents per month; a document that is only a copy of another costs nothing. */
+    private void enforceMonthlyAnalyses(UUID tenantId) {
+        Integer limit = planFeatures.analysesPerMonth(tenantId);
+        if (limit == null) {
+            return;
+        }
+        Integer used = jdbc.queryForObject("""
+                select count(*) from documents
+                where tenant_id = ? and received_at >= date_trunc('month', now())
+                  and processing_status <> 'DUPLICATE'
+                """, Integer.class, tenantId);
+        if (used != null && used >= limit) {
+            throw new ApiException(ErrorCode.PLAN_LIMIT_REACHED,
+                    "Der Free-Tarif umfasst " + limit + " Analysen pro Monat; sie sind aufgebraucht");
+        }
     }
 
     /** Documents waiting for a human decision, used by the review centre (spec §1.1 п.7). */

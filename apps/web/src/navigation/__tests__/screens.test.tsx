@@ -65,6 +65,41 @@ describe('screen registry', () => {
   });
 });
 
+describe('plans and the menu', () => {
+  const names = (user: Parameters<typeof screensVisibleFor>[1]): string[] =>
+    screensVisibleFor(sidebarScreens, user).map((item) => item.id);
+  const plan = (planTier: number) => ({ planTier });
+
+  it('hides what the plan does not include, and what the cabinet does not need', () => {
+    const free = names({ workspaceType: 'company', subscription: plan(0) });
+    expect(free).toContain('documents');
+    expect(free).not.toContain('contracts');
+    expect(free).not.toContain('invoices');
+
+    const business = names({ workspaceType: 'company', subscription: plan(2) });
+    expect(business).toContain('invoices');
+    expect(business).toContain('contracts');
+    expect(business).not.toContain('employees');
+    expect(business).not.toContain('audit');
+
+    const professional = names({ workspaceType: 'company', subscription: plan(3) });
+    expect(professional).toContain('employees');
+    expect(professional).toContain('audit');
+
+    // A family never sees the business side, whatever it pays for.
+    const family = names({ workspaceType: 'family', subscription: plan(3) });
+    expect(family).toContain('family');
+    expect(family).not.toContain('invoices');
+    expect(family).not.toContain('payments');
+    expect(family).not.toContain('company');
+    expect(family).not.toContain('employees');
+  });
+
+  it('hides nothing while the plan is unknown (the server decides)', () => {
+    expect(names({ workspaceType: 'company' })).toContain('invoices');
+  });
+});
+
 describe('Sidebar', () => {
   it('renders a labelled navigation landmark with all sections and screens', () => {
     renderWithProviders(<Sidebar collapsed={false} onToggleCollapse={() => undefined} />);

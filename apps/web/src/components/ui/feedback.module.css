@@ -237,6 +237,11 @@
   color: var(--color-text);
 }
 
+/* Notices stacked one under the other (and a notice above a form or a table) never touch. */
+.alert + .alert {
+  margin-top: var(--space-3);
+}
+
 .alertIcon {
   display: inline-flex;
   margin-top: 2px;

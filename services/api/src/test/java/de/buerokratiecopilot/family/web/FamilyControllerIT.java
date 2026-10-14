@@ -58,7 +58,7 @@ class FamilyControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"%s","password":"EinSicheresPasswort-2026!",
-                                 "displayName":"Familie Test","accountType":"PRIVATE_PERSON"}
+                                 "displayName":"Familie Test","accountType":"FAMILY_HOUSEHOLD"}
                                 """.formatted(email)))
                 .andExpect(status().isCreated())
                 .andReturn();

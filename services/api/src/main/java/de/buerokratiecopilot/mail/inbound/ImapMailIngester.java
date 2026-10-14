@@ -138,6 +138,8 @@ public class ImapMailIngester {
                 Message message = messages[i];
                 String externalId = externalIdOf(message);
                 if (externalId != null && alreadyStored(tenantId, accountId, externalId)) {
+                    // Messages stored before the whole structure of a mail was read have no text: fill it in.
+                    backfillBody(tenantId, accountId, externalId, message);
                     skipped++;
                     continue;
                 }
@@ -182,6 +184,25 @@ public class ImapMailIngester {
         return session.getStore("imaps");
     }
 
+    private void backfillBody(UUID tenantId, UUID accountId, String externalId, Message message) {
+        Integer missing = jdbc.queryForObject("""
+                select count(*) from mail_messages
+                where tenant_id = ? and mail_account_id = ? and external_id = ? and body_text is null and body_html is null
+                """, Integer.class, tenantId, accountId, externalId);
+        if (missing == null || missing == 0) {
+            return;
+        }
+        Body body = bodyOf(message);
+        if (body.text() == null && body.html() == null) {
+            return;
+        }
+        jdbc.update("""
+                update mail_messages set body_text = ?, body_html = ?
+                where tenant_id = ? and mail_account_id = ? and external_id = ? and body_text is null and body_html is null
+                """, body.text() != null ? body.text() : de.buerokratiecopilot.mail.MailText.htmlToText(body.html()),
+                body.html(), tenantId, accountId, externalId);
+    }
+
     private boolean alreadyStored(UUID tenantId, UUID accountId, String externalId) {
         Integer count = jdbc.queryForObject("""
                 select count(*) from mail_messages
@@ -195,6 +216,7 @@ public class ImapMailIngester {
         String from = firstAddress(message, true);
         String to = firstAddress(message, false);
         boolean hasAttachments = hasAttachments(message);
+        Body body = bodyOf(message);
 
         List<UUID> inserted = jdbc.query("""
                 insert into mail_messages (id, tenant_id, mail_account_id, direction, external_id,
@@ -203,11 +225,13 @@ public class ImapMailIngester {
                                            has_attachments, attachment_count, category,
                                            is_suspicious, processing_status)
                 values (gen_random_uuid(), ?, ?, 'INBOUND', ?, ?, ?, ?::jsonb, '[]'::jsonb, '[]'::jsonb,
-                        now(), ?, null, ?, ?, 'OTHER', false, 'RECEIVED')
+                        now(), ?, ?, ?, ?, 'OTHER', false, 'RECEIVED')
                 on conflict do nothing
                 returning id
                 """, (rs, row) -> rs.getObject("id", UUID.class), tenantId, accountId, externalId, subject, from,
-                jsonArray(List.of(to)), bodyText(message), hasAttachments, countAttachments(message));
+                jsonArray(List.of(to)), body.text() != null ? body.text() : (body.html() == null ? null
+                        : de.buerokratiecopilot.mail.MailText.htmlToText(body.html())), body.html(), hasAttachments,
+                countAttachments(message));
         return inserted.isEmpty() ? null : inserted.getFirst();
     }
 
@@ -331,28 +355,51 @@ public class ImapMailIngester {
         });
     }
 
-    private static String bodyText(Message message) {
+    /** The readable parts of a message, wherever they sit in the structure of the mail. */
+    record Body(String text, String html) {
+    }
+
+    static Body bodyOf(Message message) {
+        StringBuilder plain = new StringBuilder();
+        StringBuilder html = new StringBuilder();
         try {
-            Object content = message.getContent();
-            if (content instanceof String text) {
-                return text;
-            }
-            if (content instanceof Multipart multipart) {
-                for (int i = 0; i < multipart.getCount(); i++) {
-                    BodyPart part = multipart.getBodyPart(i);
-                    if (part.isMimeType("text/plain")) {
-                        Object partContent = part.getContent();
-                        if (partContent instanceof String text) {
-                            return text;
-                        }
-                    }
-                }
-            }
+            collectBody(message, plain, html);
         }
         catch (Exception ex) {
-            return null;
+            // A message that cannot be read to the end keeps what was read so far.
         }
-        return null;
+        String text = plain.toString().strip();
+        String markup = html.toString().strip();
+        if (markup.length() > 500_000) {
+            markup = markup.substring(0, 500_000);
+        }
+        return new Body(text.isEmpty() ? null : text, markup.isEmpty() ? null : markup);
+    }
+
+    private static void collectBody(Part part, StringBuilder plain, StringBuilder html) throws Exception {
+        String disposition = part.getDisposition();
+        if (Part.ATTACHMENT.equalsIgnoreCase(disposition)) {
+            return;
+        }
+        if (part.isMimeType("multipart/*")) {
+            Multipart multipart = (Multipart) part.getContent();
+            // In multipart/alternative the same text comes twice (plain and HTML): both are kept, plain is shown.
+            for (int i = 0; i < multipart.getCount(); i++) {
+                collectBody(multipart.getBodyPart(i), plain, html);
+            }
+        }
+        else if (part.isMimeType("text/plain") && part.getContent() instanceof String text) {
+            if (plain.length() > 0) {
+                plain.append("\n\n");
+            }
+            plain.append(text);
+        }
+        else if (part.isMimeType("text/html") && part.getContent() instanceof String markup) {
+            if (html.length() > 0) {
+                html.append("\n");
+            }
+            html.append(markup);
+        }
     }
 
     private static boolean hasAttachments(Message message) {

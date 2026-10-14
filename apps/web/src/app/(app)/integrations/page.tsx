@@ -12,7 +12,9 @@ import { api } from '@/lib/api';
 import { toApiError } from '@/lib/api/errors';
 import type { IntegrationSummary } from '@/lib/api/types';
 import { useGroupedLabels, useStatusLabels } from '@/lib/format/status';
+import { CalendarCard } from './calendar-card';
 import { IntegrationsOverview } from './integrations-overview';
+import { TelegramCard } from './telegram-card';
 
 const STATUS_VALUES = ['connected', 'disconnected', 'error', 'pending'] as const;
 const CATEGORY_VALUES = ['bank', 'mail', 'storage', 'calendar', 'device', 'identity'] as const;
@@ -127,6 +129,8 @@ export default function IntegrationsPage() {
       createTitle={t('create.title')}
       notice={
         <>
+          <CalendarCard />
+          <TelegramCard />
           <InlineAlert tone="info">{t('credentials.notice')}</InlineAlert>
           <IntegrationsOverview reloadKey={reloadKey} />
         </>

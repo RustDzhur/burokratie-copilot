@@ -33,7 +33,8 @@ public class DeletionService {
         TEMPLATE("templates.edit"),
         MAIL("mail.view"),
         CALENDAR_EVENT("tasks.edit"),
-        NOTIFICATION("notifications.view");
+        NOTIFICATION("notifications.view"),
+        AUTOMATION("workflows.edit");
 
         private final String authority;
 
@@ -107,6 +108,12 @@ public class DeletionService {
                             """, id, tenantId);
                 }
             }
+            case AUTOMATION -> changed = jdbc.update("""
+                    update workflow_definitions
+                    set deleted_at = now(), is_active = false,
+                        code = left(code, 60) || '-del-' || substr(id::text, 1, 8)
+                    where id = ? and tenant_id = ? and deleted_at is null
+                    """, id, tenantId);
             case CALENDAR_EVENT -> changed = jdbc.update(
                     "update calendar_events set deleted_at = now() where id = ? and tenant_id = ? and deleted_at is null",
                     id, tenantId);

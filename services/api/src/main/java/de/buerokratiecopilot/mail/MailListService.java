@@ -107,18 +107,9 @@ public class MailListService {
         Map<String, Object> row = new java.util.LinkedHashMap<>(rows.get(0));
         Object text = row.remove("body_text");
         Object html = row.remove("body_html");
-        String body = text != null && !String.valueOf(text).isBlank() ? String.valueOf(text) : htmlToText(html);
+        String body = MailText.readable(text == null ? null : String.valueOf(text),
+                html == null ? null : String.valueOf(html));
         row.put("body", body.length() > 200_000 ? body.substring(0, 200_000) : body);
         return row;
-    }
-
-    static String htmlToText(Object html) {
-        if (html == null) {
-            return "";
-        }
-        return String.valueOf(html).replaceAll("(?is)<(script|style)[^>]*>.*?</\\1>", " ")
-                .replaceAll("(?i)<br\\s*/?>|</p>|</div>|</tr>|</li>", "\n").replaceAll("(?s)<[^>]+>", " ")
-                .replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
-                .replace("&quot;", "\"").replaceAll("[ \\t]+", " ").replaceAll("\\n\\s*\\n\\s*\\n+", "\n\n").strip();
     }
 }

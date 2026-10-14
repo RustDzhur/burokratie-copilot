@@ -268,4 +268,64 @@ class ImapIngestionIT {
                 .isZero();
         assertThat(documentCount(tenantId)).isZero();
     }
+
+    private static jakarta.mail.internet.MimeMessage message(String subject, jakarta.mail.Multipart content)
+            throws Exception {
+        var session = GreenMailUtil.getSession(ServerSetupTest.SMTP);
+        var message = new jakarta.mail.internet.MimeMessage(session);
+        message.setFrom(new jakarta.mail.internet.InternetAddress("absender@example.de"));
+        message.setRecipients(jakarta.mail.Message.RecipientType.TO, USER);
+        message.setSubject(subject);
+        message.setContent(content);
+        return message;
+    }
+
+    @Test
+    @DisplayName("the text of a mail is stored wherever it sits: plain next to HTML, HTML only, or inside an attachment mail")
+    void bodyIsFoundInEveryStructure() throws Exception {
+        UUID tenantId = tenant();
+        UUID accountId = mailbox(tenantId);
+
+        var alternative = new jakarta.mail.internet.MimeMultipart("alternative");
+        var plain = new jakarta.mail.internet.MimeBodyPart();
+        plain.setText("Guten Tag, anbei Ihr Bescheid.", "UTF-8");
+        var html = new jakarta.mail.internet.MimeBodyPart();
+        html.setContent("<html><body><p>Guten Tag, <b>anbei</b> Ihr Bescheid.</p></body></html>", "text/html; charset=UTF-8");
+        alternative.addBodyPart(plain);
+        alternative.addBodyPart(html);
+        var wrapper = new jakarta.mail.internet.MimeBodyPart();
+        wrapper.setContent(alternative);
+        var mixed = new jakarta.mail.internet.MimeMultipart("mixed");
+        mixed.addBodyPart(wrapper);
+        var attachment = new jakarta.mail.internet.MimeBodyPart();
+        attachment.setDataHandler(new jakarta.activation.DataHandler(
+                new jakarta.mail.util.ByteArrayDataSource("%PDF-1.4\nx".getBytes(StandardCharsets.UTF_8), "application/pdf")));
+        attachment.setFileName("bescheid.pdf");
+        attachment.setDisposition(jakarta.mail.Part.ATTACHMENT);
+        mixed.addBodyPart(attachment);
+        GreenMailUtil.sendMimeMessage(message("Verschachtelt", mixed));
+
+        var htmlOnly = new jakarta.mail.internet.MimeMultipart("related");
+        var onlyHtml = new jakarta.mail.internet.MimeBodyPart();
+        onlyHtml.setContent("<div>Nur <i>HTML</i> hier</div><br>Zweite Zeile", "text/html; charset=UTF-8");
+        htmlOnly.addBodyPart(onlyHtml);
+        GreenMailUtil.sendMimeMessage(message("Nur HTML", htmlOnly));
+
+        ingester.ingest(tenantId, accountId, 10);
+
+        var nested = jdbc.queryForMap("select body_text, body_html from mail_messages where tenant_id = ? and subject = 'Verschachtelt'",
+                tenantId);
+        assertThat(String.valueOf(nested.get("body_text"))).contains("anbei Ihr Bescheid");
+        assertThat(String.valueOf(nested.get("body_html"))).contains("<b>anbei</b>");
+        var only = jdbc.queryForMap("select body_text from mail_messages where tenant_id = ? and subject = 'Nur HTML'", tenantId);
+        assertThat(String.valueOf(only.get("body_text"))).contains("Nur HTML hier").contains("Zweite Zeile")
+                .doesNotContain("<");
+
+        // Messages stored before the whole structure was read have no text; the next collection fills it in.
+        jdbc.update("update mail_messages set body_text = null, body_html = null where tenant_id = ?", tenantId);
+        ingester.ingest(tenantId, accountId, 10);
+        var filled = jdbc.queryForMap("select body_text from mail_messages where tenant_id = ? and subject = 'Verschachtelt'",
+                tenantId);
+        assertThat(String.valueOf(filled.get("body_text"))).contains("anbei Ihr Bescheid");
+    }
 }

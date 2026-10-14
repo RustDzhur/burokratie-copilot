@@ -22,11 +22,14 @@ public class DocumentProcessedHandler implements OutboxEventHandler {
     private final de.buerokratiecopilot.documents.reading.AiDocumentReader reader;
 
     private final de.buerokratiecopilot.parties.AddresseeResolver addressees;
+    private final de.buerokratiecopilot.telegram.TelegramInformer telegram;
 
     public DocumentProcessedHandler(CaseOrchestrator orchestrator,
                                     de.buerokratiecopilot.documents.reading.AiDocumentReader reader,
-                                    de.buerokratiecopilot.parties.AddresseeResolver addressees) {
+                                    de.buerokratiecopilot.parties.AddresseeResolver addressees,
+                                    de.buerokratiecopilot.telegram.TelegramInformer telegram) {
         this.addressees = addressees;
+        this.telegram = telegram;
         this.orchestrator = orchestrator;
         this.reader = reader;
     }
@@ -54,6 +57,9 @@ public class DocumentProcessedHandler implements OutboxEventHandler {
         catch (RuntimeException ex) {
             log.warn("Addressee of document {} could not be determined: {}", event.getAggregateId(), ex.getMessage());
         }
-        orchestrator.orchestrate(event.getAggregateId());
+        CaseOrchestrator.Outcome outcome = orchestrator.orchestrate(event.getAggregateId());
+        if (outcome != null && !"ALREADY_HANDLED".equals(outcome.result())) {
+            telegram.documentProcessed(event.getTenantId(), event.getAggregateId(), outcome.result());
+        }
     }
 }

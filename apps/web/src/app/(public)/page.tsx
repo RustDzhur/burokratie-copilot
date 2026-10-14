@@ -7,6 +7,7 @@ import { Badge, Card } from '@/components/ui/data';
 import { useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { useApiResource } from '@/lib/api/hooks';
+import { PlanGrid } from '@/components/app/plan-grid';
 import styles from './landing.module.css';
 
 interface FeatureItem {
@@ -166,11 +167,6 @@ export default function LandingPage() {
   );
 }
 
-const PLAN_HINTS = {
-  PRIVATE: 'pricing.hint.PRIVATE',
-  FAMILY: 'pricing.hint.FAMILY',
-  COMPANY: 'pricing.hint.COMPANY',
-} as const;
 
 /** The price list and the terms of the free trial, read from the server so the page never disagrees with it. */
 function PricingSection() {
@@ -184,21 +180,7 @@ function PricingSection() {
         {t('pricing.title')}
       </h2>
       <p className={styles.featureText}>{t('pricing.trial', { days: trialDays })}</p>
-      <ul className={styles.featureGrid}>
-        {plans.map((plan) => (
-          <li key={plan.code}>
-            <Card tone="glass">
-              <h3 className={styles.featureTitle}>{plan.name}</h3>
-              <p className={styles.featureTitle}>
-                {t('pricing.perMonth', { price: (plan.priceCents / 100).toFixed(2).replace('.', ',') })}
-              </p>
-              <p className={styles.featureText}>
-                {PLAN_HINTS[plan.code as keyof typeof PLAN_HINTS] ? t(PLAN_HINTS[plan.code as keyof typeof PLAN_HINTS]) : ''}
-              </p>
-            </Card>
-          </li>
-        ))}
-      </ul>
+      <PlanGrid plans={plans} />
       <p className={styles.featureText}>{t('pricing.afterTrial', { days: retentionDays })}</p>
     </section>
   );

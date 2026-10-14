@@ -143,11 +143,13 @@ import type {
   SessionUser,
   TaskSummary,
   TemplateSummary,
+  CaseDetail,
   CatalogueEntry,
   DeletionKind,
   MailMessageDetail,
   PartyInput,
   PartySummary,
+  TelegramStatus,
 } from './types';
 
 export interface LoginPayload {
@@ -174,6 +176,8 @@ interface MeResponse {
 interface SubscriptionWire {
   readonly plan_code: string;
   readonly plan_name: string;
+  readonly tier?: number;
+  readonly analyses_per_month?: number | null;
   readonly status: SubscriptionInfo['status'];
   readonly access_until: string;
   readonly retention_until?: string | null;
@@ -187,6 +191,8 @@ function subscriptionFromWire(wire: SubscriptionWire): SubscriptionInfo {
   return {
     planCode: wire.plan_code,
     planName: wire.plan_name,
+    planTier: wire.tier,
+    analysesPerMonth: wire.analyses_per_month ?? null,
     status: wire.status,
     accessUntil: wire.access_until,
     retentionUntil: wire.retention_until ?? null,
@@ -319,6 +325,7 @@ export interface ApiResources {
   readonly cases: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<CaseSummary>>;
     get: (id: string, signal?: AbortSignal) => Promise<CaseSummary>;
+    detail: (id: string, signal?: AbortSignal) => Promise<CaseDetail>;
     create: (payload: {
       readonly title: string;
       readonly caseType?: string;
@@ -469,6 +476,13 @@ export interface ApiResources {
     list: (signal?: AbortSignal) => Promise<Page<DeviceSummary>>;
     scan: (id: string, profile?: string) => Promise<void>;
   };
+  readonly telegram: {
+    status: (signal?: AbortSignal) => Promise<TelegramStatus>;
+    createLinkCode: () => Promise<TelegramStatus>;
+    setPreferences: (payload: { level?: TelegramStatus['level']; enabled?: boolean }) => Promise<void>;
+    test: () => Promise<void>;
+    unlink: () => Promise<void>;
+  };
   readonly deletion: {
     remove: (kind: DeletionKind, ids: readonly string[]) => Promise<{ deleted: number; refused: string[] }>;
   };
@@ -580,6 +594,10 @@ interface PlanWire {
   readonly currency: string;
   readonly account_type?: string;
   readonly is_active?: boolean;
+  readonly tier?: number;
+  readonly audiences?: string;
+  readonly analyses_per_month?: number | null;
+  readonly features?: string;
 }
 
 const planFromWire = (wire: PlanWire): PlanSummary => ({
@@ -589,6 +607,10 @@ const planFromWire = (wire: PlanWire): PlanSummary => ({
   currency: wire.currency,
   accountType: wire.account_type,
   active: wire.is_active,
+  tier: wire.tier,
+  audiences: wire.audiences ? wire.audiences.split(',') : undefined,
+  analysesPerMonth: wire.analyses_per_month ?? null,
+  features: wire.features ? wire.features.split(',').filter(Boolean) : undefined,
 });
 
 type BillingStateWire = SubscriptionWire & {
@@ -836,6 +858,30 @@ export function createResources(client: ApiClient): ApiResources {
           withSignal(signal),
         );
         return { ...page, items: page.items.map((item) => caseFromWire(item)) };
+      },
+      detail: async (id, signal) => {
+        const wire = await client.get<{
+          readonly caseRecord: CaseDetail & { readonly typeName?: string | null };
+          readonly documents?: CaseDetail['documents'];
+          readonly timeline?: CaseDetail['timeline'];
+          readonly requiredDocuments?: readonly string[] | null;
+        }>(`/cases/${id}`, withSignal(signal));
+        const record = wire.caseRecord;
+        return {
+          id: record.id,
+          reference: record.reference,
+          title: record.title,
+          status: record.status,
+          priority: record.priority ?? null,
+          typeName: record.typeName ?? null,
+          description: record.description ?? null,
+          dueAt: record.dueAt ?? null,
+          openedAt: record.openedAt ?? null,
+          responsibleName: record.responsibleName ?? null,
+          documents: wire.documents ?? [],
+          timeline: wire.timeline ?? [],
+          requiredDocuments: wire.requiredDocuments ?? [],
+        };
       },
       get: async (id, signal) =>
         caseDetailFromWire(await client.get<CaseDetailWire>(`/cases/${id}`, withSignal(signal))),
@@ -1304,6 +1350,19 @@ export function createResources(client: ApiClient): ApiResources {
       },
       scan: (id, profile) =>
         client.post<void>(`/devices/${id}/scan`, { profile }, { idempotencyKey: true }),
+    },
+    telegram: {
+      status: (signal) => client.get<TelegramStatus>('/telegram/status', withSignal(signal)),
+      createLinkCode: () => client.post<TelegramStatus>('/telegram/link-code', {}, { idempotencyKey: true }),
+      setPreferences: async (payload) => {
+        await client.put<unknown>('/telegram/preferences', payload, { idempotencyKey: true });
+      },
+      test: async () => {
+        await client.post<unknown>('/telegram/test', {}, { idempotencyKey: true });
+      },
+      unlink: async () => {
+        await client.delete<unknown>('/telegram/link', { idempotencyKey: true });
+      },
     },
     deletion: {
       remove: (kind, ids) =>

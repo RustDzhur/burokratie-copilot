@@ -87,6 +87,8 @@ export interface ScreenDefinition {
   readonly audience?: readonly WorkspaceKind[];
   /** Shown only to the platform administrator. */
   readonly adminOnly?: boolean;
+  /** Lowest plan tier that includes the screen; absent = every plan. Mirrors what the server enforces. */
+  readonly minTier?: number;
 }
 
 function screen(
@@ -99,6 +101,8 @@ function screen(
     readonly requiresAuth?: boolean;
     readonly audience?: readonly WorkspaceKind[];
     readonly adminOnly?: boolean;
+    /** The lowest plan tier (0 Free, 1 Personal, 2 Business, 3 Professional) that includes the screen. */
+    readonly minTier?: number;
   } = {},
 ): ScreenDefinition {
   const inSidebar = options.inSidebar ?? section !== null;
@@ -112,6 +116,7 @@ function screen(
     titleKey: `items.${id}`,
     audience: options.audience,
     adminOnly: options.adminOnly,
+    minTier: options.minTier,
   };
 }
 
@@ -145,35 +150,35 @@ export const screens: readonly ScreenDefinition[] = [
   // §5.2.11 — calendar and deadlines
   screen('calendar', '/calendar', 'calendar', 'workspace'),
   // §5.2.12 — contracts
-  screen('contracts', '/contracts', 'layout', 'finance'),
+  screen('contracts', '/contracts', 'layout', 'finance', { minTier: 1 }),
   // §5.2.13 — invoices and expenses
-  screen('invoices', '/invoices', 'receipt', 'finance', { audience: ['company'] }),
+  screen('invoices', '/invoices', 'receipt', 'finance', { audience: ['company'], minTier: 2 }),
   // §5.2.14 — payments and reconciliation
-  screen('payments', '/payments', 'credit-card', 'finance'),
+  screen('payments', '/payments', 'credit-card', 'finance', { minTier: 2, audience: ['company'] }),
   // §5.2.15 — contacts and organisations
-  screen('contacts', '/contacts', 'users', 'organisation'),
+  screen('contacts', '/contacts', 'users', 'organisation', { minTier: 0 }),
   // §5.2.16 — mail centre
-  screen('mail', '/mail', 'mail', 'organisation'),
+  screen('mail', '/mail', 'mail', 'organisation', { minTier: 1 }),
   // §5.2.17 — template editor
-  screen('templates', '/templates', 'pencil', 'documents'),
+  screen('templates', '/templates', 'pencil', 'documents', { minTier: 1 }),
   // §5.2.18 — AI assistant
-  screen('assistant', '/assistant', 'sparkles', 'workspace'),
+  screen('assistant', '/assistant', 'sparkles', 'workspace', { minTier: 1 }),
   // §5.2.19 — automations
-  screen('automations', '/automations', 'zap', 'automation'),
+  screen('automations', '/automations', 'zap', 'automation', { minTier: 2 }),
   // §5.2.20 — integrations
-  screen('integrations', '/integrations', 'plug', 'automation'),
+  screen('integrations', '/integrations', 'plug', 'automation', { minTier: 1 }),
   // §5.2.21 — scanning and import
-  screen('scan', '/scan', 'printer', 'automation'),
+  screen('scan', '/scan', 'printer', 'automation', { minTier: 1 }),
   // whom the cabinet belongs to: the person, the household members, the company
   screen('parties', '/parties', 'users', 'organisation'),
   // §5.2.22 — family cockpit
-  screen('family', '/family', 'shield-heart', 'organisation', { audience: ['family'] }),
+  screen('family', '/family', 'shield-heart', 'organisation', { audience: ['family'], minTier: 1 }),
   // §5.2.23 — company workspace
-  screen('company', '/company', 'building', 'organisation', { audience: ['company'] }),
+  screen('company', '/company', 'building', 'organisation', { audience: ['company'], minTier: 2 }),
   // §5.2.24 — employees and roles
-  screen('employees', '/employees', 'user-cog', 'organisation', { audience: ['company'] }),
+  screen('employees', '/employees', 'user-cog', 'organisation', { audience: ['company'], minTier: 3 }),
   // §5.2.25 — reports and analytics
-  screen('reports', '/reports', 'bar-chart', 'governance'),
+  screen('reports', '/reports', 'bar-chart', 'governance', { minTier: 1 }),
   // §5.2.26 — archive and retention
   screen('archive', '/archive', 'archive', 'documents'),
   // §5.2.27 — security settings
@@ -183,7 +188,7 @@ export const screens: readonly ScreenDefinition[] = [
   // §5.2.29 — notification centre
   screen('notifications', '/notifications', 'bell', 'governance'),
   // §5.2.30 — activity history and audit
-  screen('audit', '/audit', 'clock', 'governance'),
+  screen('audit', '/audit', 'clock', 'governance', { minTier: 3 }),
   // plan, payment and invoices of the workspace
   screen('billing', '/billing', 'credit-card', 'governance'),
   // the platform administrator's area (customers, prices, payments, global settings)
@@ -195,10 +200,20 @@ export const screens: readonly ScreenDefinition[] = [
 /** The menu entries one person gets: the screens for their kind of workspace, and the admin area for the admin. */
 export function screensVisibleFor(
   list: readonly ScreenDefinition[],
-  user: { readonly workspaceType?: WorkspaceKind; readonly platformAdmin?: boolean } | null | undefined,
+  user:
+    | {
+        readonly workspaceType?: WorkspaceKind;
+        readonly platformAdmin?: boolean;
+        readonly subscription?: { readonly planTier?: number } | null;
+      }
+    | null
+    | undefined,
 ): readonly ScreenDefinition[] {
+  const tier = user?.subscription?.planTier;
   return list.filter((item) => {
     if (item.adminOnly) return Boolean(user?.platformAdmin);
+    // An unknown plan hides nothing: the server decides, the menu only follows it.
+    if (item.minTier !== undefined && tier !== undefined && tier < item.minTier) return false;
     if (!item.audience || !user?.workspaceType) return true;
     return item.audience.includes(user.workspaceType);
   });

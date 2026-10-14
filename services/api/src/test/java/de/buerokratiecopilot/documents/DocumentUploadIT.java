@@ -323,6 +323,84 @@ class DocumentUploadIT {
         assertThat(kept).isEqualTo(2);
     }
 
+    @Autowired
+    private de.buerokratiecopilot.billing.PlanFeatures planFeatures;
+
+    private void usePlan(Session session, String planCode) {
+        UUID tenant = UUID.fromString(session.tenantId());
+        RequestContext.runAs(tenant, () -> jdbc.update("update subscriptions set plan_code = ? where tenant_id = ?",
+                planCode, tenant));
+        planFeatures.forget(tenant);
+    }
+
+    @Test
+    @DisplayName("Free analyses three documents a month; a copy costs nothing, the fourth new one is refused with 402")
+    void freePlanAnalysesAreLimited() throws Exception {
+        Session session = signIn("free");
+        usePlan(session, "FREE");
+        byte[] first = invoicePdf("free-0");
+        upload(session, "f0.pdf", first, 201);
+        for (int i = 1; i < 3; i++) {
+            upload(session, "f" + i + ".pdf", invoicePdf("free-" + i), 201);
+        }
+        upload(session, "kopie.pdf", first, 201);
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/api/v1/documents")
+                        .file(new org.springframework.mock.web.MockMultipartFile("file", "vierte.pdf",
+                                "application/pdf", invoicePdf("free-3")))
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .cookie(session.cookie()))
+                .andExpect(status().isPaymentRequired());
+        usePlan(session, "BUSINESS");
+        upload(session, "vierte.pdf", invoicePdf("free-3"), 201);
+    }
+
+    @Test
+    @DisplayName("what a plan and a cabinet include is decided by the server: contracts need Personal, invoices need Business")
+    void plansGateTheAreas() throws Exception {
+        Session session = signIn("gate");
+        usePlan(session, "FREE");
+        mockMvc.perform(get("/api/v1/contracts").cookie(session.cookie())).andExpect(status().isPaymentRequired());
+        usePlan(session, "PERSONAL");
+        mockMvc.perform(get("/api/v1/contracts").cookie(session.cookie())).andExpect(status().isOk());
+        // A company on a Personal plan still does not get the invoices of Business.
+        mockMvc.perform(get("/api/v1/invoices").cookie(session.cookie())).andExpect(status().isPaymentRequired());
+        usePlan(session, "BUSINESS");
+        mockMvc.perform(get("/api/v1/invoices").cookie(session.cookie())).andExpect(status().isOk());
+        // The history of a document reads the audit trail on every plan.
+        usePlan(session, "FREE");
+        mockMvc.perform(get("/api/v1/audit/events").cookie(session.cookie())).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("an automation can be deleted, disappears from the list, and its name can be used again")
+    void automationCanBeDeleted() throws Exception {
+        Session session = signIn("auto");
+        UUID tenant = UUID.fromString(session.tenantId());
+        UUID id = UUID.randomUUID();
+        RequestContext.runAs(tenant, () -> jdbc.update("""
+                insert into workflow_definitions (id, tenant_id, code, name, category, trigger_config)
+                values (?, ?, 'meine-regel', '{"de":"Meine Regel"}'::jsonb, 'GENERAL', '{}'::jsonb)
+                """, id, tenant));
+        mockMvc.perform(get("/api/v1/workflows").cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/v1/bulk-delete")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .cookie(session.cookie())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"kind\":\"AUTOMATION\",\"ids\":[\"" + id + "\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deleted").value(1));
+        mockMvc.perform(get("/api/v1/workflows").cookie(session.cookie()))
+                .andExpect(jsonPath("$.length()").value(0));
+        Integer free = RequestContext.runAs(tenant, () -> jdbc.queryForObject(
+                "select count(*) from workflow_definitions where tenant_id = ? and code = 'meine-regel'", Integer.class, tenant));
+        assertThat(free).as("the code is free for a new automation").isZero();
+    }
+
     @Test
     @DisplayName("a document of another tenant does not exist from this session's point of view")
     void crossTenantAccessIsRefused() throws Exception {

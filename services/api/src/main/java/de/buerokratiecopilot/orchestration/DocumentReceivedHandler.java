@@ -29,10 +29,13 @@ public class DocumentReceivedHandler implements OutboxEventHandler {
 
     private final DocumentProcessingPipeline pipeline;
     private final OwnerNotifier notifier;
+    private final de.buerokratiecopilot.telegram.TelegramInformer telegram;
 
-    public DocumentReceivedHandler(DocumentProcessingPipeline pipeline, OwnerNotifier notifier) {
+    public DocumentReceivedHandler(DocumentProcessingPipeline pipeline, OwnerNotifier notifier,
+                                   de.buerokratiecopilot.telegram.TelegramInformer telegram) {
         this.pipeline = pipeline;
         this.notifier = notifier;
+        this.telegram = telegram;
     }
 
     @Override
@@ -42,6 +45,7 @@ public class DocumentReceivedHandler implements OutboxEventHandler {
 
     @Override
     public void handle(OutboxEvent event) {
+        telegram.documentReceived(event.getTenantId(), event.getAggregateId());
         var result = pipeline.advance(event.getAggregateId());
         log.info("Document {} advanced: executed {} step(s), status {}, stopped at {} ({})",
                 event.getAggregateId(), result.executed().size(), result.status(), result.stoppedAt(),

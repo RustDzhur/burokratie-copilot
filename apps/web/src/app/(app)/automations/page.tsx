@@ -63,6 +63,7 @@ export default function AutomationsPage() {
     <ListPage<AutomationSummary>
       screenId="automations"
       namespace="automations"
+      deletable={{ kind: 'AUTOMATION', rowLabel: (row) => row.name }}
       load={(params, signal) => api.automations.list(params, signal)}
       columns={columns}
       sortableKeys={['name', 'lastRun']}

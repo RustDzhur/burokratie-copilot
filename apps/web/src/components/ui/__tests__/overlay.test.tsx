@@ -1,9 +1,29 @@
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders, screen, userEvent, within } from '@/test/render';
 import { ConfirmDialog, Dialog, Drawer, Tooltip } from '../overlay';
 import { Button } from '../button';
 
+function TypingDialog() {
+  const [text, setText] = useState('');
+  // A new onClose function on every render, as a page that closes its dialog inline does.
+  return (
+    <Dialog open onClose={() => setText('')} title="Eingabe">
+      <input aria-label="Name" value={text} onChange={(event) => setText(event.target.value)} />
+    </Dialog>
+  );
+}
+
 describe('Dialog', () => {
+  it('keeps the focus in a field while the person types (the dialog re-renders with every key)', async () => {
+    renderWithProviders(<TypingDialog />);
+    const input = screen.getByLabelText('Name');
+    await userEvent.click(input);
+    await userEvent.keyboard('Anna');
+    expect(input).toHaveValue('Anna');
+    expect(input).toHaveFocus();
+  });
+
   it('renders as an accessible modal dialog with label and description', () => {
     renderWithProviders(
       <Dialog open onClose={() => undefined} title="Vorgang anlegen" description="Bitte ausfüllen">

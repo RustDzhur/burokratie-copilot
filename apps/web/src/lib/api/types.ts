@@ -427,6 +427,9 @@ export type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'EXPIRED' | 'SUSPENDED';
 export interface SubscriptionInfo {
   readonly planCode: string;
   readonly planName: string;
+  /** 0 Free, 1 Personal, 2 Business, 3 Professional: what the menu follows (the server enforces it). */
+  readonly planTier?: number;
+  readonly analysesPerMonth?: number | null;
   readonly status: SubscriptionStatus;
   readonly accessUntil: IsoDateTime;
   readonly retentionUntil?: IsoDateTime | null;
@@ -443,6 +446,11 @@ export interface PlanSummary {
   readonly currency: string;
   readonly accountType?: string;
   readonly active?: boolean;
+  readonly tier?: number;
+  /** The cabinets the plan is offered to: private, family, company. */
+  readonly audiences?: readonly string[];
+  readonly analysesPerMonth?: number | null;
+  readonly features?: readonly string[];
 }
 
 export interface BillingState extends SubscriptionInfo {
@@ -555,7 +563,8 @@ export type DeletionKind =
   | 'TEMPLATE'
   | 'MAIL'
   | 'CALENDAR_EVENT'
-  | 'NOTIFICATION';
+  | 'NOTIFICATION'
+  | 'AUTOMATION';
 
 /** A received message for reading: the content is plain text only. */
 export interface MailMessageDetail {
@@ -569,4 +578,41 @@ export interface MailMessageDetail {
   readonly moment: string;
   readonly is_suspicious: boolean;
   readonly body: string;
+}
+
+/** The person's own Telegram connection. */
+export interface TelegramStatus {
+  readonly configured: boolean;
+  readonly botUsername: string;
+  readonly linked: boolean;
+  readonly enabled: boolean;
+  readonly level: 'ALL' | 'IMPORTANT';
+  readonly deepLink: string | null;
+}
+
+/** A case with what belongs to it: its documents, its history, what is still missing. */
+export interface CaseDetail {
+  readonly id: string;
+  readonly reference: string;
+  readonly title: string;
+  readonly status: string;
+  readonly priority: string | null;
+  readonly typeName: string | null;
+  readonly description: string | null;
+  readonly dueAt: string | null;
+  readonly openedAt: string | null;
+  readonly responsibleName: string | null;
+  readonly documents: readonly {
+    readonly documentId: string;
+    readonly filename: string;
+    readonly processingStatus: string;
+    readonly primary: boolean;
+  }[];
+  readonly timeline: readonly {
+    readonly id: string;
+    readonly type: string;
+    readonly summary: string | null;
+    readonly occurredAt: string;
+  }[];
+  readonly requiredDocuments: readonly string[];
 }

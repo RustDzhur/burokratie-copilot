@@ -94,7 +94,7 @@ class BillingLifecycleIT {
                 .andExpect(status().isOk()).andReturn().getResponse().getCookie("bc_session");
 
         mvc.perform(authed(get("/api/v1/auth/me"))).andExpect(status().isOk())
-                .andExpect(jsonPath("$.subscription.plan_code").value("FAMILY"))
+                .andExpect(jsonPath("$.subscription.plan_code").value("PERSONAL"))
                 .andExpect(jsonPath("$.subscription.status").value("TRIAL"))
                 .andExpect(jsonPath("$.subscription.blocked").value(false))
                 .andExpect(jsonPath("$.subscription.days_left").value(org.hamcrest.Matchers.greaterThan(55)))
@@ -129,7 +129,7 @@ class BillingLifecycleIT {
                 """);
         MvcResult created = mvc.perform(authed(post("/api/v1/billing/invoices").contentType(MediaType.APPLICATION_JSON)
                         .content(request))).andExpect(status().isCreated())
-                .andExpect(jsonPath("$.amount_cents").value(1200))
+                .andExpect(jsonPath("$.amount_cents").value(790))
                 .andExpect(jsonPath("$.status").value("ISSUED")).andReturn();
         invoiceId = JsonPath.read(created.getResponse().getContentAsString(), "$.id");
 

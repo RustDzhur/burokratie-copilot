@@ -87,6 +87,13 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
                 writeSubscriptionRequired(request, response);
                 return;
             }
+            if (authentication != null && authentication.getDetails() instanceof SessionDetails details) {
+                String denial = accessPolicy.featureDenial(details.tenantId(), request.getRequestURI());
+                if (denial != null) {
+                    writePlanFeatureRequired(request, response, denial);
+                    return;
+                }
+            }
             chain.doFilter(request, response);
         }
         finally {
@@ -161,6 +168,16 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
         response.setContentType("application/json;charset=UTF-8");
         response.getWriter().write("{\"code\":\"SUBSCRIPTION_REQUIRED\",\"message\":"
                 + "\"Der Zugang ist abgelaufen. Bitte den Tarif verlängern.\",\"path\":\""
+                + request.getRequestURI().replace("\"", "") + "\"}");
+    }
+
+    private static void writePlanFeatureRequired(HttpServletRequest request, HttpServletResponse response,
+                                                 String reason) throws IOException {
+        response.setStatus(402);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"code\":\"PLAN_FEATURE_REQUIRED\",\"message\":"
+                + "\"" + ("CABINET".equals(reason) ? "Dieser Bereich gehört nicht zu Ihrem Kabinett."
+                : "Dieser Bereich ist in Ihrem Tarif nicht enthalten.") + "\",\"path\":\""
                 + request.getRequestURI().replace("\"", "") + "\"}");
     }
 

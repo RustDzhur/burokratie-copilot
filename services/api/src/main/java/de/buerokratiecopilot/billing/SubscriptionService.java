@@ -47,9 +47,9 @@ public class SubscriptionService {
     /** The plan that belongs to an account type chosen at registration. */
     public static String planFor(String accountType) {
         return switch (accountType == null ? "" : accountType) {
-            case "PRIVATE_PERSON" -> "PRIVATE";
-            case "FAMILY_HOUSEHOLD" -> "FAMILY";
-            default -> "COMPANY";
+            case "PRIVATE_PERSON", "FAMILY_HOUSEHOLD" -> "PERSONAL";
+            case "COMPANY_TEAM", "EXTERNAL_REPRESENTATIVE", "HIGH_SECURITY_ORGANIZATION" -> "PROFESSIONAL";
+            default -> "BUSINESS";
         };
     }
 
@@ -84,7 +84,8 @@ public class SubscriptionService {
     @Transactional(readOnly = true)
     public Map<String, Object> view(UUID tenantId) {
         List<Map<String, Object>> rows = jdbc.queryForList("""
-                select s.plan_code, p.name as plan_name, p.price_cents, p.currency, s.status, s.trial_ends_at,
+                select s.plan_code, p.name as plan_name, p.price_cents, p.currency, p.tier, p.analyses_per_month, p.features,
+                       s.status, s.trial_ends_at,
                        s.paid_until, s.access_until, s.retention_until, s.data_choice,
                        (s.status = 'SUSPENDED' or s.access_until < now()) as blocked,
                        greatest(0, ceil(extract(epoch from (s.access_until - now())) / 86400))::int as days_left
@@ -105,7 +106,24 @@ public class SubscriptionService {
         if (known == null || known == 0) {
             throw new ApiException(ErrorCode.INVALID_REQUEST, "Unbekannter Tarif: " + planCode);
         }
+        Integer audience = jdbc.queryForObject("""
+                select count(*) from plans p join tenants t on t.id = ?
+                where p.code = ? and position(case t.account_type when 'PRIVATE_PERSON' then 'private'
+                      when 'FAMILY_HOUSEHOLD' then 'family' else 'company' end in p.audiences) > 0
+                """, Integer.class, tenantId, planCode);
+        if (audience == null || audience == 0) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "Dieser Tarif ist für Ihre Kontoart nicht vorgesehen");
+        }
         jdbc.update("update subscriptions set plan_code = ? where tenant_id = ?", planCode, tenantId);
+        if ("FREE".equals(planCode)) {
+            // Free has no end: the access date moves far out, so the free tier is a tier and not a second trial.
+            jdbc.update("""
+                    update subscriptions set status = 'ACTIVE', access_until = now() + interval '100 years',
+                           retention_until = null, data_choice = null, data_choice_at = null
+                    where tenant_id = ? and (status in ('TRIAL', 'EXPIRED') or paid_until is null)
+                    """, tenantId);
+        }
+        cache.remove(tenantId);
     }
 
     /** Adds paid time. Time left over from the trial or a previous payment is kept, not thrown away. */
