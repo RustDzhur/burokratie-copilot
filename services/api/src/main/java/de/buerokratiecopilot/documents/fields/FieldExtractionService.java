@@ -134,6 +134,14 @@ public class FieldExtractionService {
         }
 
         List<DocumentTypeField> fields = definitions.findByDocumentTypeIdOrderBySortOrderAsc(typeId);
+        if (fields.isEmpty()) {
+            // A type without field definitions of its own is read with the general set (reference number, amount, date,
+            // deadline, IBAN, period) instead of yielding nothing: a letter of an authority has a reference number
+            // whatever its type is called.
+            fields = types.findByCode(GENERIC_TYPE)
+                    .map(generic -> definitions.findByDocumentTypeIdOrderBySortOrderAsc(generic.getId()))
+                    .orElse(fields);
+        }
 
         // A value a person has confirmed or corrected is never overwritten by a new reading: re-running the
         // extraction (after the type was confirmed, say) must not undo the reviewer's work.
@@ -251,7 +259,8 @@ public class FieldExtractionService {
             if (boundaryBefore && boundaryAfter) {
                 int lineEnd = lowered.indexOf('\n', after);
                 String rest = text.substring(after, lineEnd < 0 ? text.length() : lineEnd);
-                String value = rest.replaceFirst("^\\s*[:\\-–—]?\\s*", "").strip();
+                // "Rechnung Nr. 2026-117": the full stop belongs to the label, not to the value.
+                String value = rest.replaceFirst("^\\s*[:\\-–—.]?\\s*", "").strip();
                 if (!value.isEmpty()) {
                     return Optional.of(new Candidate(value, page.getPageNumber(),
                             snippet(text, index, after), page.isOcrUsed() ? "OCR" : "TEXT"));

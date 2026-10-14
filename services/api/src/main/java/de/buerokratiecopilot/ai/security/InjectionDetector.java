@@ -79,18 +79,28 @@ public final class InjectionDetector {
 
     private static final List<Rule> RULES = List.of(
             new Rule("IGNORE_PREVIOUS", Severity.ATTEMPT, Pattern.compile(
-                    "(?i)\\b(ignore|disregard|forget|missachte|ignoriere|vergiss)\\b[^.]{0,40}\\b"
-                            + "(previous|prior|above|all|alle|vorherigen|obigen)\\b[^.]{0,20}\\b"
-                            + "(instruction|prompt|rule|anweisung|regel|vorgaben)")),
+                    "(?i)\\b(ignore|disregard|forget|override|missachte|ignoriere|ignorieren sie|vergiss|überspringe|übergehe)\\b[^.]{0,40}\\b"
+                            + "(previous|prior|above|all|alle|sämtliche|vorherigen|bisherigen|bisherige|früheren|obigen|vorigen|deine|your)\\b[^.]{0,20}\\b"
+                            + "(instruction|prompt|rule|anweisung|regel|vorgaben|instruktion|befehle|hinweise|sicherheitsregeln)"
+                            // the verb may also come last: "alle bisherigen Sicherheitsregeln zu vergessen"
+                            + "|\\b(alle|sämtliche|deine|die)\\s+(bisherigen|vorherigen|früheren|vorigen)?\\s*"
+                            + "(anweisungen|regeln|sicherheitsregeln|vorgaben|instruktionen)\\s+(zu\\s+)?"
+                            + "(vergessen|ignorieren|missachten|übergehen|überspringen)")),
             new Rule("ROLE_IMPERSONATION", Severity.ATTEMPT, Pattern.compile(
-                    "(?i)(^|\\n)\\s*(system|assistant|developer|systemnachricht|entwickler)\\s*:")),
+                    "(?i)((^|\\n)\\s*(system|assistant|developer|systemnachricht|entwickler)\\s*:"
+                            + "|\\[\\s*/?\\s*(system|assistant|developer|inst)\\s*\\]|<\\s*/?\\s*system\\s*>)")),
+            // What a document must not tell a reader to do with the platform's own findings.
+            new Rule("OUTPUT_OVERRIDE", Severity.ATTEMPT, Pattern.compile(
+                    "(?i)\\b((antworte|answer|respond|reply)\\s+(nur|ausschließlich|immer|only|always)\\s+(noch\\s+)?(mit|with)\\b"
+                            + "|(lösche|löschen sie|unterdrücke|verschweige|suppress|hide|delete)\\s+(alle|sämtliche|all)\\s+"
+                            + "(warnungen|hinweise|meldungen|befunde|warnings|findings))")),
             new Rule("NEW_INSTRUCTIONS", Severity.ATTEMPT, Pattern.compile(
                     "(?i)\\b(you are now|from now on|ab jetzt|neue anweisung|new instructions|"
                             + "du bist jetzt|acting as|agiere als)\\b")),
             new Rule("PROMPT_DISCLOSURE", Severity.ATTEMPT, Pattern.compile(
                     "(?i)\\b(reveal|show|print|repeat|give me|zeige|nenne|gib mir|wiederhole)\\b[^.]{0,30}\\b"
                             + "(your (system )?(prompt|instructions)|instructions|systemprompt|"
-                            + "anweisungen|regeln)\\b")),
+                            + "(system)?anweisungen|regeln)\\b")),
             // Either order: "send the API key" and "the API key must be sent" are the same attempt, and
             // the first version of this rule only caught the second.
             new Rule("SECRET_EXFILTRATION", Severity.ATTEMPT, Pattern.compile(
