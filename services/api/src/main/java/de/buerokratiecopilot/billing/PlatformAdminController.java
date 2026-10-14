@@ -48,10 +48,13 @@ public class PlatformAdminController {
     private final TenantPurgeService purge;
     private final SubscriptionLifecycleJob lifecycle;
     private final BurokratieProperties properties;
+    private final de.buerokratiecopilot.shared.outbox.OutboxDispatcher outbox;
 
     public PlatformAdminController(JdbcTemplate jdbc, SubscriptionService subscriptions, BillingService billing,
                                    PlatformSettings settings, TenantPurgeService purge,
-                                   SubscriptionLifecycleJob lifecycle, BurokratieProperties properties) {
+                                   SubscriptionLifecycleJob lifecycle, BurokratieProperties properties,
+                                   de.buerokratiecopilot.shared.outbox.OutboxDispatcher outbox) {
+        this.outbox = outbox;
         this.jdbc = jdbc;
         this.subscriptions = subscriptions;
         this.billing = billing;
@@ -283,6 +286,40 @@ public class PlatformAdminController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"invoice.pdf\"")
                 .contentType(MediaType.APPLICATION_PDF).body(bytes);
+    }
+
+    /** Events that ran out of attempts, by type, and whether this server can handle the type now. */
+    @GetMapping("/outbox/dead-letters")
+    public java.util.List<Map<String, Object>> deadLetters() {
+        java.util.Set<String> handled = outbox.handledTypes();
+        return asSystem(() -> {
+            java.util.List<Map<String, Object>> rows = jdbc.queryForList("""
+                    select event_type, count(*) as count, min(created_at) as oldest, max(error_message) as last_error
+                    from outbox_events where status = 'DEAD_LETTER' group by event_type order by count desc
+                    """);
+            java.util.List<Map<String, Object>> out = new java.util.ArrayList<>();
+            for (Map<String, Object> row : rows) {
+                Map<String, Object> copy = new java.util.LinkedHashMap<>(row);
+                copy.put("handlerAvailable", handled.contains(String.valueOf(row.get("event_type"))));
+                out.add(copy);
+            }
+            return out;
+        });
+    }
+
+    /**
+     * Puts dead-lettered events back into the queue. Only types that have a handler on this server are touched: an event
+     * returned for a type nobody handles would just run out of attempts again.
+     */
+    @PostMapping("/outbox/requeue")
+    public Map<String, Object> requeueDeadLetters() {
+        String[] handled = outbox.handledTypes().toArray(new String[0]);
+        int requeued = asSystem(() -> jdbc.update("""
+                update outbox_events set status = 'PENDING', attempts = 0, available_at = now(), error_message = null,
+                       locked_by = null, locked_at = null
+                where status = 'DEAD_LETTER' and event_type = any (?)
+                """, (Object) handled));
+        return Map.of("requeued", requeued);
     }
 
     @PostMapping("/lifecycle/run")

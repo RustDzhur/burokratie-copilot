@@ -170,6 +170,36 @@ class PlatformAdminIT {
         assertThat(resolver.protectsTenant(customerTenant)).isFalse();
     }
 
+    @Test
+    @Order(5)
+    @DisplayName("dead-lettered events of a type this server handles go back into the queue; other types stay")
+    void deadLettersCanBeRequeued() throws Exception {
+        UUID handled = UUID.randomUUID();
+        UUID unknown = UUID.randomUUID();
+        RequestContext.runAs((UUID) null, () -> {
+            jdbc.update("""
+                    insert into outbox_events (event_id, aggregate_type, aggregate_id, event_type, status, attempts, error_message)
+                    values (?, 'documents', gen_random_uuid(), 'document.processing_completed', 'DEAD_LETTER', 5, 'No handler')
+                    """, handled);
+            jdbc.update("""
+                    insert into outbox_events (event_id, aggregate_type, aggregate_id, event_type, status, attempts, error_message)
+                    values (?, 'x', gen_random_uuid(), 'nobody.handles.this', 'DEAD_LETTER', 5, 'No handler')
+                    """, unknown);
+            return null;
+        });
+        mvc.perform(authed(get("/api/v1/admin/outbox/dead-letters"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.event_type == 'nobody.handles.this')].handlerAvailable").value(false))
+                .andExpect(jsonPath("$[?(@.event_type == 'document.processing_completed')].handlerAvailable").value(true));
+        mvc.perform(authed(post("/api/v1/admin/outbox/requeue"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.requeued").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)));
+        String stillDead = RequestContext.runAs((UUID) null, () -> jdbc.queryForObject(
+                "select status from outbox_events where event_id = ?", String.class, unknown));
+        String moved = RequestContext.runAs((UUID) null, () -> jdbc.queryForObject(
+                "select status from outbox_events where event_id = ?", String.class, handled));
+        assertThat(stillDead).isEqualTo("DEAD_LETTER");
+        assertThat(moved).isNotEqualTo("DEAD_LETTER");
+    }
+
     private MockHttpServletRequestBuilder authed(MockHttpServletRequestBuilder request) {
         return request.cookie(session, xsrf).header("X-XSRF-TOKEN", xsrf.getValue());
     }

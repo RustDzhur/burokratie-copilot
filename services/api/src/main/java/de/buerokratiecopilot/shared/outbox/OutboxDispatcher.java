@@ -95,6 +95,11 @@ public class OutboxDispatcher {
     }
 
     /** Number of event types this instance knows how to handle. */
+    /** The event types this instance has a handler for. */
+    public java.util.Set<String> handledTypes() {
+        return java.util.Set.copyOf(handlers.keySet());
+    }
+
     public int handlerCount() {
         return handlers.size();
     }
