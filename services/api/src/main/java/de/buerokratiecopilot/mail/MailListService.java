@@ -52,7 +52,7 @@ public class MailListService {
                        coalesce(m.received_at, m.sent_at, m.created_at) as moment,
                        m.attachment_count as attachment_count
                 from mail_messages m
-                where m.tenant_id = ?
+                where m.tenant_id = ? and m.deleted_at is null
                 union all
                 select o.id::text, coalesce(o.subject, ''), coalesce(o.from_address::text, ''), 'DRAFTS',
                        'NEW', o.created_at, 0
@@ -76,5 +76,49 @@ public class MailListService {
         List<Map<String, Object>> rows = jdbc.queryForList(
                 "select * from (" + union + ") u" + filter + " order by moment desc limit ? offset ?", paged);
         return new PageImpl<>(rows, pageable, total == null ? 0 : total);
+    }
+
+    /**
+     * One message for reading. The content is returned as plain text only: a mail from outside is untrusted, so
+     * its HTML is never handed to the browser, only the readable text of it.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> detail(UUID tenantId, UUID id) {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                select m.id::text as id, coalesce(m.subject, '') as subject, m.from_name, m.from_address::text as from_address,
+                       m.to_addresses::text as to_addresses, m.direction, m.attachment_count,
+                       coalesce(m.received_at, m.sent_at, m.created_at) as moment, m.body_text, m.body_html,
+                       m.is_suspicious
+                from mail_messages m where m.id = ? and m.tenant_id = ? and m.deleted_at is null
+                """, id, tenantId);
+        if (rows.isEmpty()) {
+            // A draft is not a received message, but it opens from the same list.
+            rows = jdbc.queryForList("""
+                    select o.id::text as id, coalesce(o.subject, '') as subject, null as from_name,
+                           o.from_address::text as from_address, o.to_addresses::text as to_addresses,
+                           'DRAFT' as direction, 0 as attachment_count, o.created_at as moment,
+                           o.body_text, o.body_html, false as is_suspicious
+                    from outbound_messages o where o.id = ? and o.tenant_id = ? and o.deleted_at is null
+                    """, id, tenantId);
+        }
+        if (rows.isEmpty()) {
+            throw de.buerokratiecopilot.shared.error.ApiException.notFound("Mail");
+        }
+        Map<String, Object> row = new java.util.LinkedHashMap<>(rows.get(0));
+        Object text = row.remove("body_text");
+        Object html = row.remove("body_html");
+        String body = text != null && !String.valueOf(text).isBlank() ? String.valueOf(text) : htmlToText(html);
+        row.put("body", body.length() > 200_000 ? body.substring(0, 200_000) : body);
+        return row;
+    }
+
+    static String htmlToText(Object html) {
+        if (html == null) {
+            return "";
+        }
+        return String.valueOf(html).replaceAll("(?is)<(script|style)[^>]*>.*?</\\1>", " ")
+                .replaceAll("(?i)<br\\s*/?>|</p>|</div>|</tr>|</li>", "\n").replaceAll("(?s)<[^>]+>", " ")
+                .replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+                .replace("&quot;", "\"").replaceAll("[ \\t]+", " ").replaceAll("\\n\\s*\\n\\s*\\n+", "\n\n").strip();
     }
 }

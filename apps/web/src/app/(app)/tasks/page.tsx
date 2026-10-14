@@ -89,6 +89,7 @@ export default function TasksPage() {
       <ListPage<TaskSummary>
         screenId="tasks"
         namespace="tasks"
+        deletable={{ kind: 'TASK', rowLabel: (row) => row.title }}
         load={(params, signal) => api.tasks.list(params, signal)}
         columns={columns}
         sortableKeys={['title', 'dueDate']}

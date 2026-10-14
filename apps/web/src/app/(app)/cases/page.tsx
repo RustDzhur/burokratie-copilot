@@ -48,6 +48,7 @@ export default function CasesPage() {
     <ListPage<CaseSummary>
       screenId="cases"
       namespace="cases"
+      deletable={{ kind: 'CASE', rowLabel: (row) => row.title }}
       load={(params, signal) => api.cases.list(params, signal)}
       columns={columns}
       sortableKeys={['title', 'updatedAt']}

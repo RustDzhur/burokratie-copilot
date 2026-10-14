@@ -20,6 +20,7 @@ import {
 } from '@/i18n/format';
 import { useLocale, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
+import { toApiError } from '@/lib/api/errors';
 import { useApiResource } from '@/lib/api/hooks';
 import type { CalendarEvent } from '@/lib/api/types';
 import { useGroupedLabels } from '@/lib/format/status';
@@ -41,6 +42,7 @@ export default function CalendarPage() {
   const tCommon = useTranslations('common');
   const locale = useLocale();
   const toast = useToast();
+  const tErrors = useTranslations('errors');
   const typeLabel = useGroupedLabels('calendar', 'type');
 
   const [month, setMonth] = useState<Date>(startOfMonth(new Date()));
@@ -336,6 +338,29 @@ export default function CalendarPage() {
         onClose={() => setOpenEvent(null)}
         title={openEvent?.title ?? ''}
         description={openEvent ? `${formatDate(openEvent.date, locale)} · ${typeLabel(openEvent.type)}` : undefined}
+        footer={
+          openEvent && (openEvent.origin === 'calendar-entry' || openEvent.taskId) ? (
+            <Button
+              variant="danger"
+              iconLeft="trash"
+              onClick={() => {
+                const entry = openEvent;
+                const asTask = entry.origin !== 'calendar-entry' && entry.taskId;
+                if (!window.confirm(asTask ? t('detail.deleteTaskConfirm') : tCommon('bulk.confirmOne'))) return;
+                void api.deletion
+                  .remove(asTask ? 'TASK' : 'CALENDAR_EVENT', [asTask ? String(entry.taskId) : entry.id])
+                  .then(() => {
+                    toast.success(tCommon('bulk.doneOne'));
+                    setOpenEvent(null);
+                    reload();
+                  })
+                  .catch((error: unknown) => toast.error(tErrors(toApiError(error).kind)));
+              }}
+            >
+              {openEvent.origin === 'calendar-entry' ? tCommon('actions.delete') : t('detail.deleteTask')}
+            </Button>
+          ) : undefined
+        }
       >
         {openEvent ? (
           <div className={styles.eventDetail}>

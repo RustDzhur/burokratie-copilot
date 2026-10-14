@@ -127,6 +127,7 @@ export default function NotificationsPage() {
       <ListPage<NotificationSummary>
         screenId="notifications"
         namespace="notifications"
+        deletable={{ kind: 'NOTIFICATION', rowLabel: (row) => row.title }}
         load={(params, signal) => api.notifications.list(params, signal)}
         columns={columns}
         searchable={false}

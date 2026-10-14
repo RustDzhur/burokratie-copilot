@@ -41,6 +41,7 @@ export default function ContactsPage() {
     <ListPage<ContactSummary>
       screenId="contacts"
       namespace="contacts"
+      deletable={{ kind: 'CONTACT', rowLabel: (row) => row.name }}
       load={(params, signal) => api.contacts.list(params, signal)}
       columns={columns}
       sortableKeys={['name', 'updatedAt']}

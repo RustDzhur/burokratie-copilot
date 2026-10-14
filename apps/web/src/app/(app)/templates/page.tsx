@@ -35,6 +35,7 @@ export default function TemplatesPage() {
     <ListPage<TemplateSummary>
       screenId="templates"
       namespace="templates"
+      deletable={{ kind: 'TEMPLATE', rowLabel: (row) => row.name }}
       load={(params, signal) => api.templates.list(params, signal)}
       columns={columns}
       sortableKeys={['name', 'updatedAt']}

@@ -140,6 +140,7 @@ export default function InboxPage() {
       <ListPage<DocumentSummary>
         screenId="inbox"
         namespace="inbox"
+        deletable={{ kind: 'DOCUMENT', rowLabel: (row) => row.title }}
         load={(params, signal) => api.documents.list(params, signal)}
         columns={columns}
         sortableKeys={['receivedAt']}

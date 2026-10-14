@@ -57,6 +57,7 @@ export default function ContractsPage() {
     <ListPage<ContractSummary>
       screenId="contracts"
       namespace="contracts"
+      deletable={{ kind: 'CONTRACT', rowLabel: (row) => row.partner }}
       load={(params, signal) => api.contracts.list(params, signal)}
       columns={columns}
       sortableKeys={['partner', 'endDate']}

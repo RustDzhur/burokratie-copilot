@@ -144,6 +144,8 @@ import type {
   TaskSummary,
   TemplateSummary,
   CatalogueEntry,
+  DeletionKind,
+  MailMessageDetail,
   PartyInput,
   PartySummary,
 } from './types';
@@ -377,6 +379,7 @@ export interface ApiResources {
     }) => Promise<ContactSummary>;
   };
   readonly mail: {
+    get: (id: string, signal?: AbortSignal) => Promise<MailMessageDetail>;
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<MailMessageSummary>>;
   };
   readonly templates: {
@@ -465,6 +468,9 @@ export interface ApiResources {
   readonly devices: {
     list: (signal?: AbortSignal) => Promise<Page<DeviceSummary>>;
     scan: (id: string, profile?: string) => Promise<void>;
+  };
+  readonly deletion: {
+    remove: (kind: DeletionKind, ids: readonly string[]) => Promise<{ deleted: number; refused: string[] }>;
   };
   readonly parties: {
     list: (signal?: AbortSignal) => Promise<readonly PartySummary[]>;
@@ -1040,6 +1046,7 @@ export function createResources(client: ApiClient): ApiResources {
         ),
     },
     mail: {
+      get: (id, signal) => client.get<MailMessageDetail>(`/mail/messages/${id}`, withSignal(signal)),
       list: async (params, signal) => {
         const { folder, status, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
         // The archive folder has no backing store yet: asking for it is an empty answer, not "everything".
@@ -1297,6 +1304,10 @@ export function createResources(client: ApiClient): ApiResources {
       },
       scan: (id, profile) =>
         client.post<void>(`/devices/${id}/scan`, { profile }, { idempotencyKey: true }),
+    },
+    deletion: {
+      remove: (kind, ids) =>
+        client.post<{ deleted: number; refused: string[] }>('/bulk-delete', { kind, ids }, { idempotencyKey: true }),
     },
     parties: {
       list: (signal) => client.get<readonly PartySummary[]>('/parties', withSignal(signal)),

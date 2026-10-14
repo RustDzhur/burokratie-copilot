@@ -53,6 +53,7 @@ export default function ArchivePage() {
     <ListPage<ArchiveEntry>
       screenId="archive"
       namespace="archive"
+      deletable={{ kind: 'DOCUMENT', rowLabel: (row) => row.title }}
       load={(params, signal) => api.archive.list(params, signal)}
       columns={columns}
       sortableKeys={['title', 'retentionUntil']}

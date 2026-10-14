@@ -19,7 +19,13 @@ export default function MailPage() {
   const folderLabel = useGroupedLabels('mail', 'folder');
 
   const columns: readonly Column<MailMessageSummary>[] = [
-    { key: 'subject', header: t('column.subject'), sortable: true, render: (row) => row.subject },
+    {
+      key: 'subject',
+      header: t('column.subject'),
+      sortable: true,
+      link: (row) => `/mail/${row.id}`,
+      render: (row) => row.subject || '—',
+    },
     { key: 'from', header: t('column.from'), render: (row) => row.from },
     {
       key: 'receivedAt',
@@ -44,6 +50,7 @@ export default function MailPage() {
     <ListPage<MailMessageSummary>
       screenId="mail"
       namespace="mail"
+      deletable={{ kind: 'MAIL', rowLabel: (row) => row.subject }}
       load={(params, signal) => api.mail.list(params, signal)}
       columns={columns}
       sortableKeys={['subject', 'receivedAt']}

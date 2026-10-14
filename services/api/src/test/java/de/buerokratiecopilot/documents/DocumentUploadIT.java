@@ -275,6 +275,54 @@ class DocumentUploadIT {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.partyId").doesNotExist());
     }
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    @Test
+    @DisplayName("mail messages can be read and deleted one by one and in bulk, and a deleted one stays deleted")
+    void mailMessagesCanBeReadAndDeleted() throws Exception {
+        Session session = signIn("mail");
+        UUID tenant = UUID.fromString(session.tenantId());
+        UUID[] ids = {UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()};
+        RequestContext.runAs(tenant, () -> {
+            for (int i = 0; i < ids.length; i++) {
+                jdbc.update("""
+                        insert into mail_messages (id, tenant_id, direction, subject, from_address, external_id,
+                                                   body_html, received_at)
+                        values (?, ?, 'INBOUND', ?, 'absender@example.de', ?, '<p>Hallo <b>Welt</b><script>x()</script></p>', now())
+                        """, ids[i], tenant, "Betreff " + i, "ext-" + i);
+            }
+            return null;
+        });
+
+        mockMvc.perform(get("/api/v1/mail/messages/{id}", ids[0]).cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.subject").value("Betreff 0"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.body").value("Hallo Welt"));
+
+        MvcResult result = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/v1/bulk-delete")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .cookie(session.cookie())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"kind\":\"MAIL\",\"ids\":[\"" + ids[0] + "\",\"" + ids[1] + "\",\"" + UUID.randomUUID() + "\"]}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(JsonPath.<Integer>read(result.getResponse().getContentAsString(), "$.deleted")).isEqualTo(2);
+        assertThat(JsonPath.<java.util.List<String>>read(result.getResponse().getContentAsString(), "$.refused")).hasSize(1);
+
+        mockMvc.perform(get("/api/v1/mail/messages/{id}", ids[0]).cookie(session.cookie()))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/mail/messages").cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content.length()").value(1));
+        // The row is kept, so a new collection of the mailbox does not bring the message back.
+        Integer kept = RequestContext.runAs(tenant, () -> jdbc.queryForObject(
+                "select count(*) from mail_messages where tenant_id = ? and external_id in ('ext-0', 'ext-1')",
+                Integer.class, tenant));
+        assertThat(kept).isEqualTo(2);
+    }
+
     @Test
     @DisplayName("a document of another tenant does not exist from this session's point of view")
     void crossTenantAccessIsRefused() throws Exception {

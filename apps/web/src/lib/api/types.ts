@@ -544,3 +544,29 @@ export interface AccessibilityPreferences {
   readonly colorCues?: 'off' | 'patterns';
   readonly density?: 'comfortable' | 'compact';
 }
+
+/** What can be deleted from a list. */
+export type DeletionKind =
+  | 'DOCUMENT'
+  | 'TASK'
+  | 'CASE'
+  | 'CONTACT'
+  | 'CONTRACT'
+  | 'TEMPLATE'
+  | 'MAIL'
+  | 'CALENDAR_EVENT'
+  | 'NOTIFICATION';
+
+/** A received message for reading: the content is plain text only. */
+export interface MailMessageDetail {
+  readonly id: string;
+  readonly subject: string;
+  readonly from_name: string | null;
+  readonly from_address: string | null;
+  readonly to_addresses: string | null;
+  readonly direction: string;
+  readonly attachment_count: number;
+  readonly moment: string;
+  readonly is_suspicious: boolean;
+  readonly body: string;
+}

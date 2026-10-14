@@ -180,6 +180,13 @@ public class MailController {
         return messages.list(tenant(), q, folder, status, pageable);
     }
 
+    @GetMapping("/messages/{messageId}")
+    @PreAuthorize(SEE)
+    @Operation(summary = "One received message for reading (plain text only)")
+    public Map<String, Object> read(@PathVariable UUID messageId) {
+        return messages.detail(tenant(), messageId);
+    }
+
     @PostMapping("/messages")
     @PreAuthorize(SEND)
     @Operation(summary = "Writes a draft; the same key returns the draft that exists")
