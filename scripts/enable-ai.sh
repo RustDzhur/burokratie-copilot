@@ -8,12 +8,13 @@
 #   scripts/enable-ai.sh --off           switches the AI off again (the key stays in the file, unused)
 #
 # What it does: writes the BC_AI_* lines into infra/.env (replacing the old ones), checks that the provider answers and
-# that the model understands pictures, and restarts only the API container. The key is typed hidden and never printed.
+# that the model understands pictures, and restarts only the API and worker containers. The key is typed hidden and never printed.
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="$ROOT/infra/.env"
 [[ -f "$ENV_FILE" ]] || { echo "infra/.env nicht gefunden ($ENV_FILE)"; exit 2; }
 
+export BC_DATA_DIR="$ROOT/data"   # the same as scripts/portable.sh: the compose files need it
 compose() {
   docker compose -p burokratie --env-file "$ROOT/infra/.env" -f "$ROOT/infra/docker-compose.yml" \
     -f "$ROOT/infra/docker-compose.prod.yml" -f "$ROOT/infra/docker-compose.host-proxy.yml" \
@@ -36,7 +37,7 @@ case "${1:-}" in
   --anthropic) MODE="anthropic" ;;
   --off)
     set_var BC_AI_ENABLED false
-    compose up -d api && echo "KI ist ausgeschaltet."
+    compose up -d api worker && echo "KI ist ausgeschaltet."
     exit $? ;;
   "") ;;
   *) echo "Unbekannte Option: $1"; exit 2 ;;
@@ -75,7 +76,7 @@ unset KEY
 
 echo "Einstellungen geschrieben (Sicherung: infra/.env.before-ai). Prüfe die Verbindung ..."
 if "$ROOT/scripts/check-ai.sh"; then
-  compose up -d api && echo "Fertig: Die KI-Lesung ist aktiv. Monatsgrenze 10 EUR, höchstens 20 automatische Lesungen pro Tag."
+  compose up -d api worker && echo "Fertig: Die KI-Lesung ist aktiv. Monatsgrenze 10 EUR, höchstens 20 automatische Lesungen pro Tag."
 else
   echo
   echo "Die Prüfung ist fehlgeschlagen; die API wurde NICHT neu gestartet. Korrigieren Sie die Zeilen BC_AI_* in infra/.env"
