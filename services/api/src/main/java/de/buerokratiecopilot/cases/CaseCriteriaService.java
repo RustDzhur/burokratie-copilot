@@ -163,6 +163,21 @@ public class CaseCriteriaService {
                 where c.case_id = ? and c.status = 'OPEN' and c.kind = 'MESSAGE_DELIVERED'
                   and exists (select 1 from message_delivery_events e where e.outbound_message_id = c.outbound_message_id and e.proves_delivery)
                 """, caseId);
+        // An answer counts when a letter was linked to the case as the reply to the very message the criterion names (or to the
+        // case, when the criterion names none) - by its headers or by a person, never on a guess.
+        changed += jdbc.update("""
+                update case_completion_criteria c set status = 'MET', met_at = now(),
+                       evidence_ref = jsonb_build_object('type', 'MAIL', 'id', m.id::text),
+                       evidence_hash = encode(sha256(convert_to('MAIL:' || m.id::text, 'UTF8')), 'hex')
+                from mail_messages m
+                where c.case_id = ? and c.status = 'OPEN' and c.kind = 'REPLY_RECEIVED'
+                  and m.id = (select m2.id from mail_messages m2
+                              where m2.case_id = c.case_id and m2.direction = 'INBOUND' and m2.case_link_status = 'LINKED'
+                                and (c.outbound_message_id is null
+                                     or exists (select 1 from outbound_messages o where o.id = c.outbound_message_id
+                                                  and trim(both '<>' from o.provider_message_id) = trim(both '<>' from m2.in_reply_to)))
+                              order by m2.created_at limit 1)
+                """, caseId);
         return changed;
     }
 

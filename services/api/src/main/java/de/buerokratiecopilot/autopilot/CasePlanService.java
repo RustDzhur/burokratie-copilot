@@ -291,6 +291,38 @@ public class CasePlanService {
         }
     }
 
+    /**
+     * An answer to the case was linked: the steps that wait for a reply end with the letter as their evidence. Returns how many.
+     * A step is only ended if what it depends on is done, so an answer cannot skip the sending of the letter it answers.
+     */
+    @Transactional
+    public int onReplyReceived(UUID caseId, UUID mailMessageId) {
+        Map<String, Object> plan = plan(caseId);
+        int ended = 0;
+        for (Object raw : (List<?>) plan.get("steps")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> step = (Map<String, Object>) raw;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> input = (Map<String, Object>) step.get("input");
+            if (!"WAIT_FOR_REPLY".equals(input.get("action")) || !List.of("PENDING", "RUNNING", "WAITING").contains(String.valueOf(step.get("status")))
+                    || !((List<?>) step.get("blockedBy")).isEmpty()) {
+                continue;
+            }
+            jdbc.update("""
+                    update workflow_run_steps s set status = 'SUCCEEDED', finished_at = now(), updated_at = now(),
+                           output = jsonb_build_object('evidence', jsonb_build_object('type', 'MAIL', 'id', ?::text))
+                    from workflow_runs r
+                    where s.run_id = r.id and r.case_id = ? and r.trigger_type = 'CASE_PLAN' and r.status in ('RUNNING', 'WAITING', 'PENDING')
+                      and s.step_key = ? and s.status in ('PENDING', 'RUNNING', 'WAITING')
+                    """, mailMessageId.toString(), caseId, step.get("step_key"));
+            ended++;
+        }
+        if (ended > 0) {
+            finishRunIfDone(caseId);
+        }
+        return ended;
+    }
+
     private void finishRunIfDone(UUID caseId) {
         jdbc.update("""
                 update workflow_runs r set status = 'COMPLETED', finished_at = now(), updated_at = now()

@@ -51,6 +51,7 @@ public class ImapMailIngester {
 
     private static final Logger log = LoggerFactory.getLogger(ImapMailIngester.class);
 
+    private final de.buerokratiecopilot.autopilot.ReplyLinkService replies;
     private final JdbcTemplate jdbc;
     private final MailAccountService accounts;
     private final DocumentService documentService;
@@ -70,7 +71,9 @@ public class ImapMailIngester {
     private boolean checkServerIdentity = true;
 
     public ImapMailIngester(JdbcTemplate jdbc, MailAccountService accounts, DocumentService documentService,
-                            org.springframework.transaction.PlatformTransactionManager transactionManager) {
+                            org.springframework.transaction.PlatformTransactionManager transactionManager,
+                            de.buerokratiecopilot.autopilot.ReplyLinkService replies) {
+        this.replies = replies;
         this.jdbc = jdbc;
         this.accounts = accounts;
         this.documentService = documentService;
@@ -151,6 +154,13 @@ public class ImapMailIngester {
                 }
                 stored++;
                 documents += storeAttachments(tenantId, messageId, message);
+                // Does this letter answer one of ours? A failure here never loses the letter.
+                try {
+                    RequestContext.runAs(tenantId, () -> replies.link(tenantId, messageId));
+                }
+                catch (RuntimeException ex) {
+                    log.warn("Reply linking of message {} failed: {}", messageId, ex.getMessage());
+                }
             }
 
             inbox.close(false);
@@ -223,15 +233,15 @@ public class ImapMailIngester {
                                            subject, from_address, to_addresses, cc_addresses,
                                            bcc_addresses, received_at, body_text, body_html,
                                            has_attachments, attachment_count, category,
-                                           is_suspicious, processing_status)
+                                           is_suspicious, processing_status, in_reply_to, reference_ids)
                 values (gen_random_uuid(), ?, ?, 'INBOUND', ?, ?, ?, ?::jsonb, '[]'::jsonb, '[]'::jsonb,
-                        now(), ?, ?, ?, ?, 'OTHER', false, 'RECEIVED')
+                        now(), ?, ?, ?, ?, 'OTHER', false, 'RECEIVED', ?, ?::jsonb)
                 on conflict do nothing
                 returning id
                 """, (rs, row) -> rs.getObject("id", UUID.class), tenantId, accountId, externalId, subject, from,
                 jsonArray(List.of(to)), body.text() != null ? body.text() : (body.html() == null ? null
                         : de.buerokratiecopilot.mail.MailText.htmlToText(body.html())), body.html(), hasAttachments,
-                countAttachments(message));
+                countAttachments(message), header(message, "In-Reply-To"), referencesOf(message));
         return inserted.isEmpty() ? null : inserted.getFirst();
     }
 
@@ -346,6 +356,29 @@ public class ImapMailIngester {
             String[] ids = message.getHeader("Message-ID");
             return ids == null || ids.length == 0 ? null : ids[0];
         });
+    }
+
+    /** The first value of a header, or null. */
+    private static String header(Message message, String name) {
+        return safe(() -> {
+            String[] values = message.getHeader(name);
+            return values == null || values.length == 0 ? null : values[0].strip();
+        });
+    }
+
+    /** The Message-IDs in the References header, as a JSON array. */
+    private static String referencesOf(Message message) {
+        String references = header(message, "References");
+        if (references == null) {
+            return "[]";
+        }
+        List<String> ids = new ArrayList<>();
+        for (String part : references.split("\\s+")) {
+            if (!part.isBlank()) {
+                ids.add(part.strip());
+            }
+        }
+        return jsonArray(ids);
     }
 
     private static String firstAddress(Message message, boolean from) {
