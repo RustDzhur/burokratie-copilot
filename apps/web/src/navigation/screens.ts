@@ -46,6 +46,7 @@ export type ScreenId =
   | 'cases'
   | 'tasks'
   | 'radar'
+  | 'approvals'
   | 'calendar'
   | 'contracts'
   | 'invoices'
@@ -150,6 +151,8 @@ export const screens: readonly ScreenDefinition[] = [
   screen('tasks', '/tasks', 'check-circle', 'workspace'),
   // Bürokratie-Radar (ТЗ v2.0): signals that several sources point to together
   screen('radar', '/radar', 'alert-triangle', 'workspace', { minTier: 1 }),
+  // approval centre: what waits for a person's decision, with the material
+  screen('approvals', '/approvals', 'shield', 'workspace', { minTier: 1 }),
   // §5.2.11 — calendar and deadlines
   screen('calendar', '/calendar', 'calendar', 'workspace'),
   // §5.2.12 — contracts

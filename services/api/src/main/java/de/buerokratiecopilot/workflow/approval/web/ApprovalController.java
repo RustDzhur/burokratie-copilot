@@ -27,6 +27,7 @@ import de.buerokratiecopilot.shared.context.CurrentUser;
 import de.buerokratiecopilot.shared.context.RequestContext;
 import de.buerokratiecopilot.shared.error.ApiException;
 import de.buerokratiecopilot.shared.error.ErrorCode;
+import de.buerokratiecopilot.workflow.approval.ApprovalCenterService;
 import de.buerokratiecopilot.workflow.approval.ApprovalService;
 
 /**
@@ -57,7 +58,10 @@ public class ApprovalController {
     private final ApprovalService approvals;
     private final PaymentApprovalService payments;
 
-    public ApprovalController(ApprovalService approvals, PaymentApprovalService payments) {
+    private final ApprovalCenterService center;
+
+    public ApprovalController(ApprovalService approvals, PaymentApprovalService payments, ApprovalCenterService center) {
+        this.center = center;
         this.approvals = approvals;
         this.payments = payments;
     }
@@ -69,7 +73,7 @@ public class ApprovalController {
     }
 
     /** A decision. Whether it counts is decided by the service, not by this body. */
-    public record DecisionRequest(Boolean approved, String note) {
+    public record DecisionRequest(Boolean approved, String note, Boolean changesRequested) {
     }
 
     /** A payment to prepare. */
@@ -99,6 +103,16 @@ public class ApprovalController {
                 request.subjectId(), request.approvalType(), request.title(), request.justification(),
                 request.amount(), request.direction(), request.expiresAt(), actor);
         return ResponseEntity.status(HttpStatus.CREATED).body(created.asMap());
+    }
+
+    /** The open requests with everything needed to decide them: case, material, warnings, term. */
+    @GetMapping("/approvals/center")
+    @PreAuthorize(VIEW)
+    @Operation(summary = "Open approval requests with the material, the case and the warnings")
+    public List<Map<String, Object>> center() {
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        boolean all = authentication != null && authentication.getAuthorities().stream().anyMatch(a -> "cases.assign".equals(a.getAuthority()));
+        return center.pending(tenant(), CurrentUser.required(), all);
     }
 
     /** The requests still open, which is what a person has to act on. */
@@ -134,7 +148,7 @@ public class ApprovalController {
         // name themselves.
         UUID actor = CurrentUser.required();
         return approvals.decide(tenantId, approvalId, actor, Boolean.TRUE.equals(request.approved()),
-                request.note()).asMap();
+                request.note(), Boolean.TRUE.equals(request.changesRequested())).asMap();
     }
 
     /** The decisions and escalations of a request. */

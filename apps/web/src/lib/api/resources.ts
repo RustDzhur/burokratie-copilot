@@ -29,6 +29,7 @@ import {
   type UploadWire,
 } from './wire/documents';
 import type { ProcessingFlow } from './processing';
+import { approvalFromWire, workspaceFromWire } from './wire/autopilot';
 import { radarDetailFromWire, radarFindingFromWire, radarSummaryFromWire, type RadarFindingWire } from './wire/radar';
 import {
   CASE_SORT,
@@ -145,6 +146,10 @@ import type {
   TaskSummary,
   TemplateSummary,
   CaseDeadline,
+  ApprovalDecision,
+  ApprovalRequestItem,
+  CaseWorkspace,
+  PlanStepAction,
   RadarAction,
   RadarFinding,
   RadarFindingDetail,
@@ -333,6 +338,16 @@ export interface ApiResources {
     get: (id: string, signal?: AbortSignal) => Promise<CaseSummary>;
     detail: (id: string, signal?: AbortSignal) => Promise<CaseDetail>;
     deadlines: (id: string, signal?: AbortSignal) => Promise<readonly CaseDeadline[]>;
+    /** Goal, completion criteria and plan of the case. */
+    workspace: (id: string, signal?: AbortSignal) => Promise<CaseWorkspace>;
+    setGoal: (id: string, goal: string, nextAction: string) => Promise<void>;
+    addCriterion: (id: string, payload: { readonly kind: string; readonly description: string }) => Promise<void>;
+    meetCriterion: (id: string, criterionId: string, note: string) => Promise<void>;
+    waiveCriterion: (id: string, criterionId: string, reason: string) => Promise<void>;
+    /** Asks the language model for a plan; `kind` says whether it was saved (only a valid plan is). */
+    proposePlan: (id: string) => Promise<{ readonly kind: 'SAVED' | 'REJECTED' | 'UNAVAILABLE'; readonly reason: string | null }>;
+    advancePlan: (id: string) => Promise<{ readonly ranAutomatically: number }>;
+    planStep: (id: string, key: string, action: PlanStepAction) => Promise<void>;
     create: (payload: {
       readonly title: string;
       readonly caseType?: string;
@@ -492,6 +507,10 @@ export interface ApiResources {
     setPreferences: (payload: { level?: TelegramStatus['level']; enabled?: boolean }) => Promise<void>;
     test: () => Promise<void>;
     unlink: () => Promise<void>;
+  };
+  readonly approvals: {
+    center: (signal?: AbortSignal) => Promise<readonly ApprovalRequestItem[]>;
+    decide: (id: string, decision: ApprovalDecision) => Promise<void>;
   };
   readonly radar: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<RadarFinding>>;
@@ -918,6 +937,54 @@ export function createResources(client: ApiClient): ApiResources {
           ruleVersion: row.ruleVersion ?? null,
           note: row.note ?? null,
         }));
+      },
+      workspace: async (id, signal) => {
+        const [workspace, plan] = await Promise.all([
+          client.get<Parameters<typeof workspaceFromWire>[0]>(`/cases/${id}/workspace`, withSignal(signal)),
+          client.get<Parameters<typeof workspaceFromWire>[1]>(`/cases/${id}/plan`, withSignal(signal)),
+        ]);
+        return workspaceFromWire(workspace, plan);
+      },
+      setGoal: async (id, goal, nextAction) => {
+        await client.put<unknown>(`/cases/${id}/goal`, { goal, nextAction });
+      },
+      addCriterion: async (id, payload) => {
+        await client.post<unknown>(`/cases/${id}/criteria`, payload, { idempotencyKey: true });
+      },
+      meetCriterion: async (id, criterionId, note) => {
+        await client.post<unknown>(`/cases/${id}/criteria/${criterionId}/met`, { evidenceType: 'NOTE', note }, { idempotencyKey: true });
+      },
+      waiveCriterion: async (id, criterionId, reason) => {
+        await client.post<unknown>(`/cases/${id}/criteria/${criterionId}/waive`, { reason }, { idempotencyKey: true });
+      },
+      proposePlan: async (id) => {
+        const answer = await client.post<{ kind: 'SAVED' | 'REJECTED' | 'UNAVAILABLE'; reason?: string | null }>(
+          `/cases/${id}/plan/propose`,
+          undefined,
+          { idempotencyKey: true },
+        );
+        return { kind: answer.kind, reason: answer.reason ?? null };
+      },
+      advancePlan: async (id) => {
+        const answer = await client.post<{ ranAutomatically?: number }>(`/cases/${id}/plan/advance`, undefined, { idempotencyKey: true });
+        return { ranAutomatically: answer.ranAutomatically ?? 0 };
+      },
+      planStep: async (id, key, action) => {
+        const key2 = { idempotencyKey: true } as const;
+        switch (action.kind) {
+          case 'start':
+            await client.post<unknown>(`/cases/${id}/plan/steps/${key}/start`, undefined, key2);
+            break;
+          case 'complete':
+            await client.post<unknown>(`/cases/${id}/plan/steps/${key}/complete`, { evidenceType: 'NOTE', note: action.note }, key2);
+            break;
+          case 'fail':
+            await client.post<unknown>(`/cases/${id}/plan/steps/${key}/fail`, { reason: action.reason }, key2);
+            break;
+          case 'skip':
+            await client.post<unknown>(`/cases/${id}/plan/steps/${key}/skip`, { reason: action.reason }, key2);
+            break;
+        }
       },
       get: async (id, signal) =>
         caseDetailFromWire(await client.get<CaseDetailWire>(`/cases/${id}`, withSignal(signal))),
@@ -1407,6 +1474,17 @@ export function createResources(client: ApiClient): ApiResources {
       },
       unlink: async () => {
         await client.delete<unknown>('/telegram/link', { idempotencyKey: true });
+      },
+    },
+    approvals: {
+      center: async (signal) =>
+        (await client.get<Parameters<typeof approvalFromWire>[0][]>('/approvals/center', withSignal(signal))).map((row) => approvalFromWire(row)),
+      decide: async (id, decision) => {
+        await client.post<unknown>(
+          `/approvals/${id}/decision`,
+          { approved: decision.kind === 'approve', changesRequested: decision.kind === 'changes', note: decision.note },
+          { idempotencyKey: true },
+        );
       },
     },
     radar: {

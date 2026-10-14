@@ -159,6 +159,23 @@ public class ApprovalService {
      */
     @Transactional(noRollbackFor = ApiException.class)
     public Decision decide(UUID tenantId, UUID approvalId, UUID deciderId, boolean approved, String note) {
+        return decide(tenantId, approvalId, deciderId, approved, note, false);
+    }
+
+    /**
+     * As {@link #decide(UUID, UUID, UUID, boolean, String)}; with {@code changesRequested} the answer is not a refusal of the
+     * thing itself but a request to change it: it is recorded as a rejection of this version of the material, with the wish in
+     * the note, and the requester is expected to raise a new request for the changed material.
+     */
+    @Transactional(noRollbackFor = ApiException.class)
+    public Decision decide(UUID tenantId, UUID approvalId, UUID deciderId, boolean approved, String note, boolean changesRequested) {
+        if (changesRequested && (note == null || note.isBlank())) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "Eine Änderung zu erbitten verlangt eine Beschreibung");
+        }
+        if (changesRequested) {
+            note = "[Änderung erbeten] " + note.strip();
+            approved = false;
+        }
         Map<String, Object> approval = requireApproval(tenantId, approvalId);
         String status = String.valueOf(approval.get("status"));
         if (!"PENDING".equals(status)) {

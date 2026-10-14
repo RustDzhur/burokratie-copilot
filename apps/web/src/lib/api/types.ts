@@ -706,3 +706,69 @@ export type RadarAction =
   | { readonly kind: 'assign'; readonly userId: string }
   | { readonly kind: 'create-case' }
   | { readonly kind: 're-evaluate' };
+
+
+/* -------------------------------------------------------------------------- */
+/* Approvals and the case workspace                                            */
+/* -------------------------------------------------------------------------- */
+
+/** An open approval with what a person needs to decide it. */
+export interface ApprovalRequestItem {
+  readonly id: string;
+  readonly title: string;
+  readonly justification: string | null;
+  readonly subjectType: string;
+  readonly approvalType: string;
+  readonly requiredRole: string | null;
+  readonly requestedByName: string | null;
+  readonly expiresAt: string | null;
+  readonly createdAt: string;
+  /** True when the request is bound to the content (a change of the material invalidates it). */
+  readonly bound: boolean;
+  readonly case: { readonly id: string; readonly reference: string; readonly title: string } | null;
+  /** The material to decide on: for a payment the amount and recipient, for a letter the subject and the beginning of the text. */
+  readonly material: Readonly<Record<string, unknown>>;
+  readonly warnings: readonly ('BANK_DETAILS_CHANGED' | 'OPEN_RADAR_FINDINGS')[];
+  readonly mayDecide: boolean;
+}
+
+export type ApprovalDecision =
+  | { readonly kind: 'approve'; readonly note?: string }
+  | { readonly kind: 'reject'; readonly note: string }
+  | { readonly kind: 'changes'; readonly note: string };
+
+export interface CompletionCriterion {
+  readonly id: string;
+  readonly kind: string;
+  readonly description: string;
+  readonly status: 'OPEN' | 'MET' | 'WAIVED';
+  readonly metAt: string | null;
+  readonly waivedReason: string | null;
+}
+
+export interface PlanStep {
+  readonly key: string;
+  readonly action: string;
+  readonly title: string;
+  readonly status: 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'SKIPPED' | 'WAITING' | 'COMPENSATED';
+  readonly level: number;
+  readonly auto: boolean;
+  readonly dependsOn: readonly string[];
+  readonly blockedBy: readonly string[];
+  readonly ready: boolean;
+  readonly evidenceRequired: boolean;
+  readonly errorMessage: string | null;
+}
+
+export interface CaseWorkspace {
+  readonly goal: string | null;
+  readonly nextAction: string | null;
+  readonly criteria: readonly CompletionCriterion[];
+  readonly plan: { readonly status: string | null; readonly steps: readonly PlanStep[] };
+}
+
+export type PlanStepAction =
+  | { readonly kind: 'start' }
+  | { readonly kind: 'complete'; readonly note?: string }
+  | { readonly kind: 'fail'; readonly reason: string }
+  | { readonly kind: 'skip'; readonly reason: string };

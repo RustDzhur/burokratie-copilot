@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { CaseWorkspace } from '@/components/app/case-workspace';
 import { DeadlineList } from '@/components/app/deadline-list';
 import { PageHeader, PageSection, ResourceView } from '@/components/app/resource-view';
 import { Badge, Card, CardBody, DataTable, EmptyState, StatusPill } from '@/components/ui';
@@ -104,6 +105,8 @@ export default function CaseDetailPage() {
                 {item.description ? <p style={{ whiteSpace: 'pre-wrap' }}>{item.description}</p> : null}
               </CardBody>
             </Card>
+
+            <CaseWorkspace caseId={id} />
 
             <PageSection title={t('detail.deadlines')}>
               {deadlineState.status === 'ready' && deadlineState.data.length > 0 ? (

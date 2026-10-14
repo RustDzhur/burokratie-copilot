@@ -138,6 +138,7 @@ export const ruCore: CoreMessages = {
     'items.cases': 'Дела и производства',
     'items.tasks': 'Задачи и процессы',
     'items.radar': 'Радар',
+    'items.approvals': 'Согласования',
     'items.calendar': 'Календарь и сроки',
     'items.contracts': 'Договоры',
     'items.invoices': 'Счета и расходы',
