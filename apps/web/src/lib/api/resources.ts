@@ -293,6 +293,7 @@ export interface ApiResources {
     history: (id: string, signal?: AbortSignal) => Promise<Page<DocumentHistoryEntry>>;
     upload: (file: File, options?: UploadOptions) => Promise<DocumentSummary>;
     reprocess: (id: string) => Promise<void>;
+    remove: (id: string) => Promise<void>;
     pipeline: (id: string, signal?: AbortSignal) => Promise<ProcessingFlow>;
     categoryCounts: (signal?: AbortSignal) => Promise<Readonly<Record<string, number>>>;
     createTask: (id: string) => Promise<void>;
@@ -746,6 +747,9 @@ export function createResources(client: ApiClient): ApiResources {
       },
       upload: async (file, options) =>
         documentFromWire((await client.upload<UploadWire>('/documents', file, options)).document),
+      remove: async (id) => {
+        await client.delete<unknown>(`/documents/${id}`, { idempotencyKey: true });
+      },
       reprocess: async (id) => {
         await client.post<unknown>(`/documents/${id}/reprocess`, undefined, { idempotencyKey: true });
       },

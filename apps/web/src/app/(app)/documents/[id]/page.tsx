@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ProcessingPanel } from '@/components/app/processing-panel';
 import { PageHeader, PageSection, ResourceView } from '@/components/app/resource-view';
@@ -38,6 +38,7 @@ export default function DocumentViewerPage() {
   const formatters = useFormatters();
   const statusLabel = useStatusLabels('documents');
   const toast = useToast();
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [processingKey, setProcessingKey] = useState(0);
 
@@ -74,6 +75,19 @@ export default function DocumentViewerPage() {
     } catch (error) {
       toast.error(tErrors(toApiError(error).kind));
     } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (): Promise<void> => {
+    if (!window.confirm(t('delete.confirm'))) return;
+    setBusy(true);
+    try {
+      await api.documents.remove(id);
+      toast.success(t('delete.done'));
+      router.push('/documents');
+    } catch (error) {
+      toast.error(tErrors(toApiError(error).kind));
       setBusy(false);
     }
   };
@@ -135,6 +149,9 @@ export default function DocumentViewerPage() {
               onClick={() => void reprocess()}
             >
               {t('action.reprocess')}
+            </Button>
+            <Button variant="danger" iconLeft="trash" loading={busy} onClick={() => void remove()}>
+              {t('action.delete')}
             </Button>
           </>
         }

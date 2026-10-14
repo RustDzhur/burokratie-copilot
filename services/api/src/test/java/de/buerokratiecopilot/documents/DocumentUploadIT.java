@@ -177,6 +177,26 @@ class DocumentUploadIT {
     }
 
     @Test
+    @DisplayName("a deleted document is gone for its owner, and the same file can be uploaded again as a new one")
+    void deletedDocumentDisappears() throws Exception {
+        Session session = signIn("delete");
+        byte[] content = invoicePdf("zu-loeschen");
+        String id = JsonPath.read(upload(session, "Rechnung.pdf", content, 201)
+                .getResponse().getContentAsString(), "$.document.id");
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .delete("/api/v1/documents/{id}", id)
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                        .cookie(session.cookie()))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/v1/documents/{id}", id).cookie(session.cookie()))
+                .andExpect(status().isNotFound());
+
+        String again = upload(session, "Rechnung.pdf", content, 201).getResponse().getContentAsString();
+        assertThat(JsonPath.<Boolean>read(again, "$.duplicate")).isFalse();
+    }
+
+    @Test
     @DisplayName("a document of another tenant does not exist from this session's point of view")
     void crossTenantAccessIsRefused() throws Exception {
         Session tenantA = signIn("tenant-a");

@@ -211,6 +211,14 @@ public class DocumentController {
      * continue. A stage that did not fail is left alone: repeating a finished OCR run would only spend time
      * to reach the same text.
      */
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('documents.delete')")
+    @Operation(summary = "Delete a document together with the open work the platform created from it")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        documentService.delete(id, null);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/reprocess")
     @PreAuthorize("hasAuthority('documents.review')")
     @Operation(summary = "Retry the failed processing stages of a document and let it continue")

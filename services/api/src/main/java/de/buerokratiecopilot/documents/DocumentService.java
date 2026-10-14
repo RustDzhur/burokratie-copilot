@@ -72,12 +72,14 @@ public class DocumentService {
     private final FileSecurityScanner securityScanner;
     private final MalwareScanner malwareScanner;
     private final DocumentProcessingPipeline pipeline;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     public DocumentService(DocumentRepository documents, DocumentBlobRepository blobs,
                            DocumentVersionRepository versions, DocumentSourceRepository sources,
                            BlobStore blobStore, OutboxWriter outbox, AuditService auditService,
                            BurokratieProperties properties, FileSecurityScanner securityScanner,
-                           MalwareScanner malwareScanner, DocumentProcessingPipeline pipeline) {
+                           MalwareScanner malwareScanner, DocumentProcessingPipeline pipeline,
+                           org.springframework.jdbc.core.JdbcTemplate jdbc) {
         this.documents = documents;
         this.blobs = blobs;
         this.versions = versions;
@@ -89,6 +91,7 @@ public class DocumentService {
         this.securityScanner = securityScanner;
         this.malwareScanner = malwareScanner;
         this.pipeline = pipeline;
+        this.jdbc = jdbc;
     }
 
     /** Result of a received document: either a new document or a recognised duplicate. */
@@ -321,6 +324,44 @@ public class DocumentService {
                         "reason", reason == null ? "" : reason))
                 .build());
         return document;
+    }
+
+    /**
+     * Deletes a document so that it disappears from every list, search and calendar. The row and the stored file
+     * are kept (marked deleted), so the audit trail stays complete and an administrator can still restore it.
+     * What the platform made of the document goes with it: open tasks it created, its calendar entries and its
+     * pending reviews. Finished tasks, cases and contract cards stay, because they record work that happened.
+     * A document on legal hold is refused.
+     */
+    @Transactional
+    public void delete(UUID documentId, String reason) {
+        Document document = require(documentId);
+        if (!document.isDeletable()) {
+            throw new ApiException(ErrorCode.CONFLICT, "The document is under legal hold and cannot be deleted");
+        }
+        document.setDeletedAt(java.time.Instant.now());
+        documents.saveAndFlush(document);
+        int tasks = jdbc.update("""
+                update tasks set deleted_at = now()
+                where source_document_id = ? and source = 'DOCUMENT' and deleted_at is null
+                  and status not in ('DONE', 'CANCELLED')
+                """, documentId);
+        int events = jdbc.update(
+                "update calendar_events set deleted_at = now() where source_document_id = ? and deleted_at is null",
+                documentId);
+        jdbc.update("""
+                update document_reviews set status = 'CANCELLED', decided_at = now()
+                where document_id = ? and status in ('PENDING', 'IN_REVIEW')
+                """, documentId);
+
+        auditService.record(AuditService.AuditEntry
+                .builder(AuditEvent.Category.DOCUMENT, "DOCUMENT_DELETED")
+                .tenant(document.getTenantId())
+                .entity("documents", document.getId(), document.getOriginalFilename())
+                .description("Document deleted")
+                .changes(Map.of("reason", reason == null ? "" : reason, "tasksRemoved", tasks,
+                        "calendarEventsRemoved", events))
+                .build());
     }
 
     /** Documents waiting for a human decision, used by the review centre (spec §1.1 п.7). */

@@ -123,11 +123,15 @@ public class DocumentProcessingPipeline {
         // rollback-only. In one big transaction the failure could be caught but never saved: the document
         // stayed "received" for ever and nobody was told why. Here the failed step rolls back alone, what
         // earlier steps produced stays committed, and the failure is recorded in a fresh transaction.
-        tx.execute(status -> {
-            documents.findById(documentId)
-                    .orElseThrow(() -> new IllegalArgumentException("Unknown document " + documentId));
-            return null;
-        });
+        Document.ProcessingStatus current = tx.execute(status -> documents.findById(documentId)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown document " + documentId))
+                .getProcessingStatus());
+        if (current == Document.ProcessingStatus.DUPLICATE) {
+            // A duplicate is kept but never processed: "process again" must leave it as it is, not walk on and fail
+            // trying to move it to another status.
+            return new AdvanceResult(documentId, DocumentProcessingStep.Step.DUPLICATE_CHECK,
+                    "The document is a duplicate and is not processed again", current, List.of());
+        }
 
         List<DocumentProcessingStep.Step> executed = new java.util.ArrayList<>();
         for (DocumentProcessingStep.Step step : ORDER) {
@@ -188,13 +192,6 @@ public class DocumentProcessingPipeline {
 
         DocumentProcessingStep row = stepRow(documentId, version, step);
         if (row.isFinished()) {
-            // A duplicate was stopped at its check when it arrived. Running the pipeline again (the "process again"
-            // button) must stop there again, not walk on and fail trying to move a duplicate to another status.
-            if (step == DocumentProcessingStep.Step.DUPLICATE_CHECK
-                    && row.getStatus() == DocumentProcessingStep.Status.SKIPPED
-                    && document.getProcessingStatus() == Document.ProcessingStatus.DUPLICATE) {
-                return StepOutcome.stop(false, step, row.getErrorMessage(), document.getProcessingStatus());
-            }
             return StepOutcome.next(false);
         }
 
