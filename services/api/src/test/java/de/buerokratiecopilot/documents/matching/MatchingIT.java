@@ -85,6 +85,9 @@ class MatchingIT {
     @Autowired
     private MatchingService matching;
 
+    @Autowired
+    private de.buerokratiecopilot.documents.DocumentVersionRepository versions;
+
     private record Tenant(UUID tenantId, UUID caseId, UUID contactId, UUID userId, UUID documentId) {
     }
 
@@ -269,6 +272,35 @@ class MatchingIT {
         assertThat(stored.getStatus()).isEqualTo(DocumentMatch.Status.REJECTED);
         assertThat(stored.getDecidedBy()).isEqualTo(tenant.userId());
         assertThat(stored.getDecidedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("a rejected proposal does not come back when the matching runs again, and no second row appears")
+    void rejectedProposalStaysRejectedAfterRerun() throws Exception {
+        Tenant tenant = setUpTenant("2026-119");
+        advance(tenant.documentId());
+
+        DocumentMatch contact = asTenant(tenant.tenantId(),
+                () -> matches.findByDocumentId(tenant.documentId()).stream()
+                        .filter(match -> match.getMatchType() == DocumentMatch.MatchType.CONTACT)
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError("Expected a proposal for the contact")));
+        asTenant(tenant.tenantId(),
+                () -> matching.decide(contact.getId(), DocumentMatch.Status.REJECTED, tenant.userId()));
+
+        // The same document is matched again, as happens when a stage is repeated after a fix.
+        asTenant(tenant.tenantId(), () -> {
+            Document document = documents.findById(tenant.documentId()).orElseThrow();
+            var version = versions.findFirstByDocumentIdOrderByVersionDesc(document.getId()).orElseThrow();
+            return matching.match(document, version, null);
+        });
+
+        var rows = asTenant(tenant.tenantId(), () -> matches.findByDocumentId(tenant.documentId()).stream()
+                .filter(match -> match.getMatchType() == DocumentMatch.MatchType.CONTACT
+                        && match.getTargetId().equals(contact.getTargetId()))
+                .toList());
+        assertThat(rows).as("one row for the pair, not a second suggestion").hasSize(1);
+        assertThat(rows.get(0).getStatus()).isEqualTo(DocumentMatch.Status.REJECTED);
     }
 
     @Test
