@@ -116,6 +116,7 @@ export function ProcessingPanel({ documentId, reloadKey = 0 }: ProcessingPanelPr
       <CardBody>
         {outcome.result === 'WAITING_FOR_REVIEW' ? (
           <InlineAlert tone="warning" title={t('flow.review.title')}>
+            {flow.reviewReason ? <p>{flow.reviewReason}</p> : null}
             <Link href="/review">{t('flow.review.link')}</Link>
           </InlineAlert>
         ) : null}
@@ -139,6 +140,14 @@ export function ProcessingPanel({ documentId, reloadKey = 0 }: ProcessingPanelPr
                 : ''}
             </Badge>
           ) : null}
+          {!flow.documentTypeName && flow.suggestedType ? (
+            <Badge tone="warning" variant="outline">
+              {t('flow.suggested')}: {flow.suggestedType.name}
+              {typeof flow.suggestedType.confidence === 'number'
+                ? ` · ${formatPercent(flow.suggestedType.confidence, locale)}`
+                : ''}
+            </Badge>
+          ) : null}
           {outcome.priority ? <Badge tone="neutral">{outcome.priority}</Badge> : null}
           {outcome.dueAt ? (
             <span className={styles.meta}>
@@ -154,6 +163,13 @@ export function ProcessingPanel({ documentId, reloadKey = 0 }: ProcessingPanelPr
             {outcome.caseId ? <Link href="/cases">{t('flow.openCase')}</Link> : null}
             {outcome.contractId ? <Link href="/contracts">{t('flow.openContract')}</Link> : null}
           </p>
+        ) : null}
+
+        {flow.textPreview ? (
+          <details className={styles.preview}>
+            <summary>{t('flow.textPreview')}</summary>
+            <pre className={styles.previewText}>{flow.textPreview}</pre>
+          </details>
         ) : null}
 
         <ol className={styles.steps} aria-label={t('flow.title')}>

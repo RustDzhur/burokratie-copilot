@@ -58,7 +58,18 @@ export interface CalendarEventWire {
   readonly type: string;
   readonly all_day?: boolean;
   readonly case_reference?: string | null;
+  readonly case_id?: string | null;
+  readonly note?: string | null;
+  readonly document_id?: string | null;
+  readonly task_id?: string | null;
+  readonly origin?: string | null;
 }
+
+const EVENT_ORIGIN_FROM_WIRE: Readonly<Record<string, NonNullable<CalendarEvent['origin']>>> = {
+  CALENDAR_ENTRY: 'calendar-entry',
+  TASK_DEADLINE: 'task-deadline',
+  CASE_DUE: 'case-due',
+};
 
 const EVENT_TYPE_FROM_WIRE: Readonly<Record<string, CalendarEvent['type']>> = {
   DEADLINE: 'deadline',
@@ -75,6 +86,11 @@ export function calendarEventFromWire(wire: CalendarEventWire): CalendarEvent {
     type: EVENT_TYPE_FROM_WIRE[wire.type] ?? 'appointment',
     caseReference: wire.case_reference ?? null,
     allDay: wire.all_day ?? true,
+    note: wire.note ?? null,
+    origin: wire.origin ? EVENT_ORIGIN_FROM_WIRE[wire.origin] : undefined,
+    caseId: wire.case_id ?? null,
+    documentId: wire.document_id ?? null,
+    taskId: wire.task_id ?? null,
   };
 }
 

@@ -42,3 +42,17 @@
   color: var(--text-danger, inherit);
   font-size: 0.875rem;
 }
+
+.preview {
+  margin-block: var(--space-3, 0.75rem);
+}
+
+.previewText {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 16rem;
+  overflow: auto;
+  margin: var(--space-2, 0.5rem) 0 0;
+  font: inherit;
+  font-size: 0.875rem;
+}

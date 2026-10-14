@@ -21,10 +21,15 @@ import de.buerokratiecopilot.documents.domain.DocumentProcessingStep;
 @Component
 public class ClassifyStepHandler implements ProcessingStepHandler {
 
-    private final ClassificationService classification;
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ClassifyStepHandler.class);
 
-    public ClassifyStepHandler(ClassificationService classification) {
+    private final ClassificationService classification;
+    private final de.buerokratiecopilot.documents.fields.FieldExtractionService extraction;
+
+    public ClassifyStepHandler(ClassificationService classification,
+                               de.buerokratiecopilot.documents.fields.FieldExtractionService extraction) {
         this.classification = classification;
+        this.extraction = extraction;
     }
 
     @Override
@@ -38,7 +43,20 @@ public class ClassifyStepHandler implements ProcessingStepHandler {
                 context.version(), context.document().getSender());
 
         if (outcome.requiresReview()) {
-            return StepResult.succeeded(outcome.diagnostics(), Document.ProcessingStatus.REVIEW_REQUIRED);
+            // The pipeline stops here until a person decides, so the extraction stage will not run before
+            // that. A reviewer who is shown an empty table cannot judge anything, and a document that waits
+            // with nothing read from it looks as if it had not been looked at. The values are read now,
+            // against the suggested type or the generic field set, and stay unverified until confirmed.
+            java.util.Map<String, Object> diagnostics = new java.util.LinkedHashMap<>(outcome.diagnostics());
+            try {
+                var preview = extraction.extract(context.document(), context.version());
+                diagnostics.put("previewFields", preview.found().size());
+            }
+            catch (RuntimeException ex) {
+                log.warn("Reading the fields for the review of document {} failed: {}",
+                        context.document().getId(), ex.getMessage());
+            }
+            return StepResult.succeeded(diagnostics, Document.ProcessingStatus.REVIEW_REQUIRED);
         }
         return StepResult.succeeded(outcome.diagnostics(), Document.ProcessingStatus.CLASSIFYING);
     }

@@ -54,6 +54,9 @@ class DocumentToTaskIT {
     private TaskService tasks;
 
     @Autowired
+    private de.buerokratiecopilot.calendar.CalendarEventService calendar;
+
+    @Autowired
     private ReviewService reviews;
 
     @Autowired
@@ -345,5 +348,62 @@ class DocumentToTaskIT {
                 select count(*) from notifications where tenant_id = ? and notification_type = 'document.processing_stopped'
                 """, Integer.class, account.tenantId());
         assertThat(told).as("the owner is told why the document is not moving").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("a document that waits for the reviewer already shows what was read from it")
+    void reviewerSeesTheFieldsBeforeDeciding() {
+        Account account = account();
+        LocalDate due = LocalDate.now().plusDays(9);
+        // One weak keyword only: the type is suggested but not certain, so a person has to confirm it.
+        UUID documentId = uploadAndRun(account, "unsicher.txt", """
+                Mahngebühr: 5,00 EUR
+                Frist: %s
+                Aktenzeichen: AZ-%d
+                """.formatted(due.format(GERMAN), System.nanoTime()));
+
+        assertThat(jdbc.queryForObject("select processing_status from documents where id = ?", String.class,
+                documentId)).isEqualTo("REVIEW_REQUIRED");
+        List<Map<String, Object>> fields = RequestContext.runAs(account.tenantId(), () -> jdbc.queryForList(
+                "select field_key, normalized_value, verified_by from document_extractions where document_id = ?",
+                documentId));
+        assertThat(fields).as("the reviewer is not shown an empty table")
+                .extracting(row -> row.get("field_key")).contains("Frist");
+        assertThat(fields).filteredOn(row -> "Frist".equals(row.get("field_key")))
+                .singleElement().satisfies(row -> {
+                    assertThat(row.get("normalized_value").toString()).isEqualTo(due.toString());
+                    assertThat(row.get("verified_by")).as("a reading is not a confirmation").isNull();
+                });
+    }
+
+    @Test
+    @DisplayName("a deadline from years ago is not turned into an emergency, and the calendar entry explains itself")
+    void oldDeadlineIsAQuestionNotAnEmergency() {
+        Account account = account();
+        LocalDate longAgo = LocalDate.now().minusYears(1).minusDays(20);
+        UUID documentId = uploadAndRun(account, "alt.txt", mahnung(longAgo));
+
+        Map<String, Object> task = jdbc.queryForMap("""
+                select id, priority, description from tasks where source_document_id = ? and source = 'DOCUMENT'
+                """, documentId);
+        assertThat(task.get("priority")).as("an old matter is not a critical one").isEqualTo("HIGH");
+        assertThat((String) task.get("description")).contains("weit zurück");
+
+        UUID taskId = (UUID) task.get("id");
+        LocalDate internal = jdbc.queryForObject(
+                "select due_date from task_deadlines where task_id = ? and deadline_type = 'INTERNAL'",
+                LocalDate.class, taskId);
+        assertThat(internal).as("a reminder to ask whether it is settled, not 'due today'")
+                .isEqualTo(LocalDate.now().plusDays(7));
+
+        List<Map<String, Object>> events = RequestContext.runAs(account.tenantId(), () -> calendar.events(
+                account.tenantId(), account.adminUserId(), true, LocalDate.now().plusDays(6),
+                LocalDate.now().plusDays(8)));
+        assertThat(events).as("the entry exists in the calendar").isNotEmpty();
+        Map<String, Object> entry = events.get(0);
+        assertThat((String) entry.get("title")).startsWith("Interner Termin:");
+        assertThat((String) entry.get("note")).as("a person can read why it is there").contains("weit zurück");
+        assertThat(entry.get("task_id")).isEqualTo(taskId.toString());
+        assertThat(entry.get("document_id")).isEqualTo(documentId.toString());
     }
 }

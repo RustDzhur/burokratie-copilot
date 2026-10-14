@@ -261,6 +261,12 @@ export interface CalendarEvent {
   readonly type: 'deadline' | 'appointment' | 'reminder';
   readonly caseReference?: string | null;
   readonly allDay?: boolean;
+  /** Why the entry exists: what the platform read, from where, and how far to trust it. */
+  readonly note?: string | null;
+  readonly origin?: 'calendar-entry' | 'task-deadline' | 'case-due';
+  readonly caseId?: string | null;
+  readonly documentId?: string | null;
+  readonly taskId?: string | null;
 }
 
 export interface ReportSeriesPoint {

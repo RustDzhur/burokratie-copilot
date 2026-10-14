@@ -63,17 +63,30 @@ public class CalendarEventService {
 
         events.addAll(jdbc.queryForList("""
                 select e.id::text as id, e.title, e.starts_on as date, e.ends_on as end_date,
-                       e.event_type as type, e.all_day, c.reference as case_reference
+                       e.event_type as type, e.all_day, c.reference as case_reference,
+                       e.case_id::text as case_id, e.note, e.source_document_id::text as document_id,
+                       'CALENDAR_ENTRY' as origin
                 from calendar_events e left join cases c on c.id = e.case_id
                 where e.tenant_id = ? and e.deleted_at is null
                   and e.starts_on <= ? and coalesce(e.ends_on, e.starts_on) >= ?
                 """, tenantId, to, from));
 
         events.addAll(jdbc.queryForList("""
-                select 'task-deadline:' || d.id as id, t.title,
+                select 'task-deadline:' || d.id as id,
+                       case d.deadline_type
+                            when 'DOCUMENT_DATE' then 'Frist laut Dokument: '
+                            when 'ASSUMED_LEGAL' then 'Angenommene Frist (ungeprüft): '
+                            when 'INTERNAL' then 'Interner Termin: '
+                            when 'REMINDER' then 'Erinnerung: '
+                            else '' end || t.title as title,
                        coalesce(d.due_date, (d.due_at at time zone 'Europe/Berlin')::date) as date,
                        null::date as end_date, 'DEADLINE' as type, true as all_day,
-                       c.reference as case_reference
+                       c.reference as case_reference, coalesce(d.case_id, t.case_id)::text as case_id,
+                       concat_ws(E'\n\n', d.note,
+                                 case when d.source_snippet is not null
+                                      then 'Quelle im Dokument: „' || d.source_snippet || '“' end) as note,
+                       d.source_document_id::text as document_id, 'TASK_DEADLINE' as origin,
+                       t.id::text as task_id
                 from task_deadlines d
                 join tasks t on t.id = d.task_id and t.deleted_at is null
                 left join cases c on c.id = coalesce(d.case_id, t.case_id)
@@ -87,7 +100,9 @@ public class CalendarEventService {
                 select 'case-due:' || c.id as id, c.title,
                        (c.due_at at time zone 'Europe/Berlin')::date as date,
                        null::date as end_date, 'DEADLINE' as type, true as all_day,
-                       c.reference as case_reference
+                       c.reference as case_reference, c.id::text as case_id,
+                       'Fälligkeit des Vorgangs ' || c.reference as note, null::text as document_id,
+                       'CASE_DUE' as origin
                 from cases c
                 where c.tenant_id = ? and c.deleted_at is null and c.due_at is not null
                   and (c.due_at at time zone 'Europe/Berlin')::date between ? and ?
@@ -104,6 +119,13 @@ public class CalendarEventService {
 
     @Transactional
     public Map<String, Object> create(UUID tenantId, Draft draft, UUID createdBy) {
+        return create(tenantId, draft, createdBy, null, null);
+    }
+
+    /** An entry the platform creates from a document: it keeps the sentence that explains it and the document. */
+    @Transactional
+    public Map<String, Object> create(UUID tenantId, Draft draft, UUID createdBy, String note,
+                                      UUID sourceDocumentId) {
         if (draft.title() == null || draft.title().isBlank()) {
             throw new ApiException(ErrorCode.INVALID_REQUEST, "Ein Termin braucht einen Titel");
         }
@@ -117,11 +139,11 @@ public class CalendarEventService {
 
         UUID id = jdbc.queryForObject("""
                 insert into calendar_events (id, tenant_id, title, event_type, starts_on, ends_on, case_id,
-                                             created_by)
-                values (gen_random_uuid(), ?, ?, ?, ?, ?, ?, ?)
+                                             created_by, note, source_document_id)
+                values (gen_random_uuid(), ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 returning id
                 """, UUID.class, tenantId, draft.title().strip(), kind.name(), draft.date(), draft.endDate(),
-                draft.caseId(), createdBy);
+                draft.caseId(), createdBy, note, sourceDocumentId);
 
         audit.record(AuditService.AuditEntry.builder(AuditEvent.Category.CASE, "CALENDAR_EVENT_CREATED")
                 .tenant(tenantId)
@@ -131,7 +153,8 @@ public class CalendarEventService {
 
         return jdbc.queryForMap("""
                 select e.id::text as id, e.title, e.starts_on as date, e.ends_on as end_date,
-                       e.event_type as type, e.all_day, null as case_reference
+                       e.event_type as type, e.all_day, null as case_reference, e.case_id::text as case_id,
+                       e.note, e.source_document_id::text as document_id, 'CALENDAR_ENTRY' as origin
                 from calendar_events e where e.id = ? and e.tenant_id = ?
                 """, id, tenantId);
     }

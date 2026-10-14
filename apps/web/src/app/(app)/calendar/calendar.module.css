@@ -151,3 +151,35 @@
   white-space: nowrap;
   border: 0;
 }
+
+.dayList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1, 0.25rem);
+}
+
+.eventDetail {
+  display: grid;
+  gap: var(--space-3, 0.75rem);
+}
+
+.eventNote {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.eventHint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary, inherit);
+}
+
+.eventLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3, 0.75rem);
+  margin: 0;
+}

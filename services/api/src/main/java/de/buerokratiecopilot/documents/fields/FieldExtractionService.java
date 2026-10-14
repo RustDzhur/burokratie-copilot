@@ -60,15 +60,42 @@ public class FieldExtractionService {
     /** How much text around the value is stored as evidence. */
     private static final int SNIPPET_MARGIN = 60;
 
+    /** The generic field set every type without its own fields uses (reference, amount, date, IBAN). */
+    private static final String GENERIC_TYPE = "unbekannt";
+
     private final DocumentTypeFieldRepository definitions;
     private final DocumentPageRepository pages;
     private final DocumentExtractionRepository extractions;
+    private final de.buerokratiecopilot.documents.DocumentClassificationRepository classifications;
+    private final de.buerokratiecopilot.documents.DocumentTypeRepository types;
 
     public FieldExtractionService(DocumentTypeFieldRepository definitions, DocumentPageRepository pages,
-                                  DocumentExtractionRepository extractions) {
+                                  DocumentExtractionRepository extractions,
+                                  de.buerokratiecopilot.documents.DocumentClassificationRepository classifications,
+                                  de.buerokratiecopilot.documents.DocumentTypeRepository types) {
         this.definitions = definitions;
         this.pages = pages;
         this.extractions = extractions;
+        this.classifications = classifications;
+        this.types = types;
+    }
+
+    /**
+     * The type whose field definitions are read: the document's own type; while a person has not yet
+     * confirmed one, the type the platform suggests; and without even a suggestion, the generic field set.
+     *
+     * <p>This is what lets a reviewer see values instead of an empty table. Reading fields against a
+     * suggested type is harmless because every value stays unverified until a person confirms it.</p>
+     */
+    private java.util.UUID definitionsTypeOf(Document document) {
+        if (document.getDocumentTypeId() != null) {
+            return document.getDocumentTypeId();
+        }
+        return classifications.findByDocumentIdAndCurrentTrue(document.getId())
+                .map(de.buerokratiecopilot.documents.domain.DocumentClassification::getDocumentTypeId)
+                .or(() -> types.findByCode(GENERIC_TYPE)
+                        .map(de.buerokratiecopilot.documents.domain.DocumentType::getId))
+                .orElse(null);
     }
 
     /** What the extraction stage found, per field. */
@@ -96,7 +123,8 @@ public class FieldExtractionService {
 
     @Transactional
     public Result extract(Document document, DocumentVersion version) {
-        if (document.getDocumentTypeId() == null) {
+        UUID typeId = definitionsTypeOf(document);
+        if (typeId == null) {
             return new Result(List.of(), List.of(), List.of());
         }
 
@@ -105,16 +133,32 @@ public class FieldExtractionService {
             return new Result(List.of(), List.of(), List.of());
         }
 
-        List<DocumentTypeField> fields = definitions
-                .findByDocumentTypeIdOrderBySortOrderAsc(document.getDocumentTypeId());
+        List<DocumentTypeField> fields = definitions.findByDocumentTypeIdOrderBySortOrderAsc(typeId);
 
-        extractions.deleteByVersionId(version.getId());
+        // A value a person has confirmed or corrected is never overwritten by a new reading: re-running the
+        // extraction (after the type was confirmed, say) must not undo the reviewer's work.
+        List<DocumentExtraction> existing = extractions.findByVersionId(version.getId());
+        java.util.Set<String> verifiedKeys = new java.util.HashSet<>();
+        List<DocumentExtraction> stale = new ArrayList<>();
+        for (DocumentExtraction row : existing) {
+            if (row.getVerifiedBy() != null) {
+                verifiedKeys.add(row.getFieldKey());
+            }
+            else {
+                stale.add(row);
+            }
+        }
+        extractions.deleteAll(stale);
+        extractions.flush();
 
         List<Found> found = new ArrayList<>();
         List<String> notFound = new ArrayList<>();
         List<String> withoutHint = new ArrayList<>();
 
         for (DocumentTypeField field : fields) {
+            if (verifiedKeys.contains(field.getFieldKey())) {
+                continue;
+            }
             List<String> labels = field.labels();
             if (labels.isEmpty()) {
                 withoutHint.add(field.getFieldKey());

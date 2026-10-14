@@ -125,6 +125,20 @@ public class DocumentOutcomeController {
         outcome.put("explanation", audit.isEmpty() ? null : audit.get(0).get("description"));
         outcome.put("next", next);
 
+        // What the platform thinks this is while nobody has confirmed it, why a person is asked, and the first
+        // lines it read: the three things a reviewer needs before deciding.
+        List<Map<String, Object>> suggestion = jdbc.queryForList("""
+                select t.code, t.name ->> 'de' as name, c.confidence, c.rationale
+                from document_classifications c join document_types t on t.id = c.document_type_id
+                where c.document_id = ? and c.is_current
+                """, id);
+        List<Map<String, Object>> reason = jdbc.queryForList("""
+                select reason from document_reviews where document_id = ? and status = 'PENDING'
+                order by created_at desc limit 1
+                """, id);
+        List<Map<String, Object>> text = jdbc.queryForList(
+                "select left(extracted_text, 1200) as preview from documents where id = ?", id);
+
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("documentId", id);
         body.put("processingStatus", status);
@@ -132,6 +146,9 @@ public class DocumentOutcomeController {
         body.put("documentType", document.get("type_code"));
         body.put("documentTypeName", document.get("type_name"));
         body.put("confidence", document.get("confidence"));
+        body.put("suggestedType", suggestion.isEmpty() ? null : suggestion.get(0));
+        body.put("reviewReason", reason.isEmpty() ? null : reason.get(0).get("reason"));
+        body.put("textPreview", text.isEmpty() ? null : text.get(0).get("preview"));
         body.put("steps", steps);
         body.put("outcome", outcome);
         return ResponseEntity.ok(body);

@@ -67,6 +67,8 @@ public class CaseOrchestrator {
 
     private static final ZoneId BERLIN = ZoneId.of("Europe/Berlin");
     private static final String FALLBACK_TYPE = "unbekannt";
+    /** A stated date older than this is treated as an already settled matter, not as a missed deadline. */
+    private static final long HISTORICAL_AFTER_DAYS = 60;
 
     private final JdbcTemplate jdbc;
     private final CaseService cases;
@@ -174,8 +176,14 @@ public class CaseOrchestrator {
         }
 
         // ---- priority: the scenario's base, raised by the date the document states
+        //
+        // A date that lies far in the past is not a missed deadline, it is almost always an old matter that
+        // somebody has filed (a form sent last year, a bill long paid). Raising it to "critical, due today"
+        // would put a false emergency in the calendar, so such a document keeps its normal priority and asks a
+        // person one question: is this already settled?
+        boolean historical = documentDue != null && ChronoUnit.DAYS.between(today, documentDue) < -HISTORICAL_AFTER_DAYS;
         String priority = scenario.priority();
-        if (documentDue != null) {
+        if (documentDue != null && !historical) {
             long daysLeft = ChronoUnit.DAYS.between(today, documentDue);
             if (daysLeft < 0) {
                 priority = moreUrgent(priority, "CRITICAL");
@@ -185,13 +193,17 @@ public class CaseOrchestrator {
             }
         }
         String rationale = "Szenario " + typeCode + " (" + scenario.priority() + ")"
-                + (documentDue == null ? "" : ", Frist laut Dokument " + documentDue);
+                + (documentDue == null ? "" : ", Frist laut Dokument " + documentDue)
+                + (historical ? " - liegt weit zurück, vermutlich bereits erledigt" : "");
 
         // ---- dates
         LocalDate internalDue = null;
-        if (documentDue != null) {
+        if (documentDue != null && !historical) {
             LocalDate lead = documentDue.minusDays(scenario.leadDays());
             internalDue = lead.isBefore(today) ? today : lead;
+        }
+        else if (historical) {
+            internalDue = today.plusDays(7);
         }
         else if (scenario.defaultDueDays() != null) {
             internalDue = today.plusDays(scenario.defaultDueDays());
@@ -253,7 +265,8 @@ public class CaseOrchestrator {
             remindAt = internalDue.minusDays(1).atTime(9, 0).atZone(BERLIN).toInstant();
         }
         Task task = tasks.create(new TaskService.CreateRequest(tenantId, caseId, null, scenario.taskTitle(),
-                describe(doc, typeName, scenario, amount, documentDue, reference), Task.Priority.valueOf(priority),
+                describe(doc, typeName, scenario, amount, documentDue, reference, historical),
+                Task.Priority.valueOf(priority),
                 "DOCUMENT", rationale, dueAt, remindAt, scenario.completionCriteria(),
                 scenario.requiresApproval(), null, responsible, List.of(typeCode), Task.Source.DOCUMENT,
                 documentId), actor);
@@ -276,10 +289,13 @@ public class CaseOrchestrator {
             stated.setSourceSnippet(dueValue.snippet());
             stated.setTimeZone("Europe/Berlin");
             stated.setCreatedBy(actor);
-            stated.setNote(scenario.legalDeadline()
+            stated.setNote((scenario.legalDeadline()
                     ? "Im Dokument genannte Frist. Eine rechtliche Frist ist damit nicht festgestellt; "
                             + "Zustellung und Besonderheiten müssen geprüft werden."
-                    : "Im Dokument genannte Frist.");
+                    : "Im Dokument genannte Frist.")
+                    + (historical ? " Das Datum liegt weit zurück: vermutlich ein bereits erledigter Vorgang. "
+                            + "Bitte bestätigen, dass er abgeschlossen ist, oder die Aufgabe schließen." : "")
+                    + " Die Zahl wurde automatisch aus dem Text gelesen und kann falsch sein.");
             deadlines.save(stated);
         }
         if (internalDue != null) {
@@ -290,7 +306,10 @@ public class CaseOrchestrator {
             internal.setSourceDocumentId(documentId);
             internal.setTimeZone("Europe/Berlin");
             internal.setCreatedBy(actor);
-            internal.setNote(documentDue == null
+            internal.setNote(historical
+                    ? "Das Dokument nennt " + documentDue + ", das liegt weit zurück. Der Termin in sieben Tagen "
+                            + "ist nur eine Erinnerung, zu klären, ob der Vorgang schon erledigt ist."
+                    : documentDue == null
                     ? "Das Dokument nennt keine Frist; Standardzeit des Szenarios " + scenario.defaultDueDays()
                             + " Tage."
                     : "Interner Termin: " + scenario.leadDays()
@@ -367,15 +386,21 @@ public class CaseOrchestrator {
                     typeName + " – " + base, reference, contractType, caseId, null, start, end, null,
                     autoRenewal, null, noticeMonths, noticeMonths == null ? null : "MONTHS", cost,
                     cost == null ? null : "EUR", null, documentId, List.of(typeCode)), actor);
+            String why = "Automatisch aus dem Dokument „" + filename + "“ gelesen (Beginn "
+                    + start + (termMonths == null ? "" : ", Laufzeit " + termMonths + " Monate")
+                    + (noticeMonths == null ? "" : ", Kündigungsfrist " + noticeMonths + " Monate")
+                    + "). Die Angaben sind ungeprüft; bitte in der Vertragskarte bestätigen.";
             if (end != null) {
-                calendarEvent(tenantId, actor, caseId, "Vertragsende: " + base, end);
+                calendarEvent(tenantId, actor, caseId, "Vertragsende: " + base, end, why, documentId);
                 if (noticeMonths != null) {
                     calendarEvent(tenantId, actor, caseId, "Kündigungsfrist endet: " + base,
-                            end.minusMonths(noticeMonths));
+                            end.minusMonths(noticeMonths),
+                            "Bis zu diesem Tag müsste eine Kündigung eingehen, damit der Vertrag nicht weiterläuft. "
+                                    + why, documentId);
                 }
             }
             if (start != null && start.isAfter(LocalDate.now(BERLIN))) {
-                calendarEvent(tenantId, actor, caseId, "Vertragsbeginn: " + base, start);
+                calendarEvent(tenantId, actor, caseId, "Vertragsbeginn: " + base, start, why, documentId);
             }
             return contract.getId();
         }
@@ -385,10 +410,11 @@ public class CaseOrchestrator {
         }
     }
 
-    private void calendarEvent(UUID tenantId, UUID actor, UUID caseId, String title, LocalDate date) {
+    private void calendarEvent(UUID tenantId, UUID actor, UUID caseId, String title, LocalDate date, String note,
+                               UUID documentId) {
         try {
             calendar.create(tenantId, new CalendarEventService.Draft(title, date, null,
-                    CalendarEventService.Kind.REMINDER, caseId), actor);
+                    CalendarEventService.Kind.REMINDER, caseId), actor, note, documentId);
         }
         catch (RuntimeException ex) {
             log.warn("Calendar entry '{}' could not be created: {}", title, ex.getMessage());
@@ -583,7 +609,8 @@ public class CaseOrchestrator {
     // ------------------------------------------------------------------------------------------
 
     private static String describe(Map<String, Object> doc, String typeName, Scenario scenario,
-                                   BigDecimal amount, LocalDate documentDue, String reference) {
+                                   BigDecimal amount, LocalDate documentDue, String reference,
+                                   boolean historical) {
         StringBuilder text = new StringBuilder();
         text.append("Dokument: ").append(doc.get("original_filename")).append('\n');
         if (doc.get("sender") != null) {
@@ -602,7 +629,9 @@ public class CaseOrchestrator {
                     .append(" EUR (aus dem Dokument gelesen, ungeprüft)\n");
         }
         if (documentDue != null) {
-            text.append("Frist laut Dokument: ").append(documentDue).append('\n');
+            text.append("Frist laut Dokument: ").append(documentDue).append(historical
+                    ? " (liegt weit zurück: vermutlich ein bereits erledigter Vorgang - bitte bestätigen "
+                            + "oder die Aufgabe schließen)" : "").append('\n');
         }
         if (scenario.requiresHumanReview()) {
             text.append("\nWichtig: Dieses Schreiben darf nicht automatisch anerkannt, beantwortet oder bezahlt "

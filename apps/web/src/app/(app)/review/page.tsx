@@ -1,6 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { ProcessingPanel } from '@/components/app/processing-panel';
 import { PageHeader, PageSection, ResourceView } from '@/components/app/resource-view';
 import { Badge, Card, CardBody, CardHeader, EmptyState, StatusPill } from '@/components/ui';
 import { Button } from '@/components/ui/button';
@@ -153,6 +155,12 @@ export default function ReviewPage() {
                       {t('duplicate.description')}
                     </InlineAlert>
                   ) : null}
+
+                  <p>
+                    <Link href={`/documents/${selected.documentId}`}>{t('openDocument')}</Link>
+                  </p>
+
+                  <ProcessingPanel documentId={selected.documentId} />
 
                   <Card padding="none">
                     <CardHeader

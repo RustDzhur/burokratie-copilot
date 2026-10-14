@@ -37,13 +37,6 @@ public class FieldExtractStepHandler implements ProcessingStepHandler {
 
     @Override
     public StepResult handle(ProcessingContext context) {
-        if (context.document().getDocumentTypeId() == null) {
-            return StepResult.skipped(
-                    "The document has no type yet, so there is nothing to extract: field definitions "
-                            + "belong to a document type",
-                    Document.ProcessingStatus.REVIEW_REQUIRED);
-        }
-
         FieldExtractionService.Result result = extraction.extract(context.document(), context.version());
 
         Map<String, Object> diagnostics = new LinkedHashMap<>(result.diagnostics());

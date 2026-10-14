@@ -1,9 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { PageHeader, PageSection, ResourceView } from '@/components/app/resource-view';
 import { CreateRecordDialog } from '@/components/app/create-record-dialog';
 import { Badge, Card, CardBody, EmptyState, StatusPill, Tabs } from '@/components/ui';
+import { Dialog } from '@/components/ui/overlay';
 import { Button } from '@/components/ui/button';
 import { InlineAlert, SkeletonTable } from '@/components/ui/feedback';
 import { useToast } from '@/components/ui/toast';
@@ -44,6 +46,7 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<string>(toIsoDate(new Date()));
   const [view, setView] = useState<'month' | 'week' | 'list'>('month');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [openEvent, setOpenEvent] = useState<CalendarEvent | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
   const range = useMemo(() => {
@@ -257,6 +260,7 @@ export default function CalendarPage() {
                     typeLabel={typeLabel}
                     locale={locale}
                     caption={t('view.week')}
+                    onOpen={setOpenEvent}
                   />
                 )}
               </ResourceView>
@@ -284,6 +288,7 @@ export default function CalendarPage() {
                     typeLabel={typeLabel}
                     locale={locale}
                     caption={t('view.list')}
+                    onOpen={setOpenEvent}
                   />
                 )}
               </ResourceView>
@@ -291,6 +296,43 @@ export default function CalendarPage() {
           },
         ]}
       />
+
+      {view === 'month' && (eventsByDate.get(selectedDate) ?? []).length > 0 ? (
+        <PageSection title={`${t('selectedDay')}: ${formatDate(selectedDate, locale)}`}>
+          <ul className={styles.dayList}>
+            {(eventsByDate.get(selectedDate) ?? []).map((event) => (
+              <li key={event.id}>
+                <Button variant="ghost" onClick={() => setOpenEvent(event)}>
+                  {event.title}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </PageSection>
+      ) : null}
+
+      <Dialog
+        open={openEvent !== null}
+        onClose={() => setOpenEvent(null)}
+        title={openEvent?.title ?? ''}
+        description={openEvent ? `${formatDate(openEvent.date, locale)} · ${typeLabel(openEvent.type)}` : undefined}
+      >
+        {openEvent ? (
+          <div className={styles.eventDetail}>
+            <p className={styles.eventNote}>{openEvent.note ?? t('detail.noNote')}</p>
+            {openEvent.origin === 'task-deadline' ? (
+              <p className={styles.eventHint}>{t('detail.automatic')}</p>
+            ) : null}
+            <p className={styles.eventLinks}>
+              {openEvent.documentId ? (
+                <Link href={`/documents/${openEvent.documentId}`}>{t('detail.openDocument')}</Link>
+              ) : null}
+              {openEvent.taskId ? <Link href="/tasks">{t('detail.openTask')}</Link> : null}
+              {openEvent.caseId ? <Link href="/cases">{t('detail.openCase')}</Link> : null}
+            </p>
+          </div>
+        ) : null}
+      </Dialog>
 
       <PageSection title={t('legend.title')}>
         <InlineAlert tone="info">{t('holidays.disclaimer')}</InlineAlert>
@@ -327,11 +369,13 @@ function EventList({
   typeLabel,
   locale,
   caption,
+  onOpen,
 }: {
   events: readonly CalendarEvent[];
   typeLabel: (value: string) => string;
   locale: 'de' | 'en' | 'ru';
   caption: string;
+  onOpen: (event: CalendarEvent) => void;
 }) {
   const t = useTranslations('calendar');
   return (
@@ -351,7 +395,11 @@ function EventList({
             {events.map((event) => (
               <tr key={event.id}>
                 <td>{formatDate(event.date, locale)}</td>
-                <td>{event.title}</td>
+                <td>
+                  <Button variant="ghost" onClick={() => onOpen(event)}>
+                    {event.title}
+                  </Button>
+                </td>
                 <td>
                   <StatusPill
                     label={typeLabel(event.type)}

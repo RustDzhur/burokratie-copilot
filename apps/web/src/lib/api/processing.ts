@@ -37,6 +37,13 @@ export interface ProcessingOutcome {
   readonly assignmentPending?: boolean;
 }
 
+export interface SuggestedType {
+  readonly code: string;
+  readonly name: string;
+  readonly confidence: number | null;
+  readonly rationale: string | null;
+}
+
 export interface ProcessingFlow {
   readonly documentId: string;
   readonly processingStatus: string;
@@ -44,6 +51,9 @@ export interface ProcessingFlow {
   readonly documentType: string | null;
   readonly documentTypeName: string | null;
   readonly confidence: number | null;
+  readonly suggestedType: SuggestedType | null;
+  readonly reviewReason: string | null;
+  readonly textPreview: string | null;
   readonly steps: readonly ProcessingStep[];
   readonly outcome: ProcessingOutcome;
 }
