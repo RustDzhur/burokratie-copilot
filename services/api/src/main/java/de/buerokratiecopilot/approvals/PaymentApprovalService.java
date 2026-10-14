@@ -56,11 +56,17 @@ public class PaymentApprovalService {
     private final PaymentApprovalRuleRepository rules;
     private final JdbcTemplate jdbc;
     private final SettingsService settings;
+    private final de.buerokratiecopilot.workflow.approval.ApprovalService approvalService;
+    private final de.buerokratiecopilot.workflow.approval.ApprovalBinding binding;
 
     public PaymentApprovalService(ApprovalRepository approvals, PaymentRepository payments,
                                   PaymentApprovalRepository paymentApprovals,
                                   PaymentApprovalRuleRepository rules, JdbcTemplate jdbc,
-                                  SettingsService settings) {
+                                  SettingsService settings,
+                                  de.buerokratiecopilot.workflow.approval.ApprovalService approvalService,
+                                  de.buerokratiecopilot.workflow.approval.ApprovalBinding binding) {
+        this.approvalService = approvalService;
+        this.binding = binding;
         this.approvals = approvals;
         this.payments = payments;
         this.paymentApprovals = paymentApprovals;
@@ -154,6 +160,13 @@ public class PaymentApprovalService {
             levels.add(paymentApprovals.save(paymentApproval));
         }
 
+        // The approval is bound to the payment as it is now: amount, receiving account, reference.
+        payments.flush();
+        approvals.flush();
+        binding.of(request.tenantId(), "PAYMENT", savedPayment.getId()).ifPresent(fingerprint -> jdbc.update(
+                "update approvals set content_hash = ?, subject_version = ? where id = ? and tenant_id = ?",
+                fingerprint.hash(), fingerprint.version(), savedApproval.getId(), request.tenantId()));
+
         log.info("Payment {} prepared with {} approval level(s), rule {}", savedPayment.getId(),
                 levels.size(), rule == null ? "none" : rule.getCode());
         return new Prepared(savedPayment, savedApproval, levels, rule, true);
@@ -199,6 +212,11 @@ public class PaymentApprovalService {
         PaymentApproval saved = paymentApprovals.save(level);
 
         if (decision == PaymentApproval.Status.REJECTED) {
+            // The approval record follows the levels: one rejection rejects it.
+            jdbc.update("""
+                    update approvals set status = 'REJECTED', decided_by = ?, decided_at = now(), decision_note = ?, updated_at = now()
+                    where id = ? and tenant_id = ? and status = 'PENDING'
+                    """, deciderId, comment, level.getApprovalId(), tenantId);
             // One rejection is enough to stop the payment; a rejected payment must not wait for the
             // remaining levels.
             paymentApprovals.findByApprovalIdOrderByApprovalLevelAsc(level.getApprovalId()).stream()
@@ -215,6 +233,16 @@ public class PaymentApprovalService {
         if (allDecided) {
             payment.confirm(deciderId);
             payments.save(payment);
+            payments.flush();
+            // The approval record follows the levels: all agreed, so it is approved - for this payment as it is now.
+            jdbc.update("""
+                    update approvals set status = 'APPROVED', decided_by = ?, decided_at = now(), decision_note = ?, updated_at = now()
+                    where id = ? and tenant_id = ? and status = 'PENDING'
+                    """, deciderId, comment, level.getApprovalId(), tenantId);
+            // What was confirmed is this payment, as it is now.
+            binding.of(tenantId, "PAYMENT", payment.getId()).ifPresent(fingerprint -> jdbc.update(
+                    "update payments set approved_content_hash = ? where id = ? and tenant_id = ?",
+                    fingerprint.hash(), payment.getId(), tenantId));
             approvalOf(tenantId, payment.getId());
             log.info("Payment {} confirmed by {} after all levels agreed", payment.getId(), deciderId);
         }
@@ -236,6 +264,8 @@ public class PaymentApprovalService {
                     "Die Zahlung ist nicht freigegeben. Eine Zahlung wird nur nach Bestätigung durch "
                             + "eine berechtigte Person ausgeführt.");
         }
+        // The confirmation holds only for the payment it was given for.
+        approvalService.requireBoundToCurrentContent(tenantId, "PAYMENT", paymentId);
         if (payment.isExecuted()) {
             // Executing twice is the failure this guard exists for, and it is reported rather than
             // silently ignored so the caller learns that nothing happened.

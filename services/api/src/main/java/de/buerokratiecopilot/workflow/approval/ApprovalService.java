@@ -43,9 +43,11 @@ public class ApprovalService {
     private static final Logger LOG = LoggerFactory.getLogger(ApprovalService.class);
 
     private final JdbcTemplate jdbc;
+    private final ApprovalBinding binding;
 
-    public ApprovalService(JdbcTemplate jdbc) {
+    public ApprovalService(JdbcTemplate jdbc, ApprovalBinding binding) {
         this.jdbc = jdbc;
+        this.binding = binding;
     }
 
     /** A rule of the authority matrix, as the customer configured it. */
@@ -139,6 +141,9 @@ public class ApprovalService {
                 rule.requiredRole(), expiresAt == null ? null : java.sql.Timestamp.from(expiresAt),
                 "{\"levelsRequired\":" + rule.levels() + ",\"secondPerson\":" + rule.secondPerson() + "}");
 
+        binding.of(tenantId, subjectType, subjectId).ifPresent(fingerprint -> jdbc.update(
+                "update approvals set content_hash = ?, subject_version = ? where id = ? and tenant_id = ?",
+                fingerprint.hash(), fingerprint.version(), approvalId, tenantId));
         journal(tenantId, approvalId, "REQUESTED", requestedBy, justification);
         LOG.info("Approval {} requested in tenant {} (level {}, role {})", approvalId, tenantId,
                 rule.levels(), rule.requiredRole());
@@ -152,7 +157,7 @@ public class ApprovalService {
      * <p>Refused when the person is the requester, when they lack the required authority, or when they
      * have already given their approval to this request.</p>
      */
-    @Transactional
+    @Transactional(noRollbackFor = ApiException.class)
     public Decision decide(UUID tenantId, UUID approvalId, UUID deciderId, boolean approved, String note) {
         Map<String, Object> approval = requireApproval(tenantId, approvalId);
         String status = String.valueOf(approval.get("status"));
@@ -166,6 +171,10 @@ public class ApprovalService {
         if (deciderId.equals(approval.get("requested_by"))) {
             // A person who could approve their own request is a person for whom the step does not exist.
             throw ApiException.forbidden("Niemand kann die eigene Anfrage freigeben");
+        }
+        if (approved) {
+            // What the approver is about to confirm must still be what was requested.
+            requireStillBound(tenantId, approvalId, approval);
         }
 
         String requiredPermission = (String) approval.get("required_permission");
@@ -258,6 +267,115 @@ public class ApprovalService {
                     "Die Frist ist abgelaufen, ohne dass jemand entschieden hat");
         }
         return overdue;
+    }
+
+    /**
+     * Checks that the material of an approval is still what was requested. If it changed, the approval expires (a decision
+     * already given stays on record) and a new request is raised for the changed material; the caller is told with a conflict.
+     */
+    private void requireStillBound(UUID tenantId, UUID approvalId, Map<String, Object> approval) {
+        String recorded = (String) approval.get("content_hash");
+        if (recorded == null) {
+            return; // an approval of a subject without a fingerprint (a role change, a connection) is not bound to content
+        }
+        String type = String.valueOf(approval.get("subject_type"));
+        UUID subjectId = (UUID) approval.get("subject_id");
+        ApprovalBinding.Fingerprint now = binding.of(tenantId, type, subjectId).orElse(null);
+        if (now != null && now.hash().equals(recorded)) {
+            return;
+        }
+        jdbc.update("update approvals set status = 'EXPIRED', updated_at = now() where id = ? and tenant_id = ? and status in ('PENDING', 'APPROVED')",
+                approvalId, tenantId);
+        journal(tenantId, approvalId, "ESCALATED", null, "Der Inhalt hat sich nach der Anfrage geändert; die Freigabe ist erloschen");
+        UUID renewed = now == null ? null : renew(tenantId, approvalId, (UUID) approval.get("requested_by"), now);
+        throw ApiException.conflict("Der Inhalt hat sich geändert, seit die Freigabe angefragt wurde. Die alte Freigabe ist erloschen"
+                + (renewed == null ? "." : "; eine neue Anfrage wurde erstellt (" + renewed + ")."));
+    }
+
+    private UUID renew(UUID tenantId, UUID oldApprovalId, UUID requestedBy, ApprovalBinding.Fingerprint now) {
+        UUID id = jdbc.queryForObject("""
+                insert into approvals (tenant_id, subject_type, subject_id, approval_type, status, automation_level, title, justification,
+                                       requested_by, required_permission, required_role, metadata, content_hash, subject_version)
+                select tenant_id, subject_type, subject_id, approval_type, 'PENDING', automation_level, title,
+                       'Erneute Anfrage: der Inhalt hat sich nach der ersten Anfrage geändert', requested_by, required_permission,
+                       required_role, metadata, ?, ?
+                from approvals where id = ? and tenant_id = ?
+                returning id
+                """, UUID.class, now.hash(), now.version(), oldApprovalId, tenantId);
+        journal(tenantId, id, "REQUESTED", requestedBy, "Erneute Anfrage zu " + oldApprovalId);
+        return id;
+    }
+
+    /**
+     * Called by whatever executes the approved action: nothing is executed on a confirmation that was given for other content.
+     *
+     * <p>If the subject has approvals bound to a fingerprint, one of them must be an approval of the content as it is now.
+     * Otherwise the approvals given for the earlier content expire, a new request is raised for the current content (unless
+     * one is already waiting), a release or confirmation recorded on the subject itself is withdrawn, and the caller is
+     * refused. Runs in its own transaction: the expiry and the new request must survive the refusal.</p>
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW, noRollbackFor = ApiException.class)
+    public void requireBoundToCurrentContent(UUID tenantId, String subjectType, UUID subjectId) {
+        ApprovalBinding.Fingerprint now = binding.of(tenantId, subjectType, subjectId).orElse(null);
+        if (now == null) {
+            return;
+        }
+        // A release recorded on the subject itself (a letter's approved_by, a payment's confirmation).
+        String recorded = "OUTBOUND_MESSAGE".equals(subjectType)
+                ? jdbc.query("select approved_content_hash from outbound_messages where id = ? and tenant_id = ?",
+                        rs -> rs.next() ? rs.getString(1) : null, subjectId, tenantId)
+                : jdbc.query("select approved_content_hash from payments where id = ? and tenant_id = ?",
+                        rs -> rs.next() ? rs.getString(1) : null, subjectId, tenantId);
+        boolean subjectChanged = recorded != null && !recorded.equals(now.hash());
+        if (subjectChanged) {
+            if ("OUTBOUND_MESSAGE".equals(subjectType)) {
+                jdbc.update("""
+                        update outbound_messages set status = 'PENDING_APPROVAL', approved_by = null, approved_at = null,
+                               approved_content_hash = null, updated_at = now()
+                        where id = ? and tenant_id = ? and status in ('APPROVED', 'QUEUED')
+                        """, subjectId, tenantId);
+            }
+            else {
+                jdbc.update("""
+                        update payments set status = 'AWAITING_APPROVAL', confirmed_by = null, confirmed_at = null,
+                               approved_content_hash = null, updated_at = now()
+                        where id = ? and tenant_id = ? and status = 'APPROVED'
+                        """, subjectId, tenantId);
+            }
+        }
+
+        Integer bound = jdbc.queryForObject("select count(*) from approvals where tenant_id = ? and subject_type = ? and subject_id = ? and content_hash is not null",
+                Integer.class, tenantId, subjectType, subjectId);
+        Integer matching = jdbc.queryForObject("""
+                select count(*) from approvals where tenant_id = ? and subject_type = ? and subject_id = ? and status = 'APPROVED'
+                  and content_hash = ?
+                """, Integer.class, tenantId, subjectType, subjectId, now.hash());
+        boolean approvalsMissing = bound != null && bound > 0 && (matching == null || matching == 0);
+        if (!subjectChanged && !approvalsMissing) {
+            return;
+        }
+
+        List<Map<String, Object>> stale = jdbc.queryForList("""
+                select id, requested_by, title from approvals
+                where tenant_id = ? and subject_type = ? and subject_id = ? and status = 'APPROVED' and content_hash is not null
+                  and content_hash <> ?
+                """, tenantId, subjectType, subjectId, now.hash());
+        UUID renewed = null;
+        for (Map<String, Object> approval : stale) {
+            UUID id = (UUID) approval.get("id");
+            jdbc.update("update approvals set status = 'EXPIRED', updated_at = now() where id = ? and tenant_id = ? and status = 'APPROVED'",
+                    id, tenantId);
+            journal(tenantId, id, "ESCALATED", null, "Der Inhalt hat sich nach der Freigabe geändert; die Freigabe ist erloschen");
+        }
+        Integer waiting = jdbc.queryForObject("""
+                select count(*) from approvals where tenant_id = ? and subject_type = ? and subject_id = ? and status = 'PENDING'
+                  and content_hash = ?
+                """, Integer.class, tenantId, subjectType, subjectId, now.hash());
+        if (!stale.isEmpty() && (waiting == null || waiting == 0)) {
+            renewed = renew(tenantId, (UUID) stale.get(0).get("id"), (UUID) stale.get(0).get("requested_by"), now);
+        }
+        throw ApiException.conflict("Für den aktuellen Inhalt liegt keine gültige Freigabe vor: er hat sich nach der Freigabe geändert."
+                + (renewed == null ? "" : " Eine neue Anfrage wurde erstellt (" + renewed + ")."));
     }
 
     /** Records an escalation that a person asked for, without changing the decision. */
@@ -366,7 +484,7 @@ public class ApprovalService {
     private Map<String, Object> requireApproval(UUID tenantId, UUID approvalId) {
         List<Map<String, Object>> rows = jdbc.queryForList("""
                 select id, status, requested_by, required_permission, required_role, automation_level,
-                       metadata::text as metadata, subject_type, subject_id
+                       metadata::text as metadata, subject_type, subject_id, content_hash, subject_version, title, approval_type
                 from approvals where id = ? and tenant_id = ?
                 """, approvalId, tenantId);
         if (rows.isEmpty()) {

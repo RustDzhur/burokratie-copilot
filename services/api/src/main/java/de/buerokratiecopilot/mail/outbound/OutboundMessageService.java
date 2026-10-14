@@ -43,8 +43,14 @@ public class OutboundMessageService {
 
     private final JdbcTemplate jdbc;
     private final OutboundSender sender;
+    private final de.buerokratiecopilot.workflow.approval.ApprovalService approvals;
+    private final de.buerokratiecopilot.workflow.approval.ApprovalBinding binding;
 
-    public OutboundMessageService(JdbcTemplate jdbc, OutboundSender sender) {
+    public OutboundMessageService(JdbcTemplate jdbc, OutboundSender sender,
+                                  de.buerokratiecopilot.workflow.approval.ApprovalService approvals,
+                                  de.buerokratiecopilot.workflow.approval.ApprovalBinding binding) {
+        this.approvals = approvals;
+        this.binding = binding;
         this.jdbc = jdbc;
         this.sender = sender;
     }
@@ -159,6 +165,11 @@ public class OutboundMessageService {
                 where id = ? and tenant_id = ?
                 """, approverId, finalSubject, finalBodyText, finalBodyHtml, messageId, tenantId);
 
+        // What the approver released is the letter as it is now; any later change withdraws the release.
+        binding.of(tenantId, "OUTBOUND_MESSAGE", messageId).ifPresent(fingerprint -> jdbc.update(
+                "update outbound_messages set approved_content_hash = ? where id = ? and tenant_id = ?",
+                fingerprint.hash(), messageId, tenantId));
+
         log.info("Outbound message {} approved by {}", messageId, approverId);
     }
 
@@ -178,6 +189,9 @@ public class OutboundMessageService {
                        from_address, to_addresses, cc_addresses, approved_by
                 from outbound_messages where id = ? and tenant_id = ?
                 """, messageId, tenantId);
+
+        // A release given for other text, addressees or attachments does not count.
+        approvals.requireBoundToCurrentContent(tenantId, "OUTBOUND_MESSAGE", messageId);
 
         Status status = Status.valueOf(String.valueOf(message.get("status")));
         boolean approved = message.get("approved_by") != null;
