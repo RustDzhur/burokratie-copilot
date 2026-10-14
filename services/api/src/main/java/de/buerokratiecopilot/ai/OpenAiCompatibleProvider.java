@@ -69,9 +69,11 @@ public class OpenAiCompatibleProvider implements AiProvider {
         try {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("model", model);
-            body.put("messages", messagesOf(request.input()));
-            body.put("temperature", 0.3);
-            body.put("max_tokens", 700);
+            boolean withImages = request.images() != null && !request.images().isEmpty();
+            body.put("messages", withImages ? visionMessages(request) : messagesOf(request.input()));
+            // Reading a page is extraction, not conversation: no invention, and room for a whole answer.
+            body.put("temperature", withImages ? 0.0 : 0.3);
+            body.put("max_tokens", withImages ? 1200 : 700);
             HttpRequest httpRequest = HttpRequest.newBuilder(URI.create(endpoint()))
                     .timeout(Duration.ofSeconds(Math.max(5, request.timeoutSeconds())))
                     .header("Authorization", "Bearer " + config.getApiKey())
@@ -120,6 +122,16 @@ public class OpenAiCompatibleProvider implements AiProvider {
             base = base.substring(0, base.length() - 1);
         }
         return base + "/chat/completions";
+    }
+
+    /** One user message: the instruction, then each page as a data URL ({@code data:image/jpeg;base64,...}). */
+    private List<Map<String, Object>> visionMessages(Request request) {
+        List<Map<String, Object>> parts = new ArrayList<>();
+        parts.add(Map.of("type", "text", "text", request.input() == null ? "" : request.input()));
+        for (String image : request.images()) {
+            parts.add(Map.of("type", "image_url", "image_url", Map.of("url", image)));
+        }
+        return List.of(Map.of("role", "user", "content", parts));
     }
 
     private List<Map<String, String>> messagesOf(String input) throws IOException {

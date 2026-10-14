@@ -23,12 +23,19 @@ public interface AiProvider {
 
     /** What is being asked. */
     record Request(UUID tenantId, String jobType, String instructionVersion, String instructionHash,
-                   String input, String model, int timeoutSeconds) {
+                   String input, String model, int timeoutSeconds, List<String> images) {
+
+        /** A request without pictures, which is what every caller before the reading of scans was. */
+        public Request(UUID tenantId, String jobType, String instructionVersion, String instructionHash,
+                       String input, String model, int timeoutSeconds) {
+            this(tenantId, jobType, instructionVersion, instructionHash, input, model, timeoutSeconds, List.of());
+        }
 
         public Map<String, Object> asSafeMetadata() {
-            // Deliberately without the input: this map goes into the run record and the logs, and the
-            // acceptance criterion is that no document content appears there.
-            return Map.of("jobType", jobType, "model", model == null ? "" : model);
+            // Deliberately without the input and without the pictures: this map goes into the run record and the
+            // logs, and the acceptance criterion is that no document content appears there.
+            return Map.of("jobType", jobType, "model", model == null ? "" : model,
+                    "imageCount", images == null ? 0 : images.size());
         }
     }
 

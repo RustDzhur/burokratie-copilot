@@ -296,6 +296,8 @@ export interface ApiResources {
     pipeline: (id: string, signal?: AbortSignal) => Promise<ProcessingFlow>;
     categoryCounts: (signal?: AbortSignal) => Promise<Readonly<Record<string, number>>>;
     createTask: (id: string) => Promise<void>;
+    /** Reads the pages with AI vision (handwriting); the values come back as proposals. */
+    aiRead: (id: string) => Promise<{ readonly status: string; readonly found: Readonly<Record<string, string>>; readonly summary: string | null }>;
     downloadOriginal: (id: string) => Promise<Blob>;
     confirmFields: (id: string, payload: ConfirmFieldsPayload) => Promise<void>;
     archive: (id: string) => Promise<void>;
@@ -325,6 +327,14 @@ export interface ApiResources {
       readonly date: string;
       readonly type: CalendarEvent['type'];
     }) => Promise<CalendarEvent>;
+    /** Private addresses a phone's calendar app subscribes to. The secret comes back once, at creation. */
+    readonly feeds: {
+      list: (signal?: AbortSignal) => Promise<
+        readonly { readonly id: string; readonly label: string; readonly locale: string; readonly lastUsedAt: string | null }[]
+      >;
+      create: (label: string, locale: string) => Promise<{ readonly id: string; readonly label: string; readonly token: string }>;
+      revoke: (id: string) => Promise<void>;
+    };
   };
   readonly contracts: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<ContractSummary>>;
@@ -740,6 +750,12 @@ export function createResources(client: ApiClient): ApiResources {
         await client.post<unknown>(`/documents/${id}/reprocess`, undefined, { idempotencyKey: true });
       },
       pipeline: (id, signal) => client.get<ProcessingFlow>(`/documents/${id}/pipeline`, withSignal(signal)),
+      aiRead: (id) =>
+        client.post<{ status: string; found: Record<string, string>; summary: string | null }>(
+          `/documents/${id}/ai-read`,
+          undefined,
+          { idempotencyKey: true },
+        ),
       createTask: async (id) => {
         await client.post<unknown>(`/documents/${id}/create-task`, undefined, { idempotencyKey: true });
       },
@@ -862,6 +878,21 @@ export function createResources(client: ApiClient): ApiResources {
             { idempotencyKey: true },
           ),
         ),
+      feeds: {
+        list: (signal) =>
+          client.get<
+            readonly { id: string; label: string; locale: string; lastUsedAt: string | null }[]
+          >('/calendar/feeds', withSignal(signal)),
+        create: (label, locale) =>
+          client.post<{ id: string; label: string; token: string }>(
+            '/calendar/feeds',
+            { label, locale },
+            { idempotencyKey: true },
+          ),
+        revoke: async (id) => {
+          await client.request<unknown>(`/calendar/feeds/${id}`, { method: 'DELETE', parse: 'none' });
+        },
+      },
     },
     contracts: {
       list: async (params, signal) => {

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { PageHeader, PageSection, ResourceView } from '@/components/app/resource-view';
+import { CalendarFeedDialog } from '@/components/app/calendar-feed-dialog';
 import { CreateRecordDialog } from '@/components/app/create-record-dialog';
 import { Badge, Card, CardBody, EmptyState, StatusPill, Tabs } from '@/components/ui';
 import { Dialog } from '@/components/ui/overlay';
@@ -47,6 +48,7 @@ export default function CalendarPage() {
   const [view, setView] = useState<'month' | 'week' | 'list'>('month');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [openEvent, setOpenEvent] = useState<CalendarEvent | null>(null);
+  const [feedOpen, setFeedOpen] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
 
   const range = useMemo(() => {
@@ -110,12 +112,16 @@ export default function CalendarPage() {
             <Button variant="secondary" iconLeft="refresh" onClick={reload} loading={isRefreshing}>
               {tCommon('actions.refresh')}
             </Button>
+            <Button variant="secondary" iconLeft="bell" onClick={() => setFeedOpen(true)}>
+              {t('action.connectPhone')}
+            </Button>
             <Button variant="primary" iconLeft="plus" onClick={() => setDialogOpen(true)}>
               {t('action.new')}
             </Button>
           </>
         }
       />
+      <CalendarFeedDialog open={feedOpen} onClose={() => setFeedOpen(false)} />
 
       <div className={styles.toolbar}>
         <div className={styles.monthNav}>

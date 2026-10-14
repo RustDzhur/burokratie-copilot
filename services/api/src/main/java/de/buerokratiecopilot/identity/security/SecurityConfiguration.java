@@ -66,6 +66,8 @@ public class SecurityConfiguration {
             // Authenticated by its own token rather than by a session.
             "/api/v1/documents:ingest",
             "/api/v1/webhooks/**",
+            // A phone's calendar app cannot log in: the address carries its own secret (calendar_feed_tokens).
+            "/api/v1/calendar/feed/*",
             "/api/v1/system/info",
             "/actuator/health",
             "/actuator/health/**",

@@ -34,12 +34,32 @@ public class DocumentOutcomeController {
     private final JdbcTemplate jdbc;
     private final de.buerokratiecopilot.orchestration.OwnerNotifier facts;
     private final de.buerokratiecopilot.orchestration.CaseOrchestrator orchestrator;
+    private final de.buerokratiecopilot.documents.reading.AiDocumentReader reader;
 
     public DocumentOutcomeController(JdbcTemplate jdbc, de.buerokratiecopilot.orchestration.OwnerNotifier facts,
-                                     de.buerokratiecopilot.orchestration.CaseOrchestrator orchestrator) {
+                                     de.buerokratiecopilot.orchestration.CaseOrchestrator orchestrator,
+                                     de.buerokratiecopilot.documents.reading.AiDocumentReader reader) {
         this.jdbc = jdbc;
         this.facts = facts;
         this.orchestrator = orchestrator;
+        this.reader = reader;
+    }
+
+    /**
+     * Reads the pages with a model that looks at them (handwriting, stamps), at the request of a person. The pages go to
+     * the configured AI provider, so this is never done by itself; the answer says what was proposed or why nothing was.
+     */
+    @org.springframework.web.bind.annotation.PostMapping("/{id}/ai-read")
+    @PreAuthorize("hasAuthority('documents.review')")
+    @Operation(summary = "Read a document with AI vision (handwriting); values are proposals, not facts")
+    public ResponseEntity<Map<String, Object>> aiRead(@PathVariable UUID id) {
+        var result = reader.read(id, de.buerokratiecopilot.shared.context.CurrentUser.required());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("status", result.status());
+        body.put("found", result.found());
+        body.put("summary", result.summary());
+        body.put("handwritten", result.handwritten());
+        return ResponseEntity.ok(body);
     }
 
     /**

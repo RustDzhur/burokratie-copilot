@@ -114,6 +114,18 @@ public class AiOrchestrator {
     @Transactional
     public Outcome run(UUID tenantId, String jobType, String input, String recordedInput, String model,
                        String instructionVersion, String instructionHash, UUID requestedBy) {
+        return run(tenantId, jobType, input, recordedInput, model, instructionVersion, instructionHash, requestedBy,
+                List.of());
+    }
+
+    /**
+     * Runs a job that carries pictures (pages of a scan or a photograph). The pictures go to the provider and nowhere
+     * else: the job record keeps {@code recordedInput}, which says how many pictures there were and never their
+     * content.
+     */
+    @Transactional
+    public Outcome run(UUID tenantId, String jobType, String input, String recordedInput, String model,
+                       String instructionVersion, String instructionHash, UUID requestedBy, List<String> images) {
         UUID jobId = jdbc.queryForObject("""
                 insert into ai_jobs (id, tenant_id, job_type, status, priority, input,
                                      instruction_version, model, requested_by, attempts, max_attempts)
@@ -151,7 +163,7 @@ public class AiOrchestrator {
             }
 
             AiProvider.Request request = new AiProvider.Request(tenantId, jobType, instructionVersion,
-                    instructionHash, input, model, 30);
+                    instructionHash, input, model, images == null || images.isEmpty() ? 30 : 120, images);
             try {
                 long started = System.currentTimeMillis();
                 AiProvider.Completion completion = provider.complete(request);

@@ -58,6 +58,26 @@ export default function DocumentViewerPage() {
     }
   };
 
+  const aiRead = async (): Promise<void> => {
+    // The pages leave the platform for the AI provider the administrator configured: a person decides, each time.
+    if (!window.confirm(t('aiRead.confirm'))) return;
+    setBusy(true);
+    try {
+      const result = await api.documents.aiRead(id);
+      if (result.status === 'OK') {
+        toast.success(t('aiRead.done', { count: Object.keys(result.found).length }), result.summary ?? undefined);
+        setProcessingKey((value) => value + 1);
+        reload();
+      } else {
+        toast.warning(t(`aiRead.status.${result.status}` as 'aiRead.status.FAILED'));
+      }
+    } catch (error) {
+      toast.error(tErrors(toApiError(error).kind));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const reprocess = async (): Promise<void> => {
     setBusy(true);
     try {
@@ -99,6 +119,14 @@ export default function DocumentViewerPage() {
               onClick={() => void download(state.status === 'ready' ? state.data.title : undefined)}
             >
               {t('action.download')}
+            </Button>
+            <Button
+              variant="secondary"
+              iconLeft="sparkles"
+              loading={busy}
+              onClick={() => void aiRead()}
+            >
+              {t('action.aiRead')}
             </Button>
             <Button
               variant="secondary"
