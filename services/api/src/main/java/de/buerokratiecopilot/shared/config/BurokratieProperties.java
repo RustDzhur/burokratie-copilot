@@ -417,6 +417,59 @@ public class BurokratieProperties {
         private String model = "";
         /** How many questions one workspace may ask Iris per day. */
         private int guideDailyLimit = 100;
+        /**
+         * Whether a document may be sent to the AI by itself when the platform's own reading left a value it needs
+         * unread (typically handwriting). A person's click on "read with AI" never depends on this.
+         */
+        private boolean autoRead = true;
+        /** The most documents one workspace has read by AI on its own per day: a ceiling on cost whatever happens. */
+        private int autoReadDailyLimit = 20;
+        /**
+         * Price per million tokens in euro, as the provider's price list says. Providers do not report the cost of a
+         * call, so the monthly budget can only be kept if the platform computes it from the tokens; 0 means "not
+         * configured" and the budget then counts nothing.
+         */
+        private java.math.BigDecimal priceInputPerMillion = java.math.BigDecimal.ZERO;
+        private java.math.BigDecimal priceOutputPerMillion = java.math.BigDecimal.ZERO;
+
+        public boolean isAutoRead() {
+            return autoRead;
+        }
+
+        public void setAutoRead(boolean autoRead) {
+            this.autoRead = autoRead;
+        }
+
+        public int getAutoReadDailyLimit() {
+            return autoReadDailyLimit;
+        }
+
+        public void setAutoReadDailyLimit(int autoReadDailyLimit) {
+            this.autoReadDailyLimit = autoReadDailyLimit;
+        }
+
+        public java.math.BigDecimal getPriceInputPerMillion() {
+            return priceInputPerMillion;
+        }
+
+        public void setPriceInputPerMillion(java.math.BigDecimal priceInputPerMillion) {
+            this.priceInputPerMillion = priceInputPerMillion;
+        }
+
+        public java.math.BigDecimal getPriceOutputPerMillion() {
+            return priceOutputPerMillion;
+        }
+
+        public void setPriceOutputPerMillion(java.math.BigDecimal priceOutputPerMillion) {
+            this.priceOutputPerMillion = priceOutputPerMillion;
+        }
+
+        /** What a call cost, from its tokens and the configured prices (zero when no price is configured). */
+        public java.math.BigDecimal costOf(int inputTokens, int outputTokens) {
+            return priceInputPerMillion.multiply(java.math.BigDecimal.valueOf(inputTokens))
+                    .add(priceOutputPerMillion.multiply(java.math.BigDecimal.valueOf(outputTokens)))
+                    .divide(java.math.BigDecimal.valueOf(1_000_000), 6, java.math.RoundingMode.HALF_UP);
+        }
 
         public String getModel() {
             return model;

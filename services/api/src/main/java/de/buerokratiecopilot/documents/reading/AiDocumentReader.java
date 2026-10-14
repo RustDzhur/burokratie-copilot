@@ -15,6 +15,7 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.imageio.ImageIO;
@@ -82,10 +83,12 @@ public class AiDocumentReader {
     private final AuditService audit;
     private final CaseOrchestrator orchestrator;
     private final ObjectMapper json;
+    private final de.buerokratiecopilot.shared.config.BurokratieProperties properties;
 
     public AiDocumentReader(AiOrchestrator ai, DocumentService documents, PdfPageRenderer renderer,
                             DocumentExtractionRepository extractions, JdbcTemplate jdbc, AuditService audit,
-                            CaseOrchestrator orchestrator, ObjectMapper json) {
+                            CaseOrchestrator orchestrator, ObjectMapper json,
+                            de.buerokratiecopilot.shared.config.BurokratieProperties properties) {
         this.ai = ai;
         this.documents = documents;
         this.renderer = renderer;
@@ -94,6 +97,7 @@ public class AiDocumentReader {
         this.audit = audit;
         this.orchestrator = orchestrator;
         this.json = json;
+        this.properties = properties;
     }
 
     /** What the reading did, in codes the screen turns into sentences. */
@@ -106,6 +110,137 @@ public class AiDocumentReader {
 
     @Transactional
     public Result read(UUID documentId, UUID userId) {
+        return read(documentId, userId, "MANUAL", null);
+    }
+
+    /** Types whose pages are never sent to an external AI on the platform's own initiative: health data and the like. */
+    private static final java.util.Set<String> NEVER_AUTOMATIC = java.util.Set.of("medizinische_rechnung",
+            "medizinisches_dokument", "krankmeldung");
+
+    /**
+     * Reads the document by AI if, and only if, the platform's own reading has left a value unread that it needs.
+     *
+     * <p>The order is the point: label search and OCR come first and cost nothing. The AI is the last resort, used when
+     * (a) the document type says a date matters (a deadline, the period a form covers), (b) the document names it (its
+     * label is in the text) but no readable value follows (a blank or a handwritten entry), or the scan itself is poor,
+     * and (c) nothing of this kind has been tried for the document before. Documents of health topics or marked
+     * confidential never go out on their own, a workspace has a daily ceiling, and the monthly budget still applies. A
+     * person's click on the button is the way around all of this, for one document.</p>
+     *
+     * @return the result when the AI was asked, or {@code null} when the platform's own reading was enough
+     */
+    @Transactional
+    public Result readIfNeeded(UUID documentId) {
+        if (!properties.getAi().isEnabled() || !properties.getAi().isAutoRead() || !ai.hasAvailableProvider()) {
+            return null;
+        }
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                select d.tenant_id, d.mime_type, d.confidentiality, d.document_type_id, t.code as type_code,
+                       coalesce(d.extracted_text, '') as text,
+                       s.due_field_keys, s.creates_task, s.creates_contract
+                from documents d
+                join document_types t on t.id = d.document_type_id
+                join document_type_scenarios s on s.document_type_code = t.code and s.tenant_id is null
+                where d.id = ? and d.deleted_at is null and d.processing_status = 'READY'
+                """, documentId);
+        if (rows.isEmpty()) {
+            return null;
+        }
+        Map<String, Object> row = rows.get(0);
+        String mime = String.valueOf(row.get("mime_type")).toLowerCase();
+        String typeCode = String.valueOf(row.get("type_code"));
+        String confidentiality = String.valueOf(row.get("confidentiality"));
+        boolean picture = mime.equals("application/pdf") || mime.startsWith("image/");
+        boolean matters = Boolean.TRUE.equals(row.get("creates_task")) || Boolean.TRUE.equals(row.get("creates_contract"));
+        if (!picture || !matters || NEVER_AUTOMATIC.contains(typeCode)
+                || confidentiality.equals("CONFIDENTIAL") || confidentiality.equals("STRICT")) {
+            return null;
+        }
+        UUID tenantId = (UUID) row.get("tenant_id");
+
+        // Tried before (even if it failed or was refused): not again on every reprocessing.
+        Integer before = jdbc.queryForObject("""
+                select count(*) from ai_jobs where tenant_id = ? and job_type = 'DOCUMENT_READ'
+                  and input::text like ?
+                """, Integer.class, tenantId, "%" + documentId + "%");
+        if (before != null && before > 0) {
+            return null;
+        }
+        Integer today = jdbc.queryForObject("""
+                select count(*) from ai_jobs where tenant_id = ? and job_type = 'DOCUMENT_READ'
+                  and requested_by is null and created_at >= date_trunc('day', now())
+                """, Integer.class, tenantId);
+        if (today != null && today >= properties.getAi().getAutoReadDailyLimit()) {
+            log.info("Tenant {} reached its daily limit of automatic AI readings", tenantId);
+            return null;
+        }
+
+        Set<String> needed = new java.util.LinkedHashSet<>();
+        String dueKeys = row.get("due_field_keys") == null ? "" : String.valueOf(row.get("due_field_keys"));
+        for (String key : dueKeys.split(",")) {
+            if (!key.isBlank()) {
+                needed.add(key.strip());
+            }
+        }
+        needed.add("Zeitraum");
+        Set<String> extracted = new java.util.HashSet<>(jdbc.queryForList(
+                "select field_key from document_extractions where document_id = ?", String.class, documentId));
+        Map<String, List<String>> labels = new LinkedHashMap<>();
+        jdbc.query("""
+                select field_key, extraction_hint from document_type_fields
+                where document_type_id = ? and extraction_hint is not null
+                """, rs -> {
+            labels.put(rs.getString("field_key"), List.of(rs.getString("extraction_hint").split("\\|")));
+        }, row.get("document_type_id"));
+        Double ocr = jdbc.queryForObject(
+                "select avg(ocr_confidence)::float8 from document_pages where document_id = ? and ocr_used",
+                Double.class, documentId);
+
+        String reason = evidenceOfUnreadValue(needed, labels, extracted, String.valueOf(row.get("text")), ocr);
+        if (reason == null) {
+            return null;
+        }
+        log.info("Document {} goes to AI reading: {}", documentId, reason);
+        return read(documentId, null, "AUTO", reason);
+    }
+
+    /**
+     * Why the platform's own reading was not enough, or {@code null} if it was.
+     *
+     * <p>A needed value is unread when its label stands in the text and no value was taken from it: a blank line or
+     * handwriting that OCR cannot turn into a date. A poor scan (mean OCR confidence below 0.6) with a needed value
+     * missing is the second sign. A document that simply does not mention a deadline is not a reason: absence is an
+     * answer, not a gap.</p>
+     */
+    static String evidenceOfUnreadValue(Set<String> neededKeys, Map<String, List<String>> labelsByKey,
+                                        Set<String> extractedKeys, String text, Double meanOcrConfidence) {
+        String lower = text == null ? "" : text.toLowerCase(java.util.Locale.GERMAN);
+        boolean anyMissing = false;
+        for (String key : neededKeys) {
+            if (extractedKeys.contains(key)) {
+                continue;
+            }
+            anyMissing = true;
+            for (String label : labelsByKey.getOrDefault(key, List.of())) {
+                String needle = label.strip().toLowerCase(java.util.Locale.GERMAN);
+                if (needle.isEmpty()) {
+                    continue;
+                }
+                if (java.util.regex.Pattern.compile("(?<![\\p{L}\\p{N}])" + java.util.regex.Pattern.quote(needle)
+                        + "(?![\\p{L}\\p{N}])").matcher(lower).find()) {
+                    return "label \"" + label.strip() + "\" is in the text but no readable value follows (" + key + ")";
+                }
+            }
+        }
+        if (anyMissing && meanOcrConfidence != null && meanOcrConfidence < 0.6) {
+            return "the scan is poorly readable (mean OCR confidence " + Math.round(meanOcrConfidence * 100)
+                    + " %) and a needed value is missing";
+        }
+        return null;
+    }
+
+    @Transactional
+    public Result read(UUID documentId, UUID userId, String trigger, String reason) {
         List<Map<String, Object>> rows = jdbc.queryForList("""
                 select d.tenant_id, d.original_filename, d.mime_type,
                        (select v.id from document_versions v where v.document_id = d.id
@@ -157,16 +292,18 @@ public class AiDocumentReader {
         audit.record(AuditService.AuditEntry.builder(AuditEvent.Category.DOCUMENT, "DOCUMENT_READ_BY_AI")
                 .tenant(tenantId).entity("documents", documentId, filename)
                 .description("Pages were sent to the AI provider " + outcome.provider()
-                        + " at the request of a person; " + found.size() + " value(s) proposed")
+                        + ("AUTO".equals(trigger) ? " because the platform's own reading left a needed value unread ("
+                        + reason + ")" : " at the request of a person") + "; " + found.size() + " value(s) proposed")
                 .changes(Map.of("provider", String.valueOf(outcome.provider()), "pages", pictures.size(),
-                        "fields", String.join(",", found.keySet())))
+                        "fields", String.join(",", found.keySet()), "trigger", trigger,
+                        "reason", reason == null ? "" : reason))
                 .build());
 
         // A date that was handwritten may change what the document is: re-evaluate it, unless a task already exists.
         Integer tasks = jdbc.queryForObject("""
                 select count(*) from tasks where source_document_id = ? and source = 'DOCUMENT' and deleted_at is null
                 """, Integer.class, documentId);
-        if (tasks != null && tasks == 0 && !found.isEmpty()) {
+        if (!"AUTO".equals(trigger) && tasks != null && tasks == 0 && !found.isEmpty()) {
             orchestrator.orchestrate(documentId);
         }
         return new Result("OK", found, parsed.summary(), parsed.handwritten());

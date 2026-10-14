@@ -16,7 +16,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 class AiDocumentReaderTest {
 
     private final AiDocumentReader reader = new AiDocumentReader(null, null, null, null, null, null, null,
-            new ObjectMapper());
+            new ObjectMapper(), new de.buerokratiecopilot.shared.config.BurokratieProperties());
+
+    private static final java.util.Map<String, java.util.List<String>> LABELS = java.util.Map.of(
+            "Zeitraum", java.util.List.of("Bewilligungszeitraum", "Zeitraum"),
+            "Frist", java.util.List.of("Frist", "bis spätestens"));
 
     @Test
     @DisplayName("reads the JSON object even when the model wraps it in text or a code fence")
@@ -61,5 +65,39 @@ class AiDocumentReaderTest {
     @DisplayName("an answer without a JSON object is refused")
     void noJson() {
         assertThatThrownBy(() -> reader.parse("Ich kann das Dokument nicht lesen.")).isInstanceOf(IOException.class);
+    }
+
+    @Test
+    @DisplayName("a label in the text without a readable value after it is the sign of handwriting: the AI is needed")
+    void labelWithoutValueNeedsReading() {
+        String reason = AiDocumentReader.evidenceOfUnreadValue(java.util.Set.of("Zeitraum"), LABELS,
+                java.util.Set.of(), "EKS Jobcenter\nBewilligungszeitraum: ____ bis ____\n", 0.9);
+
+        assertThat(reason).contains("Bewilligungszeitraum").contains("Zeitraum");
+    }
+
+    @Test
+    @DisplayName("a document that does not mention a needed date at all does not call the AI: absence is an answer")
+    void noLabelNoReading() {
+        assertThat(AiDocumentReader.evidenceOfUnreadValue(java.util.Set.of("Frist", "Zeitraum"), LABELS,
+                java.util.Set.of(), "Rechnung über Büromaterial, vielen Dank für Ihren Auftrag.", 0.95)).isNull();
+    }
+
+    @Test
+    @DisplayName("a value the platform already read is not read again, and a label inside a longer word is not a label")
+    void alreadyReadAndWordBoundaries() {
+        assertThat(AiDocumentReader.evidenceOfUnreadValue(java.util.Set.of("Frist"), LABELS,
+                java.util.Set.of("Frist"), "Frist: 28.10.2026", 0.3)).isNull();
+        assertThat(AiDocumentReader.evidenceOfUnreadValue(java.util.Set.of("Frist"), LABELS,
+                java.util.Set.of(), "Die Fristverlängerung wurde gewährt.", 0.95)).isNull();
+    }
+
+    @Test
+    @DisplayName("a poorly readable scan with a needed value missing calls the AI; a good scan does not")
+    void poorScan() {
+        assertThat(AiDocumentReader.evidenceOfUnreadValue(java.util.Set.of("Frist"), LABELS, java.util.Set.of(),
+                "unleserlicher Text", 0.4)).contains("poorly readable");
+        assertThat(AiDocumentReader.evidenceOfUnreadValue(java.util.Set.of("Frist"), LABELS, java.util.Set.of(),
+                "ein gut gelesener Text ohne Datum", 0.9)).isNull();
     }
 }

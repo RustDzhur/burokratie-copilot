@@ -206,6 +206,11 @@ public class AiOrchestrator {
                 "Kein Anbieter konnte die Aufgabe beantworten: " + String.join("; ", attempts), attempts);
     }
 
+    /** Whether some provider is configured and switched on: asked before a job is even created. */
+    public boolean hasAvailableProvider() {
+        return providers.stream().anyMatch(AiProvider::isAvailable);
+    }
+
     /**
      * Whether external AI is allowed for this tenant.
      *

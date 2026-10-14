@@ -1,7 +1,6 @@
 package de.buerokratiecopilot.ai;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -101,8 +100,10 @@ public class AnthropicProvider implements AiProvider {
                 throw new ProviderUnavailableException("EMPTY_ANSWER", "The provider sent an empty answer", null);
             }
             JsonNode usage = root.path("usage");
-            return new Completion(text.toString().trim(), Map.of(), usage.path("input_tokens").asInt(0),
-                    usage.path("output_tokens").asInt(0), BigDecimal.ZERO, "EUR",
+            int tokensIn = usage.path("input_tokens").asInt(0);
+            int tokensOut = usage.path("output_tokens").asInt(0);
+            return new Completion(text.toString().trim(), Map.of(), tokensIn, tokensOut,
+                    config.costOf(tokensIn, tokensOut), "EUR",
                     System.currentTimeMillis() - started, List.of());
         }
         catch (ProviderUnavailableException ex) {

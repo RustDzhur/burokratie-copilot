@@ -155,4 +155,20 @@ class AnthropicProviderTest {
         assertThat(metadata.get("imageCount")).isEqualTo(2);
         assertThat(metadata.toString()).doesNotContain("AAAA").doesNotContain("geheim");
     }
+
+    @Test
+    @DisplayName("the cost of a call is computed from its tokens and the configured prices, so the monthly budget can hold")
+    void costFromTokens() throws Exception {
+        answer = "{\"content\":[{\"type\":\"text\",\"text\":\"{}\"}],\"usage\":{\"input_tokens\":10000,\"output_tokens\":500}}";
+        BurokratieProperties properties = properties("anthropic", true, "k", "");
+        properties.getAi().setPriceInputPerMillion(new java.math.BigDecimal("3.00"));
+        properties.getAi().setPriceOutputPerMillion(new java.math.BigDecimal("15.00"));
+
+        var completion = new AnthropicProvider(properties, json).complete(withPictures("x"));
+
+        // 10 000 * 3 / 1 000 000 + 500 * 15 / 1 000 000 = 0.03 + 0.0075
+        assertThat(completion.costAmount()).isEqualByComparingTo("0.0375");
+        assertThat(anthropic(true, "k").complete(withPictures("x")).costAmount())
+                .as("no price configured: nothing is claimed").isEqualByComparingTo("0");
+    }
 }

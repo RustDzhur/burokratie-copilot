@@ -16,10 +16,15 @@ import de.buerokratiecopilot.shared.outbox.OutboxEventHandler;
 @Component
 public class DocumentProcessedHandler implements OutboxEventHandler {
 
-    private final CaseOrchestrator orchestrator;
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DocumentProcessedHandler.class);
 
-    public DocumentProcessedHandler(CaseOrchestrator orchestrator) {
+    private final CaseOrchestrator orchestrator;
+    private final de.buerokratiecopilot.documents.reading.AiDocumentReader reader;
+
+    public DocumentProcessedHandler(CaseOrchestrator orchestrator,
+                                    de.buerokratiecopilot.documents.reading.AiDocumentReader reader) {
         this.orchestrator = orchestrator;
+        this.reader = reader;
     }
 
     @Override
@@ -29,6 +34,15 @@ public class DocumentProcessedHandler implements OutboxEventHandler {
 
     @Override
     public void handle(OutboxEvent event) {
+        // The platform's own reading has finished. Only if it left a value unread that the document needs (handwriting)
+        // is the AI asked, and a failure of the AI never stops the document from being organised.
+        try {
+            reader.readIfNeeded(event.getAggregateId());
+        }
+        catch (RuntimeException ex) {
+            log.warn("AI reading of document {} failed, continuing without it: {}", event.getAggregateId(),
+                    ex.getMessage());
+        }
         orchestrator.orchestrate(event.getAggregateId());
     }
 }
