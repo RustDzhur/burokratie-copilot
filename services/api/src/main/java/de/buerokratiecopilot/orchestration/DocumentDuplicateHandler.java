@@ -35,6 +35,6 @@ public class DocumentDuplicateHandler implements OutboxEventHandler {
                 "Der Inhalt stimmt mit einem bereits vorhandenen Dokument überein. Es wurde abgelegt, "
                         + "startet aber keinen zweiten Vorgang.",
                 "documents", event.getAggregateId(), "/documents/" + event.getAggregateId(),
-                "doc-duplicate-" + event.getAggregateId());
+                "doc-duplicate-" + event.getAggregateId(), notifier.documentFacts(event.getAggregateId()));
     }
 }

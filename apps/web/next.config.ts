@@ -51,7 +51,16 @@ const nextConfig: NextConfig = {
     return [{ source: '/api/v1/:path*', destination: `${apiOrigin}/api/v1/:path*` }];
   },
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }];
+    return [
+      { source: '/:path*', headers: securityHeaders },
+      // The stored file of a document is shown inside the document page (a PDF or an image in a frame). That is
+      // the one response the application itself frames, so it may be framed by its own origin and by nobody
+      // else; a later rule overrides the header of the same name above. Every other response stays DENY.
+      {
+        source: '/api/v1/documents/:id/content',
+        headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }],
+      },
+    ];
   },
 };
 

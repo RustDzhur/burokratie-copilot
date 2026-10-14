@@ -46,11 +46,14 @@ public class DocumentController {
 
     private final DocumentService documentService;
     private final de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline;
+    private final de.buerokratiecopilot.documents.DocumentTypeRepository documentTypes;
 
     public DocumentController(DocumentService documentService,
-                              de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline) {
+                              de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline,
+                              de.buerokratiecopilot.documents.DocumentTypeRepository documentTypes) {
         this.documentService = documentService;
         this.pipeline = pipeline;
+        this.documentTypes = documentTypes;
     }
 
     /** Summary of a document as returned by the API. */
@@ -71,9 +74,18 @@ public class DocumentController {
             UUID duplicateOfDocumentId,
             boolean legalHold,
             Instant receivedAt,
-            Instant updatedAt) {
+            Instant updatedAt,
+            String documentTypeCode,
+            String category,
+            java.util.Map<String, String> documentTypeNames) {
 
         static DocumentResponse from(Document document) {
+            return from(document, null);
+        }
+
+        /** With the type spelled out: the code, the category and the name in every language. */
+        static DocumentResponse from(Document document,
+                                     de.buerokratiecopilot.documents.domain.DocumentType type) {
             return new DocumentResponse(document.getId(), document.getOriginalFilename(),
                     document.getMimeType(), document.getSizeBytes(), document.getContentHash(),
                     document.getCurrentVersion(), document.getProcessingStatus().name(),
@@ -81,7 +93,10 @@ public class DocumentController {
                     document.getSource().name(), document.getDocumentNumber(),
                     document.getDocumentDate(), document.getDocumentTypeId(),
                     document.getDuplicateOfDocumentId(), document.isLegalHold(),
-                    document.getReceivedAt(), document.getUpdatedAt());
+                    document.getReceivedAt(), document.getUpdatedAt(),
+                    type == null ? null : type.getCode(), type == null ? null : type.getCategory(),
+                    type == null ? null : java.util.Map.of("de", type.nameIn("de"), "en", type.nameIn("en"),
+                            "ru", type.nameIn("ru")));
         }
     }
 
@@ -118,11 +133,25 @@ public class DocumentController {
             @RequestParam(required = false) @Size(max = 200) String q,
             @RequestParam(required = false) java.util.List<Document.ProcessingStatus> status,
             @RequestParam(required = false) java.util.List<Document.Source> source,
+            @RequestParam(required = false) @Size(max = 40) String category,
+            @RequestParam(required = false) @Size(max = 80) String type,
             @PageableDefault(size = 25, sort = "receivedAt") Pageable pageable) {
 
-        Page<DocumentResponse> page = documentService.list(q, status, source, pageable)
-                .map(DocumentResponse::from);
+        // The types are few and shared by every account; reading them once per request is cheaper than a join per row.
+        java.util.Map<java.util.UUID, de.buerokratiecopilot.documents.domain.DocumentType> byId =
+                new java.util.HashMap<>();
+        documentTypes.findAll().forEach(documentType -> byId.put(documentType.getId(), documentType));
+        Page<DocumentResponse> page = documentService.list(q, status, source, category, type, pageable)
+                .map(document -> DocumentResponse.from(document,
+                        document.getDocumentTypeId() == null ? null : byId.get(document.getDocumentTypeId())));
         return ResponseEntity.ok(page);
+    }
+
+    @GetMapping("/categories")
+    @PreAuthorize("hasAuthority('documents.view')")
+    @Operation(summary = "How many documents lie in each category (UNSORTED: no confirmed type yet)")
+    public ResponseEntity<java.util.Map<String, Long>> categories() {
+        return ResponseEntity.ok(documentService.countByCategory());
     }
 
     @GetMapping("/{id}")
@@ -132,19 +161,38 @@ public class DocumentController {
         return ResponseEntity.ok(DocumentResponse.from(documentService.require(id)));
     }
 
+    /**
+     * Types a browser shows itself and that cannot run code in the page. HTML, SVG and anything else a browser
+     * would interpret stay downloads: a stored file is served from the application's own origin, so showing it
+     * "inline" must never be possible for a format that can carry a script.
+     */
+    private static final java.util.Set<String> SHOWN_IN_BROWSER = java.util.Set.of("application/pdf", "image/png",
+            "image/jpeg", "image/gif", "image/webp", "text/plain");
+
     @GetMapping("/{id}/content")
     @PreAuthorize("hasAuthority('documents.view')")
-    @Operation(summary = "Download the stored file of the current version")
-    public ResponseEntity<InputStreamResource> content(@PathVariable UUID id) throws IOException {
-        DocumentService.Download download = documentService.openContent(id);
-        InputStream content = download.content();
+    @Operation(summary = "The stored file of the current version: shown in the browser when it can be, "
+            + "or downloaded with ?download=true")
+    public ResponseEntity<InputStreamResource> content(@PathVariable UUID id,
+                                                       @RequestParam(defaultValue = "false") boolean download)
+            throws IOException {
+        DocumentService.Download file = documentService.openContent(id);
+        InputStream content = file.content();
+        String type = file.contentType() == null ? "" : file.contentType().toLowerCase(java.util.Locale.ROOT);
+        boolean inline = !download && SHOWN_IN_BROWSER.contains(type.split(";")[0].trim());
+        // The file name is sanitised before it reaches this header, so a crafted name cannot inject a second
+        // header (spec §21.2). The name is also sent in its UTF-8 form so umlauts and Cyrillic survive.
+        String safeName = file.filename().replace("\"", "").replaceAll("[\\r\\n]", " ");
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentDisposition((inline
+                ? org.springframework.http.ContentDisposition.inline()
+                : org.springframework.http.ContentDisposition.attachment())
+                .filename(safeName, java.nio.charset.StandardCharsets.UTF_8).build());
+        headers.add("X-Content-Type-Options", "nosniff");
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(download.contentType()))
-                .contentLength(download.sizeBytes())
-                // The file name is sanitised before it reaches this header, so a crafted name cannot
-                // inject a second header (spec §21.2).
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" + download.filename().replace("\"", "") + "\"")
+                .contentType(MediaType.parseMediaType(file.contentType()))
+                .contentLength(file.sizeBytes())
+                .headers(headers)
                 .body(new InputStreamResource(content));
     }
 

@@ -183,12 +183,12 @@ public class OrchestrationWatchdog {
                 if (task.assignees().isEmpty()) {
                     notifier.tell(task.tenantId(), Notification.Category.MISSED_DEADLINE,
                             Notification.Severity.WARNING, "task.overdue", "Aufgabe überfällig", body, "tasks",
-                            task.id(), link(task), "task-overdue-" + task.id());
+                            task.id(), link(task), "task-overdue-" + task.id(), java.util.Map.of("taskTitle", task.title()));
                 }
                 else {
                     notifier.tell(task.tenantId(), task.assignees(), Notification.Category.MISSED_DEADLINE,
                             Notification.Severity.WARNING, "task.overdue", "Aufgabe überfällig", body, "tasks",
-                            task.id(), link(task), "task-overdue-" + task.id());
+                            task.id(), link(task), "task-overdue-" + task.id(), java.util.Map.of("taskTitle", task.title()));
                 }
                 mark(task.id(), "overdueNotifiedAt");
             });
@@ -210,12 +210,12 @@ public class OrchestrationWatchdog {
                 if (task.assignees().isEmpty()) {
                     notifier.tell(task.tenantId(), Notification.Category.DEADLINE, Notification.Severity.NOTICE,
                             "task.reminder", "Erinnerung an eine Aufgabe", body, "tasks", task.id(), link(task),
-                            "task-reminder-" + task.id());
+                            "task-reminder-" + task.id(), java.util.Map.of("taskTitle", task.title()));
                 }
                 else {
                     notifier.tell(task.tenantId(), task.assignees(), Notification.Category.DEADLINE,
                             Notification.Severity.NOTICE, "task.reminder", "Erinnerung an eine Aufgabe", body,
-                            "tasks", task.id(), link(task), "task-reminder-" + task.id());
+                            "tasks", task.id(), link(task), "task-reminder-" + task.id(), java.util.Map.of("taskTitle", task.title()));
                 }
                 mark(task.id(), "remindedAt");
             });
@@ -235,7 +235,7 @@ public class OrchestrationWatchdog {
                 notifier.tell(task.tenantId(), Notification.Category.TASK, Notification.Severity.WARNING,
                         "task.unassigned", "Aufgabe ohne Zuständigkeit",
                         "Die Aufgabe „" + task.title() + "“ hat seit über einem Tag keine zuständige Person.",
-                        "tasks", task.id(), link(task), "task-unassigned-" + task.id());
+                        "tasks", task.id(), link(task), "task-unassigned-" + task.id(), java.util.Map.of("taskTitle", task.title()));
                 mark(task.id(), "unassignedNotifiedAt");
             });
         }

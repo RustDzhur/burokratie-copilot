@@ -248,6 +248,13 @@ public class DocumentService {
     @Transactional(readOnly = true)
     public Page<Document> list(String query, java.util.Collection<Document.ProcessingStatus> statuses,
                                java.util.Collection<Document.Source> sources, Pageable pageable) {
+        return list(query, statuses, sources, null, null, pageable);
+    }
+
+    /** @param category a document type category, {@code UNSORTED} for documents without a type, or null for all */
+    public Page<Document> list(String query, java.util.Collection<Document.ProcessingStatus> statuses,
+                               java.util.Collection<Document.Source> sources, String category, String typeCode,
+                               Pageable pageable) {
         UUID tenantId = RequestContext.tenantId()
                 .orElseThrow(() -> new ApiException(ErrorCode.FORBIDDEN, "No tenant in context"));
         // Never pass null here: see the note on DocumentRepository.search.
@@ -256,7 +263,20 @@ public class DocumentService {
                         ? java.util.EnumSet.allOf(Document.ProcessingStatus.class) : statuses,
                 sources == null || sources.isEmpty()
                         ? java.util.EnumSet.allOf(Document.Source.class) : sources,
+                category == null ? "" : category, typeCode == null ? "" : typeCode,
                 pageable);
+    }
+
+    /** Documents per category, for the tabs of the document list. */
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Long> countByCategory() {
+        UUID tenantId = RequestContext.tenantId()
+                .orElseThrow(() -> new ApiException(ErrorCode.FORBIDDEN, "No tenant in context"));
+        java.util.Map<String, Long> counts = new java.util.LinkedHashMap<>();
+        for (Object[] row : documents.countByCategory(tenantId)) {
+            counts.put(String.valueOf(row[0]), ((Number) row[1]).longValue());
+        }
+        return counts;
     }
 
     /** Opens the bytes of the current version for download. */

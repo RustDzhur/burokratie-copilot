@@ -205,6 +205,19 @@ public final class FieldValueParser {
      * understand must not be converted into a wrong number of months.</p>
      */
     static Parsed parsePeriod(String value) {
+        // "01.11.2025 bis 31.12.2025" is a stretch of time between two dates, not a duration: it is kept as an ISO
+        // interval, which is what lets the platform see that a document concerns a period long since over.
+        Matcher range = Pattern.compile(
+                "(\\d{1,2}\\.\\d{1,2}\\.\\d{2,4}|\\d{4}-\\d{2}-\\d{2})\\s*(?:bis|-|–|—|до|по)\\s*"
+                        + "(\\d{1,2}\\.\\d{1,2}\\.\\d{2,4}|\\d{4}-\\d{2}-\\d{2})",
+                Pattern.CASE_INSENSITIVE).matcher(value);
+        if (range.find()) {
+            Parsed from = parseDate(range.group(1));
+            Parsed to = parseDate(range.group(2));
+            if (from.valid() && to.valid() && from.normalized().compareTo(to.normalized()) <= 0) {
+                return Parsed.of(value, from.normalized() + "/" + to.normalized());
+            }
+        }
         String lower = value.toLowerCase(Locale.GERMAN);
         Matcher matcher = Pattern.compile("(\\d+)\\s*(monat|monate|monaten|jahr|jahre|jahren|woche|wochen|tag|tage|tagen)")
                 .matcher(lower);

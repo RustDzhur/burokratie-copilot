@@ -67,8 +67,6 @@ public class CaseOrchestrator {
 
     private static final ZoneId BERLIN = ZoneId.of("Europe/Berlin");
     private static final String FALLBACK_TYPE = "unbekannt";
-    /** A stated date older than this is treated as an already settled matter, not as a missed deadline. */
-    private static final long HISTORICAL_AFTER_DAYS = 60;
 
     private final JdbcTemplate jdbc;
     private final CaseService cases;
@@ -79,11 +77,14 @@ public class CaseOrchestrator {
     private final NotificationService notifications;
     private final AuditService audit;
     private final EntityManager entityManager;
+    private final OwnerNotifier owners;
+    private final de.buerokratiecopilot.shared.settings.SettingsService settings;
 
     public CaseOrchestrator(JdbcTemplate jdbc, CaseService cases, TaskService tasks,
                             TaskDeadlineRepository deadlines, ContractService contracts,
                             CalendarEventService calendar, NotificationService notifications,
-                            AuditService audit, EntityManager entityManager) {
+                            AuditService audit, EntityManager entityManager, OwnerNotifier owners,
+                            de.buerokratiecopilot.shared.settings.SettingsService settings) {
         this.jdbc = jdbc;
         this.cases = cases;
         this.tasks = tasks;
@@ -93,6 +94,8 @@ public class CaseOrchestrator {
         this.notifications = notifications;
         this.audit = audit;
         this.entityManager = entityManager;
+        this.owners = owners;
+        this.settings = settings;
     }
 
     /** What happened to a document, in words a person can read. */
@@ -113,6 +116,15 @@ public class CaseOrchestrator {
 
     @Transactional
     public Outcome orchestrate(UUID documentId) {
+        return orchestrate(documentId, false);
+    }
+
+    /**
+     * @param force a person asked for the task although the document looks old: no archive decision is made, no
+     *              deadline is invented and nobody is notified (the person is the one who just asked)
+     */
+    @Transactional
+    public Outcome orchestrate(UUID documentId, boolean force) {
         List<Map<String, Object>> rows = jdbc.queryForList("""
                 select d.id, d.tenant_id, d.original_filename, d.sender, d.created_by, d.processing_status,
                        d.document_type_id, t.code as type_code, t.name ->> 'de' as type_name,
@@ -158,6 +170,36 @@ public class CaseOrchestrator {
         LocalDate today = LocalDate.now(BERLIN);
         Extracted dueValue = firstDate(values, scenario.dueKeys());
         LocalDate documentDue = dueValue == null ? null : dueValue.date();
+        String dueSnippet = dueValue == null ? null : dueValue.snippet();
+        String dueDerivation = null;
+
+        // What the document says about its own time: its date, the period it covers, a payment term in days.
+        LocalDate documentDate = firstNonNull(dateOf(values, "Rechnungsdatum"), dateOf(values, "Bescheiddatum"),
+                dateOf(values, "Schreibendatum"));
+        LocalDate periodFrom = null;
+        LocalDate periodTo = null;
+        Extracted period = values.get("Zeitraum");
+        if (period != null && period.normalized() != null && period.normalized().contains("/")) {
+            String[] ends = period.normalized().split("/");
+            try {
+                periodFrom = LocalDate.parse(ends[0]);
+                periodTo = LocalDate.parse(ends[1]);
+            }
+            catch (RuntimeException ignored) {
+                // a period that is not two dates is shown as text only
+            }
+        }
+        if (documentDue == null && documentDate != null) {
+            // "zahlbar innerhalb von 5 Tagen" is a term, not a date: it counts from the date of the document. The
+            // earlier code found no date, fell back to "today + 14 days" and put an invoice from last October
+            // due in two weeks.
+            Integer termDays = paymentTermDays(documentText(documentId));
+            if (termDays != null) {
+                documentDue = documentDate.plusDays(termDays);
+                dueDerivation = "Berechnet: " + documentDate + " + " + termDays + " Tage (Zahlungsfrist laut Dokument)";
+                dueSnippet = dueDerivation;
+            }
+        }
         BigDecimal amount = firstAmount(values, scenario.amountKeys());
         String reference = text(values, "Aktenzeichen", "Rechnungsnummer");
 
@@ -175,13 +217,55 @@ public class CaseOrchestrator {
             return new Outcome("FILE_ONLY", explanation, null, null, null);
         }
 
-        // ---- priority: the scenario's base, raised by the date the document states
+        // ---- is the document old?
         //
-        // A date that lies far in the past is not a missed deadline, it is almost always an old matter that
-        // somebody has filed (a form sent last year, a bill long paid). Raising it to "critical, due today"
-        // would put a false emergency in the calendar, so such a document keeps its normal priority and asks a
-        // person one question: is this already settled?
-        boolean historical = documentDue != null && ChronoUnit.DAYS.between(today, documentDue) < -HISTORICAL_AFTER_DAYS;
+        // People upload their archive, not only what arrived today, so the platform must not turn a letter from last
+        // year into work due in two weeks. Every date here comes from the document: the date it states, the
+        // payment term counted from its own date, the period it covers. A document whose stated deadline (or
+        // period, or - with nothing else to go by - date) lies well in the past is filed without a task, a calendar
+        // entry or a message, and says so. Nothing is invented to fill a gap: a document that states no deadline
+        // gets a task without one.
+        long staleDays = Math.max(1, settings.getInt("orchestration.stale_after_days", 30));
+        boolean documentOld = documentDate != null && ChronoUnit.DAYS.between(documentDate, today) > staleDays;
+        boolean looksOld;
+        if (documentDue != null) {
+            // For a legally relevant type the document's own date must also be old: a date misread from a fresh
+            // court letter must never file it away.
+            boolean dueOld = ChronoUnit.DAYS.between(today, documentDue) < -staleDays;
+            looksOld = dueOld && (documentDate != null ? documentOld : !scenario.legalDeadline());
+        }
+        else if (periodTo != null) {
+            looksOld = ChronoUnit.DAYS.between(today, periodTo) < -staleDays
+                    && (documentDate == null ? !scenario.legalDeadline() : documentOld);
+        }
+        else {
+            looksOld = documentDate != null && ChronoUnit.DAYS.between(documentDate, today) > staleDays * 3;
+        }
+        boolean historical = looksOld;
+        // A contract is registered whatever its age: the card, its dates and its notice period are the point.
+        if (looksOld && !force && !"CONTRACT".equals(scenario.actionKind())) {
+            String explanation = typeName + " erkannt. Das Dokument ist alt"
+                    + (documentDate == null ? "" : " (Datum " + documentDate + ")")
+                    + (documentDue == null ? "" : ", die Frist " + documentDue + " ist verstrichen")
+                    + ": es wurde abgelegt, ohne Aufgabe, Kalendereintrag oder Benachrichtigung.";
+            Map<String, Object> changes = new LinkedHashMap<>();
+            changes.put("result", "ARCHIVED_OLD");
+            changes.put("type", typeCode);
+            if (documentDate != null) {
+                changes.put("documentDate", documentDate.toString());
+            }
+            if (documentDue != null) {
+                changes.put("statedDue", documentDue.toString());
+            }
+            if (periodTo != null) {
+                changes.put("periodTo", periodTo.toString());
+            }
+            record(tenantId, documentId, filename, explanation, changes);
+            log.info("Document {} ({}) is old and was filed without work", documentId, typeCode);
+            return new Outcome("ARCHIVED_OLD", explanation, null, null, null);
+        }
+
+        // ---- priority: the scenario's base, raised by the date the document states
         String priority = scenario.priority();
         if (documentDue != null && !historical) {
             long daysLeft = ChronoUnit.DAYS.between(today, documentDue);
@@ -194,19 +278,13 @@ public class CaseOrchestrator {
         }
         String rationale = "Szenario " + typeCode + " (" + scenario.priority() + ")"
                 + (documentDue == null ? "" : ", Frist laut Dokument " + documentDue)
-                + (historical ? " - liegt weit zurück, vermutlich bereits erledigt" : "");
+                + (historical ? " - Dokument ist alt, Aufgabe auf Wunsch angelegt" : "");
 
-        // ---- dates
+        // ---- dates: only what the document states
         LocalDate internalDue = null;
         if (documentDue != null && !historical) {
             LocalDate lead = documentDue.minusDays(scenario.leadDays());
             internalDue = lead.isBefore(today) ? today : lead;
-        }
-        else if (historical) {
-            internalDue = today.plusDays(7);
-        }
-        else if (scenario.defaultDueDays() != null) {
-            internalDue = today.plusDays(scenario.defaultDueDays());
         }
 
         // ---- who is responsible
@@ -265,7 +343,8 @@ public class CaseOrchestrator {
             remindAt = internalDue.minusDays(1).atTime(9, 0).atZone(BERLIN).toInstant();
         }
         Task task = tasks.create(new TaskService.CreateRequest(tenantId, caseId, null, scenario.taskTitle(),
-                describe(doc, typeName, scenario, amount, documentDue, reference, historical),
+                describe(doc, typeName, scenario, amount, documentDue, reference, historical, documentDate,
+                        periodFrom, periodTo, dueDerivation),
                 Task.Priority.valueOf(priority),
                 "DOCUMENT", rationale, dueAt, remindAt, scenario.completionCriteria(),
                 scenario.requiresApproval(), null, responsible, List.of(typeCode), Task.Source.DOCUMENT,
@@ -279,20 +358,21 @@ public class CaseOrchestrator {
         }
 
         // ---- deadlines: the date the document states, and the date the platform wants work done by
-        if (documentDue != null) {
+        if (documentDue != null && !historical) {
             TaskDeadline stated = new TaskDeadline(UUID.randomUUID(), tenantId, task.getId(), caseId,
                     scenario.legalDeadline() ? TaskDeadline.DeadlineType.ASSUMED_LEGAL
                             : TaskDeadline.DeadlineType.DOCUMENT_DATE);
             stated.setDueDate(documentDue);
             stated.setSource(TaskDeadline.Source.DOCUMENT);
             stated.setSourceDocumentId(documentId);
-            stated.setSourceSnippet(dueValue.snippet());
+            stated.setSourceSnippet(dueSnippet);
             stated.setTimeZone("Europe/Berlin");
             stated.setCreatedBy(actor);
             stated.setNote((scenario.legalDeadline()
                     ? "Im Dokument genannte Frist. Eine rechtliche Frist ist damit nicht festgestellt; "
                             + "Zustellung und Besonderheiten müssen geprüft werden."
                     : "Im Dokument genannte Frist.")
+                    + (dueDerivation != null ? " " + dueDerivation + "." : "")
                     + (historical ? " Das Datum liegt weit zurück: vermutlich ein bereits erledigter Vorgang. "
                             + "Bitte bestätigen, dass er abgeschlossen ist, oder die Aufgabe schließen." : "")
                     + " Die Zahl wurde automatisch aus dem Text gelesen und kann falsch sein.");
@@ -306,14 +386,8 @@ public class CaseOrchestrator {
             internal.setSourceDocumentId(documentId);
             internal.setTimeZone("Europe/Berlin");
             internal.setCreatedBy(actor);
-            internal.setNote(historical
-                    ? "Das Dokument nennt " + documentDue + ", das liegt weit zurück. Der Termin in sieben Tagen "
-                            + "ist nur eine Erinnerung, zu klären, ob der Vorgang schon erledigt ist."
-                    : documentDue == null
-                    ? "Das Dokument nennt keine Frist; Standardzeit des Szenarios " + scenario.defaultDueDays()
-                            + " Tage."
-                    : "Interner Termin: " + scenario.leadDays()
-                            + " Tage vor der Frist, damit Prüfung und Rückfrage möglich bleiben.");
+            internal.setNote("Interner Termin: " + scenario.leadDays()
+                    + " Tage vor der Frist, damit Prüfung und Rückfrage möglich bleiben.");
             deadlines.save(internal);
         }
 
@@ -326,8 +400,10 @@ public class CaseOrchestrator {
         }
 
         // ---- tell the person responsible, or those who must distribute the work
-        notifyPeople(tenantId, task, scenario, priority, typeName, filename, documentId, responsible, owner,
-                documentDue);
+        if (!force) {
+            notifyPeople(tenantId, task, scenario, priority, typeName, filename, documentId, responsible, owner,
+                    documentDue);
+        }
 
         String explanation = typeName + " erkannt"
                 + (doc.get("confidence") == null ? "" : " (" + percent(doc.get("confidence")) + " %)")
@@ -412,6 +488,9 @@ public class CaseOrchestrator {
 
     private void calendarEvent(UUID tenantId, UUID actor, UUID caseId, String title, LocalDate date, String note,
                                UUID documentId) {
+        if (date.isBefore(LocalDate.now(BERLIN))) {
+            return; // a date that has passed is history, not something to put in front of the person
+        }
         try {
             calendar.create(tenantId, new CalendarEventService.Draft(title, date, null,
                     CalendarEventService.Kind.REMINDER, caseId), actor, note, documentId);
@@ -447,9 +526,15 @@ public class CaseOrchestrator {
         String body = typeName + " · " + filename
                 + (documentDue == null ? "" : " · Frist laut Dokument: " + documentDue)
                 + (responsible == null ? " · Zuständigkeit offen: bitte zuweisen" : "");
+        Map<String, Object> facts = owners.documentFacts(documentId);
         for (UUID recipient : recipients) {
             try {
                 Map<String, Object> parameters = new LinkedHashMap<>();
+                // Facts for the screen, which writes the sentence in the user's language.
+                parameters.putAll(facts);
+                parameters.put("taskTitle", scenario.taskTitle());
+                parameters.put("dueDate", documentDue == null ? null : documentDue.toString());
+                parameters.put("unassigned", responsible == null);
                 parameters.put("title", scenario.taskTitle());
                 parameters.put("body", body);
                 parameters.put("documentId", documentId.toString());
@@ -564,6 +649,51 @@ public class CaseOrchestrator {
         }
     }
 
+    @SafeVarargs
+    private static <T> T firstNonNull(T... candidates) {
+        for (T candidate : candidates) {
+            if (candidate != null) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    private String documentText(UUID documentId) {
+        String text = jdbc.queryForObject("select coalesce(extracted_text, '') from documents where id = ?",
+                String.class, documentId);
+        return text == null ? "" : text;
+    }
+
+    private static final java.util.regex.Pattern TERM_IN_DAYS = java.util.regex.Pattern.compile(
+            "(?:(?:innerhalb|binnen)\\s+(?:von\\s+)?|zahlungsziel\\s*:?\\s*|zahlungsfrist\\s*:?\\s*"
+                    + "|zahlbar\\s+(?:innerhalb\\s+)?(?:von\\s+)?|(?:протягом|впродовж|в течение|через)\\s+)"
+                    + "(\\d{1,3})\\s*(?:kalender)?(?:tag|дн|день|дней)",
+            java.util.regex.Pattern.CASE_INSENSITIVE | java.util.regex.Pattern.UNICODE_CASE);
+    private static final java.util.regex.Pattern NET_DAYS = java.util.regex.Pattern.compile(
+            "(\\d{1,3})\\s*tage\\s*(?:netto|nach|ab)", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    /**
+     * A payment term written as a number of days ("zahlbar innerhalb von 5 Tagen", "Zahlungsziel: 14 Tage",
+     * "30 Tage netto"), or null. Working-day terms ("Werktage") are not read: counting them needs a holiday
+     * calendar, and a wrong date is worse than none.
+     */
+    static Integer paymentTermDays(String text) {
+        if (text == null || text.isBlank() || text.toLowerCase(Locale.GERMAN).matches("(?s).*(werktag|arbeitstag).*")) {
+            return null;
+        }
+        for (java.util.regex.Pattern pattern : List.of(TERM_IN_DAYS, NET_DAYS)) {
+            java.util.regex.Matcher matcher = pattern.matcher(text);
+            if (matcher.find()) {
+                int days = Integer.parseInt(matcher.group(1));
+                if (days >= 1 && days <= 120) {
+                    return days;
+                }
+            }
+        }
+        return null;
+    }
+
     private static String text(Map<String, Extracted> values, String... keys) {
         for (String key : keys) {
             Extracted candidate = values.get(key);
@@ -610,7 +740,8 @@ public class CaseOrchestrator {
 
     private static String describe(Map<String, Object> doc, String typeName, Scenario scenario,
                                    BigDecimal amount, LocalDate documentDue, String reference,
-                                   boolean historical) {
+                                   boolean historical, LocalDate documentDate, LocalDate periodFrom,
+                                   LocalDate periodTo, String dueDerivation) {
         StringBuilder text = new StringBuilder();
         text.append("Dokument: ").append(doc.get("original_filename")).append('\n');
         if (doc.get("sender") != null) {
@@ -627,6 +758,15 @@ public class CaseOrchestrator {
         if (amount != null) {
             text.append("Betrag: ").append(amount.toPlainString())
                     .append(" EUR (aus dem Dokument gelesen, ungeprüft)\n");
+        }
+        if (documentDate != null) {
+            text.append("Datum des Dokuments: ").append(documentDate).append('\n');
+        }
+        if (periodFrom != null && periodTo != null) {
+            text.append("Zeitraum laut Dokument: ").append(periodFrom).append(" – ").append(periodTo).append('\n');
+        }
+        if (dueDerivation != null) {
+            text.append(dueDerivation).append('\n');
         }
         if (documentDue != null) {
             text.append("Frist laut Dokument: ").append(documentDue).append(historical

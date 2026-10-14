@@ -61,6 +61,18 @@ class FieldValueParserTest {
     }
 
     @ParameterizedTest
+    @CsvSource({
+        "'01.11.2025 bis 31.12.2025', 2025-11-01/2025-12-31",
+        "'vom 01.11.2025 - 31.12.2025', 2025-11-01/2025-12-31",
+        "'2025-11-01 bis 2025-12-31', 2025-11-01/2025-12-31",
+        "'24 Monate', 24"
+    })
+    @DisplayName("two dates are a period kept as an ISO interval; a duration stays months")
+    void parsesPeriods(String raw, String expected) {
+        assertThat(FieldValueParser.parse(raw, "PERIOD").normalized()).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = { "31.02.2026", "32.01.2026", "00.00.2026", "kein Datum", "2026-13-01" })
     @DisplayName("a date that does not exist is refused, not rolled over")
     void refusesImpossibleDates(String raw) {

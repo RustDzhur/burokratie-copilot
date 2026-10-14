@@ -33,6 +33,10 @@ export interface DocumentSummary {
   readonly ownerName?: string | null;
   readonly pageCount?: number | null;
   readonly sizeBytes?: number | null;
+  /** The document type by name in every language, its code and the category the list is sorted into. */
+  readonly typeNames?: Readonly<Record<string, string>> | null;
+  readonly typeCode?: string | null;
+  readonly category?: string | null;
 }
 
 export interface ExtractedField {
@@ -303,6 +307,9 @@ export interface NotificationSummary {
   readonly read: boolean;
   readonly receivedAt: IsoDateTime;
   readonly link?: string | null;
+  /** What kind of message this is, and the facts it is about; the screen writes the sentence from them. */
+  readonly kind?: string;
+  readonly facts?: Readonly<Record<string, unknown>>;
 }
 
 export type AuditResult = 'success' | 'failure' | 'denied';

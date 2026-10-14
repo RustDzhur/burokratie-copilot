@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Badge, Card, CardBody, CardHeader } from '@/components/ui';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 import { InlineAlert, SkeletonText } from '@/components/ui/feedback';
 import { formatDateTime, formatPercent } from '@/i18n/format';
 import { useLocale, useTranslations } from '@/i18n/provider';
@@ -64,8 +66,10 @@ export function ProcessingPanel({ documentId, reloadKey = 0 }: ProcessingPanelPr
   const t = useTranslations('documentViewer');
   const locale = useLocale();
   const [polling, setPolling] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const toast = useToast();
 
-  const { state } = useApiResource<ProcessingFlow>(
+  const { state, reload } = useApiResource<ProcessingFlow>(
     (signal) => api.documents.pipeline(documentId, signal),
     [documentId, reloadKey],
     { keepPreviousData: true, pollMs: polling ? 3000 : undefined },
@@ -96,6 +100,57 @@ export function ProcessingPanel({ documentId, reloadKey = 0 }: ProcessingPanelPr
 
   const flow = state.data;
   const outcome = flow.outcome;
+  // Every sentence below is built here from facts, in the interface language; the backend's own sentences are
+  // German and are only the fallback for a result this client does not know.
+  const typeLabel =
+    flow.typeNames?.[locale] ?? flow.typeNames?.de ?? flow.documentTypeName ?? flow.suggestedType?.name ?? null;
+  const resultText = ((): string => {
+    switch (outcome.result) {
+      case 'TASK_CREATED':
+        return [
+          t('flow.out.TASK_CREATED', { type: typeLabel ?? t('flow.out.unknownType'), task: outcome.taskTitle ?? '' }),
+          outcome.assignmentPending ? t('flow.out.unassigned') : '',
+          outcome.humanReview ? t('flow.out.humanReview') : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
+      case 'FILE_ONLY':
+        return t('flow.out.FILE_ONLY', { type: typeLabel ?? t('flow.out.unknownType') });
+      case 'ARCHIVED_OLD':
+        return outcome.statedDue
+          ? t('flow.out.ARCHIVED_OLD_DUE', {
+              type: typeLabel ?? t('flow.out.unknownType'),
+              date: outcome.documentDate ?? '—',
+              due: outcome.statedDue,
+            })
+          : t('flow.out.ARCHIVED_OLD', {
+              type: typeLabel ?? t('flow.out.unknownType'),
+              date: outcome.documentDate ?? outcome.periodTo ?? '—',
+            });
+      case 'PROCESSING':
+        return t('flow.out.PROCESSING');
+      case 'WAITING_FOR_REVIEW':
+        return t('flow.out.WAITING_FOR_REVIEW');
+      case 'DUPLICATE':
+        return t('flow.out.DUPLICATE');
+      case 'FAILED':
+        return t('flow.out.FAILED');
+      default:
+        return outcome.explanation ?? outcome.next;
+    }
+  })();
+  const reasonText =
+    flow.reviewKind === 'LOW_CONFIDENCE'
+      ? t('flow.reason.LOW_CONFIDENCE', {
+          type: typeLabel ?? '',
+          confidence: Math.round((flow.suggestedType?.confidence ?? 0) * 100),
+          threshold: flow.acceptThreshold ?? 85,
+        })
+      : flow.reviewKind === 'TYPE_ALWAYS_REVIEW'
+        ? t('flow.reason.TYPE_ALWAYS_REVIEW', { type: typeLabel ?? '' })
+        : flow.reviewKind === 'NO_MATCH'
+          ? t('flow.reason.NO_MATCH')
+          : (flow.reviewReason ?? null);
   const stepLabel = (step: ProcessingStep): string => {
     const key = STEP_KEYS[step.step as keyof typeof STEP_KEYS];
     return key ? t(key) : step.step;
@@ -109,14 +164,14 @@ export function ProcessingPanel({ documentId, reloadKey = 0 }: ProcessingPanelPr
     <Card>
       <CardHeader
         title={t('flow.title')}
-        description={outcome.explanation ?? outcome.next}
+        description={resultText}
         icon="sparkles"
         headingLevel={2}
       />
       <CardBody>
         {outcome.result === 'WAITING_FOR_REVIEW' ? (
           <InlineAlert tone="warning" title={t('flow.review.title')}>
-            {flow.reviewReason ? <p>{flow.reviewReason}</p> : null}
+            {reasonText ? <p>{reasonText}</p> : null}
             <Link href="/review">{t('flow.review.link')}</Link>
           </InlineAlert>
         ) : null}
@@ -124,6 +179,27 @@ export function ProcessingPanel({ documentId, reloadKey = 0 }: ProcessingPanelPr
           <InlineAlert tone="danger" title={t('processing.failed')}>
             {outcome.next}
           </InlineAlert>
+        ) : null}
+        {outcome.result === 'ARCHIVED_OLD' ? (
+          <p>
+            <Button
+              variant="secondary"
+              loading={creating}
+              onClick={() => {
+                setCreating(true);
+                void api.documents
+                  .createTask(documentId)
+                  .then(() => {
+                    toast.success(t('flow.createTask.done'));
+                    reload();
+                  })
+                  .catch(() => toast.error(t('flow.createTask.failed')))
+                  .finally(() => setCreating(false));
+              }}
+            >
+              {t('flow.createTask')}
+            </Button>
+          </p>
         ) : null}
         {outcome.result === 'TASK_CREATED' && outcome.assignmentPending ? (
           <InlineAlert tone="warning" title={t('flow.unassigned')}>
@@ -134,7 +210,7 @@ export function ProcessingPanel({ documentId, reloadKey = 0 }: ProcessingPanelPr
         <div className={styles.facts}>
           {flow.documentTypeName ? (
             <Badge tone="accent" variant="outline">
-              {flow.documentTypeName}
+              {typeLabel ?? flow.documentTypeName}
               {typeof flow.confidence === 'number'
                 ? ` · ${formatPercent(flow.confidence, locale)}`
                 : ''}
@@ -142,7 +218,7 @@ export function ProcessingPanel({ documentId, reloadKey = 0 }: ProcessingPanelPr
           ) : null}
           {!flow.documentTypeName && flow.suggestedType ? (
             <Badge tone="warning" variant="outline">
-              {t('flow.suggested')}: {flow.suggestedType.name}
+              {t('flow.suggested')}: {typeLabel ?? flow.suggestedType.name}
               {typeof flow.suggestedType.confidence === 'number'
                 ? ` · ${formatPercent(flow.suggestedType.confidence, locale)}`
                 : ''}
@@ -163,6 +239,19 @@ export function ProcessingPanel({ documentId, reloadKey = 0 }: ProcessingPanelPr
             {outcome.caseId ? <Link href="/cases">{t('flow.openCase')}</Link> : null}
             {outcome.contractId ? <Link href="/contracts">{t('flow.openContract')}</Link> : null}
           </p>
+        ) : null}
+
+        {flow.matchedPassages.length > 0 && !flow.documentTypeName ? (
+          <div className={styles.passages}>
+            <strong>{t('flow.foundInText')}:</strong>
+            <ul>
+              {flow.matchedPassages.map((passage) => (
+                <li key={passage.pattern}>
+                  <q>{passage.snippet}</q>
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
 
         {flow.textPreview ? (

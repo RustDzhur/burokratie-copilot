@@ -32,9 +32,64 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class DocumentOutcomeController {
 
     private final JdbcTemplate jdbc;
+    private final de.buerokratiecopilot.orchestration.OwnerNotifier facts;
+    private final de.buerokratiecopilot.orchestration.CaseOrchestrator orchestrator;
 
-    public DocumentOutcomeController(JdbcTemplate jdbc) {
+    public DocumentOutcomeController(JdbcTemplate jdbc, de.buerokratiecopilot.orchestration.OwnerNotifier facts,
+                                     de.buerokratiecopilot.orchestration.CaseOrchestrator orchestrator) {
         this.jdbc = jdbc;
+        this.facts = facts;
+        this.orchestrator = orchestrator;
+    }
+
+    /**
+     * The platform filed an old document without work; this is how a person says "make a task anyway".
+     * Nothing is archived or invented on the way: the task has no deadline unless the document states one that is
+     * not in the past.
+     */
+    @org.springframework.web.bind.annotation.PostMapping("/{id}/create-task")
+    @PreAuthorize("hasAuthority('tasks.create')")
+    @Operation(summary = "Create the task for a document that was filed as old")
+    public ResponseEntity<Map<String, Object>> createTask(@PathVariable UUID id) {
+        var outcome = orchestrator.orchestrate(id, true);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("result", outcome.result());
+        body.put("explanation", outcome.explanation());
+        body.put("taskId", outcome.taskId());
+        return ResponseEntity.ok(body);
+    }
+
+    /** The words that made a rule fire, with the text around them, so "why was this suggested?" has an answer. */
+    private List<Map<String, Object>> matchedPassages(UUID documentId) {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                select r.pattern, lower(left(d.extracted_text, 30000)) as lowered, left(d.extracted_text, 30000) as text
+                from document_classifications c
+                join document_type_rules r on r.document_type_id = c.document_type_id and r.is_active
+                     and r.rule_type = 'KEYWORD' and (r.tenant_id is null or r.tenant_id = d.tenant_id)
+                join documents d on d.id = c.document_id
+                where c.document_id = ? and c.is_current
+                """, documentId);
+        List<Map<String, Object>> passages = new java.util.ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            String lowered = String.valueOf(row.get("lowered"));
+            String pattern = String.valueOf(row.get("pattern")).toLowerCase(java.util.Locale.GERMAN);
+            int at = lowered.indexOf(pattern);
+            if (at < 0 || row.get("text") == null) {
+                continue;
+            }
+            String text = String.valueOf(row.get("text"));
+            int from = Math.max(0, at - 45);
+            int to = Math.min(text.length(), at + pattern.length() + 45);
+            Map<String, Object> passage = new LinkedHashMap<>();
+            passage.put("pattern", row.get("pattern"));
+            passage.put("snippet", (from > 0 ? "…" : "") + text.substring(from, to).replaceAll("\\s+", " ").strip()
+                    + (to < text.length() ? "…" : ""));
+            passages.add(passage);
+            if (passages.size() == 4) {
+                break;
+            }
+        }
+        return passages;
     }
 
     @GetMapping("/{id}/pipeline")
@@ -76,7 +131,9 @@ public class DocumentOutcomeController {
                   and t.source = 'DOCUMENT'
                 """, id);
         List<Map<String, Object>> audit = jdbc.queryForList("""
-                select description, changes ->> 'result' as result from audit_events
+                select description, changes ->> 'result' as result, changes ->> 'documentDate' as document_date,
+                       changes ->> 'statedDue' as stated_due, changes ->> 'periodTo' as period_to
+                from audit_events
                 where entity_type = 'documents' and entity_id = ? and action = 'DOCUMENT_ORCHESTRATED'
                 order by created_at desc limit 1
                 """, id);
@@ -98,12 +155,22 @@ public class DocumentOutcomeController {
             if (!contracts.isEmpty()) {
                 outcome.put("contractId", contracts.get(0).get("id"));
             }
+            List<Map<String, Object>> scenario = jdbc.queryForList("""
+                    select s.requires_human_review from document_type_scenarios s
+                    join document_types dt on dt.code = s.document_type_code
+                    join documents d on d.document_type_id = dt.id
+                    where d.id = ? and s.tenant_id is null
+                    """, id);
+            outcome.put("humanReview", !scenario.isEmpty() && Boolean.TRUE.equals(scenario.get(0).get("requires_human_review")));
             next = Boolean.TRUE.equals(task.get("assignment_pending"))
                     ? "Die Aufgabe wartet darauf, jemandem zugewiesen zu werden."
                     : "Die Aufgabe wartet auf Bearbeitung.";
         }
         else if (!audit.isEmpty()) {
             outcome.put("result", audit.get(0).get("result"));
+            outcome.put("documentDate", audit.get(0).get("document_date"));
+            outcome.put("statedDue", audit.get(0).get("stated_due"));
+            outcome.put("periodTo", audit.get(0).get("period_to"));
             next = "Keine weitere Handlung nötig.";
         }
         else if ("REVIEW_REQUIRED".equals(status)) {
@@ -148,6 +215,11 @@ public class DocumentOutcomeController {
         body.put("confidence", document.get("confidence"));
         body.put("suggestedType", suggestion.isEmpty() ? null : suggestion.get(0));
         body.put("reviewReason", reason.isEmpty() ? null : reason.get(0).get("reason"));
+        Map<String, Object> documentFacts = facts.documentFacts(id);
+        body.put("reviewKind", reason.isEmpty() ? null : documentFacts.get("reviewKind"));
+        body.put("acceptThreshold", documentFacts.get("acceptThreshold"));
+        body.put("typeNames", documentFacts.get("typeName"));
+        body.put("matchedPassages", suggestion.isEmpty() ? List.of() : matchedPassages(id));
         body.put("textPreview", text.isEmpty() ? null : text.get(0).get("preview"));
         body.put("steps", steps);
         body.put("outcome", outcome);

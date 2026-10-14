@@ -294,6 +294,8 @@ export interface ApiResources {
     upload: (file: File, options?: UploadOptions) => Promise<DocumentSummary>;
     reprocess: (id: string) => Promise<void>;
     pipeline: (id: string, signal?: AbortSignal) => Promise<ProcessingFlow>;
+    categoryCounts: (signal?: AbortSignal) => Promise<Readonly<Record<string, number>>>;
+    createTask: (id: string) => Promise<void>;
     downloadOriginal: (id: string) => Promise<Blob>;
     confirmFields: (id: string, payload: ConfirmFieldsPayload) => Promise<void>;
     archive: (id: string) => Promise<void>;
@@ -738,7 +740,12 @@ export function createResources(client: ApiClient): ApiResources {
         await client.post<unknown>(`/documents/${id}/reprocess`, undefined, { idempotencyKey: true });
       },
       pipeline: (id, signal) => client.get<ProcessingFlow>(`/documents/${id}/pipeline`, withSignal(signal)),
-      downloadOriginal: (id) => client.request<Blob>(`/documents/${id}/content`, { parse: 'blob' }),
+      createTask: async (id) => {
+        await client.post<unknown>(`/documents/${id}/create-task`, undefined, { idempotencyKey: true });
+      },
+      categoryCounts: (signal) => client.get<Record<string, number>>('/documents/categories', withSignal(signal)),
+      downloadOriginal: (id) =>
+        client.request<Blob>(`/documents/${id}/content`, { parse: 'blob', query: { download: 'true' } }),
       confirmFields: async (id, payload) => decideOpenReview(client, id, approvalFromFields(payload.fields)),
       archive: async (id) => {
         await client.post<unknown>(`/documents/${id}/status`, undefined, {

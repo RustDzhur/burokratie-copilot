@@ -7,6 +7,7 @@ import { ProcessingPanel } from '@/components/app/processing-panel';
 import { PageHeader, PageSection, ResourceView } from '@/components/app/resource-view';
 import { Badge, Card, CardBody, CardHeader, EmptyState, StatusPill, Tabs } from '@/components/ui';
 import { Button } from '@/components/ui/button';
+import { buttonClass } from '@/components/ui/button-class';
 import { InlineAlert, SkeletonText } from '@/components/ui/feedback';
 import { useToast } from '@/components/ui/toast';
 import { formatDate, formatDateTime, formatPercent } from '@/i18n/format';
@@ -45,11 +46,11 @@ export default function DocumentViewerPage() {
     [id],
   );
 
-  const download = async (): Promise<void> => {
+  const download = async (fileName?: string): Promise<void> => {
     setBusy(true);
     try {
       const blob = await api.documents.downloadOriginal(id);
-      downloadBlob(blob, `${id}.pdf`);
+      downloadBlob(blob, fileName ?? id);
     } catch (error) {
       toast.error(tErrors(toApiError(error).kind));
     } finally {
@@ -83,11 +84,19 @@ export default function DocumentViewerPage() {
         ]}
         actions={
           <>
+            <a
+              href={`/api/v1/documents/${id}/content`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonClass({ variant: 'secondary' })}
+            >
+              {t('action.openInBrowser')}
+            </a>
             <Button
               variant="secondary"
               iconLeft="download"
               loading={busy}
-              onClick={() => void download()}
+              onClick={() => void download(state.status === 'ready' ? state.data.title : undefined)}
             >
               {t('action.download')}
             </Button>
@@ -174,7 +183,7 @@ export default function DocumentViewerPage() {
                         <Button
                           variant="secondary"
                           iconLeft="download"
-                          onClick={() => void download()}
+                          onClick={() => void download(document.title)}
                         >
                           {t('action.download')}
                         </Button>

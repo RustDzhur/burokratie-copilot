@@ -27,6 +27,9 @@ export interface DocumentWire {
   readonly reviewStatus?: string | null;
   readonly source: string;
   readonly documentTypeId?: string | null;
+  readonly documentTypeCode?: string | null;
+  readonly documentTypeNames?: Readonly<Record<string, string>> | null;
+  readonly category?: string | null;
   readonly legalHold?: boolean;
   readonly receivedAt: string;
 }
@@ -164,7 +167,10 @@ export function documentFromWire(wire: DocumentWire): DocumentSummary {
   return {
     id: wire.id,
     title: wire.originalFilename,
-    documentType: wire.documentTypeId ?? '',
+    documentType: wire.documentTypeCode ?? '',
+    typeCode: wire.documentTypeCode ?? null,
+    typeNames: wire.documentTypeNames ?? null,
+    category: wire.category ?? null,
     status: STATUS_FROM_WIRE[wire.processingStatus] ?? 'received',
     channel: CHANNEL_FROM_WIRE[wire.source] ?? 'upload',
     senderName: null,
@@ -207,6 +213,15 @@ export function historyFromWire(event: AuditEventWire): DocumentHistoryEntry {
   };
 }
 
+const BROWSER_PREVIEW_TYPES: ReadonlySet<string> = new Set([
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'text/plain',
+]);
+
 export function documentDetailFromWire(
   document: DocumentWire,
   fields: FieldsWire | null,
@@ -218,8 +233,9 @@ export function documentDetailFromWire(
     mimeType: document.mimeType ?? null,
     fields: (fields?.fields ?? []).map(fieldFromWire),
     history: (history?.events ?? []).map(historyFromWire),
-    // The file is served by GET /documents/{id}/content for any stored version.
-    previewAvailable: true,
+    // GET /documents/{id}/content shows these types in the browser; everything else is only a download, and a
+    // preview frame pointed at a download would fetch the file again on every visit.
+    previewAvailable: BROWSER_PREVIEW_TYPES.has((document.mimeType ?? '').toLowerCase().split(';')[0]?.trim() ?? ''),
     processingError: document.processingStatus === 'FAILED' ? document.processingStatus : null,
   };
 }

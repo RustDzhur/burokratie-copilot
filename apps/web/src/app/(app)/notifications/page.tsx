@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/toast';
 import { formatDateTime } from '@/i18n/format';
 import { useLocale, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
+import { useNotificationText } from '@/lib/format/notification-text';
 import { toApiError } from '@/lib/api/errors';
 import type { NotificationSummary } from '@/lib/api/types';
 import { NotificationPreferencesDialog } from './notification-preferences-dialog';
@@ -33,6 +34,7 @@ export default function NotificationsPage() {
   const tErrors = useTranslations('errors');
   const locale = useLocale();
   const toast = useToast();
+  const textOf = useNotificationText();
 
   const [reloadToken, setReloadToken] = useState(0);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
@@ -80,7 +82,7 @@ export default function NotificationsPage() {
             fontWeight: row.read ? 400 : 600,
           }}
         >
-          {row.title}
+          {textOf(row).title}
         </button>
       ),
     },
@@ -176,7 +178,7 @@ export default function NotificationsPage() {
       <Dialog
         open={opened !== null}
         onClose={() => setOpened(null)}
-        title={opened?.title ?? ''}
+        title={opened ? textOf(opened).title : ''}
         description={
           opened
             ? `${t(`category.${opened.category}` as 'category.task')} · ${formatDateTime(opened.receivedAt, locale)}`
@@ -186,7 +188,7 @@ export default function NotificationsPage() {
         {opened ? (
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <p style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-              {opened.body ?? t('detail.noBody')}
+              {textOf(opened).body ?? t('detail.noBody')}
             </p>
             <p style={{ margin: 0, fontSize: '0.875rem' }}>
               {t('detail.channels')}:{' '}

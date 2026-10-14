@@ -161,6 +161,8 @@ export function notificationFromWire(wire: NotificationWire): NotificationSummar
     read: wire.read,
     receivedAt: wire.createdAt,
     link: wire.actionUrl ?? null,
+    kind: wire.titleKey,
+    facts: wire.parameters ?? undefined,
   };
 }
 

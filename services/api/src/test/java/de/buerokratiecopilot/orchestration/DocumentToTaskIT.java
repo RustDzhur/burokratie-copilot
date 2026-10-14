@@ -66,6 +66,9 @@ class DocumentToTaskIT {
     private OrchestrationWatchdog watchdog;
 
     @Autowired
+    private CaseOrchestrator orchestrator;
+
+    @Autowired
     private JdbcTemplate jdbc;
 
     private record Account(UUID tenantId, UUID adminUserId) {
@@ -376,34 +379,126 @@ class DocumentToTaskIT {
                 });
     }
 
+    private String invoice(LocalDate invoiceDate, String term) {
+        return """
+                Stadtwerke Musterstadt GmbH
+                Rechnung
+                Rechnungsnummer: RE-%d
+                Rechnungsdatum: %s
+                Rechnungsbetrag: 280,00 EUR
+                %s
+                """.formatted(System.nanoTime() % 1000000, invoiceDate.format(GERMAN), term);
+    }
+
+    private int count(String sql, Object... args) {
+        Integer value = jdbc.queryForObject(sql, Integer.class, args);
+        return value == null ? 0 : value;
+    }
+
     @Test
-    @DisplayName("a deadline from years ago is not turned into an emergency, and the calendar entry explains itself")
-    void oldDeadlineIsAQuestionNotAnEmergency() {
+    @DisplayName("a payment term in days counts from the invoice date, not from the day of the upload")
+    void paymentTermCountsFromTheInvoiceDate() {
         Account account = account();
-        LocalDate longAgo = LocalDate.now().minusYears(1).minusDays(20);
-        UUID documentId = uploadAndRun(account, "alt.txt", mahnung(longAgo));
+        LocalDate invoiceDate = LocalDate.now().minusDays(1);
+        UUID documentId = uploadAndRun(account, "rechnung.txt",
+                invoice(invoiceDate, "Zahlbar innerhalb von 5 Tagen ohne Abzug."));
 
-        Map<String, Object> task = jdbc.queryForMap("""
-                select id, priority, description from tasks where source_document_id = ? and source = 'DOCUMENT'
+        UUID taskId = jdbc.queryForObject(
+                "select id from tasks where source_document_id = ? and source = 'DOCUMENT'", UUID.class, documentId);
+        assertThat(jdbc.queryForObject(
+                "select due_date from task_deadlines where task_id = ? and deadline_type = 'DOCUMENT_DATE'",
+                LocalDate.class, taskId)).isEqualTo(invoiceDate.plusDays(5));
+        assertThat(jdbc.queryForObject(
+                "select note from task_deadlines where task_id = ? and deadline_type = 'DOCUMENT_DATE'",
+                String.class, taskId)).contains("Berechnet").contains("5 Tage");
+    }
+
+    @Test
+    @DisplayName("an old invoice is filed without a task, a calendar entry or a message: nothing is invented")
+    void oldInvoiceIsFiledQuietly() {
+        Account account = account();
+        LocalDate invoiceDate = LocalDate.now().minusYears(1);
+        UUID documentId = uploadAndRun(account, "alte-rechnung.txt",
+                invoice(invoiceDate, "Zahlbar innerhalb von 5 Tagen ohne Abzug."));
+
+        assertThat(count("select count(*) from tasks where source_document_id = ?", documentId)).isZero();
+        assertThat(count("select count(*) from tasks where tenant_id = ?", account.tenantId())).isZero();
+        assertThat(count("select count(*) from notifications where tenant_id = ? and notification_type = 'document.action_required'",
+                account.tenantId())).isZero();
+        Map<String, Object> audit = jdbc.queryForMap("""
+                select changes ->> 'result' as result, changes ->> 'documentDate' as document_date,
+                       changes ->> 'statedDue' as stated_due
+                from audit_events where entity_id = ? and action = 'DOCUMENT_ORCHESTRATED'
                 """, documentId);
-        assertThat(task.get("priority")).as("an old matter is not a critical one").isEqualTo("HIGH");
-        assertThat((String) task.get("description")).contains("weit zurück");
+        assertThat(audit.get("result")).isEqualTo("ARCHIVED_OLD");
+        assertThat(audit.get("document_date")).isEqualTo(invoiceDate.toString());
+        assertThat(audit.get("stated_due")).as("invoice date + 5 days, from the document").isEqualTo(invoiceDate.plusDays(5).toString());
+    }
 
-        UUID taskId = (UUID) task.get("id");
-        LocalDate internal = jdbc.queryForObject(
-                "select due_date from task_deadlines where task_id = ? and deadline_type = 'INTERNAL'",
-                LocalDate.class, taskId);
-        assertThat(internal).as("a reminder to ask whether it is settled, not 'due today'")
-                .isEqualTo(LocalDate.now().plusDays(7));
+    @Test
+    @DisplayName("asking for the task anyway creates it without a deadline the document does not state")
+    void taskOnRequestHasNoInventedDeadline() {
+        Account account = account();
+        UUID documentId = uploadAndRun(account, "alte-rechnung.txt",
+                invoice(LocalDate.now().minusYears(1), "Zahlbar innerhalb von 5 Tagen ohne Abzug."));
 
-        List<Map<String, Object>> events = RequestContext.runAs(account.tenantId(), () -> calendar.events(
-                account.tenantId(), account.adminUserId(), true, LocalDate.now().plusDays(6),
-                LocalDate.now().plusDays(8)));
-        assertThat(events).as("the entry exists in the calendar").isNotEmpty();
-        Map<String, Object> entry = events.get(0);
-        assertThat((String) entry.get("title")).startsWith("Interner Termin:");
-        assertThat((String) entry.get("note")).as("a person can read why it is there").contains("weit zurück");
-        assertThat(entry.get("task_id")).isEqualTo(taskId.toString());
-        assertThat(entry.get("document_id")).isEqualTo(documentId.toString());
+        RequestContext.runAs(account.tenantId(), () -> orchestrator.orchestrate(documentId, true));
+
+        UUID taskId = jdbc.queryForObject(
+                "select id from tasks where source_document_id = ? and source = 'DOCUMENT'", UUID.class, documentId);
+        assertThat(count("select count(*) from task_deadlines where task_id = ?", taskId))
+                .as("no date from the day of the upload, no default number of days").isZero();
+        assertThat(jdbc.queryForObject("select due_at from tasks where id = ?", java.sql.Timestamp.class, taskId))
+                .isNull();
+        assertThat(jdbc.queryForObject("select priority from tasks where id = ?", String.class, taskId))
+                .as("an old document is not escalated").isEqualTo("NORMAL");
+    }
+
+    @Test
+    @DisplayName("a document that states no deadline gets a task without one, not today plus a number of days")
+    void noStatedDeadlineMeansNoDeadline() {
+        Account account = account();
+        UUID documentId = uploadAndRun(account, "ohne-frist.txt", """
+                Stadtwerke Musterstadt GmbH
+                Letzte Mahnung
+                Rechnungsnummer: RE-%d
+                Mahngebühr: 5,00 EUR
+                """.formatted(System.nanoTime() % 100000));
+
+        UUID taskId = jdbc.queryForObject(
+                "select id from tasks where source_document_id = ? and source = 'DOCUMENT'", UUID.class, documentId);
+        assertThat(count("select count(*) from task_deadlines where task_id = ?", taskId)).isZero();
+        assertThat(jdbc.queryForObject("select due_at from tasks where id = ?", java.sql.Timestamp.class, taskId)).isNull();
+    }
+
+    @Test
+    @DisplayName("a form for a closed period shows the period and gets no deadline of the platform's invention")
+    void formForAClosedPeriod() {
+        Account account = account();
+        UUID documentId = upload(account, "eks.txt", """
+                Jobcenter Musterstadt
+                Bedarfsgemeinschaft Nr. 123/%d
+                Erklärung zum Einkommen aus selbständiger Tätigkeit (EKS)
+                Bewilligungszeitraum: 01.11.2025 bis 31.12.2025
+                """.formatted(System.nanoTime() % 100000));
+        runOutbox();
+        // Letters of the authorities always need a person's confirmation of their type first.
+        UUID reviewId = RequestContext.runAs(account.tenantId(), () -> jdbc.queryForObject(
+                "select id from document_reviews where document_id = ? and status = 'PENDING'", UUID.class,
+                documentId));
+        RequestContext.runAs(account.tenantId(), () -> {
+            reviews.decide(reviewId, DocumentReview.Status.APPROVED, "ok", null, account.adminUserId());
+            pipeline.advance(documentId);
+        });
+        runOutbox();
+
+        // A letter of an authority may also refer to a past period (it asks for the form), and a fresh deadline
+        // must never be filed away on a guess, so this stays a task: but one without a date that nobody stated.
+        Map<String, Object> task = jdbc.queryForMap(
+                "select id, description, due_at from tasks where source_document_id = ? and source = 'DOCUMENT'",
+                documentId);
+        assertThat((String) task.get("description")).contains("Zeitraum laut Dokument: 2025-11-01 – 2025-12-31");
+        assertThat(task.get("due_at")).isNull();
+        assertThat(count("select count(*) from task_deadlines where task_id = ?", task.get("id"))).isZero();
     }
 }

@@ -18,6 +18,7 @@ export type ProcessingResult =
   | 'WAITING_FOR_REVIEW'
   | 'TASK_CREATED'
   | 'FILE_ONLY'
+  | 'ARCHIVED_OLD'
   | 'DUPLICATE'
   | 'FAILED'
   | 'SKIPPED'
@@ -35,6 +36,10 @@ export interface ProcessingOutcome {
   readonly caseId?: string | null;
   readonly contractId?: string;
   readonly assignmentPending?: boolean;
+  readonly humanReview?: boolean;
+  readonly documentDate?: string | null;
+  readonly statedDue?: string | null;
+  readonly periodTo?: string | null;
 }
 
 export interface SuggestedType {
@@ -53,6 +58,10 @@ export interface ProcessingFlow {
   readonly confidence: number | null;
   readonly suggestedType: SuggestedType | null;
   readonly reviewReason: string | null;
+  readonly reviewKind: 'NO_MATCH' | 'LOW_CONFIDENCE' | 'TYPE_ALWAYS_REVIEW' | null;
+  readonly acceptThreshold: number | null;
+  readonly typeNames: Readonly<Record<string, string>> | null;
+  readonly matchedPassages: readonly { readonly pattern: string; readonly snippet: string }[];
   readonly textPreview: string | null;
   readonly steps: readonly ProcessingStep[];
   readonly outcome: ProcessingOutcome;

@@ -50,19 +50,23 @@ public class DocumentReceivedHandler implements OutboxEventHandler {
         if (result.stoppedAt() == null) {
             return;
         }
+        java.util.Map<String, Object> facts = new java.util.LinkedHashMap<>(
+                notifier.documentFacts(event.getAggregateId()));
         if (result.status() == Document.ProcessingStatus.REVIEW_REQUIRED) {
             notifier.tell(event.getTenantId(), Notification.Category.DOCUMENT_REVIEW,
                     Notification.Severity.NOTICE, "document.review_required",
-                    "Ein Dokument braucht Ihre Entscheidung", result.stopReason(), "documents",
-                    event.getAggregateId(), "/review", "doc-review-" + event.getAggregateId());
+                    "Ein Dokument braucht Ihre Entscheidung", String.valueOf(facts.get("filename")), "documents",
+                    event.getAggregateId(), "/review", "doc-review-" + event.getAggregateId(), facts);
             return;
         }
+        facts.put("step", String.valueOf(result.stoppedAt()));
+        facts.put("reason", result.stopReason());
         notifier.tell(event.getTenantId(), Notification.Category.DOCUMENT_REVIEW,
                 Notification.Severity.WARNING, "document.processing_stopped",
                 "Ein Dokument konnte nicht vollständig verarbeitet werden",
                 "Schritt " + result.stoppedAt() + ": " + result.stopReason()
                         + ". Sie können die Verarbeitung auf der Dokumentseite erneut starten.",
                 "documents", event.getAggregateId(), "/documents/" + event.getAggregateId(),
-                "doc-stopped-" + event.getAggregateId() + "-" + result.stoppedAt());
+                "doc-stopped-" + event.getAggregateId() + "-" + result.stoppedAt(), facts);
     }
 }
