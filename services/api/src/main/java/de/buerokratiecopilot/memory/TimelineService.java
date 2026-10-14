@@ -8,9 +8,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,7 +63,7 @@ public class TimelineService {
                 + "from v_business_timeline where tenant_id = ? and " + subject.column + " = ? and source in (");
         sql.append(String.join(",", allowed.stream().map(s -> "?").toList())).append(")");
         args.addAll(allowed.stream().sorted().toList());
-        if (!seesEveryCase()) {
+        if (!ReaderRights.seesEveryCase()) {
             // A case is a private matter of its participants (see CaseService.accessLevel): what happens in it stays out of
             // a contact's or contract's timeline for everyone else.
             sql.append(""" 
@@ -88,21 +85,8 @@ public class TimelineService {
         return jdbc.queryForList(sql.toString(), args.toArray());
     }
 
-    private static boolean seesEveryCase() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication != null && authentication.getAuthorities().stream()
-                .anyMatch(authority -> "cases.assign".equals(authority.getAuthority()));
-    }
-
     private static Set<String> allowedSources() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null) {
-            return Set.of();
-        }
-        Set<String> held = new java.util.HashSet<>();
-        for (GrantedAuthority authority : authentication.getAuthorities()) {
-            held.add(authority.getAuthority());
-        }
+        Set<String> held = ReaderRights.held();
         Set<String> sources = new java.util.TreeSet<>();
         SOURCE_PERMISSION.forEach((source, permission) -> {
             if (held.contains(permission)) {

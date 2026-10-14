@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import de.buerokratiecopilot.memory.FactService;
+import de.buerokratiecopilot.memory.MemoryAskService;
+import de.buerokratiecopilot.memory.MemoryRetrievalService;
 import de.buerokratiecopilot.memory.RelationshipService;
 import de.buerokratiecopilot.memory.TimelineService;
 import de.buerokratiecopilot.shared.context.CurrentUser;
@@ -26,14 +28,22 @@ public class MemoryController {
     private final RelationshipService relationships;
     private final FactService facts;
     private final TimelineService timeline;
+    private final MemoryRetrievalService search;
+    private final MemoryAskService asking;
 
-    public MemoryController(RelationshipService relationships, FactService facts, TimelineService timeline) {
+    public MemoryController(RelationshipService relationships, FactService facts, TimelineService timeline,
+                            MemoryRetrievalService search, MemoryAskService asking) {
+        this.search = search;
+        this.asking = asking;
         this.relationships = relationships;
         this.facts = facts;
         this.timeline = timeline;
     }
 
     public record SubjectRequest(String type, UUID id) {
+    }
+
+    public record AskRequest(String question) {
     }
 
     private static UUID tenant() {
@@ -119,5 +129,23 @@ public class MemoryController {
     public List<Map<String, Object>> caseTimeline(@PathVariable UUID id,
             @RequestParam(required = false) java.time.Instant before, @RequestParam(defaultValue = "50") int limit) {
         return timeline.timeline(tenant(), CurrentUser.required(), TimelineService.Subject.CASE, id, before, limit);
+    }
+
+    @GetMapping("/search")
+    @PreAuthorize("hasAuthority('memory.view')")
+    public Map<String, Object> search(@RequestParam String q, @RequestParam(defaultValue = "10") int limit) {
+        MemoryRetrievalService.Result result = search.search(tenant(), CurrentUser.required(), q, limit);
+        java.util.List<Map<String, Object>> hits = new java.util.ArrayList<>();
+        int n = 1;
+        for (MemoryRetrievalService.Hit hit : result.hits()) {
+            hits.add(hit.asMap(n++));
+        }
+        return Map.of("query", q, "found", hits.size(), "mode", result.mode(), "hits", hits);
+    }
+
+    @PostMapping("/ask")
+    @PreAuthorize("hasAuthority('memory.view')")
+    public Map<String, Object> ask(@org.springframework.web.bind.annotation.RequestBody AskRequest request) {
+        return asking.ask(tenant(), CurrentUser.required(), request == null ? null : request.question());
     }
 }
