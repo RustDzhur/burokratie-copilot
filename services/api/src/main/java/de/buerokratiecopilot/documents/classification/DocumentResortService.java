@@ -43,10 +43,18 @@ public class DocumentResortService {
     private final ClassificationService classification;
     private final ReviewService reviews;
     private final TransactionTemplate transaction;
+    private final de.buerokratiecopilot.documents.DocumentBlobRepository blobs;
+    private final Map<de.buerokratiecopilot.documents.domain.DocumentProcessingStep.Step,
+            de.buerokratiecopilot.documents.pipeline.ProcessingStepHandler> handlers = new java.util.EnumMap<>(
+            de.buerokratiecopilot.documents.domain.DocumentProcessingStep.Step.class);
 
     public DocumentResortService(JdbcTemplate jdbc, DocumentRepository documents, DocumentVersionRepository versions,
                                  ClassificationService classification, ReviewService reviews,
-                                 PlatformTransactionManager transactionManager) {
+                                 PlatformTransactionManager transactionManager,
+                                 de.buerokratiecopilot.documents.DocumentBlobRepository blobs,
+                                 List<de.buerokratiecopilot.documents.pipeline.ProcessingStepHandler> stepHandlers) {
+        this.blobs = blobs;
+        stepHandlers.forEach(handler -> handlers.put(handler.step(), handler));
         this.jdbc = jdbc;
         this.documents = documents;
         this.versions = versions;
@@ -99,16 +107,48 @@ public class DocumentResortService {
         return summary;
     }
 
+    private static boolean isPicture(Document document) {
+        return document.getMimeType() != null && document.getMimeType().startsWith("image/");
+    }
+
+    /**
+     * A picture whose text came out as noise (older versions did not turn a photo lying on its side) is read again, with
+     * the current engine and rotation, and its language is determined again from the new text.
+     */
+    private void readAgain(Document document, de.buerokratiecopilot.documents.domain.DocumentVersion version) {
+        var blob = blobs.findById(version.getBlobId()).orElse(null);
+        if (blob == null) {
+            return;
+        }
+        jdbc.update("update document_pages set text_content = null where version_id = ?", version.getId());
+        var context = new de.buerokratiecopilot.documents.pipeline.ProcessingStepHandler.ProcessingContext(
+                document.getTenantId(), document, version, blob);
+        for (var step : List.of(de.buerokratiecopilot.documents.domain.DocumentProcessingStep.Step.OCR,
+                de.buerokratiecopilot.documents.domain.DocumentProcessingStep.Step.LANGUAGE_DETECT)) {
+            var handler = handlers.get(step);
+            if (handler != null) {
+                handler.handle(context);
+            }
+        }
+        documents.save(document);
+    }
+
     private String resortOne(UUID documentId) {
         Document document = documents.findById(documentId).orElseThrow();
+        // Only a type a person chose themselves is theirs. "Confirm" on a suggestion is not a choice: the old screen
+        // pre-selected the guess, and a guess confirmed in a click is exactly what ended up in the wrong drawers.
         Integer decided = jdbc.queryForObject("""
                 select count(*) from document_reviews
                 where document_id = ? and review_type = 'CLASSIFICATION' and status = 'APPROVED'
+                  and jsonb_exists(changes, 'documentTypeCode') and not jsonb_exists(changes, 'acceptedSuggestion')
                 """, Integer.class, documentId);
         if (decided != null && decided > 0) {
             return "PERSON";
         }
         var version = versions.findFirstByDocumentIdOrderByVersionDesc(documentId).orElse(null);
+        if (version != null && isPicture(document) && TextSanity.looksUnreadable(document.getExtractedText())) {
+            readAgain(document, version);
+        }
         UUID before = document.getDocumentTypeId();
         ClassificationService.Outcome outcome = classification.classify(document, version, null);
         boolean noText = document.getExtractedText() == null || document.getExtractedText().isBlank();

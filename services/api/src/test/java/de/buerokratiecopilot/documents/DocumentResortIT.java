@@ -48,22 +48,29 @@ class DocumentResortIT {
             UUID wrong = document(tenantId, "scan1.pdf", invoice, "vertrag");
             UUID noText = document(tenantId, "BWA 2025.jpg", null, "bwa");
             UUID confirmed = document(tenantId, "scan2.pdf", invoice, "vertrag");
+            UUID clicked = document(tenantId, "scan3.pdf", invoice, "vertrag");
             jdbc.update("""
-                    insert into document_reviews (tenant_id, document_id, review_type, status, reason)
-                    values (?, ?, 'CLASSIFICATION', 'APPROVED', 'ok')
+                    insert into document_reviews (tenant_id, document_id, review_type, status, reason, changes, decided_at)
+                    values (?, ?, 'CLASSIFICATION', 'APPROVED', 'ok', '{"documentTypeCode":"vertrag"}'::jsonb, now())
                     """, tenantId, confirmed);
-            return new UUID[] { wrong, noText, confirmed };
+            // A click on "confirm" for a suggestion is not a choice of the person: this one is sorted again.
+            jdbc.update("""
+                    insert into document_reviews (tenant_id, document_id, review_type, status, reason, changes, decided_at)
+                    values (?, ?, 'CLASSIFICATION', 'APPROVED', 'ok', '{"documentTypeCode":"vertrag","acceptedSuggestion":true}'::jsonb, now())
+                    """, tenantId, clicked);
+            return new UUID[] { wrong, noText, confirmed, clicked };
         });
 
         Map<String, Object> summary = RequestContext.runAs(tenantId, () -> resort.resort(tenantId));
 
-        assertThat(summary).containsEntry("checked", 3).containsEntry("moved", 1).containsEntry("withoutText", 1)
+        assertThat(summary).containsEntry("checked", 4).containsEntry("moved", 2).containsEntry("withoutText", 1)
                 .containsEntry("keptByPerson", 1).containsEntry("failed", 0);
         RequestContext.runAs(tenantId, () -> {
             assertThat(typeCode(ids[0])).isEqualTo("rechnung");
             assertThat(typeCode(ids[1])).isNull();
             assertThat(jdbc.queryForObject("select review_status from documents where id = ?", String.class, ids[1])).isEqualTo("PENDING");
             assertThat(typeCode(ids[2])).isEqualTo("vertrag");
+            assertThat(typeCode(ids[3])).isEqualTo("rechnung");
             return null;
         });
     }

@@ -120,7 +120,8 @@ public class ClassificationService {
         double confidence = result.confidence() == null ? 0 : result.confidence();
         boolean requiresReview = type.isRequiresReview() || confidence < acceptThreshold;
         String closeCall = closeCall(type, confidence, result.alternative());
-        if (closeCall != null) {
+        boolean singleFeature = result.matchedRules() != null && result.matchedRules().size() < 2;
+        if (closeCall != null || singleFeature) {
             requiresReview = true;
         }
 
@@ -128,6 +129,8 @@ public class ClassificationService {
 
         if (requiresReview) {
             String reason = closeCall != null ? closeCall
+                    : singleFeature && !type.isRequiresReview() && confidence >= acceptThreshold
+                    ? "Nur ein Merkmal spricht für '%s'; ein einzelnes Wort reicht nicht für eine automatische Ablage".formatted(type.nameIn("de"))
                     : type.isRequiresReview()
                     ? "Document type '%s' always requires human confirmation".formatted(type.nameIn("de"))
                     : "Confidence %.2f is below the acceptance threshold %.2f".formatted(confidence,
