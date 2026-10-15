@@ -8,12 +8,14 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import de.buerokratiecopilot.memory.ContactProfileService;
 import de.buerokratiecopilot.memory.FactService;
+import de.buerokratiecopilot.memory.FutureService;
 import de.buerokratiecopilot.memory.MemoryAskService;
 import de.buerokratiecopilot.memory.MemoryRetrievalService;
 import de.buerokratiecopilot.memory.ObligationService;
@@ -34,10 +36,12 @@ public class MemoryController {
     private final MemoryAskService asking;
     private final ObligationService obligations;
     private final ContactProfileService profiles;
+    private final FutureService future;
 
     public MemoryController(RelationshipService relationships, FactService facts, TimelineService timeline,
                             MemoryRetrievalService search, MemoryAskService asking,
-                            ObligationService obligations, ContactProfileService profiles) {
+                            ObligationService obligations, ContactProfileService profiles, FutureService future) {
+        this.future = future;
         this.obligations = obligations;
         this.profiles = profiles;
         this.search = search;
@@ -51,6 +55,23 @@ public class MemoryController {
     }
 
     public record AskRequest(String question) {
+    }
+
+    public record ScenarioRequest(String type, UUID contractId, UUID invoiceId, java.math.BigDecimal percent, Integer days) {
+    }
+
+    @GetMapping("/future")
+    @PreAuthorize("hasAuthority('memory.view')")
+    public Map<String, Object> future(@RequestParam(defaultValue = "30") int horizon) {
+        return future.future(tenant(), CurrentUser.required(), horizon);
+    }
+
+    /** A what-if over recorded values; it reads, computes and answers, and writes nothing. */
+    @PostMapping("/future/scenario")
+    @PreAuthorize("hasAuthority('memory.view')")
+    public Map<String, Object> scenario(@RequestBody ScenarioRequest request) {
+        return future.scenario(tenant(), new FutureService.Scenario(request.type(), request.contractId(), request.invoiceId(),
+                request.percent(), request.days()));
     }
 
     private static UUID tenant() {
