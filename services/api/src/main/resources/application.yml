@@ -3,6 +3,10 @@ spring:
     name: burokratie-copilot-api
   profiles:
     default: dev
+  autoconfigure:
+    # Sign-in is the platform's own (sessions, tokens, OIDC). Spring's default in-memory user would only print a
+    # generated password into the log.
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
 
   datasource:
     url: jdbc:postgresql://${BC_DB_HOST:localhost}:${BC_DB_PORT:5432}/${BC_DB_NAME:burokratie_dev}

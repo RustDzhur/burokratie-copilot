@@ -17,6 +17,13 @@ spring:
     # verified backup — see docs/runbook.md.
     enabled: ${BC_FLYWAY_ENABLED:true}
 
+# The interface description is for developers: nothing in production needs to serve it.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 server:
   shutdown: graceful
   tomcat:
