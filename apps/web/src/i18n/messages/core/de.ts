@@ -107,6 +107,7 @@ export const deCore = {
     searchLabel: 'Suche und Befehlspalette',
     searchShortcut: 'Strg + K',
     notifications: 'Benachrichtigungen',
+    pendingReview: '{count} Dokument(e) zur Prüfung',
     notificationsUnread:
       '{count, plural, =0 {Keine neuen Benachrichtigungen} one {# neue Benachrichtigung} other {# neue Benachrichtigungen}}',
     notificationsEmpty: 'Sie haben derzeit keine neuen Benachrichtigungen.',

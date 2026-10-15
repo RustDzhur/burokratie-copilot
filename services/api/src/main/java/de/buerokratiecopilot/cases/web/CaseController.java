@@ -164,7 +164,7 @@ public class CaseController {
     public ResponseEntity<Page<CaseResponse>> list(
             @RequestParam(required = false) List<Case.Status> status,
             @RequestParam(required = false) List<Case.Priority> priority,
-            @PageableDefault(size = 25, sort = "openedAt") Pageable pageable) {
+            @PageableDefault(size = 25, sort = "openedAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
         UUID userId = CurrentUser.required();
         UUID tenantId = RequestContext.tenantId().orElseThrow();
         boolean seeAll = hasPermission("cases.assign");

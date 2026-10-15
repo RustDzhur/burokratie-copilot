@@ -185,7 +185,7 @@ public class TaskController {
     public ResponseEntity<Page<TaskResponse>> list(
             @RequestParam(required = false) List<Task.Status> status,
             @RequestParam(required = false) List<Task.Priority> priority,
-            @PageableDefault(size = 25, sort = "createdAt") Pageable pageable) {
+            @PageableDefault(size = 25, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
         UUID userId = CurrentUser.required();
         UUID tenantId = RequestContext.tenantId().orElseThrow();
         return ResponseEntity.ok(tasks.listVisible(tenantId, userId, hasPermission("tasks.assign"), status, priority, pageable)

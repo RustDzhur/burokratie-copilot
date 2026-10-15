@@ -159,7 +159,7 @@ public class ContractController {
     @PreAuthorize("hasAuthority('contracts.view')")
     @Operation(summary = "Contracts of the tenant")
     public ResponseEntity<Page<ContractResponse>> list(
-            @PageableDefault(size = 25, sort = "createdAt") Pageable pageable) {
+            @PageableDefault(size = 25, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(contracts.list(RequestContext.tenantId().orElseThrow(), pageable)
                 .map(this::withPartner));
     }

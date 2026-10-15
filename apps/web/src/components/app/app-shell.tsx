@@ -11,6 +11,7 @@ import { useApiResource } from '@/lib/api/hooks';
 import type { SessionUser } from '@/lib/api/types';
 import { screens, screensVisibleFor } from '@/navigation/screens';
 import { IrisWidget } from './iris-widget';
+import { QuickCapture } from './quick-capture';
 import { SubscriptionBanner } from './subscription-banner';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
@@ -51,6 +52,14 @@ export function AppShell({ children }: AppShellProps) {
     { keepPreviousData: true },
   );
   const unread = unreadState.status === 'ready' ? unreadState.data : 0;
+
+  // Documents that wait for a person's check: always visible, because a document that waits unnoticed looks like a lost one.
+  const { state: reviewState } = useApiResource<number>(
+    async (signal) => (await api.review.queue({ size: 1 }, signal)).totalItems,
+    [pathname],
+    { keepPreviousData: true },
+  );
+  const pendingReview = reviewState.status === 'ready' ? reviewState.data : 0;
 
   // A page of the signed-in area without a valid session is not a page: send the person to sign in, and
   // bring them back here afterwards. The same happens when the session runs out while the page is open.
@@ -142,6 +151,7 @@ export function AppShell({ children }: AppShellProps) {
           onOpenMobileNav={() => setMobileNavOpen(true)}
           user={user}
           unreadNotifications={unread}
+          pendingReview={pendingReview}
           onOpenNotifications={() => router.push('/notifications')}
           onSignOut={() => {
             void handleSignOut();
@@ -174,6 +184,7 @@ export function AppShell({ children }: AppShellProps) {
       </Drawer>
 
       {blocked ? null : <IrisWidget />}
+      {blocked ? null : <QuickCapture />}
 
       <CommandPalette
         open={paletteOpen}

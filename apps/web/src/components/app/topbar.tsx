@@ -16,6 +16,8 @@ export interface TopbarProps {
   readonly onOpenMobileNav: () => void;
   readonly user: SessionUser | null;
   readonly unreadNotifications?: number;
+  /** Documents waiting for a person's check; shown as a link so that nothing waits unnoticed. */
+  readonly pendingReview?: number;
   readonly onOpenNotifications?: () => void;
   readonly onSignOut?: () => void;
 }
@@ -30,6 +32,7 @@ export function Topbar({
   onOpenMobileNav,
   user,
   unreadNotifications = 0,
+  pendingReview = 0,
   onOpenNotifications,
   onSignOut,
 }: TopbarProps) {
@@ -107,6 +110,11 @@ export function Topbar({
       </div>
 
       <div className={styles.right}>
+        {pendingReview > 0 ? (
+          <a href="/review" data-testid="pending-review" style={{ fontWeight: 600, textDecoration: 'underline' }}>
+            {t('pendingReview', { count: pendingReview })}
+          </a>
+        ) : null}
         <DropdownMenu
           label={t('notifications')}
           align="end"

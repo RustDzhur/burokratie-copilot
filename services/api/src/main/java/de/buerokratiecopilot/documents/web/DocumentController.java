@@ -138,7 +138,7 @@ public class DocumentController {
             @RequestParam(required = false) @Size(max = 40) String category,
             @RequestParam(required = false) @Size(max = 80) String type,
             @RequestParam(required = false) @Size(max = 40) String party,
-            @PageableDefault(size = 25, sort = "receivedAt") Pageable pageable) {
+            @PageableDefault(size = 25, sort = "receivedAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
 
         // The types are few and shared by every account; reading them once per request is cheaper than a join per row.
         java.util.Map<java.util.UUID, de.buerokratiecopilot.documents.domain.DocumentType> byId =
@@ -180,7 +180,10 @@ public class DocumentController {
     @PreAuthorize("hasAuthority('documents.view')")
     @Operation(summary = "Read one document; an identifier of another tenant is answered with 404")
     public ResponseEntity<DocumentResponse> get(@PathVariable UUID id) {
-        return ResponseEntity.ok(DocumentResponse.from(documentService.require(id)));
+        Document document = documentService.require(id);
+        // The type is named in the answer, as in the list: a screen that opens one document must not have to ask again.
+        return ResponseEntity.ok(DocumentResponse.from(document,
+                document.getDocumentTypeId() == null ? null : documentTypes.findById(document.getDocumentTypeId()).orElse(null)));
     }
 
     /**

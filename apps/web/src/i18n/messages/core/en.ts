@@ -98,6 +98,7 @@ export const enCore: CoreMessages = {
     searchLabel: 'Search and command palette',
     searchShortcut: 'Ctrl + K',
     notifications: 'Notifications',
+    pendingReview: '{count} document(s) to check',
     notificationsUnread:
       '{count, plural, =0 {No new notifications} one {# new notification} other {# new notifications}}',
     notificationsEmpty: 'You currently have no new notifications.',

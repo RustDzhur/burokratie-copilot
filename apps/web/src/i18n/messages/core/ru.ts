@@ -100,6 +100,7 @@ export const ruCore: CoreMessages = {
     searchLabel: 'Поиск и палитра команд',
     searchShortcut: 'Ctrl + K',
     notifications: 'Уведомления',
+    pendingReview: 'На проверке документов: {count}',
     notificationsUnread:
       '{count, plural, =0 {Новых уведомлений нет} one {# новое уведомление} few {# новых уведомления} many {# новых уведомлений} other {# новых уведомления}}',
     notificationsEmpty: 'Сейчас новых уведомлений нет.',
