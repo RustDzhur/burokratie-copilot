@@ -21,9 +21,9 @@ vi.mock('next/navigation', () => ({
 describe('screen registry', () => {
   it('covers all 30 screens required by the specification, and the people screen of the cabinets', () => {
     // §5.2.2 (registration and sign-in) is four routes, hence 33 in total.
-    expect(screens).toHaveLength(41);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(41);
-    expect(new Set(screens.map((screen) => screen.href)).size).toBe(41);
+    expect(screens).toHaveLength(43);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(43);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(43);
   });
 
   it('puts every workspace screen into a sidebar section', () => {

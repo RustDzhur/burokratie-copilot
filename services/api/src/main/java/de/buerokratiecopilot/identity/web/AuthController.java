@@ -53,13 +53,16 @@ public class AuthController {
     private final org.springframework.security.web.csrf.CsrfTokenRepository csrfTokenRepository;
 
     private final de.buerokratiecopilot.billing.SubscriptionService subscriptions;
+    private final de.buerokratiecopilot.identity.profile.ProfileService profileService;
 
     public AuthController(AuthService authService, BurokratieProperties properties,
                           org.springframework.security.web.csrf.CsrfTokenRepository csrfTokenRepository,
                           de.buerokratiecopilot.identity.auth.AccountSetupService accountSetup,
                           de.buerokratiecopilot.identity.mfa.MfaService mfa,
                           de.buerokratiecopilot.identity.auth.SessionService sessions,
-                          de.buerokratiecopilot.billing.SubscriptionService subscriptions) {
+                          de.buerokratiecopilot.billing.SubscriptionService subscriptions,
+                          de.buerokratiecopilot.identity.profile.ProfileService profileService) {
+        this.profileService = profileService;
         this.subscriptions = subscriptions;
         this.mfa = mfa;
         this.sessions = sessions;
@@ -99,7 +102,8 @@ public class AuthController {
     public record MeResponse(UUID userId, UUID tenantId, List<String> permissions, String email,
                              String displayName, String locale, String timeZone, String workspaceName,
                              String accountType, List<String> roles, boolean onboardingCompleted,
-                             boolean mfaEnrolmentRequired, java.util.Map<String, Object> subscription) {
+                             boolean mfaEnrolmentRequired, java.util.Map<String, Object> subscription,
+                             Long avatarVersion) {
     }
 
     public record PasswordResetRequest(@NotBlank @Email String email) {
@@ -206,7 +210,8 @@ public class AuthController {
         return ResponseEntity.ok(new MeResponse(userId, tenantId, permissions, profile.email(),
                 profile.displayName(), profile.locale(), profile.timeZone(), profile.workspaceName(),
                 profile.accountType(), profile.roles(), accountSetup.isCompleted(userId),
-                enrolmentRequired(authentication, userId, tenantId), subscriptionOf(tenantId)));
+                enrolmentRequired(authentication, userId, tenantId), subscriptionOf(tenantId),
+                profileService.avatarVersion(userId)));
     }
 
     /** What the interface needs to show the trial banner or the "access ended" page; null without a workspace. */

@@ -172,6 +172,8 @@ export const enCore: CoreMessages = {
     'items.archive': 'Archive and retention',
     'items.security': 'Security settings',
     'items.accessibilitySettings': 'Accessibility',
+    'items.profile': 'Profile',
+    'items.accountSettings': 'Account settings',
     'items.notifications': 'Notification centre',
     'items.audit': 'Activity history and audit',
     'items.billing': 'Plan and payment',

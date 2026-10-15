@@ -181,6 +181,8 @@ export const deCore = {
     'items.archive': 'Archiv und Aufbewahrung',
     'items.security': 'Sicherheitseinstellungen',
     'items.accessibilitySettings': 'Barrierefreiheit',
+    'items.profile': 'Profil',
+    'items.accountSettings': 'Kontoeinstellungen',
     'items.notifications': 'Benachrichtigungszentrum',
     'items.audit': 'Aktivitätsverlauf und Audit',
     'items.billing': 'Tarif und Zahlung',

@@ -72,7 +72,9 @@ export type ScreenId =
   | 'audit'
   | 'billing'
   | 'admin'
-  | 'accessEnded';
+  | 'accessEnded'
+  | 'profile'
+  | 'accountSettings';
 
 export type WorkspaceKind = 'private' | 'family' | 'company';
 
@@ -205,6 +207,9 @@ export const screens: readonly ScreenDefinition[] = [
   screen('billing', '/billing', 'credit-card', 'governance'),
   // the platform administrator's area (customers, prices, payments, global settings)
   screen('admin', '/admin', 'shield', 'governance', { adminOnly: true }),
+  // the person's own profile and the hub of the account settings, reached from the account menu (not from the sidebar)
+  screen('profile', '/profile', 'user', null, { inSidebar: false, requiresAuth: true }),
+  screen('accountSettings', '/settings', 'gear', null, { inSidebar: false, requiresAuth: true }),
   // the only page of a workspace whose access has ended
   screen('accessEnded', '/access-ended', 'lock', null, { inSidebar: false }),
 ];

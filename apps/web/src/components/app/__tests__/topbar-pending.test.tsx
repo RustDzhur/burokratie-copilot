@@ -2,6 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders, screen } from '@/test/render';
 import { Topbar } from '../topbar';
 
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/dashboard',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
+  useParams: () => ({}),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 describe('Topbar: documents waiting for a check', () => {
   const props = { onOpenSearch: vi.fn(), onOpenMobileNav: vi.fn(), user: null };
 

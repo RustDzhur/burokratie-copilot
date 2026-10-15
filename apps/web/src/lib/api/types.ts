@@ -1017,3 +1017,12 @@ export interface WorkspaceList {
   readonly items: readonly WorkspaceEntry[];
   readonly capabilities: { readonly canCreateClients: boolean; readonly professionalPlan: boolean };
 }
+
+/** The own profile; the e-mail address is shown but changed elsewhere (it is the way in). */
+export interface ProfileData {
+  readonly email: string;
+  readonly displayName: string;
+  readonly locale: 'de' | 'en' | 'ru';
+  readonly timeZone: string;
+  readonly avatarVersion: number | null;
+}

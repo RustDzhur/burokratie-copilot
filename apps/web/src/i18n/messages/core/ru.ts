@@ -174,6 +174,8 @@ export const ruCore: CoreMessages = {
     'items.archive': 'Архив и сроки хранения',
     'items.security': 'Настройки безопасности',
     'items.accessibilitySettings': 'Доступность',
+    'items.profile': 'Профиль',
+    'items.accountSettings': 'Настройки аккаунта',
     'items.notifications': 'Центр уведомлений',
     'items.audit': 'История действий и аудит',
     'items.billing': 'Тариф и оплата',

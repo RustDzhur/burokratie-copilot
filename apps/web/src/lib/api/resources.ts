@@ -173,6 +173,7 @@ import type {
   ScenarioRequest,
   ScenarioResult,
   DocumentCase,
+  ProfileData,
   WorkspaceEntry,
   WorkspaceList,
   TaskDetail,
@@ -198,6 +199,7 @@ interface MeResponse {
   readonly mfaEnrolmentRequired?: boolean;
   readonly permissions?: readonly string[];
   readonly subscription?: SubscriptionWire | null;
+  readonly avatarVersion?: number | null;
 }
 
 interface SubscriptionWire {
@@ -266,6 +268,7 @@ export function sessionUserFromMe(me: MeResponse): SessionUser {
     workspaceId: me.tenantId ?? '',
     workspaceName: me.workspaceName ?? '',
     workspaceType: workspaceTypeFromBackend(me.accountType),
+    avatarUrl: me.avatarVersion ? `/api/v1/profile/avatar?v=${me.avatarVersion}` : null,
     onboardingCompleted: me.onboardingCompleted ?? true,
     mfaEnrolmentRequired: me.mfaEnrolmentRequired ?? false,
     platformAdmin: (me.permissions ?? []).includes('platform.admin'),
@@ -575,6 +578,12 @@ export interface ApiResources {
     act: (id: string, action: RadarAction) => Promise<RadarFindingDetail>;
     /** Asks the language model for a plain-words explanation; `kind` says what came of it. */
     explain: (id: string) => Promise<{ readonly kind: 'EXPLAINED' | 'REJECTED' | 'UNAVAILABLE' | 'DISABLED' | 'NO_EVIDENCE'; readonly explanation: string | null }>;
+  };
+  readonly profile: {
+    get: (signal?: AbortSignal) => Promise<ProfileData>;
+    update: (values: { readonly displayName: string; readonly locale: string; readonly timeZone: string }) => Promise<ProfileData>;
+    uploadAvatar: (file: Blob) => Promise<void>;
+    removeAvatar: () => Promise<void>;
   };
   readonly workspaces: {
     list: (signal?: AbortSignal) => Promise<WorkspaceList>;
@@ -1799,6 +1808,18 @@ export function createResources(client: ApiClient): ApiResources {
           undefined,
           { idempotencyKey: true },
         ),
+    },
+    profile: {
+      get: (signal) => client.get<ProfileData>('/profile', withSignal(signal)),
+      update: (values) => client.put<ProfileData>('/profile', values, { idempotencyKey: true }),
+      uploadAvatar: async (file) => {
+        const form = new FormData();
+        form.append('file', file, 'avatar');
+        await client.put<unknown>('/profile/avatar', form, { idempotencyKey: true });
+      },
+      removeAvatar: async () => {
+        await client.delete<unknown>('/profile/avatar', { idempotencyKey: true });
+      },
     },
     workspaces: {
       list: (signal) => client.get<WorkspaceList>('/workspaces', withSignal(signal)),

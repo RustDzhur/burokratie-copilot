@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Icon } from '@/components/icons';
 import { IconButton } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/data';
@@ -37,6 +38,7 @@ export function Topbar({
   onOpenNotifications,
   onSignOut,
 }: TopbarProps) {
+  const router = useRouter();
   const t = useTranslations('nav');
   const tCommon = useTranslations('common');
   const locale = useLocale();
@@ -82,8 +84,8 @@ export function Topbar({
   }));
 
   const accountItems: MenuItemDefinition[] = [
-    { id: 'profile', label: t('profile'), icon: 'user', disabled: !user },
-    { id: 'settings', label: t('accountSettings'), icon: 'gear' },
+    { id: 'profile', label: t('profile'), icon: 'user', disabled: !user, onSelect: () => router.push('/profile') },
+    { id: 'settings', label: t('accountSettings'), icon: 'gear', disabled: !user, onSelect: () => router.push('/settings') },
     ...(user
       ? [
           {
@@ -168,7 +170,7 @@ export function Topbar({
           items={accountItems}
           footer={
             user ? (
-              <Link href="/settings/security" className={styles.menuLink}>
+              <Link href="/settings" className={styles.menuLink}>
                 {t('accountSettings')}
               </Link>
             ) : (
@@ -183,7 +185,7 @@ export function Topbar({
               className={styles.accountButton}
               aria-label={user ? t('userMenuLabel', { name: user.name }) : t('userMenu')}
             >
-              <Avatar name={user?.name ?? '?'} size="sm" />
+              <Avatar name={user?.name ?? '?'} src={user?.avatarUrl ?? undefined} size="sm" />
               <span className={styles.accountName}>{user?.name ?? t('signIn')}</span>
               <Icon name="chevron-down" size={14} />
             </button>
