@@ -18,7 +18,8 @@
 - [ ] У каждой новой таблицы есть `ENABLE` + `FORCE ROW LEVEL SECURITY` и политика по `current_tenant_id()`, а у нового эндпоинта —
       тест на чужой tenant (ожидается 404).
 - [ ] CI на коммите зелёный (`.github/workflows/ci.yml`: backend `./mvnw -B -ntp verify`, frontend typecheck/lint/test/build).
-      **Не входит в CI сейчас:** e2e на Playwright и сканирование образов (задача HD-CI) — их результат не заявляется.
+      В CI добавлены (задача HD-CI): блокирующий OWASP dependency-check (CVSS ≥ 7), Trivy по образу api (HIGH/CRITICAL с
+      исправлением) и job `e2e` на Playwright. Пока их первый зелёный прогон не подтверждён, они считаются непроверенными.
 
 ## 2. Резервная копия перед миграцией
 

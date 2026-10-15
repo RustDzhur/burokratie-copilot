@@ -570,17 +570,25 @@ jobs:
           fail-on-severity: high
           comment-summary-in-pr: on-failure
 
-      - name: Maven dependency audit (OWASP dependency-check, report only)
+      - name: Maven dependency audit (OWASP dependency-check, blocking from CVSS 7)
         working-directory: services/api
-        continue-on-error: true
         run: |
           chmod +x mvnw
-          # Report-only on purpose: the first run downloads the NVD dataset, and
-          # a transient feed failure must not block a release. Findings go into
-          # the job summary and the uploaded report.
+          # Blocking: a dependency with a known vulnerability of CVSS 7.0 or higher (high/critical) fails the job.
+          # The first run downloads the NVD dataset; if the FEED fails (no report, no verdict) that is not a finding,
+          # so it is reported as a warning and the scan counts as NOT verified for this run. A finding always fails.
+          set +e
           ./mvnw -B -ntp org.owasp:dependency-check-maven:check \
-            -DfailBuildOnCVSS=11 -Dformats=HTML -DskipTests || \
-            echo "::warning::dependency-check did not complete (see the log) — treat dependency scanning as NOT verified for this run"
+            -DfailBuildOnCVSS=7 -Dformats=HTML -DskipTests 2>&1 | tee /tmp/dependency-check.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            if grep -q "One or more dependencies were identified with vulnerabilities" /tmp/dependency-check.log; then
+              echo "::error::dependency-check found a vulnerability of CVSS 7.0 or higher"
+              exit 1
+            fi
+            echo "::warning::dependency-check did not complete (feed or network) - dependency scanning is NOT verified for this run"
+          fi
 
       - name: Upload dependency-check report
         if: always()
@@ -792,6 +800,16 @@ jobs:
             echo "runtime image smoke test OK: non-root, artifact present, working JVM"
           '
 
+      - name: Scan the backend image (Trivy, blocking on HIGH and CRITICAL with a fix available)
+        if: steps.docker.outputs.available == 'true'
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: burokratie-copilot/api:ci-${{ github.sha }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          vuln-type: os,library
+
       - name: Build summary
         if: always()
         run: |
@@ -811,3 +829,114 @@ jobs:
               echo "before a release: the Dockerfiles are otherwise unverified."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # ===========================================================================
+  # 6. Browser tests (Playwright) against a real stack: PostgreSQL + API + worker + web
+  # ===========================================================================
+  e2e:
+    name: Browser tests (Playwright, Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [backend, frontend]
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      E2E_BASE_URL: http://localhost:3000
+      E2E_DATABASE_URL: postgresql://burokratie:burokratie_ci_password@localhost:5432/burokratie_e2e
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create the application role and the database
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE burokratie LOGIN CREATEDB PASSWORD 'burokratie_ci_password'" -c "CREATE DATABASE burokratie_e2e OWNER burokratie"
+          psql -h localhost -U postgres -d burokratie_e2e -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS pgcrypto' -c 'CREATE EXTENSION IF NOT EXISTS citext' -c 'CREATE EXTENSION IF NOT EXISTS pg_trgm'
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Build the API jar
+        working-directory: services/api
+        run: |
+          chmod +x mvnw
+          ./mvnw -B -ntp -DskipTests package
+          ls target/*.jar
+
+      - name: Start the API (migrations run here) and the worker
+        working-directory: services/api
+        env:
+          BC_DB_HOST: localhost
+          BC_DB_NAME: burokratie_e2e
+          BC_DB_USER: burokratie
+          BC_DB_PASSWORD: burokratie_ci_password
+          BC_ENCRYPTION_KEY: MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=
+        run: |
+          jar="$(ls target/burokratie-copilot-api*.jar | grep -v original | head -1)"
+          nohup java -jar "$jar" --spring.profiles.active=dev > /tmp/api.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fsS http://localhost:8080/actuator/health >/dev/null 2>&1 && break
+            sleep 3
+          done
+          curl -fsS http://localhost:8080/actuator/health || { tail -n 80 /tmp/api.log; exit 1; }
+          BC_FLYWAY_ENABLED=false nohup java -jar "$jar" --spring.profiles.active=worker > /tmp/worker.log 2>&1 &
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Build and start the web app
+        working-directory: apps/web
+        env:
+          BC_API_ORIGIN: http://localhost:8080
+        run: |
+          corepack enable
+          corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
+          pnpm install --frozen-lockfile
+          pnpm run build
+          nohup pnpm exec next start -p 3000 > /tmp/web.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://localhost:3000/login >/dev/null 2>&1 && break; sleep 2; done
+
+      - name: Run the browser tests
+        working-directory: tests/e2e
+        run: |
+          corepack enable
+          corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+          pnpm test
+
+      - name: Upload the Playwright report and the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            tests/e2e/playwright-report
+            tests/e2e/test-results
+            /tmp/api.log
+            /tmp/worker.log
+            /tmp/web.log
+          if-no-files-found: ignore
+          retention-days: 14
