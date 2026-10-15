@@ -122,6 +122,18 @@ jobs:
           CREATE EXTENSION IF NOT EXISTS pg_trgm;
           SQL
 
+      - name: Allow enough connections for a full run (HD-TEST-01)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          # The suite keeps several Spring contexts alive, each with its own pool, and Flyway and the tenant-aware
+          # data source open more. The service container's default of 100 connections ran out in the last third of
+          # a full run ("remaining connection slots are reserved"). Raise it and restart the database.
+          psql -h localhost -U postgres -c "ALTER SYSTEM SET max_connections = 400"
+          docker restart "$(docker ps -q --filter ancestor=pgvector/pgvector:pg17 | head -1)"
+          for i in $(seq 1 30); do pg_isready -h localhost -U postgres && break; sleep 2; done
+          psql -h localhost -U postgres -tAc "show max_connections"
+
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:

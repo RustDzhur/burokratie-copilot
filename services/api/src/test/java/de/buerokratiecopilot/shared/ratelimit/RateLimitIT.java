@@ -25,7 +25,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import de.buerokratiecopilot.shared.context.RequestContext;
 
 /** HD-RATE-01: more calls than the limit within a minute are answered with 429, once in the audit trail, and others are not affected. */
-@SpringBootTest(properties = "burokratie.security.rate-limit.requests-per-minute=12")
+@SpringBootTest(properties = { "burokratie.security.rate-limit.enabled=true", "burokratie.security.rate-limit.requests-per-minute=12" })
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class RateLimitIT {

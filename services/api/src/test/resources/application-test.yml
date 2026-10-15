@@ -36,6 +36,9 @@ burokratie:
     public-base-url: http://localhost:3000
     session:
       cookie-secure: false
+    rate-limit:
+      # The tests share one address and fire registrations and sign-ins far faster than a person; RateLimitIT switches it on.
+      enabled: false
     encryption:
       # Test-only key. Never used outside the test profile.
       key-base64: YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=
