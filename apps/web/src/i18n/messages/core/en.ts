@@ -9,6 +9,7 @@ export const enCore: CoreMessages = {
     'estimate.label': 'model estimate',
     'estimate.hint': "The model's own estimate, not a probability",
     'app.name': 'Bürokratie-Copilot',
+    'app.slogan': 'Weniger Bürokratie. Mehr Zeit für dich.',
     'app.tagline': 'The intelligent administrative cockpit for Germany',
     'actions.capture': 'Take a photo',
     'actions.save': 'Save',

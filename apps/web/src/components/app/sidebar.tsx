@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { BrandMark } from '@/components/app/brand-mark';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/icons';
 import { IconButton } from '@/components/ui/button';
@@ -46,9 +47,7 @@ export function Sidebar({
     >
       <div className={styles.brand}>
         <Link href="/dashboard" className={styles.brandLink} onClick={onNavigate}>
-          <span className={styles.brandMark} aria-hidden="true">
-            BC
-          </span>
+          <BrandMark size={34} />
           {!isCollapsed ? <span className={styles.brandName}>{tCommon('app.name')}</span> : null}
         </Link>
         {!isCollapsed && variant === 'desktop' ? (

@@ -206,3 +206,18 @@
   color: var(--color-text-muted);
   max-width: 52ch;
 }
+
+.brandHero {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4, 1rem);
+  margin-bottom: var(--space-6, 1.5rem);
+  flex-wrap: wrap;
+}
+
+.slogan {
+  margin: 0;
+  font-size: var(--font-size-xl, 1.35rem);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-text, inherit);
+}

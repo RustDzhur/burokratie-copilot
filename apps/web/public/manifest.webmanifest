@@ -1,12 +1,12 @@
 {
   "name": "Bürokratie-Copilot",
   "short_name": "Copilot",
-  "description": "Dokumente, Vorgänge, Fristen und Zahlungen in einem sicheren Arbeitsbereich.",
+  "description": "Weniger Bürokratie. Mehr Zeit für dich.",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#f4f6fb",
+  "background_color": "#fefcfb",
   "theme_color": "#070b14",
   "lang": "de",
   "dir": "ltr",
@@ -24,7 +24,7 @@
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/icons/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

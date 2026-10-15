@@ -26,7 +26,18 @@ export const metadata: Metadata = {
   // What makes the app installable on a phone. Without the link the manifest is never read.
   manifest: '/manifest.webmanifest',
   appleWebApp: { capable: true, title: 'Bürokratie-Copilot', statusBarStyle: 'default' },
-  icons: { icon: '/icons/icon-192.png', apple: '/icons/icon-192.png' },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: '/icons/apple-touch-icon.png',
+  },
+  openGraph: {
+    title: 'Bürokratie-Copilot',
+    description: 'Weniger Bürokratie. Mehr Zeit für dich.',
+    images: [{ url: '/brand/og-image.png', width: 1200, height: 630, alt: 'Bürokratie-Copilot' }],
+  },
 };
 
 export const viewport: Viewport = {

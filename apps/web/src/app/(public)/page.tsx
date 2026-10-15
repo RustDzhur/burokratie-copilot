@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { BrandMark } from '@/components/app/brand-mark';
 import { Icon, type IconName } from '@/components/icons';
 import { buttonClass } from '@/components/ui/button-class';
 import { Badge, Card } from '@/components/ui/data';
@@ -69,6 +70,12 @@ export default function LandingPage() {
   return (
     <div className={styles.page}>
       <section className={styles.hero} aria-labelledby="landing-hero-title">
+        <div className={styles.brandHero}>
+          <BrandMark size={120} />
+          <p className={styles.slogan} lang="de">
+            {tCommon('app.slogan')}
+          </p>
+        </div>
         <p className={styles.eyebrow}>{t('hero.eyebrow')}</p>
         <h1 className={styles.heroTitle} id="landing-hero-title">
           {t('hero.title')}

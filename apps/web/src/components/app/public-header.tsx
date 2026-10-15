@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { BrandMark } from '@/components/app/brand-mark';
 import { buttonClass } from '@/components/ui/button-class';
 import { useTranslations } from '@/i18n/provider';
 import { LanguageMenu, ThemeMenu } from './preference-controls';
@@ -15,9 +16,7 @@ export function PublicHeader() {
   return (
     <header className={styles.header}>
       <Link href="/" className={styles.brand}>
-        <span className={styles.brandMark} aria-hidden="true">
-          BC
-        </span>
+        <BrandMark size={36} />
         <span className={styles.brandName}>{tCommon('app.name')}</span>
       </Link>
       <div className={styles.actions}>

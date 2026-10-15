@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BrandMark } from '@/components/app/brand-mark';
 import type { ReactNode } from 'react';
 import { ThemeMenu, LanguageMenu } from '@/components/app/preference-controls';
 import { getServerTranslations } from '@/i18n/server';
@@ -15,9 +16,7 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
       </a>
       <header className={styles.header}>
         <Link href="/" className={styles.brand}>
-          <span className={styles.brandMark} aria-hidden="true">
-            BC
-          </span>
+          <BrandMark size={40} />
           <span>{t('common', 'app.name')}</span>
         </Link>
         <div className={styles.controls}>
@@ -28,6 +27,9 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
       <main id="main-content" className={styles.main}>
         {children}
       </main>
+      <p className={styles.note} lang="de">
+        {t('common', 'app.slogan')}
+      </p>
       <p className={styles.note}>{t('auth', 'security.note')}</p>
     </div>
   );

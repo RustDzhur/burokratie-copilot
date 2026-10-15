@@ -10,6 +10,7 @@ export const ruCore: CoreMessages = {
     'estimate.label': 'оценка модели',
     'estimate.hint': 'Собственная оценка модели, а не вероятность',
     'app.name': 'Bürokratie-Copilot',
+    'app.slogan': 'Weniger Bürokratie. Mehr Zeit für dich.',
     'app.tagline': 'Интеллектуальный центр управления административными процессами в Германии',
     'actions.capture': 'Сделать фото',
     'actions.save': 'Сохранить',

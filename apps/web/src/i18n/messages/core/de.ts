@@ -18,6 +18,7 @@ export const deCore = {
     'estimate.label': 'Modellschätzung',
     'estimate.hint': 'Einschätzung des Modells, keine Wahrscheinlichkeit',
     'app.name': 'Bürokratie-Copilot',
+    'app.slogan': 'Weniger Bürokratie. Mehr Zeit für dich.',
     'app.tagline': 'Der intelligente Verwaltungs-Cockpit für Deutschland',
     'actions.capture': 'Foto aufnehmen',
     'actions.save': 'Speichern',
