@@ -263,6 +263,11 @@ export const deScreens = {
     'retention.none': 'Keine Frist hinterlegt',
   },
   documentViewer: {
+    'insights.title': 'Risiken und Vorgänge',
+    'insights.risks': 'Offene Hinweise des Radars zu diesem Dokument',
+    'insights.noRisks': 'Keine offenen Hinweise zu diesem Dokument.',
+    'insights.cases': 'Vorgänge mit diesem Dokument',
+    'insights.noCases': 'Das Dokument gehört zu keinem Vorgang.',
     'action.aiRead': 'Mit KI lesen (Handschrift)',
     'aiRead.confirm': 'Die Seiten dieses Dokuments werden zur Auswertung an den KI-Anbieter gesendet, den Ihr Administrator eingerichtet hat. Die Ergebnisse sind nur Vorschläge, die Sie prüfen. Fortfahren?',
     'aiRead.done': '{count, plural, =0 {Nichts Lesbares gefunden} one {# Wert vorgeschlagen} other {# Werte vorgeschlagen}}: bitte im Tab „Felder“ prüfen',

@@ -172,6 +172,7 @@ import type {
   FutureTimeline,
   ScenarioRequest,
   ScenarioResult,
+  DocumentCase,
   ExplanationOutcome,
 } from './types';
 
@@ -337,6 +338,8 @@ export interface ApiResources {
     categoryCounts: (signal?: AbortSignal) => Promise<Readonly<Record<string, number>>>;
     catalogue: (signal?: AbortSignal) => Promise<readonly CatalogueEntry[]>;
     setParty: (id: string, partyId: string | null) => Promise<void>;
+    /** The cases the document is linked to, as far as the reader may see them. */
+    cases: (id: string, signal?: AbortSignal) => Promise<readonly DocumentCase[]>;
     createTask: (id: string) => Promise<void>;
     /** Reads the pages with AI vision (handwriting); the values come back as proposals. */
     aiRead: (id: string) => Promise<{ readonly status: string; readonly found: Readonly<Record<string, string>>; readonly summary: string | null }>;
@@ -926,6 +929,7 @@ export function createResources(client: ApiClient): ApiResources {
         await client.post<unknown>(`/documents/${id}/create-task`, undefined, { idempotencyKey: true });
       },
       catalogue: (signal) => client.get<readonly CatalogueEntry[]>('/documents/types', withSignal(signal)),
+      cases: (id, signal) => client.get<readonly DocumentCase[]>(`/documents/${id}/cases`, withSignal(signal)),
       setParty: async (id, partyId) => {
         await client.put<unknown>(`/documents/${id}/party`, { partyId }, { idempotencyKey: true });
       },

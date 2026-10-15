@@ -954,3 +954,13 @@ export interface RuleSettingVersion {
   readonly reason: string | null;
   readonly changedAt: string;
 }
+
+/** A case a document is linked to; `linkOrigin` says whether a person or a rule made the link. */
+export interface DocumentCase {
+  readonly id: string;
+  readonly title: string;
+  readonly status: string;
+  readonly link_origin: 'MANUAL' | 'RULE' | 'AI' | 'IMPORT';
+  readonly is_primary: boolean;
+  readonly confirmed_at: string | null;
+}

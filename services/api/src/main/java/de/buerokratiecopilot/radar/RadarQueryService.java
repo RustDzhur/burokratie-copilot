@@ -25,7 +25,11 @@ public class RadarQueryService {
 
     /** Filters of the list; every one is optional. */
     public record Filter(List<String> status, List<String> severity, List<String> type, UUID caseId, UUID contactId,
-                         UUID assignedTo, Boolean open) {
+                         UUID assignedTo, Boolean open, UUID documentId) {
+        public Filter(List<String> status, List<String> severity, List<String> type, UUID caseId, UUID contactId,
+                      UUID assignedTo, Boolean open) {
+            this(status, severity, type, caseId, contactId, assignedTo, open, null);
+        }
     }
 
     private final JdbcTemplate jdbc;
@@ -70,6 +74,10 @@ public class RadarQueryService {
         if (filter.contactId() != null) {
             where.append(" and f.related_contact_id = ?");
             args.add(filter.contactId());
+        }
+        if (filter.documentId() != null) {
+            where.append(" and exists (select 1 from radar_finding_evidence de where de.finding_id = f.id and de.document_id = ?)");
+            args.add(filter.documentId());
         }
         if (filter.assignedTo() != null) {
             where.append(" and f.assigned_to = ?");

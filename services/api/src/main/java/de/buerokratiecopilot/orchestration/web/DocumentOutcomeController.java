@@ -46,6 +46,35 @@ public class DocumentOutcomeController {
     }
 
     /**
+     * The cases a document belongs to, for the block "related cases" on the document page. A case the reader may not
+     * see (not owner, not responsible, not a participant, and no right to see every case) is left out.
+     */
+    @GetMapping("/{id}/cases")
+    @PreAuthorize("hasAuthority('documents.view')")
+    @Operation(summary = "Cases this document is linked to, as far as the reader may see them")
+    public ResponseEntity<List<Map<String, Object>>> relatedCases(@PathVariable UUID id) {
+        UUID user = de.buerokratiecopilot.shared.context.CurrentUser.required();
+        boolean seesEvery = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream().anyMatch(a -> "cases.assign".equals(a.getAuthority()));
+        // 404 for a document of another tenant (row level security hides it) instead of an empty list.
+        Integer exists = jdbc.queryForObject("select count(*) from documents where id = ? and deleted_at is null",
+                Integer.class, id);
+        if (exists == null || exists == 0) {
+            throw de.buerokratiecopilot.shared.error.ApiException.notFound("Document");
+        }
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                select c.id, c.title, c.status, cd.link_origin, cd.is_primary, cd.confirmed_at
+                from case_documents cd join cases c on c.id = cd.case_id
+                where cd.document_id = ?
+                  and (? or c.owner_user_id = ? or c.responsible_user_id = ?
+                       or exists (select 1 from case_participants p where p.case_id = c.id and p.user_id = ?
+                                  and p.revoked_at is null and (p.expires_at is null or p.expires_at > now())))
+                order by cd.created_at desc
+                """, id, seesEvery, user, user, user);
+        return ResponseEntity.ok(rows);
+    }
+
+    /**
      * Reads the pages with a model that looks at them (handwriting, stamps), at the request of a person. The pages go to
      * the configured AI provider, so this is never done by itself; the answer says what was proposed or why nothing was.
      */

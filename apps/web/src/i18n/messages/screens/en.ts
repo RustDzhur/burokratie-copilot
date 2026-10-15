@@ -260,6 +260,11 @@ export const enScreens: ScreenMessages = {
     'retention.none': 'No retention period stored',
   },
   documentViewer: {
+    'insights.title': 'Risks and cases',
+    'insights.risks': 'Open Radar findings that cite this document',
+    'insights.noRisks': 'No open findings cite this document.',
+    'insights.cases': 'Cases with this document',
+    'insights.noCases': 'The document belongs to no case.',
     'action.aiRead': 'Read with AI (handwriting)',
     'aiRead.confirm': 'The pages of this document will be sent for analysis to the AI provider your administrator set up. The results are only proposals for you to check. Continue?',
     'aiRead.done': '{count, plural, =0 {Nothing readable found} one {# value proposed} other {# values proposed}}: please check them in the "Fields" tab',

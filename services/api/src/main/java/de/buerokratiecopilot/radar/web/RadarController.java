@@ -59,11 +59,12 @@ public class RadarController {
                                     @RequestParam(required = false) UUID caseId,
                                     @RequestParam(required = false) UUID contactId,
                                     @RequestParam(required = false) UUID assignedTo,
+                                    @RequestParam(required = false) UUID documentId,
                                     @RequestParam(required = false) Boolean open,
                                     @RequestParam(defaultValue = "0") int page,
                                     @RequestParam(defaultValue = "25") int size) {
         return queries.list(tenant(), CurrentUser.required(),
-                new RadarQueryService.Filter(status, severity, type, caseId, contactId, assignedTo, open), page, size);
+                new RadarQueryService.Filter(status, severity, type, caseId, contactId, assignedTo, open, documentId), page, size);
     }
 
     @GetMapping("/summary")
