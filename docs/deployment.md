@@ -486,3 +486,11 @@ Nothing in this list can be produced by the repository. Each row states what it 
 * **Worker не имеет веб-сервера**, поэтому его состояние проверяется не по HTTP: профиль `worker` каждые 15 секунд обновляет файл `/tmp/worker-heartbeat`, проверка контейнера — «файл обновлялся менее 60 секунд назад» (`infra/docker-compose*.yml`, `WorkerHeartbeat`). Контейнер `bc-worker` в состоянии `unhealthy` теперь означает, что планировщик действительно остановился.
 * **Мёртвые события очереди:** `GET /api/v1/admin/outbox/dead-letters` показывает, `POST /api/v1/admin/outbox/requeue` возвращает в работу события тех типов, для которых есть обработчик (только администратор платформы).
 * **Радар** выполняет ежечасный обход арендаторов (`burokratie.radar.sweep-interval-ms`, отключение `burokratie.radar.sweep-enabled=false`).
+
+### Образ MinIO (замечание 2026-10-15)
+
+`infra/docker-compose.yml` по умолчанию берёт `minio/minio:latest` (переменная `BC_MINIO_IMAGE`). При проверке с машины разработки
+`docker pull minio/minio:latest` ответил «pull access denied … repository does not exist or may require login», а `quay.io/minio/minio:latest`
+ответил 401. Уже запущенный контейнер на сервере это не затрагивает, но при пересоздании хоста или чистой установке образ может не
+скачаться. Перед чистой установкой проверьте источник образа и закрепите рабочий адрес в `BC_MINIO_IMAGE` (и в `BC_MINIO_MC_IMAGE`). Вывод
+«образа больше нет в публичных реестрах» не доказан: могла сыграть роль только эта проверка с одной машины.

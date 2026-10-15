@@ -518,3 +518,16 @@ The four open defects that currently prevent a working end-to-end install are li
 evidence in `README.md` → *Known blockers*: the `worker` profile does not start, Flyway `V14` fails on
 a fresh database, the CSRF token is never delivered (so registration and sign-in are unreachable),
 and `apps/web/next.config.ts` lacks `output: "standalone"`.
+
+## Проверка состояния worker (HD-OPS-01), запись 2026-10-15
+
+- **Причина `unhealthy` (найдена ранее):** у профиля `worker` нет веб-сервера, а проверка контейнера ходила на HTTP-порт. Её заменили
+  проверкой свежести файла `/tmp/worker-heartbeat` (его обновляет `WorkerHeartbeat` каждые 10 секунд; допустимый возраст — 60 секунд,
+  `infra/docker-compose.yml`).
+- **Проверено локально:** профиль `worker` запущен из собранного jar против PostgreSQL; за 60 секунд файл обновился (метки времени
+  1792040226 и 1792040256, возраст на момент проверки 4 секунды), процесс остался в работе и разобрал события очереди.
+- **Не проверено:** состояние контейнера `bc-worker` на сервере после выкладки. У этой машины нет доступа к docker на сервере.
+  Проверка вручную: `docker inspect -f '{{.State.Health.Status}}' bc-worker` должен вернуть `healthy`; если нет — `docker logs bc-worker --tail 100`.
+  Задача HD-OPS-01 остаётся `IN_PROGRESS` до этой проверки.
+- **События DEAD_LETTER на сервере (HD-OPS-02):** команда возврата в очередь выложена (`POST /api/v1/admin/outbox/requeue`), но не
+  выполнена на сервере; её выполняет администратор платформы.

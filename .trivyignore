@@ -8,6 +8,12 @@
 CVE-2026-47884 exp:2026-12-31
 CVE-2026-47890 exp:2026-12-31
 
+# minio-java 8.5.17 (CVE-2025-59952, fixed in 8.6.0): the client could be made to read a wrong value from an XML answer of the
+# S3 server. The only server this application talks to is its own MinIO. Version 8.6.0 is built on OkHttp 5 and was not taken
+# because it could not be tried against a real MinIO here (the image is no longer pullable from the registries reachable from
+# the development machine); S3BlobStoreMinioTest is ready for that and runs when BC_TEST_MINIO_ENDPOINT is set.
+CVE-2025-59952 exp:2026-12-31
+
 # /usr/bin/pebble: a Go binary that belongs to the base image (eclipse-temurin:21-jre), not to this project; this
 # application never starts it. Fixed by a new build of the base image; the image is rebuilt on every release.
 CVE-2026-78667 exp:2026-12-31
