@@ -831,3 +831,45 @@ export interface InvoiceMemory {
   readonly bankDetailsChanged: boolean;
   readonly flags: readonly string[];
 }
+
+
+/** The type of a claim in an explanation of a document: what stands in it, what is a reading of it, what is not known. */
+export type ClaimType = 'SOURCE_FACT' | 'AI_INTERPRETATION' | 'USER_CONFIRMED' | 'UNKNOWN' | 'REQUIRES_EXPERT_REVIEW';
+
+export interface ExplanationClaim {
+  readonly text: string;
+  readonly type: ClaimType;
+  readonly quote?: string | null;
+  readonly page?: number | null;
+  readonly downgraded?: boolean;
+}
+
+export interface ExplanationBlock {
+  readonly key: string;
+  readonly claims: readonly ExplanationClaim[];
+}
+
+/** An explanation (ten blocks) or a translation (text) of a document, as stored; it never replaces the original. */
+export interface DocumentExplanationContent {
+  readonly language: string;
+  readonly disclaimer: string;
+  readonly blocks?: readonly ExplanationBlock[];
+  readonly text?: string;
+  readonly machineTranslation?: boolean;
+  readonly simpleLanguage?: boolean;
+  readonly hiddenInstructionRemoved?: boolean;
+  readonly withheldCount?: number;
+}
+
+export interface StoredExplanation {
+  readonly id: string;
+  readonly content: DocumentExplanationContent;
+  readonly createdAt: string;
+  /** False when the document was read again after the explanation was written. */
+  readonly current: boolean;
+}
+
+export interface ExplanationOutcome {
+  readonly kind: 'EXPLAINED' | 'TRANSLATED' | 'NO_TEXT' | 'UNAVAILABLE' | 'REJECTED';
+  readonly reason: string | null;
+}

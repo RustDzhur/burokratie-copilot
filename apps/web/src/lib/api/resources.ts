@@ -10,7 +10,7 @@
  * `Idempotency-Key` header (§20: "идемпотентность, если требуется").
  */
 
-import { ApiError } from './errors';
+import { ApiError, isApiError } from './errors';
 import { normalizePage, type ApiClient, type ListParams, type Page, type UploadOptions } from './client';
 import {
   approvalFromFields,
@@ -166,6 +166,8 @@ import type {
   PartyInput,
   PartySummary,
   TelegramStatus,
+  StoredExplanation,
+  ExplanationOutcome,
 } from './types';
 
 export interface LoginPayload {
@@ -329,6 +331,11 @@ export interface ApiResources {
     createTask: (id: string) => Promise<void>;
     /** Reads the pages with AI vision (handwriting); the values come back as proposals. */
     aiRead: (id: string) => Promise<{ readonly status: string; readonly found: Readonly<Record<string, string>>; readonly summary: string | null }>;
+    /** The stored explanation or translation; null when none was made yet. */
+    explanation: (id: string, language: string, signal?: AbortSignal) => Promise<StoredExplanation | null>;
+    explain: (id: string, language: string) => Promise<ExplanationOutcome>;
+    translation: (id: string, language: string, simple: boolean, signal?: AbortSignal) => Promise<StoredExplanation | null>;
+    translate: (id: string, language: string, simple: boolean) => Promise<ExplanationOutcome>;
     downloadOriginal: (id: string) => Promise<Blob>;
     confirmFields: (id: string, payload: ConfirmFieldsPayload) => Promise<void>;
     archive: (id: string) => Promise<void>;
@@ -759,6 +766,16 @@ const relationshipItem = (row: any): RelationshipItem => ({
   reason: row.evidence?.rule ?? row.rationale?.de ?? null,
 });
 
+/** A 404 on a read of something that may not exist yet is an answer ("not made yet"), not a failure. */
+async function orNull<T>(request: Promise<T>): Promise<T | null> {
+  try {
+    return await request;
+  } catch (error) {
+    if (isApiError(error) && error.kind === 'notFound') return null;
+    throw error;
+  }
+}
+
 const withSignal = (signal?: AbortSignal): { signal?: AbortSignal } => (signal ? { signal } : {});
 
 export function createResources(client: ApiClient): ApiResources {
@@ -889,6 +906,14 @@ export function createResources(client: ApiClient): ApiResources {
         await client.put<unknown>(`/documents/${id}/party`, { partyId }, { idempotencyKey: true });
       },
       categoryCounts: (signal) => client.get<Record<string, number>>('/documents/categories', withSignal(signal)),
+      explanation: (id, language, signal) =>
+        orNull(client.get<StoredExplanation>(`/documents/${id}/explanation`, { ...withSignal(signal), query: { language } })),
+      explain: (id, language) =>
+        client.post<ExplanationOutcome>(`/documents/${id}/explanation`, undefined, { query: { language } }),
+      translation: (id, language, simple, signal) =>
+        orNull(client.get<StoredExplanation>(`/documents/${id}/translation`, { ...withSignal(signal), query: { language, simple: String(simple) } })),
+      translate: (id, language, simple) =>
+        client.post<ExplanationOutcome>(`/documents/${id}/translation`, undefined, { query: { language, simple: String(simple) } }),
       downloadOriginal: (id) =>
         client.request<Blob>(`/documents/${id}/content`, { parse: 'blob', query: { download: 'true' } }),
       confirmFields: async (id, payload) => decideOpenReview(client, id, approvalFromFields(payload.fields)),

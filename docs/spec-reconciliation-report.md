@@ -124,7 +124,7 @@ D-01 префикс API `/api/v1`; D-02 BusinessEntity = `contacts`, связи 
 
 ## 13. План следующего этапа и ближайшие микрозадачи
 
-Задач этапа R: 61 (DONE — 36, IN_PROGRESS — 1, TODO — 23, BLOCKED — 1). Полный перечень с приёмкой и тестами — `docs/implementation-plan.md`, «Этап R».
+Задач этапа R: 61 (DONE — 41, IN_PROGRESS — 1, TODO — 18, BLOCKED — 1). Полный перечень с приёмкой и тестами — `docs/implementation-plan.md`, «Этап R».
 
 **Выполнено в ходе аудита:** `R-01`, `R-02`, `R-03`, `R-05`, `R-06`, `BM-02a`.
 
