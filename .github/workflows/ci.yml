@@ -547,7 +547,8 @@ jobs:
         run: |
           set -euo pipefail
           archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          curl -sSL -o "/tmp/${archive}" \
+          # -f: an error page must not be saved as the archive; retried, because the release host fails now and then
+          curl -fsSL --retry 5 --retry-delay 4 --retry-all-errors -o "/tmp/${archive}" \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}"
           echo "${GITLEAKS_SHA256}  /tmp/${archive}" | sha256sum --check --status \
             || { echo "::error::the gitleaks archive does not match its published checksum"; exit 1; }
