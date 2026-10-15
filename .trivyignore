@@ -1,0 +1,15 @@
+# Findings of the image scan that are accepted for now, each with the reason and a date to look at it again.
+# Everything else with a fix available fails the build (see .github/workflows/ci.yml, job docker-build).
+
+# spring-webmvc 6.2.19: fixed only in 7.0.9 (Spring Framework 7 / Spring Boot 4); there is no fix in the 6.2 line.
+# CVE-2026-47884: remote code execution through XsltView path handling. This application serves JSON and has no XSLT view.
+# CVE-2026-47890: corrupted Server-Sent Events streams with views. This application does not stream SSE through views.
+# Real fix: move to Spring Boot 4, a project of its own.
+CVE-2026-47884 exp:2026-12-31
+CVE-2026-47890 exp:2026-12-31
+
+# /usr/bin/pebble: a Go binary that belongs to the base image (eclipse-temurin:21-jre), not to this project; this
+# application never starts it. Fixed by a new build of the base image; the image is rebuilt on every release.
+CVE-2026-78667 exp:2026-12-31
+CVE-2026-78669 exp:2026-12-31
+CVE-2026-97031 exp:2026-12-31

@@ -18,7 +18,15 @@ function clean(node: Node, out: Document): Node[] {
   return [copy];
 }
 
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 export function sanitizeTemplateHtml(html: string): string {
+  if (html.length === 0) return '';
+  // On the server (page rendering) there is no DOM parser. Nothing is let through there: the text is escaped, and the browser
+  // sanitises properly as soon as it takes over.
+  if (typeof DOMParser === 'undefined') return escapeHtml(html);
   const parsed = new DOMParser().parseFromString(html, 'text/html');
   const holder = parsed.createElement('div');
   Array.from(parsed.body.childNodes).flatMap((node) => clean(node, parsed)).forEach((node) => holder.appendChild(node));

@@ -819,8 +819,8 @@ jobs:
           set -euo pipefail
           # The scanner runs as a container of its own against the image just built; no third-party action is trusted
           # with the Docker socket. Only findings that already have a fixed version block the build.
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.57.1 image \
-            --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress \
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/.trivyignore:/.trivyignore:ro" aquasec/trivy:0.57.1 image \
+            --severity HIGH,CRITICAL --ignore-unfixed --ignorefile /.trivyignore --exit-code 1 --no-progress \
             burokratie-copilot/api:ci-${{ github.sha }}
 
       - name: Build summary

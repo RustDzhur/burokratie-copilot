@@ -1,0 +1,3 @@
+# A throwaway test value ("0123456789…" in base64) that stood in a CI job for a few minutes (commit 634effc) and was removed in
+# the next commit. It protects nothing: it was only the encryption key of a database that exists for one CI run.
+634effc1cc11a36179b0f65e8ac15442c5f9cd4d:.github/workflows/ci.yml:generic-api-key:893

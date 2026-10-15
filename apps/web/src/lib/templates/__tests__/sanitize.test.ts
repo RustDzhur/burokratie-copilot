@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fillPlaceholders, placeholderNames, sanitizeTemplateHtml } from '../sanitize';
 
 describe('sanitizeTemplateHtml', () => {
@@ -23,5 +23,17 @@ describe('placeholders', () => {
 
   it('fills what has a sample value, leaves the rest visible, and never lets a sample inject markup', () => {
     expect(fillPlaceholders('{{name}} / {{date}}', { name: '<b>X</b> & Y' })).toBe('&lt;b&gt;X&lt;/b&gt; &amp; Y / {{date}}');
+  });
+});
+
+describe('sanitizeTemplateHtml on the server', () => {
+  it('does not need a DOM parser: empty text stays empty, and anything else is escaped, never passed through', () => {
+    vi.stubGlobal('DOMParser', undefined);
+    try {
+      expect(sanitizeTemplateHtml('')).toBe('');
+      expect(sanitizeTemplateHtml('<p onclick="x()">Hallo</p><script>1</script>')).toBe('&lt;p onclick="x()"&gt;Hallo&lt;/p&gt;&lt;script&gt;1&lt;/script&gt;');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
