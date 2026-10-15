@@ -48,6 +48,8 @@ export default function DocumentsPage() {
   const [category, setCategory] = useState<(typeof CATEGORY_TABS)[number]>('ALL');
   const user = useSession();
   const toast = useToast();
+  const [listVersion, setListVersion] = useState(0);
+  const [sorting, setSorting] = useState(false);
   const tErrors = useTranslations('errors');
   const parties = useApiResource((signal) => api.parties.list(signal), []);
   const catalogue = useApiResource((signal) => api.documents.catalogue(signal), []);
@@ -59,6 +61,21 @@ export default function DocumentsPage() {
     if (counts.status !== 'ready') return null;
     if (tab === 'ALL') return Object.values(counts.data).reduce((sum, value) => sum + value, 0);
     return counts.data[tab] ?? 0;
+  };
+
+  const resort = async (): Promise<void> => {
+    if (!window.confirm(t('resort.confirm'))) return;
+    setSorting(true);
+    try {
+      const result = await api.documents.resort();
+      toast.success(t('resort.done', result));
+      reloadCounts();
+      setListVersion((value) => value + 1);
+    } catch (error) {
+      toast.error(tErrors(toApiError(error).kind));
+    } finally {
+      setSorting(false);
+    }
   };
 
   const deleteMany = async (ids: readonly string[]): Promise<boolean> => {
@@ -118,6 +135,11 @@ export default function DocumentsPage() {
 
   return (
     <>
+      <p>
+        <Button variant="secondary" loading={sorting} onClick={() => void resort()}>
+          {t('resort.action')}
+        </Button>
+      </p>
       <div role="tablist" aria-label={t('category.label')} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
         {CATEGORY_TABS.map((tab) => {
           const count = countOf(tab);
@@ -146,7 +168,7 @@ export default function DocumentsPage() {
         })}
       </div>
       <ListPage<DocumentSummary>
-        key={category}
+        key={`${category}-${listVersion}`}
         screenId="documents"
         namespace="documents"
         load={(params, signal) =>

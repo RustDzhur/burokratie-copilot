@@ -341,6 +341,8 @@ export interface ApiResources {
     /** The cases the document is linked to, as far as the reader may see them. */
     cases: (id: string, signal?: AbortSignal) => Promise<readonly DocumentCase[]>;
     createTask: (id: string) => Promise<void>;
+    /** Files the stored documents again by the current rules; returns what was done in numbers. */
+    resort: () => Promise<Readonly<Record<'checked' | 'unchanged' | 'moved' | 'sentToReview' | 'keptByPerson' | 'withoutText' | 'failed', number>>>;
     /** Reads the pages with AI vision (handwriting); the values come back as proposals. */
     aiRead: (id: string) => Promise<{ readonly status: string; readonly found: Readonly<Record<string, string>>; readonly summary: string | null }>;
     /** The stored explanation or translation; null when none was made yet. */
@@ -925,6 +927,7 @@ export function createResources(client: ApiClient): ApiResources {
           undefined,
           { idempotencyKey: true },
         ),
+      resort: () => client.post('/documents/resort', undefined, { idempotencyKey: true }),
       createTask: async (id) => {
         await client.post<unknown>(`/documents/${id}/create-task`, undefined, { idempotencyKey: true });
       },

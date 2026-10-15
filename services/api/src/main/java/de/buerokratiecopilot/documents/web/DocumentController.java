@@ -47,10 +47,13 @@ public class DocumentController {
     private final DocumentService documentService;
     private final de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline;
     private final de.buerokratiecopilot.documents.DocumentTypeRepository documentTypes;
+    private final de.buerokratiecopilot.documents.classification.DocumentResortService resorter;
 
     public DocumentController(DocumentService documentService,
                               de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline,
-                              de.buerokratiecopilot.documents.DocumentTypeRepository documentTypes) {
+                              de.buerokratiecopilot.documents.DocumentTypeRepository documentTypes,
+                              de.buerokratiecopilot.documents.classification.DocumentResortService resorter) {
+        this.resorter = resorter;
         this.documentService = documentService;
         this.pipeline = pipeline;
         this.documentTypes = documentTypes;
@@ -273,6 +276,14 @@ public class DocumentController {
             }
         }
         return new BulkDeleteResponse(deleted, refused);
+    }
+
+    @PostMapping("/resort")
+    @PreAuthorize("hasAuthority('documents.review')")
+    @Operation(summary = "Put the stored documents of this tenant in the drawers the current rules choose; "
+            + "a type a person confirmed is left alone, doubtful ones go to review")
+    public ResponseEntity<java.util.Map<String, Object>> resort() {
+        return ResponseEntity.ok(resorter.resort(de.buerokratiecopilot.shared.context.RequestContext.tenantId().orElseThrow()));
     }
 
     @PostMapping("/{id}/reprocess")

@@ -94,6 +94,13 @@ public class ClassificationService {
                     "Das Dokument ist nicht deutschsprachig (erkannte Sprache: Russisch); es wird nicht nach deutschen Regeln einsortiert", true);
         }
 
+        // A file name is a hint, not a reading. Without any text read from the content, a name like "BWA 2025.jpg" would be
+        // filed as a business report and a task created for it, although nobody has seen what the picture says.
+        if (document.getExtractedText() == null || document.getExtractedText().isBlank()) {
+            return new Outcome(false, null, null, null,
+                    "Aus dem Dokument konnte kein Text gelesen werden; der Dateiname allein reicht für eine Einordnung nicht", true);
+        }
+
         DocumentClassifier.Classification result = classifier.classify(new DocumentClassifier.Input(
                 document.getTenantId(), textFor(document, senderEmail), document.getOriginalFilename(),
                 senderEmail, document.getSender()));

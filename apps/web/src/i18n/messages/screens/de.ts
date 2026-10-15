@@ -210,6 +210,9 @@ export const deScreens = {
     selectedHint: '{count, plural, one {# Dokument ausgewählt} other {# Dokumente ausgewählt}}',
   },
   documents: {
+    'resort.action': "Alle Dokumente neu einordnen",
+    'resort.confirm': "Alle gespeicherten Dokumente werden nach den aktuellen Regeln neu einsortiert. Was Sie selbst bestätigt haben, bleibt. Wo die Regeln nicht sicher sind oder kein Text gelesen wurde, kommt das Dokument zur Prüfung. Gelöscht wird nichts. Fortfahren?",
+    'resort.done': "{checked} geprüft: {moved} umsortiert, {sentToReview} zur Prüfung, {withoutText} ohne lesbaren Text, {keptByPerson} von Ihnen bestätigt (unverändert), {unchanged} unverändert.",
     'category.label': 'Dokumentarten',
     'category.ALL': 'Alle',
     'category.UNSORTED': 'Nicht zugeordnet',
