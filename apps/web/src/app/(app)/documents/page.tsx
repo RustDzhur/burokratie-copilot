@@ -135,12 +135,12 @@ export default function DocumentsPage() {
 
   return (
     <>
-      <p>
+      <div style={{ marginBottom: '1.25rem' }}>
         <Button variant="secondary" loading={sorting} onClick={() => void resort()}>
           {t('resort.action')}
         </Button>
-      </p>
-      <div role="tablist" aria-label={t('category.label')} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+      </div>
+      <div role="tablist" aria-label={t('category.label')} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
         {CATEGORY_TABS.map((tab) => {
           const count = countOf(tab);
           const active = tab === category;
