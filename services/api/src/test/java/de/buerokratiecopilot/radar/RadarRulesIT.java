@@ -110,7 +110,7 @@ class RadarRulesIT {
     @DisplayName("every rule describes itself completely, and the ids are unique")
     void rulesAreDescribed() {
         List<RadarRule.Description> all = engine.descriptions();
-        assertThat(all).extracting(RadarRule.Description::id).containsExactlyInAnyOrder("A1", "B1", "B2", "B3", "C1", "D1");
+        assertThat(all).extracting(RadarRule.Description::id).containsExactlyInAnyOrder("A1", "B1", "B2", "B3", "C1", "D1", "E1");
         assertThat(all).allSatisfy(description -> assertThat(description.isComplete()).as(description.id()).isTrue());
     }
 

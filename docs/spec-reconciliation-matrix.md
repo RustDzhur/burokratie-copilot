@@ -26,25 +26,25 @@
 
 | Статус | Строк |
 |---|---:|
-| `IMPLEMENTED_AND_TESTED` | 93 |
+| `IMPLEMENTED_AND_TESTED` | 94 |
 | `IMPLEMENTED_UNVERIFIED` | 14 |
 | `PARTIALLY_IMPLEMENTED` | 48 |
 | `DOCUMENTED_ONLY` | 4 |
-| `MISSING` | 3 |
+| `MISSING` | 2 |
 | `CONFLICT` | 6 |
 | `BLOCKED` | 1 |
 | `NOT_APPLICABLE` | 1 |
 
 | Категория расхождения | Строк |
 |---|---:|
-| `NO_CONFLICT` | 81 |
+| `NO_CONFLICT` | 82 |
 | `IMPLEMENTATION_GAP` | 26 |
 | `ACCEPTANCE_GAP` | 22 |
 | `DOCUMENTATION_GAP` | 19 |
 | `EXTERNAL_DEPENDENCY` | 9 |
-| `MISSING_REQUIREMENT` | 4 |
 | `BEHAVIOR_CONFLICT` | 3 |
 | `DUPLICATE_FUNCTIONALITY` | 3 |
+| `MISSING_REQUIREMENT` | 3 |
 | `API_CONFLICT` | 1 |
 | `DATA_MODEL_CONFLICT` | 1 |
 | `SECURITY_GAP` | 1 |
@@ -66,7 +66,7 @@
 | 7. OCR и извлечение данных | 7 | 3 |
 | 8. Email и внешние интеграции | 8 | 4 |
 | 9. Business Memory | 9 | 3 |
-| 10. Bürokratie-Radar | 13 | 4 |
+| 10. Bürokratie-Radar | 13 | 3 |
 | 11. Case Autopilot | 10 | 2 |
 | 12. Approval Center | 4 | 1 |
 | 13. AI, RAG и provenance | 10 | 3 |
@@ -228,11 +228,11 @@
 | S10-01 | Bürokratie-Radar | §9.1 п.13 «проверить наличие противоречий», п.15 «определить уровень риска» | §6.1 обнаружение ситуаций по нескольким источникам; не календарь напоминаний | **`IMPLEMENTED_AND_TESTED`** — `radar/RadarEngine`, `radar/RadarFindingService`, `RadarFindingIT` | **`NO_CONFLICT`** — — | Новый модуль `radar` (вариант C: существующие уведомления не имеют жизненного цикла находки, но используются как канал доставки) | P0 | RD-01 |
 | S10-02 | Bürokratie-Radar | — | §6.3 модель RadarFinding: поля, статусы NEW/UNDER_REVIEW/CONFIRMED/DISMISSED/SNOOZED/RESOLVED/REOPENED, переходы контролирует backend | **`IMPLEMENTED_AND_TESTED`** — `radar/RadarFindingStatus`, `RadarStatusMachineTest`, `RadarFindingIT` | **`NO_CONFLICT`** — — | Таблицы `radar_findings`, `radar_finding_evidence`, `radar_finding_events` (RD-01); автомат статусов по образцу `DocumentStatusMachine` | P0 | RD-01 |
 | S10-03 | Bürokratie-Radar | §12.2 приоритет CRITICAL..INFORMATIONAL; §25 severity уведомлений INFO/NOTICE/WARNING/CRITICAL | §6.4 серьёзность INFO/LOW/MEDIUM/HIGH/CRITICAL вычисляется детерминированно, не языковой моделью | **`IMPLEMENTED_AND_TESTED`** — `radar/RadarSeverity`, `RadarRulesIT` (серьёзность вычисляют правила, не ИИ) | **`NO_CONFLICT`** — — | Решение D-07: серьёзность находки — шкала ТЗ v2.0; приоритет задачи — отдельное понятие; таблица соответствия серьёзность→уведомление (INFO,LOW→INFO; MEDIUM→NOTICE; HIGH→WARNING; CRITICAL→CRITICAL) и серьёзность→приоритет создаваемого дела; BLOCKING счёта = минимум HIGH | P0 | RD-01 |
-| S10-04 | Bürokratie-Radar | §14.1 дубликат счёта, арифметика, смена банковских реквизитов | §6.2 B Invoice Anomaly: сумма отличается от прежних, дубликат, реквизиты, счёт без договора, нет данных | **`IMPLEMENTED_AND_TESTED`** — `radar/rules`, `RadarRulesIT`, `UnexpectedInvoiceIncreaseIT` | **`NO_CONFLICT`** — реализованы правила A1, B1, B2, B3, C1, D1; прочие виды находок не реализованы | RD-04: правила B1–B6 над существующими данными; `InvoiceValidation` вызывается как источник, не переписывается | P0 | RD-03 |
-| S10-05 | Bürokratie-Radar | §13.2 условия договора, приближение срока уведомления | §6.2 A Contract Risk: срок расторжения, изменение условий, новая версия, обсуждение несоответствует договору, обязательство без дела | **`IMPLEMENTED_AND_TESTED`** — `radar/rules`, `RadarRulesIT` | **`NO_CONFLICT`** — реализованы правила A1, B1, B2, B3, C1, D1; прочие виды находок не реализованы | RD-04: правила A1–A4; без юридических выводов (граница задана `ContractInterpretationBoundaryTest`) | P0 | RD-03 |
+| S10-04 | Bürokratie-Radar | §14.1 дубликат счёта, арифметика, смена банковских реквизитов | §6.2 B Invoice Anomaly: сумма отличается от прежних, дубликат, реквизиты, счёт без договора, нет данных | **`IMPLEMENTED_AND_TESTED`** — `radar/rules`, `RadarRulesIT`, `UnexpectedInvoiceIncreaseIT` | **`NO_CONFLICT`** — реализованы правила A1, B1, B2, B3, C1, D1, E1; прочие виды находок не реализованы | RD-04: правила B1–B6 над существующими данными; `InvoiceValidation` вызывается как источник, не переписывается | P0 | RD-03 |
+| S10-05 | Bürokratie-Radar | §13.2 условия договора, приближение срока уведомления | §6.2 A Contract Risk: срок расторжения, изменение условий, новая версия, обсуждение несоответствует договору, обязательство без дела | **`IMPLEMENTED_AND_TESTED`** — `radar/rules`, `RadarRulesIT` | **`NO_CONFLICT`** — реализованы правила A1, B1, B2, B3, C1, D1, E1; прочие виды находок не реализованы | RD-04: правила A1–A4; без юридических выводов (граница задана `ContractInterpretationBoundaryTest`) | P0 | RD-03 |
 | S10-06 | Bürokratie-Radar | §11 материалы для дела; `case_type_document_requirements` | §6.2 C Missing Information: нет документа для закрытия, сумма не распознана, приложение не найдено | **`PARTIALLY_IMPLEMENTED`** — `case_type_document_requirements`, `dashboard` счётчик `casesMissingDocuments`, `document_extractions.confidence` | **`IMPLEMENTATION_GAP`** — нет автоматических находок о неуверенно распознанной сумме и об упомянутом, но отсутствующем приложении | RD-04: правила C1–C3 | P1 | RD-03 |
 | S10-07 | Bürokratie-Radar | §11.2 жизненный цикл; §12 просроченные и без ответственного | §6.2 D Unresolved Case: ответ не отправлен, ответ не получен, задача просрочена, нет следующего действия | **`PARTIALLY_IMPLEMENTED`** — `orchestration/OrchestrationWatchdog` (просрочено, напоминание, без ответственного), `FollowUpService` (контроль ответа), `AssignmentService` | **`IMPLEMENTATION_GAP`** — каждое срабатывание — отдельное уведомление без жизненного цикла и дедупликации находок; нет «дело без следующего действия» | RD-04: правила D1–D4 поверх тех же запросов; уведомление создаётся из находки | P0 | RD-03 |
-| S10-07b | Bürokratie-Radar | §9.1 п.13 | §6.2 E Conflicting Facts: разные даты/суммы в документах, контрагент не совпадает | **`MISSING`** — — | **`MISSING_REQUIREMENT`** — нет сравнения фактов между документами | RD-04: правила E1–E3 (требуют BM-03: история фактов) | P1 | BM-03 |
+| S10-07b | Bürokratie-Radar | §9.1 п.13 | §6.2 E Conflicting Facts: разные даты/суммы в документах, контрагент не совпадает | **`IMPLEMENTED_AND_TESTED`** — `radar/rules/ConflictingFactsRule` (E1), `ConflictingFactsRuleIT` | **`NO_CONFLICT`** — сравниваются только документы одного типа с одним Aktenzeichen/номером счёта: даты Frist/Zahlungsziel и суммы; какой из двух верен, правило не решает | RD-04: правила E1–E3 (требуют BM-03: история фактов) | P1 | BM-03 |
 | S10-08 | Bürokratie-Radar | §4 ответственные; §12.4 | §6.2 F Operational Risk: обязательство без ответственного, зависимость от незавершённого шага, пересечение сроков, нужно согласование | **`PARTIALLY_IMPLEMENTED`** — `tasks.assignment_pending`, `OrchestrationWatchdog.reportUnassigned`, `approvals` | **`IMPLEMENTATION_GAP`** — нет правил пересечения сроков и зависимости от шага | RD-04: правила F1–F3 | P2 | RD-03 |
 | S10-09 | Bürokratie-Radar | §12.3 6 видов дат, правила расчёта — только проверяемые | §6.5 каждый срок: исходная дата, тип, текст, документ, позиция, способ, статус, часовой пояс, правило и его версия | **`IMPLEMENTED_AND_TESTED`** — `DeadlineProvenanceIT` | **`NO_CONFLICT`** — — | RD-05 | P0 | RD-05 |
 | S10-10 | Bürokratie-Radar | §16.3 идемпотентность | §6.6 устойчивый ключ находки, обновление lastEvaluatedAt, повторное открытие при новых данных, нет дублей при параллельной обработке | **`IMPLEMENTED_AND_TESTED`** — `radar/RadarFindingService` (устойчивый ключ, повторное открытие), `RadarFindingIT` | **`NO_CONFLICT`** — — | RD-02: `UNIQUE(tenant_id, finding_key)`; `INSERT ... ON CONFLICT DO UPDATE`; тест параллельной оценки | P0 | RD-01 |

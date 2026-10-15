@@ -20,20 +20,20 @@
 
 | Статус | Строк |
 |---|---:|
-| `IMPLEMENTED_AND_TESTED` | 93 |
+| `IMPLEMENTED_AND_TESTED` | 94 |
 | `IMPLEMENTED_UNVERIFIED` | 14 |
 | `PARTIALLY_IMPLEMENTED` | 48 |
 | `DOCUMENTED_ONLY` | 4 |
-| `MISSING` | 3 |
+| `MISSING` | 2 |
 | `CONFLICT` | 6 |
 | `BLOCKED` | 1 |
 | `NOT_APPLICABLE` | 1 |
 
-Реализовано и подтверждено тестами — **93**; частично — **48**; отсутствует — **3**; только описано — **4**; реализовано без достаточной проверки — **14**; заблокировано внешней зависимостью — **1** (в категории `EXTERNAL_DEPENDENCY` всего 9 строк, часть из них со статусом «частично»).
+Реализовано и подтверждено тестами — **94**; частично — **48**; отсутствует — **2**; только описано — **4**; реализовано без достаточной проверки — **14**; заблокировано внешней зависимостью — **1** (в категории `EXTERNAL_DEPENDENCY` всего 9 строк, часть из них со статусом «частично»).
 
 ## 6. Конфликты
 
-Строк со статусом `CONFLICT`: **6**. Категории расхождений по всем строкам: `NO_CONFLICT` — 81, `IMPLEMENTATION_GAP` — 26, `ACCEPTANCE_GAP` — 22, `DOCUMENTATION_GAP` — 19, `EXTERNAL_DEPENDENCY` — 9, `MISSING_REQUIREMENT` — 4, `BEHAVIOR_CONFLICT` — 3, `DUPLICATE_FUNCTIONALITY` — 3, `API_CONFLICT` — 1, `DATA_MODEL_CONFLICT` — 1, `SECURITY_GAP` — 1.
+Строк со статусом `CONFLICT`: **6**. Категории расхождений по всем строкам: `NO_CONFLICT` — 82, `IMPLEMENTATION_GAP` — 26, `ACCEPTANCE_GAP` — 22, `DOCUMENTATION_GAP` — 19, `EXTERNAL_DEPENDENCY` — 9, `BEHAVIOR_CONFLICT` — 3, `DUPLICATE_FUNCTIONALITY` — 3, `MISSING_REQUIREMENT` — 3, `API_CONFLICT` — 1, `DATA_MODEL_CONFLICT` — 1, `SECURITY_GAP` — 1.
 
 | Строка | Суть | Решение |
 |---|---|---|
