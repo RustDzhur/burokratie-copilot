@@ -77,7 +77,7 @@ export function WorkspaceSwitcher({ currentName }: { readonly currentName: strin
         align="start"
         items={menu}
         trigger={
-          <button type="button" aria-label={t('switcher.menu')} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', font: 'inherit', background: 'transparent', border: '1px solid var(--color-border, #ccc)', borderRadius: '0.5rem', padding: '0.3rem 0.6rem', cursor: 'pointer', color: 'inherit' }}>
+          <button type="button" data-tour="switcher" aria-label={t('switcher.menu')} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', font: 'inherit', background: 'transparent', border: '1px solid var(--color-border, #ccc)', borderRadius: '0.5rem', padding: '0.3rem 0.6rem', cursor: 'pointer', color: 'inherit' }}>
             <Icon name="briefcase" size={16} />
             <span>{currentName}</span>
             <Icon name="chevron-down" size={14} />

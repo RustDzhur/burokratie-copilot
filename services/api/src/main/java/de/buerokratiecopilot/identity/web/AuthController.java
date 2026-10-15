@@ -54,6 +54,7 @@ public class AuthController {
 
     private final de.buerokratiecopilot.billing.SubscriptionService subscriptions;
     private final de.buerokratiecopilot.identity.profile.ProfileService profileService;
+    private final de.buerokratiecopilot.demo.DemoService demo;
 
     public AuthController(AuthService authService, BurokratieProperties properties,
                           org.springframework.security.web.csrf.CsrfTokenRepository csrfTokenRepository,
@@ -61,7 +62,9 @@ public class AuthController {
                           de.buerokratiecopilot.identity.mfa.MfaService mfa,
                           de.buerokratiecopilot.identity.auth.SessionService sessions,
                           de.buerokratiecopilot.billing.SubscriptionService subscriptions,
-                          de.buerokratiecopilot.identity.profile.ProfileService profileService) {
+                          de.buerokratiecopilot.identity.profile.ProfileService profileService,
+                          de.buerokratiecopilot.demo.DemoService demo) {
+        this.demo = demo;
         this.profileService = profileService;
         this.subscriptions = subscriptions;
         this.mfa = mfa;
@@ -188,7 +191,13 @@ public class AuthController {
             @CookieValue(name = "${burokratie.security.session.cookie-name:bc_session}", required = false)
             String sessionToken,
             HttpServletRequest httpRequest,
-            HttpServletResponse httpResponse) {
+            HttpServletResponse httpResponse,
+            Authentication authentication) {
+        // Signing out of a demo cabinet deletes it, so the next visitor (or the same one) starts from the original state.
+        if (authentication != null && authentication.isAuthenticated()
+                && Boolean.TRUE.equals(demo.status(de.buerokratiecopilot.shared.context.RequestContext.tenantId().orElse(null)).get("demo"))) {
+            demo.exitAll(UUID.fromString(authentication.getName()));
+        }
         if (sessionToken != null) {
             authService.logout(sessionToken, clientIp(httpRequest), httpRequest.getHeader(HttpHeaders.USER_AGENT));
         }

@@ -156,7 +156,7 @@ export default function DashboardPage() {
             <RadarDashboardBlock />
             <DashboardBusinessBlock business={data.business} />
             <PageSection title={t('sections.attention')}>
-              <ul className={styles.cardGrid}>
+              <ul className={styles.cardGrid} data-tour="attention">
                 {ATTENTION_CARDS.map((card) => {
                   const count = data.counts[card.countKey] ?? 0;
                   return (

@@ -106,7 +106,7 @@ export function Topbar({
           <IconButton label={t('openNavigation')} icon="menu" onClick={onOpenMobileNav} />
         </span>
         {user ? <WorkspaceSwitcher currentName={user.workspaceName} /> : null}
-        <button type="button" className={styles.searchButton} onClick={onOpenSearch}>
+        <button type="button" className={styles.searchButton} onClick={onOpenSearch} data-tour="search">
           <Icon name="search" size={16} />
           <span className={styles.searchLabel}>{t('search')}</span>
           <kbd className={styles.kbd}>{t('searchShortcut')}</kbd>
@@ -183,6 +183,7 @@ export function Topbar({
             <button
               type="button"
               className={styles.accountButton}
+              data-tour="account"
               aria-label={user ? t('userMenuLabel', { name: user.name }) : t('userMenu')}
             >
               <Avatar name={user?.name ?? '?'} src={user?.avatarUrl ?? undefined} size="sm" />

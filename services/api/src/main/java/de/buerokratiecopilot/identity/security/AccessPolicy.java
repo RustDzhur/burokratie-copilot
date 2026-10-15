@@ -8,6 +8,9 @@ import java.util.UUID;
  */
 public interface AccessPolicy {
 
+    /** Starts the reason of a denial that is about a demo cabinet, not about the plan: such a call is answered with 403. */
+    String DEMO_CLOSED = "demo-closed:";
+
     /** Used where no policy is provided (tests of the security layer alone): nothing is blocked. */
     AccessPolicy OPEN = new AccessPolicy() {
         @Override

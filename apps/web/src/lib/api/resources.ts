@@ -582,6 +582,13 @@ export interface ApiResources {
     /** Asks the language model for a plain-words explanation; `kind` says what came of it. */
     explain: (id: string) => Promise<{ readonly kind: 'EXPLAINED' | 'REJECTED' | 'UNAVAILABLE' | 'DISABLED' | 'NO_EVIDENCE'; readonly explanation: string | null }>;
   };
+  readonly demo: {
+    /** Opens a demo cabinet for the chosen purpose; the browser is signed in to it. */
+    start: (persona: string) => Promise<{ readonly persona: string; readonly next: string }>;
+    status: (signal?: AbortSignal) => Promise<{ readonly demo: boolean; readonly persona: string; readonly expiresAt?: string }>;
+    /** Leaves the demo: everything that was created in it is deleted. */
+    exit: () => Promise<void>;
+  };
   readonly legal: {
     get: (signal?: AbortSignal) => Promise<LegalInfo>;
   };
@@ -1815,6 +1822,13 @@ export function createResources(client: ApiClient): ApiResources {
           undefined,
           { idempotencyKey: true },
         ),
+    },
+    demo: {
+      start: (persona) => client.post('/public/demo/start', { persona }),
+      status: (signal) => client.get('/demo/status', withSignal(signal)),
+      exit: async () => {
+        await client.post<unknown>('/demo/exit', undefined, { idempotencyKey: true });
+      },
     },
     legal: {
       get: (signal) => client.get<LegalInfo>('/public/legal', withSignal(signal)),

@@ -17,9 +17,11 @@ public class SubscriptionAccessPolicy implements AccessPolicy {
     private final SubscriptionService subscriptions;
     private final PlatformAdminResolver admins;
     private final PlanFeatures features;
+    private final de.buerokratiecopilot.demo.DemoGuard demo;
 
     public SubscriptionAccessPolicy(SubscriptionService subscriptions, PlatformAdminResolver admins,
-                                    PlanFeatures features) {
+                                    PlanFeatures features, de.buerokratiecopilot.demo.DemoGuard demo) {
+        this.demo = demo;
         this.subscriptions = subscriptions;
         this.admins = admins;
         this.features = features;
@@ -27,7 +29,8 @@ public class SubscriptionAccessPolicy implements AccessPolicy {
 
     @Override
     public String featureDenial(UUID tenantId, String path) {
-        return features.denialFor(tenantId, path);
+        String closed = demo.denialFor(tenantId, path);
+        return closed != null ? closed : features.denialFor(tenantId, path);
     }
 
     @Override

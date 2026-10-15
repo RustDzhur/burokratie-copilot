@@ -9,6 +9,8 @@ import { useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { useApiResource } from '@/lib/api/hooks';
 import { PlanGrid } from '@/components/app/plan-grid';
+import { DemoDialog } from '@/components/app/demo-dialog';
+import { useState } from 'react';
 import styles from './landing.module.css';
 
 interface FeatureItem {
@@ -60,6 +62,8 @@ const TRUST_KEYS = ['trust.gdpr', 'trust.audit', 'trust.access', 'trust.hosting'
 export default function LandingPage() {
   const t = useTranslations('landing');
   const tCommon = useTranslations('common');
+  const tDemo = useTranslations('demo');
+  const [demoOpen, setDemoOpen] = useState(false);
 
   const demoStats = [
     { labelKey: 'stats.documents', value: '128.400' },
@@ -69,6 +73,7 @@ export default function LandingPage() {
 
   return (
     <div className={styles.page}>
+      <DemoDialog open={demoOpen} onClose={() => setDemoOpen(false)} />
       <section className={styles.hero} aria-labelledby="landing-hero-title">
         <div className={styles.brandHero}>
           <BrandMark size={120} />
@@ -85,7 +90,10 @@ export default function LandingPage() {
           <Link href="/register" className={buttonClass({ variant: 'neon', size: 'lg' })}>
             {t('hero.primaryCta')}
           </Link>
-          <a href="#features" className={buttonClass({ variant: 'secondary', size: 'lg' })}>
+          <button type="button" className={buttonClass({ variant: 'secondary', size: 'lg' })} onClick={() => setDemoOpen(true)}>
+            {tDemo('cta')}
+          </button>
+          <a href="#features" className={buttonClass({ variant: 'ghost', size: 'lg' })}>
             {t('hero.secondaryCta')}
           </a>
         </div>

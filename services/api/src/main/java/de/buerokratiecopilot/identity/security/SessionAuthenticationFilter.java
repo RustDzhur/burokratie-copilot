@@ -89,6 +89,10 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
             }
             if (authentication != null && authentication.getDetails() instanceof SessionDetails details) {
                 String denial = accessPolicy.featureDenial(details.tenantId(), request.getRequestURI());
+                if (denial != null && denial.startsWith(AccessPolicy.DEMO_CLOSED)) {
+                    writeDemoClosed(request, response, denial.substring(AccessPolicy.DEMO_CLOSED.length()));
+                    return;
+                }
                 if (denial != null) {
                     writePlanFeatureRequired(request, response, denial);
                     return;
@@ -168,6 +172,14 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
         response.setContentType("application/json;charset=UTF-8");
         response.getWriter().write("{\"code\":\"SUBSCRIPTION_REQUIRED\",\"message\":"
                 + "\"Der Zugang ist abgelaufen. Bitte den Tarif verlängern.\",\"path\":\""
+                + request.getRequestURI().replace("\"", "") + "\"}");
+    }
+
+    private static void writeDemoClosed(HttpServletRequest request, HttpServletResponse response, String message)
+            throws IOException {
+        response.setStatus(403);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"code\":\"DEMO_CLOSED\",\"message\":\"" + message.replace("\"", "'") + "\",\"path\":\""
                 + request.getRequestURI().replace("\"", "") + "\"}");
     }
 

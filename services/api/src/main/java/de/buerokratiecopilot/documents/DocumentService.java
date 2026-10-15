@@ -75,13 +75,17 @@ public class DocumentService {
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
     private final de.buerokratiecopilot.billing.PlanFeatures planFeatures;
 
+    private final de.buerokratiecopilot.demo.DemoGuard demoGuard;
+
     public DocumentService(DocumentRepository documents, DocumentBlobRepository blobs,
                            DocumentVersionRepository versions, DocumentSourceRepository sources,
                            BlobStore blobStore, OutboxWriter outbox, AuditService auditService,
                            BurokratieProperties properties, FileSecurityScanner securityScanner,
                            MalwareScanner malwareScanner, DocumentProcessingPipeline pipeline,
                            org.springframework.jdbc.core.JdbcTemplate jdbc,
-                           de.buerokratiecopilot.billing.PlanFeatures planFeatures) {
+                           de.buerokratiecopilot.billing.PlanFeatures planFeatures,
+                           de.buerokratiecopilot.demo.DemoGuard demoGuard) {
+        this.demoGuard = demoGuard;
         this.documents = documents;
         this.blobs = blobs;
         this.versions = versions;
@@ -391,7 +395,19 @@ public class DocumentService {
     }
 
     /** The Free plan analyses a few documents per month; a document that is only a copy of another costs nothing. */
+    private void enforceDemoLimit(UUID tenantId) {
+        if (demoGuard.isDemo(tenantId)) {
+            Integer count = jdbc.queryForObject("select count(*) from documents where tenant_id = ? and deleted_at is null",
+                    Integer.class, tenantId);
+            if (count != null && count >= de.buerokratiecopilot.demo.DemoGuard.MAX_DOCUMENTS) {
+                throw ApiException.conflict("In der Demo sind höchstens " + de.buerokratiecopilot.demo.DemoGuard.MAX_DOCUMENTS
+                        + " Dokumente möglich.");
+            }
+        }
+    }
+
     private void enforceMonthlyAnalyses(UUID tenantId) {
+        enforceDemoLimit(tenantId);
         Integer limit = planFeatures.analysesPerMonth(tenantId);
         if (limit == null) {
             return;

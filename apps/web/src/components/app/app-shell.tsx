@@ -16,6 +16,7 @@ import { IrisWidget } from './iris-widget';
 import { QuickCapture } from './quick-capture';
 import { SubscriptionBanner } from './subscription-banner';
 import { Sidebar } from './sidebar';
+import { DemoBanner, isDemoUser } from './demo-banner';
 import { Topbar } from './topbar';
 import styles from './app-shell.module.css';
 
@@ -132,9 +133,9 @@ export function AppShell({ children }: AppShellProps) {
     try {
       await api.auth.logout();
     } finally {
-      router.push('/login');
+      router.push(isDemoUser(user) ? '/' : '/login');
     }
-  }, [router]);
+  }, [router, user]);
 
   return (
     <SessionProvider user={user} reload={reloadSession}>
@@ -148,6 +149,7 @@ export function AppShell({ children }: AppShellProps) {
       </div>
 
       <div className={styles.main}>
+        <DemoBanner user={user} />
         <Topbar
           onOpenSearch={() => setPaletteOpen(true)}
           onOpenMobileNav={() => setMobileNavOpen(true)}
@@ -159,7 +161,7 @@ export function AppShell({ children }: AppShellProps) {
             void handleSignOut();
           }}
         />
-        <SubscriptionBanner subscription={user?.subscription ?? null} hidden={onBillingPage} />
+        <SubscriptionBanner subscription={user?.subscription ?? null} hidden={onBillingPage || isDemoUser(user)} />
         <main id="main-content" tabIndex={-1} className={styles.content}>
           {blocked && !onBillingPage ? null : children}
         </main>
