@@ -70,6 +70,7 @@ public class BurokratieProperties {
         private final Password password = new Password();
         private final Login login = new Login();
         private final RateLimit rateLimit = new RateLimit();
+        private final Oidc oidc = new Oidc();
         private final Mfa mfa = new Mfa();
         private final Encryption encryption = new Encryption();
         private final MalwareScanner malwareScanner = new MalwareScanner();
@@ -182,6 +183,70 @@ public class BurokratieProperties {
 
             public void setMaxLength(int maxLength) {
                 this.maxLength = maxLength;
+            }
+        }
+
+        public Oidc getOidc() {
+            return oidc;
+        }
+
+        /** Sign-in through an external OpenID Connect provider (HD-OIDC); off until an issuer and a client are configured. */
+        public static class Oidc {
+
+            private boolean enabled = false;
+            private String issuerUri = "";
+            private String clientId = "";
+            private String clientSecret = "";
+            private String scopes = "openid email";
+            /** The plan tier that may use it: 3 is Professional. */
+            private int minTier = 3;
+
+            public boolean isEnabled() {
+                return enabled;
+            }
+
+            public void setEnabled(boolean enabled) {
+                this.enabled = enabled;
+            }
+
+            public String getIssuerUri() {
+                return issuerUri;
+            }
+
+            public void setIssuerUri(String issuerUri) {
+                this.issuerUri = issuerUri;
+            }
+
+            public String getClientId() {
+                return clientId;
+            }
+
+            public void setClientId(String clientId) {
+                this.clientId = clientId;
+            }
+
+            public String getClientSecret() {
+                return clientSecret;
+            }
+
+            public void setClientSecret(String clientSecret) {
+                this.clientSecret = clientSecret;
+            }
+
+            public String getScopes() {
+                return scopes;
+            }
+
+            public void setScopes(String scopes) {
+                this.scopes = scopes;
+            }
+
+            public int getMinTier() {
+                return minTier;
+            }
+
+            public void setMinTier(int minTier) {
+                this.minTier = minTier;
             }
         }
 

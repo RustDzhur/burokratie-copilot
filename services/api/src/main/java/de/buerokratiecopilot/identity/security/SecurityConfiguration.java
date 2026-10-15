@@ -57,6 +57,10 @@ public class SecurityConfiguration {
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/v1/auth/register",
             "/api/v1/auth/login",
+            // The identity provider sends the browser back here; the state cookie, not a session, authenticates the request.
+            "/api/v1/auth/oidc/available",
+            "/api/v1/auth/oidc/start",
+            "/api/v1/auth/oidc/callback",
             "/api/v1/auth/verify-email",
             "/api/v1/auth/verify-email/resend",
             "/api/v1/auth/password-reset",

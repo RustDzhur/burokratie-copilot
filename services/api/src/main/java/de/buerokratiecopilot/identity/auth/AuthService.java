@@ -285,6 +285,24 @@ public class AuthService {
             throw new ApiException(ErrorCode.UNAUTHENTICATED, "Invalid credentials");
         }
 
+        return completeLogin(user, ipAddress, userAgent, "/api/v1/auth/login", "User signed in");
+    }
+
+    /**
+     * Signs in a user whose identity an external identity provider has already proven (HD-OIDC). The caller has verified the
+     * token; what remains is the same as after a password: the account must be usable, a session is issued, the audit
+     * trail records it. A second factor of the platform still applies.
+     */
+    public LoginResult loginWithVerifiedIdentity(String rawEmail, String ipAddress, String userAgent) {
+        User user = users.findActiveByEmail(normalizeEmail(rawEmail))
+                .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHENTICATED, "No account for this identity"));
+        if (user.isLocked(Instant.now())) {
+            throw new ApiException(ErrorCode.ACCOUNT_LOCKED, "The account is temporarily locked");
+        }
+        return completeLogin(user, ipAddress, userAgent, "/api/v1/auth/oidc/callback", "User signed in through the identity provider");
+    }
+
+    private LoginResult completeLogin(User user, String ipAddress, String userAgent, String path, String description) {
         if (user.getStatus() == User.Status.PENDING_VERIFICATION) {
             throw new ApiException(ErrorCode.EMAIL_NOT_VERIFIED,
                     "The e-mail address has not been confirmed yet");
@@ -326,8 +344,8 @@ public class AuthService {
                     .actor(AuditEvent.ActorType.USER, current.getId(), current.getEmail())
                     .tenant(tenantId)
                     .entity("sessions", issued.session().getId(), null)
-                    .description("User signed in")
-                    .request(ipAddress, userAgent, null, "/api/v1/auth/login", "POST")
+                    .description(description)
+                    .request(ipAddress, userAgent, null, path, "POST")
                     .build());
 
             return new LoginResult(issued.rawToken(), current.getId(), tenantId,

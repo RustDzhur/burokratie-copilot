@@ -308,6 +308,8 @@ export interface ApiResources {
     /** Resolves to the user, or to `mfaRequired` when a second factor has to be proven first. */
     login: (payload: LoginPayload) => Promise<SessionUser | { readonly mfaRequired: true }>;
     verifyMfa: (code: string) => Promise<SessionUser>;
+    /** Whether sign-in through an external identity provider is set up. */
+    ssoAvailable: () => Promise<boolean>;
     logout: () => Promise<void>;
     register: (payload: RegisterPayload) => Promise<{ userId: string; email: string }>;
     verifyEmail: (payload: { token: string }) => Promise<void>;
@@ -794,6 +796,13 @@ const withSignal = (signal?: AbortSignal): { signal?: AbortSignal } => (signal ?
 export function createResources(client: ApiClient): ApiResources {
   return {
     auth: {
+      ssoAvailable: async () => {
+        try {
+          return (await client.get<{ enabled?: boolean }>('/auth/oidc/available')).enabled === true;
+        } catch {
+          return false; // the page works without it
+        }
+      },
       login: async (payload) => {
         // A fresh sign-in must never be answered from the idempotency cache: the reply carries Set-Cookie.
         const answer = await client.post<{ mfaRequired?: boolean }>('/auth/login', {

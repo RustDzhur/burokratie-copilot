@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState, type FormEvent } from 'react';
+import { Suspense, useEffect, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox, Input } from '@/components/ui/form';
 import { InlineAlert } from '@/components/ui/feedback';
@@ -23,7 +23,19 @@ function LoginForm() {
   const tErrors = useTranslations('errors');
   const router = useRouter();
   const toast = useToast();
-  const next = safeNextPath(useSearchParams().get('next'));
+  const params = useSearchParams();
+  const next = safeNextPath(params.get('next'));
+  const ssoFailed = params.get('error') === 'oidc';
+  const [sso, setSso] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void api.auth.ssoAvailable().then((enabled) => {
+      if (active) setSso(enabled);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -70,6 +82,7 @@ function LoginForm() {
       <p className={styles.subtitle}>{t('login.subtitle')}</p>
 
       {error ? <InlineAlert tone="danger" title={tErrors(error.kind)} /> : null}
+      {ssoFailed ? <InlineAlert tone="danger" title={t('login.ssoFailed')} /> : null}
 
       <form className={styles.form} onSubmit={onSubmit} noValidate>
         {needsCode ? (
@@ -120,6 +133,12 @@ function LoginForm() {
           {t('login.submit')}
         </Button>
       </form>
+
+      {sso ? (
+        <p className={styles.hint}>
+          <a href="/api/v1/auth/oidc/start">{t('login.sso')}</a>
+        </p>
+      ) : null}
 
       <p className={styles.hint}>{t('login.mfaHint')}</p>
 

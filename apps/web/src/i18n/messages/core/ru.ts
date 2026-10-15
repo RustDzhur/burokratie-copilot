@@ -334,6 +334,8 @@ export const ruCore: CoreMessages = {
     'footer.accessibility': 'Доступность',
   },
   auth: {
+    'login.sso': 'Войти через единый вход (SSO)',
+    'login.ssoFailed': 'Войти через провайдера удостоверений не удалось.',
     'login.title': 'Вход',
     'login.subtitle': 'С возвращением в Bürokratie-Copilot.',
     'login.email': 'Адрес e-mail',

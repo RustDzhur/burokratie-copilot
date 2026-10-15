@@ -331,6 +331,8 @@ export const enCore: CoreMessages = {
     'footer.accessibility': 'Accessibility',
   },
   auth: {
+    'login.sso': 'Sign in with single sign-on',
+    'login.ssoFailed': 'Signing in through the identity provider was not possible.',
     'login.title': 'Sign in',
     'login.subtitle': 'Welcome back to Bürokratie-Copilot.',
     'login.email': 'E-mail address',

@@ -346,6 +346,8 @@ export const deCore = {
     'footer.accessibility': 'Barrierefreiheit',
   },
   auth: {
+    'login.sso': 'Mit Single Sign-on anmelden',
+    'login.ssoFailed': 'Die Anmeldung über den Identitätsanbieter war nicht möglich.',
     'login.title': 'Anmelden',
     'login.subtitle': 'Willkommen zurück bei Bürokratie-Copilot.',
     'login.email': 'E-Mail-Adresse',
