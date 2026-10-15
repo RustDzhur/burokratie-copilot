@@ -26,9 +26,9 @@
 
 | Статус | Строк |
 |---|---:|
-| `IMPLEMENTED_AND_TESTED` | 91 |
+| `IMPLEMENTED_AND_TESTED` | 92 |
 | `IMPLEMENTED_UNVERIFIED` | 14 |
-| `PARTIALLY_IMPLEMENTED` | 49 |
+| `PARTIALLY_IMPLEMENTED` | 48 |
 | `DOCUMENTED_ONLY` | 4 |
 | `MISSING` | 4 |
 | `CONFLICT` | 6 |
@@ -37,8 +37,8 @@
 
 | Категория расхождения | Строк |
 |---|---:|
-| `NO_CONFLICT` | 79 |
-| `IMPLEMENTATION_GAP` | 28 |
+| `NO_CONFLICT` | 80 |
+| `IMPLEMENTATION_GAP` | 27 |
 | `ACCEPTANCE_GAP` | 22 |
 | `DOCUMENTATION_GAP` | 19 |
 | `EXTERNAL_DEPENDENCY` | 9 |
@@ -57,7 +57,7 @@
 
 | Раздел | Строк | Не `IMPLEMENTED_AND_TESTED` и не `NOT_APPLICABLE` |
 |---|---:|---:|
-| 1. Общая архитектура | 13 | 10 |
+| 1. Общая архитектура | 13 | 9 |
 | 2. Frontend и UX/UI | 19 | 11 |
 | 3. Backend и API | 16 | 5 |
 | 4. Пользователи, роли и аутентификация | 8 | 2 |
@@ -93,7 +93,7 @@
 | S01-07 | Общая архитектура | §2.1/§10.5 семантический поиск: pgvector либо адаптер | §4 существующая векторная инфраструктура | **`PARTIALLY_IMPLEMENTED`** — `documents/search/PgVectorSemanticSearch.java`, `NoEmbeddingProvider.java`, таблица `document_embeddings`, `SemanticSearchFallbackTest` | **`EXTERNAL_DEPENDENCY`** — в `pom.xml` нет зависимости pgvector; журнал `bc-worker` на сервере 2026-10-14: «UNAVAILABLE_NO_VECTOR_STORE — pgvector не установлен»; провайдер эмбеддингов не настроен | Принять деградацию до FTS как штатный режим (Q-06); включение семантики — отдельная задача BM-07 при наличии расширения и провайдера | P1 | S13-* |
 | S01-08 | Общая архитектура | §2.1 Spring Security, OAuth 2.0 / OpenID Connect, MFA | §15.1 сохранить существующую аутентификацию | **`PARTIALLY_IMPLEMENTED`** — серверные сессии + PAT + TOTP: `identity/auth/`, `identity/mfa/`, `AuthFlowIT`, `MfaServiceIT`; вход через OIDC (code + PKCE): `identity/oidc/OidcProvider`, `OidcLoginIT`, `OidcDisabledIT` | **`IMPLEMENTATION_GAP`** — OIDC проверен только против заглушки провайдера; с настоящим провайдером (нужны издатель и клиент от владельца) не проверялся; единого выхода нет | SSO для тарифа Professional выделить отдельной задачей HD-OIDC; для текущих тарифов достаточно сессий | P2 | — |
 | S01-09 | Общая архитектура | §2.1/§27 структурные логи, метрики, трассировка, health checks | §17 логи, correlation ID, метрики задач, время обработки, метрики Radar | **`PARTIALLY_IMPLEMENTED`** — `logstash-logback-encoder`, `spring-boot-starter-actuator`, `micrometer-registry-prometheus` в `pom.xml`; `AuthFlowIT` проверяет correlation ID | **`IMPLEMENTATION_GAP`** — нет распределённой трассировки; нет метрик длительности обработки документа и правил Radar (правил ещё нет) | Метрики Radar/Autopilot проектировать вместе с модулями; трассировка — P2 | P2 | RD-*, CA-* |
-| S01-10 | Общая архитектура | §30 CI: сборка, тесты, статический анализ, dependency/secret scanning, проверка контейнеров, откат | §16.5 запускать format/lint/typecheck/tests/build/e2e | **`PARTIALLY_IMPLEMENTED`** — `.github/workflows/ci.yml`: backend, frontend, security, e2e (Playwright), docker-build; dependency-check блокирует с CVSS 7, Trivy по образу | **`IMPLEMENTATION_GAP`** — первый зелёный прогон новых проверок не подтверждён | HD-CI: включить e2e в CI, добавить сканирование образов, сделать dependency-check блокирующим для high/critical | P1 | — |
+| S01-10 | Общая архитектура | §30 CI: сборка, тесты, статический анализ, dependency/secret scanning, проверка контейнеров, откат | §16.5 запускать format/lint/typecheck/tests/build/e2e | **`IMPLEMENTED_AND_TESTED`** — `.github/workflows/ci.yml`: backend (PostgreSQL 17), frontend, security (gitleaks, dependency-check блокирует с CVSS 7), e2e Playwright, сборка образов со сканированием Trivy; все шесть задач зелёные на коммите cb4f050 (2026-10-15) | **`NO_CONFLICT`** — принятые находки Trivy перечислены в `.trivyignore` с причинами и датой пересмотра 2026-12-31 | HD-CI: включить e2e в CI, добавить сканирование образов, сделать dependency-check блокирующим для high/critical | P1 | — |
 | S01-11 | Общая архитектура | §30 воспроизводимое окружение: Compose, PostgreSQL, хранилище, backend, frontend, worker, OCR, миграции, healthchecks, .env.example, первый администратор, бэкап | §17 запуск с нуля | **`IMPLEMENTED_UNVERIFIED`** — `infra/docker-compose.yml`, `infra/docker-compose.prod.yml`, `infra/.env.example`, `infra/scripts/backup.sh`, `infra/scripts/restore.sh`, `infra/scripts/verify-restore.sh`, `infra/scripts/bootstrap-admin.sh`, `docs/deployment.md` | **`IMPLEMENTATION_GAP`** — установка «с нуля» на чистой машине в рамках этого аудита не запускалась; на сервере 2026-10-14 контейнер `bc-worker` в состоянии `unhealthy`, причина не установлена | HD-OPS-01: установить причину unhealthy у `bc-worker` и добавить проверку в runbook | P0 | — |
 | S01-12 | Общая архитектура | §2.1 отдельные worker-компоненты для тяжёлой обработки | §13.4/§17 асинхронная обработка, дедупликация фоновых задач | **`IMPLEMENTED_UNVERIFIED`** — профиль `worker`, `shared/outbox/OutboxDispatcher`, `orchestration/OrchestrationWatchdog`, `mail/inbound/MailCollectionScheduler` | **`IMPLEMENTATION_GAP`** — на сервере 5 событий outbox в состоянии DEAD_LETTER («No handler registered for document.received/processing_completed», 2026-10-12…14) — повторного запуска нет | HD-OPS-02: команда/эндпоинт возврата DEAD_LETTER в очередь после появления обработчика; отчёт в runbook | P1 | — |
 | S01-13 | Общая архитектура | §2.1 «не создавай микросервис на каждый экран» | §4.1 логические модули: Document Management, Business Entities, Business Memory, Obligation Management, Risk Detection, Case Management, Workflow Engine, AI Services, Notifications, Audit, Integrations | **`DOCUMENTED_ONLY`** — соответствие модулей и пакетов: `documents`, `contacts`, `contracts`+`tasks`, `cases`, `workflow`, `ai`, `notifications`, `audit`, `integrations` | **`MISSING_REQUIREMENT`** — пакетов Business Memory и Risk Detection нет | Добавить пакеты `memory` и `radar` (модули внутри монолита); Case Autopilot строится в `cases`+`workflow`, отдельный пакет `autopilot` не создавать (решение D-03) | P0 | — |
