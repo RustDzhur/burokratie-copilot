@@ -146,11 +146,17 @@ public class RadarQueryService {
     /** One finding with its evidence and history; unknown or not visible is "not found". */
     @Transactional(readOnly = true)
     public Map<String, Object> detail(UUID tenantId, UUID userId, UUID findingId) {
+        return detailIfVisible(tenantId, userId, findingId).orElseThrow(() -> ApiException.notFound("Befund"));
+    }
+
+    /** Like {@link #detail}, but empty instead of throwing: a caller inside a transaction must not have it marked rollback-only. */
+    @Transactional(readOnly = true)
+    public java.util.Optional<Map<String, Object>> detailIfVisible(UUID tenantId, UUID userId, UUID findingId) {
         List<Object> args = new ArrayList<>(List.of(tenantId, findingId, seesEveryCase(), userId, userId, userId));
         List<Map<String, Object>> rows = jdbc.queryForList("""
                 select f.* from radar_findings f where f.tenant_id = ? and f.id = ?""" + VISIBLE, args.toArray());
         if (rows.isEmpty()) {
-            throw ApiException.notFound("Befund");
+            return java.util.Optional.empty();
         }
         Map<String, Object> finding = JsonColumns.parse(new LinkedHashMap<>(rows.get(0)));
         finding.remove("material_hash");
@@ -165,7 +171,7 @@ public class RadarQueryService {
                 select id, event_type, from_status, to_status, actor_user_id, reason, details, created_at
                 from radar_finding_events where finding_id = ? order by created_at desc, id desc
                 """, findingId)));
-        return finding;
+        return java.util.Optional.of(finding);
     }
 
     /** Throws "not found" unless the reader may see the finding. */

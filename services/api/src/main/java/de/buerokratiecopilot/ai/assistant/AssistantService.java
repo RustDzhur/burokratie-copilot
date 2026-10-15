@@ -45,10 +45,13 @@ public class AssistantService {
 
     private final JdbcTemplate jdbc;
     private final ToolPolicy policy;
+    private final de.buerokratiecopilot.radar.RadarQueryService radar;
 
-    public AssistantService(JdbcTemplate jdbc, ToolPolicy policy) {
+    public AssistantService(JdbcTemplate jdbc, ToolPolicy policy,
+                            de.buerokratiecopilot.radar.RadarQueryService radar) {
         this.jdbc = jdbc;
         this.policy = policy;
+        this.radar = radar;
     }
 
     /** What a request produced. */
@@ -276,8 +279,38 @@ public class AssistantService {
                     order by created_at desc limit 20
                     """, turn.tenantId()));
             case "read_document", "summarize" -> describeDocument(turn, parameters);
+            // The Radar tools go through the same query service as the screen, so what a person may not see in
+            // the Radar (a private case) the assistant cannot read out either.
+            case "list_radar_findings" -> Map.of("findings", radar.list(turn.tenantId(), turn.userId(),
+                    new de.buerokratiecopilot.radar.RadarQueryService.Filter(null, null, null, null, null, null,
+                            true), 0, 10).get("items"));
+            case "explain_finding" -> explainFinding(turn, parameters);
+            case "list_contracts" -> Map.of("contracts", jdbc.queryForList("""
+                    select id, title, contract_type, status, start_date, end_date, auto_renewal,
+                           notice_period_value, notice_period_unit
+                    from contracts
+                    where tenant_id = ? and deleted_at is null
+                    order by end_date nulls last limit 20
+                    """, turn.tenantId()));
             default -> Map.of("note", "Für dieses Werkzeug gibt es keine Leseabfrage");
         };
+    }
+
+    private Map<String, Object> explainFinding(Turn turn, Map<String, Object> parameters) {
+        Object findingId = parameters == null ? null : parameters.get("findingId");
+        if (findingId == null) {
+            return Map.of("error", "Es wurde kein Hinweis angegeben");
+        }
+        UUID id;
+        try {
+            id = UUID.fromString(String.valueOf(findingId));
+        } catch (IllegalArgumentException malformed) {
+            return Map.of("error", "Der Hinweis wurde nicht gefunden");
+        }
+        // Not visible and not existing are the same answer, as for documents.
+        return radar.detailIfVisible(turn.tenantId(), turn.userId(), id)
+                .<Map<String, Object>>map(finding -> Map.of("finding", finding))
+                .orElse(Map.of("error", "Der Hinweis wurde nicht gefunden"));
     }
 
     private Map<String, Object> describeDocument(Turn turn, Map<String, Object> parameters) {

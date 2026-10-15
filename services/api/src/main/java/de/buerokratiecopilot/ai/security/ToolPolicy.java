@@ -90,6 +90,12 @@ public class ToolPolicy {
                 "Sucht in Dokumenten des Mandanten"));
         register(new Tool("list_open_tasks", Risk.READ_ONLY, "tasks.view", "Listet offene Aufgaben"));
         register(new Tool("summarize", Risk.READ_ONLY, "documents.view", "Fasst ein Dokument zusammen"));
+        register(new Tool("list_radar_findings", Risk.READ_ONLY, "radar.view",
+                "Listet offene Hinweise des Radars, die der Benutzer sehen darf"));
+        register(new Tool("explain_finding", Risk.READ_ONLY, "radar.view",
+                "Nennt zu einem Radar-Hinweis die Regel, die Gründe und die Belege (Dokument, Seite, Textstelle)"));
+        register(new Tool("list_contracts", Risk.READ_ONLY, "contracts.view",
+                "Listet Verträge mit Laufzeit und Kündigungsfrist"));
         register(new Tool("draft_letter", Risk.WRITE, "documents.create",
                 "Erstellt einen Entwurf; wird nicht versendet"));
         register(new Tool("create_task", Risk.WRITE, "tasks.create", "Legt eine Aufgabe an"));

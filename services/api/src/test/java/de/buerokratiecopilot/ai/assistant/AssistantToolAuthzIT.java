@@ -158,6 +158,50 @@ class AssistantToolAuthzIT {
         assertThat(answer.result()).containsKey("documents");
     }
 
+    private UUID finding(UUID tenantId, UUID documentId) {
+        return RequestContext.runAs(tenantId, () -> {
+            UUID id = jdbc.queryForObject("""
+                    insert into radar_findings (tenant_id, finding_key, finding_type, rule_id, rule_version, title, severity, material_hash)
+                    values (?, ?, 'CONFLICTING_FACTS', 'E1', 1, 'Betrag widerspricht', 'HIGH', 'h') returning id
+                    """, UUID.class, tenantId, "E1:" + UUID.randomUUID());
+            jdbc.update("insert into radar_finding_evidence (tenant_id, finding_id, document_id, page, snippet) values (?, ?, ?, 2, 'Rechnungsbetrag 119,00')",
+                    tenantId, id, documentId);
+            return id;
+        });
+    }
+
+    @Test
+    @DisplayName("the Radar tools list open findings and name the evidence, for a user who holds radar.view")
+    void radarToolsReadFindingsWithEvidence() {
+        UUID tenantId = tenant();
+        UUID user = person(tenantId, "radar.view");
+        UUID documentId = document(tenantId, "rechnung.pdf");
+        UUID findingId = finding(tenantId, documentId);
+
+        AssistantService.Answer list = ask(tenantId, turn(tenantId, user), "list_radar_findings", Map.of());
+        assertThat(String.valueOf(list.result())).contains("Betrag widerspricht");
+
+        AssistantService.Answer explained = ask(tenantId, turn(tenantId, user), "explain_finding",
+                Map.of("findingId", findingId.toString()));
+        assertThat(String.valueOf(explained.result())).contains("rechnung.pdf").contains("Rechnungsbetrag 119,00");
+    }
+
+    @Test
+    @DisplayName("the Radar tools are refused without radar.view, and another tenant's finding is simply not found")
+    void radarToolsAreGuarded() {
+        UUID owner = tenant();
+        UUID stranger = tenant();
+        UUID findingId = finding(owner, document(owner, "x.pdf"));
+        UUID noRadar = person(owner, "documents.view");
+        UUID strangerUser = person(stranger, "radar.view");
+
+        assertThat(ask(owner, turn(owner, noRadar), "list_radar_findings", Map.of()).refusalCode())
+                .isEqualTo("MISSING_PERMISSION");
+        AssistantService.Answer foreign = ask(stranger, turn(stranger, strangerUser), "explain_finding",
+                Map.of("findingId", findingId.toString()));
+        assertThat(String.valueOf(foreign.result())).contains("nicht gefunden").doesNotContain("Betrag widerspricht");
+    }
+
     @Test
     @DisplayName("a turn without a person is refused")
     void aTurnNeedsAPerson() {
