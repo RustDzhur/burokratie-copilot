@@ -65,6 +65,14 @@ public class WorkspaceService {
      * it is limited to the person's own memberships by the query itself.
      */
     public List<Workspace> list(UUID userId, UUID currentTenantId) {
+        if (currentTenantId != null && plans.tierOf(currentTenantId) < PROFESSIONAL_TIER) {
+            // Working with several workspaces belongs to the Professional plan; below it there is nothing to choose between.
+            return List.of();
+        }
+        return listAll(userId, currentTenantId);
+    }
+
+    private List<Workspace> listAll(UUID userId, UUID currentTenantId) {
         return RequestContext.runAs((UUID) null, () -> jdbc.query("""
                 select t.id, coalesce(w.name, t.name) as name, t.account_type, m.is_owner, s.plan_code
                 from memberships m
@@ -81,8 +89,11 @@ public class WorkspaceService {
     }
 
     /** Moves the session into another workspace of the same person. */
-    public void switchTo(UUID sessionId, UUID userId, UUID targetTenantId) {
-        Workspace target = list(userId, null).stream().filter(w -> w.tenantId().equals(targetTenantId)).findFirst()
+    public void switchTo(UUID sessionId, UUID userId, UUID currentTenantId, UUID targetTenantId) {
+        if (currentTenantId == null || plans.tierOf(currentTenantId) < PROFESSIONAL_TIER) {
+            throw new ApiException(ErrorCode.FORBIDDEN, "Der Wechsel zwischen Arbeitsbereichen gehört zum Tarif Professional");
+        }
+        Workspace target = listAll(userId, null).stream().filter(w -> w.tenantId().equals(targetTenantId)).findFirst()
                 // The same answer for "does not exist" and "is not yours": nobody learns which workspaces exist.
                 .orElseThrow(() -> ApiException.notFound("Workspace"));
         // The session row moves from one tenant to another, which a scope bound to either tenant would refuse.
@@ -147,7 +158,7 @@ public class WorkspaceService {
         RequestContext.runAs(tenantId, () -> audit.recordSuccess(AuditEvent.Category.AUTHENTICATION,
                 "CLIENT_WORKSPACE_CREATED", "Client workspace created by one of its owners"));
         log.info("Client workspace {} created by user {} from workspace {}", tenantId, userId, currentTenantId);
-        return list(userId, currentTenantId).stream().filter(w -> w.tenantId().equals(tenantId)).findFirst().orElseThrow();
+        return listAll(userId, currentTenantId).stream().filter(w -> w.tenantId().equals(tenantId)).findFirst().orElseThrow();
     }
 
     /** What the interface needs to decide whether to offer "new client": the right and the reason when it is missing. */

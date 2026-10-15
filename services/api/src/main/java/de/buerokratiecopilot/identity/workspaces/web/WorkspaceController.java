@@ -59,7 +59,7 @@ public class WorkspaceController {
         if (!(sessionId instanceof UUID session)) {
             throw new ApiException(ErrorCode.FORBIDDEN, "A workspace can only be switched inside a session");
         }
-        workspaces.switchTo(session, CurrentUser.required(), tenantId);
+        workspaces.switchTo(session, CurrentUser.required(), RequestContext.tenantId().orElse(null), tenantId);
         return ResponseEntity.noContent().build();
     }
 

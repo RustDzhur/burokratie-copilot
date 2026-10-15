@@ -108,7 +108,19 @@ class WorkspaceSwitchIT {
         String own = mockMvc.perform(get("/api/v1/documents").cookie(accountant.cookie())).andReturn().getResponse().getContentAsString();
         assertThat(own).contains("eigene-firma.txt").doesNotContain("mueller-rechnung.txt");
 
+        // Below the Professional plan the switcher is gone: nothing is listed and switching is refused.
+        jdbc.update("update subscriptions set plan_code = 'BUSINESS' where tenant_id = ?", home);
+        planFeatures.forget(home);
+        mockMvc.perform(get("/api/v1/workspaces").cookie(accountant.cookie()))
+                .andExpect(jsonPath("$.items.length()").value(0))
+                .andExpect(jsonPath("$.capabilities.professionalPlan").value(false));
+        mockMvc.perform(post("/api/v1/workspaces/" + client + "/switch").with(csrf()).cookie(accountant.cookie()))
+                .andExpect(status().isForbidden());
+
         Session stranger = register();
+        UUID strangerHome = jdbc.queryForObject("select tenant_id from memberships where user_id = ?", UUID.class, stranger.userId());
+        jdbc.update("update subscriptions set plan_code = 'PROFESSIONAL' where tenant_id = ?", strangerHome);
+        planFeatures.forget(strangerHome);
         mockMvc.perform(post("/api/v1/workspaces/" + client + "/switch").with(csrf()).cookie(stranger.cookie()))
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/v1/workspaces").cookie(stranger.cookie()))

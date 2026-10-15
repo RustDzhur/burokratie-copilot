@@ -27,6 +27,8 @@ export function WorkspaceSwitcher({ currentName }: { readonly currentName: strin
 
   if (state.status !== 'ready') return null;
   const { items, capabilities } = state.data;
+  // Only on the Professional plan; below it the server sends no workspaces and no right to add clients.
+  if (!capabilities.professionalPlan) return null;
   if (items.length < 2 && !capabilities.canCreateClients) return null;
 
   const switchTo = async (tenantId: string): Promise<void> => {

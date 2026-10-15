@@ -58,6 +58,13 @@ describe('WorkspaceSwitcher', () => {
     await waitFor(() => expect(calls.some((call) => call.method === 'POST' && call.url.endsWith('/workspaces') && (call.body ?? '').includes('Schmidt KG'))).toBe(true));
   });
 
+  it('is not shown below the Professional plan, even for a person who has several workspaces', async () => {
+    serve({ items: [], capabilities: { canCreateClients: false, professionalPlan: false } });
+    const { container } = renderWithProviders(<WorkspaceSwitcher currentName="Weber" />);
+    await waitFor(() => expect(calls.length).toBeGreaterThan(0));
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('is not shown for a person with a single workspace and no right to add clients', async () => {
     serve({ items: [two.items[0]], capabilities: { canCreateClients: false, professionalPlan: false } });
     const { container } = renderWithProviders(<WorkspaceSwitcher currentName="Weber" />);
