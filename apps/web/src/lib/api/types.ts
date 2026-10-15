@@ -360,9 +360,23 @@ export interface AuditEntry {
   readonly ipAddress?: string | null;
 }
 
+export interface DashboardMoney {
+  readonly currency: string;
+  readonly count: number;
+  readonly open_amount: number;
+  readonly overdue_count: number;
+  readonly overdue_amount: number;
+}
+
 export interface DashboardSummary {
   readonly generatedAt: IsoDateTime;
   readonly counts: Readonly<Record<string, number>>;
+  /** Only the parts the reader may see are present; amounts are per currency, never converted. */
+  readonly business?: {
+    readonly receivables?: readonly DashboardMoney[];
+    readonly payables?: readonly DashboardMoney[];
+    readonly tasksByPerson?: readonly { readonly user_id: string; readonly name: string; readonly open: number; readonly overdue: number }[];
+  };
   readonly activity: readonly {
     readonly id: string;
     readonly at: IsoDateTime;

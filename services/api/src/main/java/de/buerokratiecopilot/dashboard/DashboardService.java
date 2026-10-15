@@ -110,11 +110,51 @@ public class DashboardService {
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("generatedAt", Instant.now().toString());
         summary.put("counts", counts);
+        summary.put("business", business(viewer, tenant));
         summary.put("activity", viewer.may().test("audit.view") ? activity(tenant) : List.of());
         summary.put("automationStatus", viewer.may().test("workflows.view") ? automationStatus(tenant) : List.of());
         summary.put("integrationStatus",
                 viewer.may().test("integrations.view") ? integrationStatus(tenant) : List.of());
         return summary;
+    }
+
+    /**
+     * What is owed to the business and by it, and who carries how many open tasks. Only the parts the viewer may see are
+     * present: money needs {@code finance.view}, the people overview needs the right to assign tasks. Amounts are
+     * summed per currency, never converted.
+     */
+    private Map<String, Object> business(Viewer viewer, UUID tenant) {
+        Map<String, Object> business = new LinkedHashMap<>();
+        if (viewer.may().test("finance.view")) {
+            for (String direction : new String[] {"OUTGOING", "INCOMING"}) {
+                business.put(direction.equals("OUTGOING") ? "receivables" : "payables", jdbc.queryForList("""
+                        select currency,
+                               count(*) as count,
+                               coalesce(sum(coalesce(gross_amount, 0) - paid_amount), 0) as open_amount,
+                               count(*) filter (where due_date < current_date) as overdue_count,
+                               coalesce(sum(coalesce(gross_amount, 0) - paid_amount) filter (where due_date < current_date), 0)
+                                   as overdue_amount
+                        from invoices
+                        where tenant_id = ? and deleted_at is null and direction = ?
+                          and invoice_type in ('INVOICE', 'SELF_BILLING', 'RECURRING')
+                          and status not in ('DRAFT', 'PAID', 'CANCELLED', 'CREDITED', 'REJECTED')
+                          and payment_status <> 'PAID'
+                        group by currency order by currency
+                        """, tenant, direction));
+            }
+        }
+        if (viewer.seesAllTasks() && viewer.may().test("tasks.view")) {
+            business.put("tasksByPerson", jdbc.queryForList("""
+                    select u.id as user_id, coalesce(u.display_name, u.email) as name, count(*) as open,
+                           count(*) filter (where t.due_at < now()) as overdue
+                    from task_assignees a
+                    join tasks t on t.id = a.task_id and t.deleted_at is null and t.status not in ('DONE', 'CANCELLED')
+                    join users u on u.id = a.user_id
+                    where a.tenant_id = ? and a.role = 'ASSIGNEE' and a.completed_at is null
+                    group by u.id, u.display_name, u.email order by count(*) desc limit 10
+                    """, tenant));
+        }
+        return business;
     }
 
     private List<Map<String, Object>> activity(UUID tenant) {
