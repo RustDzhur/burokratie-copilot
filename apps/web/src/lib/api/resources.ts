@@ -173,6 +173,8 @@ import type {
   ScenarioRequest,
   ScenarioResult,
   DocumentCase,
+  WorkspaceEntry,
+  WorkspaceList,
   TaskDetail,
   ExplanationOutcome,
 } from './types';
@@ -573,6 +575,11 @@ export interface ApiResources {
     act: (id: string, action: RadarAction) => Promise<RadarFindingDetail>;
     /** Asks the language model for a plain-words explanation; `kind` says what came of it. */
     explain: (id: string) => Promise<{ readonly kind: 'EXPLAINED' | 'REJECTED' | 'UNAVAILABLE' | 'DISABLED' | 'NO_EVIDENCE'; readonly explanation: string | null }>;
+  };
+  readonly workspaces: {
+    list: (signal?: AbortSignal) => Promise<WorkspaceList>;
+    switchTo: (tenantId: string) => Promise<void>;
+    createClient: (name: string) => Promise<WorkspaceEntry>;
   };
   readonly deletion: {
     remove: (kind: DeletionKind, ids: readonly string[]) => Promise<{ deleted: number; refused: string[] }>;
@@ -1792,6 +1799,13 @@ export function createResources(client: ApiClient): ApiResources {
           undefined,
           { idempotencyKey: true },
         ),
+    },
+    workspaces: {
+      list: (signal) => client.get<WorkspaceList>('/workspaces', withSignal(signal)),
+      switchTo: async (tenantId) => {
+        await client.post<unknown>(`/workspaces/${tenantId}/switch`, undefined, { idempotencyKey: true });
+      },
+      createClient: (name) => client.post<WorkspaceEntry>('/workspaces', { name }, { idempotencyKey: true }),
     },
     deletion: {
       remove: (kind, ids) =>

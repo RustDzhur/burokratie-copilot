@@ -1002,3 +1002,18 @@ export interface TaskDetail {
   readonly caseReference: string | null;
   readonly checklist: readonly TaskChecklistItem[];
 }
+
+/** A separate workspace of the signed-in person (one company, one client of an accountant). */
+export interface WorkspaceEntry {
+  readonly tenantId: string;
+  readonly name: string;
+  readonly accountType: string;
+  readonly owner: boolean;
+  readonly planCode: string | null;
+  readonly current: boolean;
+}
+
+export interface WorkspaceList {
+  readonly items: readonly WorkspaceEntry[];
+  readonly capabilities: { readonly canCreateClients: boolean; readonly professionalPlan: boolean };
+}

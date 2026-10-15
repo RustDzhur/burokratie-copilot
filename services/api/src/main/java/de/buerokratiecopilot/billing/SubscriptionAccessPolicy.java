@@ -32,7 +32,7 @@ public class SubscriptionAccessPolicy implements AccessPolicy {
 
     @Override
     public boolean blocks(UUID tenantId, String path) {
-        if (path.startsWith("/api/v1/billing") || path.startsWith("/api/v1/auth/") || path.startsWith("/api/v1/mfa")
+        if (path.startsWith("/api/v1/billing") || path.startsWith("/api/v1/workspaces") || path.startsWith("/api/v1/auth/") || path.startsWith("/api/v1/mfa")
                 || path.startsWith("/api/v1/admin")) {
             return false;
         }

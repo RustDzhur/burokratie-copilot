@@ -9,6 +9,7 @@ import { localeNames, locales, type Locale } from '@/i18n/config';
 import { useLocale, useSetLocale, useTranslations } from '@/i18n/provider';
 import type { SessionUser } from '@/lib/api/types';
 import { DropdownMenu, type MenuItemDefinition } from './dropdown-menu';
+import { WorkspaceSwitcher } from './workspace-switcher';
 import styles from './topbar.module.css';
 
 export interface TopbarProps {
@@ -102,6 +103,7 @@ export function Topbar({
         <span className={styles.mobileOnly}>
           <IconButton label={t('openNavigation')} icon="menu" onClick={onOpenMobileNav} />
         </span>
+        {user ? <WorkspaceSwitcher currentName={user.workspaceName} /> : null}
         <button type="button" className={styles.searchButton} onClick={onOpenSearch}>
           <Icon name="search" size={16} />
           <span className={styles.searchLabel}>{t('search')}</span>
