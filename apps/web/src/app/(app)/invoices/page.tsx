@@ -21,7 +21,7 @@ export default function InvoicesPage() {
   const directionLabel = useGroupedLabels('invoices', 'direction');
 
   const columns: readonly Column<InvoiceSummary>[] = [
-    { key: 'number', header: t('column.number'), sortable: true, render: (row) => row.number },
+    { key: 'number', header: t('column.number'), sortable: true, link: (row) => `/invoices/${row.id}`, render: (row) => row.number },
     { key: 'counterparty', header: t('column.counterparty'), render: (row) => row.counterparty },
     {
       key: 'amount',

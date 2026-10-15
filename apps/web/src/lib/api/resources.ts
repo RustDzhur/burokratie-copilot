@@ -148,6 +148,9 @@ import type {
   CaseDeadline,
   ApprovalDecision,
   ContactProfile,
+  ContractMemory,
+  InvoiceMemory,
+  RelationshipItem,
   TimelineEntry,
   ApprovalRequestItem,
   CaseWorkspace,
@@ -405,6 +408,10 @@ export interface ApiResources {
     profile: (contactId: string, signal?: AbortSignal) => Promise<ContactProfile>;
     contactTimeline: (contactId: string, signal?: AbortSignal) => Promise<readonly TimelineEntry[]>;
     contractTimeline: (contractId: string, signal?: AbortSignal) => Promise<readonly TimelineEntry[]>;
+    contractRelationships: (contractId: string, signal?: AbortSignal) => Promise<readonly RelationshipItem[]>;
+    documentRelationships: (documentId: string, signal?: AbortSignal) => Promise<readonly RelationshipItem[]>;
+    contract: (contractId: string, signal?: AbortSignal) => Promise<ContractMemory>;
+    invoice: (invoiceId: string, signal?: AbortSignal) => Promise<InvoiceMemory>;
     confirmRelationship: (id: string) => Promise<void>;
     rejectRelationship: (id: string) => Promise<void>;
     addIdentifier: (contactId: string, kind: string, value: string) => Promise<void>;
@@ -740,6 +747,16 @@ const timelineEntry = (row: any): TimelineEntry => ({
   title: row.title ?? row.event_type,
   eventTime: row.event_time,
   recordedAt: row.recorded_at,
+});
+
+const relationshipItem = (row: any): RelationshipItem => ({
+  id: row.id,
+  source: row.source,
+  type: row.type,
+  status: row.status,
+  documentId: row.document_id ?? row.other_document_id ?? null,
+  documentName: row.document_name ?? null,
+  reason: row.evidence?.rule ?? row.rationale?.de ?? null,
 });
 
 const withSignal = (signal?: AbortSignal): { signal?: AbortSignal } => (signal ? { signal } : {});
@@ -1515,6 +1532,42 @@ export function createResources(client: ApiClient): ApiResources {
         (await client.get<any[]>(`/memory/entities/${contactId}/timeline`, withSignal(signal))).map(timelineEntry),
       contractTimeline: async (contractId, signal) =>
         (await client.get<any[]>(`/memory/contracts/${contractId}/timeline`, withSignal(signal))).map(timelineEntry),
+      contractRelationships: async (contractId, signal) =>
+        (await client.get<any[]>(`/memory/contracts/${contractId}/relationships`, withSignal(signal))).map(relationshipItem),
+      documentRelationships: async (documentId, signal) =>
+        (await client.get<any[]>(`/memory/documents/${documentId}/relationships`, withSignal(signal))).map(relationshipItem),
+      contract: async (contractId, signal) => {
+        const [detail, obligations] = await Promise.all([
+          client.get<any>(`/contracts/${contractId}`, withSignal(signal)),
+          client.get<any[]>(`/contracts/${contractId}/obligations`, withSignal(signal)),
+        ]);
+        const c = detail.contract;
+        return {
+          id: c.id,
+          title: c.title,
+          status: c.status,
+          partnerName: c.partnerName ?? null,
+          startDate: c.startDate ?? null,
+          endDate: c.endDate ?? null,
+          cost: c.costAmount === null || c.costAmount === undefined ? null : `${c.costAmount} ${c.costCurrency ?? ''} ${c.costInterval ?? ''}`.trim(),
+          obligations: obligations.map((o: any) => ({ id: o.id, title: o.title, dueDate: o.dueDate ?? null, status: o.status })),
+        };
+      },
+      invoice: async (invoiceId, signal) => {
+        const i = await client.get<any>(`/invoices/${invoiceId}`, withSignal(signal));
+        return {
+          id: i.id,
+          number: i.invoiceNumber ?? null,
+          supplierName: i.supplierName ?? null,
+          gross: i.grossAmount === null || i.grossAmount === undefined ? null : String(i.grossAmount),
+          currency: i.currency,
+          status: i.status,
+          dueDate: i.dueDate ?? null,
+          documentId: i.documentId ?? null,
+          bankDetailsChanged: i.bankDetailsChanged === true,
+          flags: (i.flags ?? []).map((f: any) => String(f.message ?? f.code)),
+        };
+      },
       confirmRelationship: async (id) => {
         await client.post<unknown>(`/memory/relationships/${id}/confirm`, undefined, { idempotencyKey: true });
       },

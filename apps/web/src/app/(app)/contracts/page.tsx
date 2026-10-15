@@ -18,7 +18,7 @@ export default function ContractsPage() {
   const statusLabel = useStatusLabels('contracts');
 
   const columns: readonly Column<ContractSummary>[] = [
-    { key: 'partner', header: t('column.partner'), sortable: true, render: (row) => row.partner },
+    { key: 'partner', header: t('column.partner'), sortable: true, link: (row) => `/contracts/${row.id}`, render: (row) => row.partner },
     { key: 'type', header: t('column.type'), render: (row) => row.contractType },
     {
       key: 'startDate',

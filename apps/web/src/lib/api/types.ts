@@ -796,3 +796,38 @@ export interface TimelineEntry {
   readonly eventTime: string;
   readonly recordedAt: string;
 }
+
+
+export interface RelationshipItem {
+  readonly id: string;
+  readonly source: 'MATCH' | 'RELATION';
+  readonly type: string;
+  readonly status: 'SUGGESTED' | 'CONFIRMED' | 'REJECTED';
+  readonly documentId: string | null;
+  readonly documentName: string | null;
+  readonly reason: string | null;
+}
+
+export interface ContractMemory {
+  readonly id: string;
+  readonly title: string;
+  readonly status: string;
+  readonly partnerName: string | null;
+  readonly startDate: string | null;
+  readonly endDate: string | null;
+  readonly cost: string | null;
+  readonly obligations: readonly { readonly id: string; readonly title: string; readonly dueDate: string | null; readonly status: string }[];
+}
+
+export interface InvoiceMemory {
+  readonly id: string;
+  readonly number: string | null;
+  readonly supplierName: string | null;
+  readonly gross: string | null;
+  readonly currency: string;
+  readonly status: string;
+  readonly dueDate: string | null;
+  readonly documentId: string | null;
+  readonly bankDetailsChanged: boolean;
+  readonly flags: readonly string[];
+}
