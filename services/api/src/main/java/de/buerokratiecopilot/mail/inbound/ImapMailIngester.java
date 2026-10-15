@@ -227,21 +227,33 @@ public class ImapMailIngester {
         String to = firstAddress(message, false);
         boolean hasAttachments = hasAttachments(message);
         Body body = bodyOf(message);
+        List<String> attachmentNames = new java.util.ArrayList<>();
+        for (Part part : attachmentsOf(message)) {
+            String name = safe(() -> part.getFileName());
+            if (name != null) {
+                attachmentNames.add(name);
+            }
+        }
+        String inReplyTo = header(message, "In-Reply-To");
+        MailCategoriser.Result category = MailCategoriser.classify(subject,
+                body.text() != null ? body.text() : (body.html() == null ? null : de.buerokratiecopilot.mail.MailText.htmlToText(body.html())),
+                from, attachmentNames, inReplyTo != null && !inReplyTo.isBlank());
 
         List<UUID> inserted = jdbc.query("""
                 insert into mail_messages (id, tenant_id, mail_account_id, direction, external_id,
                                            subject, from_address, to_addresses, cc_addresses,
                                            bcc_addresses, received_at, body_text, body_html,
-                                           has_attachments, attachment_count, category,
+                                           has_attachments, attachment_count, category, category_confidence,
                                            is_suspicious, processing_status, in_reply_to, reference_ids)
                 values (gen_random_uuid(), ?, ?, 'INBOUND', ?, ?, ?, ?::jsonb, '[]'::jsonb, '[]'::jsonb,
-                        now(), ?, ?, ?, ?, 'OTHER', false, 'RECEIVED', ?, ?::jsonb)
+                        now(), ?, ?, ?, ?, ?, ?, ?, 'RECEIVED', ?, ?::jsonb)
                 on conflict do nothing
                 returning id
                 """, (rs, row) -> rs.getObject("id", UUID.class), tenantId, accountId, externalId, subject, from,
                 jsonArray(List.of(to)), body.text() != null ? body.text() : (body.html() == null ? null
                         : de.buerokratiecopilot.mail.MailText.htmlToText(body.html())), body.html(), hasAttachments,
-                countAttachments(message), header(message, "In-Reply-To"), referencesOf(message));
+                countAttachments(message), category.category(), category.confidence(), category.suspicious(), inReplyTo,
+                referencesOf(message));
         return inserted.isEmpty() ? null : inserted.getFirst();
     }
 

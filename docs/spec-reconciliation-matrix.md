@@ -26,19 +26,19 @@
 
 | Статус | Строк |
 |---|---:|
-| `IMPLEMENTED_AND_TESTED` | 92 |
+| `IMPLEMENTED_AND_TESTED` | 93 |
 | `IMPLEMENTED_UNVERIFIED` | 14 |
 | `PARTIALLY_IMPLEMENTED` | 48 |
 | `DOCUMENTED_ONLY` | 4 |
-| `MISSING` | 4 |
+| `MISSING` | 3 |
 | `CONFLICT` | 6 |
 | `BLOCKED` | 1 |
 | `NOT_APPLICABLE` | 1 |
 
 | Категория расхождения | Строк |
 |---|---:|
-| `NO_CONFLICT` | 80 |
-| `IMPLEMENTATION_GAP` | 27 |
+| `NO_CONFLICT` | 81 |
+| `IMPLEMENTATION_GAP` | 26 |
 | `ACCEPTANCE_GAP` | 22 |
 | `DOCUMENTATION_GAP` | 19 |
 | `EXTERNAL_DEPENDENCY` | 9 |
@@ -64,7 +64,7 @@
 | 5. Multi-tenancy и безопасность | 9 | 4 |
 | 6. Документы и файловое хранилище | 7 | 3 |
 | 7. OCR и извлечение данных | 7 | 3 |
-| 8. Email и внешние интеграции | 8 | 5 |
+| 8. Email и внешние интеграции | 8 | 4 |
 | 9. Business Memory | 9 | 3 |
 | 10. Bürokratie-Radar | 13 | 4 |
 | 11. Case Autopilot | 10 | 2 |
@@ -199,7 +199,7 @@
 | ID | Функциональная область | Требование первоначального ТЗ | Требование нового ТЗ | Фактическое состояние кода | Расхождение | Необходимое решение | Приоритет | Зависимости |
 |---|---|---|---|---|---|---|---|---|
 | S08-01 | Email и внешние интеграции | §7.2 подключение почты: M365/Gmail по OAuth, IMAP, вложения, несколько ящиков, правила | — | **`PARTIALLY_IMPLEMENTED`** — IMAP: `mail/inbound/ImapMailIngester`, `MailAccountService`, `ImapIngestionIT`, `MailRetryIT`, `MailTokenEncryptionTest` | **`EXTERNAL_DEPENDENCY`** — OAuth для Microsoft 365 / Gmail не реализован (нужны client_id/secret владельца, Q-03); правила ящика (`routing_rules`) в приёме не применяются | Оставить IMAP; OAuth-адаптеры — BLOCKED до ключей владельца | P1 | — |
-| S08-02 | Email и внешние интеграции | §7.2 категории писем: входящие документы, счета, договоры, уведомления, ответы организаций, реклама, подозрительные | — | **`MISSING`** — столбцы `mail_messages.category`, `is_suspicious` | **`IMPLEMENTATION_GAP`** — при приёме всегда `category='OTHER'`, `is_suspicious=false`; классификации писем нет | Классификация писем через тот же классификатор (после BM-02) | P1 | BM-02 |
+| S08-02 | Email и внешние интеграции | §7.2 категории писем: входящие документы, счета, договоры, уведомления, ответы организаций, реклама, подозрительные | — | **`IMPLEMENTED_AND_TESTED`** — `mail/inbound/MailCategoriser`, `MailCategoriserTest`, `ImapIngestionIT` (категория и сила признаков сохраняются при приёме; подозрительное письмо помечается первым) | **`NO_CONFLICT`** — метка не скрывает и не удаляет письмо; вложения обрабатываются как документы независимо от неё; классификация по словам, без модели | Классификация писем через тот же классификатор (после BM-02) | P1 | BM-02 |
 | S08-03 | Email и внешние интеграции | §7.2 импорт цепочек переписки, связь письма с делами | §7.8 ожидание входящего письма и связывание с делом, неоднозначная связь — предложение пользователю | **`IMPLEMENTED_AND_TESTED`** — `autopilot/ReplyLinkService`, `ReplyLinkIT` | **`NO_CONFLICT`** — связывание по заголовкам письма; по теме или номеру дела — только предложение человеку | CA-06: привязка ответа к делу через `in_reply_to` + `document_matches` | P0 | CA-06 |
 | S08-04 | Email и внешние интеграции | §7.4 API приёма, webhook, подпись, повторная доставка | — | **`IMPLEMENTED_AND_TESTED`** — `ingest/`, `IngestApiIT`, `IngestControllerIT`, `WebhookSignatureTest`, `webhook_events` | **`NO_CONFLICT`** — — | — | P1 | — |
 | S08-05 | Email и внешние интеграции | §8 сканеры, МФУ, Desktop Bridge, печать | — | **`PARTIALLY_IMPLEMENTED`** — серверная часть: `bridge/DesktopBridge`, `devices/DeviceService`, `device_jobs`, `BridgeConfigTest`, `ScanImportIT`, `DeviceRegistrationIT`, `printing/PrintServiceIT`, импорт из папки `importer/FolderImportIT` | **`EXTERNAL_DEPENDENCY`** — программы Desktop Bridge нет (каталог `apps/desktop-bridge` отсутствует); TWAIN/WIA не реализованы и названы так в коде | Оставить BLOCKED (нужно устройство и Windows/SANE-хост); не имитировать | P2 | — |

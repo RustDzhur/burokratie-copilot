@@ -146,6 +146,20 @@ class ImapIngestionIT {
     }
 
     @Test
+    @DisplayName("the message is given a category from its words, with the strength of the evidence")
+    void messageGetsACategory() {
+        UUID tenantId = tenant();
+        UUID accountId = mailbox(tenantId);
+        GreenMailUtil.sendTextEmailTest(USER, "shop@example.de", "Ihre Rechnung Nr. 4711", "Bitte zahlen Sie bis zum 20.10.2026.");
+
+        ingester.ingest(tenantId, accountId, 10);
+
+        var message = jdbc.queryForMap("select category, category_confidence, is_suspicious from mail_messages where tenant_id = ?", tenantId);
+        assertThat(message).containsEntry("category", "INVOICES").containsEntry("is_suspicious", false);
+        assertThat(((Number) message.get("category_confidence")).doubleValue()).isGreaterThan(0.5);
+    }
+
+    @Test
     @DisplayName("reading the same mailbox twice stores nothing twice")
     void readingTwiceStoresNothingTwice() {
         UUID tenantId = tenant();

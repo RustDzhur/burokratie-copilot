@@ -115,7 +115,7 @@ public class RuleBasedClassifier implements DocumentClassifier {
      * underscores read as spaces, runs of white space as one space. OCR often loses the dots of an umlaut and people type
      * "Kuendigung"; both then meet the rule "kündigung". Cyrillic and other scripts are left as they are.
      */
-    static String fold(String value) {
+    public static String fold(String value) {
         String lowered = value.toLowerCase(Locale.GERMAN).replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss");
         String decomposed = Normalizer.normalize(lowered, Normalizer.Form.NFD);
         StringBuilder out = new StringBuilder(decomposed.length());
