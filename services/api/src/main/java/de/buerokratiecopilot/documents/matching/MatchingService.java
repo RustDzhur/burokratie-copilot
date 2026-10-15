@@ -145,9 +145,40 @@ public class MatchingService {
             matches.saveAndFlush(entity);
         }
 
+        proposeSupersession(document);
+
         log.info("Matching produced {} proposal(s) for document {}, {} linked automatically",
                 kept.size(), document.getId(), autoLinked);
         return new Outcome(kept, autoLinked, threshold);
+    }
+
+    /**
+     * Another document of the same kind with the same document number and an earlier date is proposed as replaced by
+     * this one. It is only a proposal for a person (status SUGGESTED); a rejected pair stays rejected because the
+     * relation row is kept. Identical files are duplicates, not replacements, and are left to the duplicate check.
+     */
+    private void proposeSupersession(Document document) {
+        if (document.getDocumentNumber() == null || document.getDocumentNumber().isBlank()
+                || document.getDocumentDate() == null || document.getDocumentTypeId() == null) {
+            return;
+        }
+        jdbc.update("""
+                insert into document_relations (tenant_id, source_document_id, target_document_id, relation_type,
+                                                confidence, status, evidence)
+                select ?, ?, o.id, 'SUPERSEDES', 0.80, 'SUGGESTED',
+                       jsonb_build_object('rule', 'same document type and number, later date',
+                                          'documentNumber', ?::text, 'newDate', ?::text, 'oldDate', o.document_date::text)
+                from documents o
+                where o.tenant_id = ? and o.id <> ? and o.deleted_at is null
+                  and o.document_type_id = ? and o.document_number = ? and o.document_date < ?
+                  and o.content_hash <> ?
+                  and not exists (select 1 from document_relations r
+                                  where r.relation_type = 'SUPERSEDES' and r.source_document_id = ? and r.target_document_id = o.id)
+                on conflict do nothing
+                """, document.getTenantId(), document.getId(), document.getDocumentNumber(),
+                document.getDocumentDate().toString(), document.getTenantId(), document.getId(),
+                document.getDocumentTypeId(), document.getDocumentNumber(), document.getDocumentDate(),
+                document.getContentHash(), document.getId());
     }
 
     /**

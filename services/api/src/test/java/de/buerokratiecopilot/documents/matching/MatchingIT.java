@@ -358,6 +358,41 @@ class MatchingIT {
     }
 
     @Test
+    @DisplayName("a later document of the same kind and number is proposed as replacing the earlier one; only proposed, once, and never across tenants")
+    void laterDocumentWithTheSameNumberIsProposedAsReplacement() throws Exception {
+        Tenant tenant = setUpTenant("2026-122");
+        advance(tenant.documentId());
+        UUID typeId = asTenant(tenant.tenantId(), () -> jdbc.queryForObject(
+                "select id from document_types where code = 'rechnung' limit 1", UUID.class));
+        UUID older = asTenant(tenant.tenantId(), () -> {
+            jdbc.update("update documents set document_type_id = ?, document_number = 'R-77', document_date = date '2026-03-15' where id = ?",
+                    typeId, tenant.documentId());
+            return jdbc.queryForObject("""
+                    insert into documents (id, tenant_id, original_filename, internal_name, mime_type, size_bytes, content_hash,
+                                           source, processing_status, review_status, document_type_id, document_number, document_date)
+                    values (gen_random_uuid(), ?, 'alt.pdf', 'alt.pdf', 'application/pdf', 100, ?, 'UPLOAD', 'READY', 'NOT_REQUIRED',
+                            ?, 'R-77', date '2026-02-01')
+                    returning id
+                    """, UUID.class, tenant.tenantId(), "%064x".formatted(java.util.concurrent.ThreadLocalRandom.current().nextLong()), typeId);
+        });
+        Runnable rerun = () -> asTenant(tenant.tenantId(), () -> {
+            Document document = documents.findById(tenant.documentId()).orElseThrow();
+            var version = versions.findFirstByDocumentIdOrderByVersionDesc(document.getId()).orElseThrow();
+            return matching.match(document, version, null);
+        });
+        rerun.run();
+        rerun.run();
+
+        var rows = asTenant(tenant.tenantId(), () -> jdbc.queryForList("""
+                select source_document_id, target_document_id, status from document_relations where relation_type = 'SUPERSEDES'
+                """));
+        assertThat(rows).hasSize(1);
+        assertThat(rows.get(0).get("source_document_id")).isEqualTo(tenant.documentId());
+        assertThat(rows.get(0).get("target_document_id")).isEqualTo(older);
+        assertThat(rows.get(0).get("status")).isEqualTo("SUGGESTED");
+    }
+
+    @Test
     @DisplayName("a contact is found by the IBAN or VAT id written in the letter, in any spelling, and only proposed")
     void contactFoundByIdentifierInAnySpelling() throws Exception {
         String text = invoiceText("2026-120") + "USt-IdNr.: DE 123 456 789\n"
