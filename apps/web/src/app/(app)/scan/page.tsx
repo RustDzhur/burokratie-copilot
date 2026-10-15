@@ -6,6 +6,7 @@ import { Badge, Card, CardBody, CardHeader, EmptyState, StatusPill } from '@/com
 import { Button } from '@/components/ui/button';
 import { FileDropzone, UploadList, useUploadQueue } from '@/components/ui/file-dropzone';
 import { MobileCapture } from '@/components/ui/mobile-capture';
+import { MultiPageCapture } from '@/components/app/multi-page-capture';
 import { InlineAlert, SkeletonCards } from '@/components/ui/feedback';
 import { useToast } from '@/components/ui/toast';
 import { formatDateTime } from '@/i18n/format';
@@ -148,6 +149,7 @@ export default function ScanPage() {
               onCapture={(files) => queue.enqueue(files)}
               label={tCommon('actions.capture')}
             />
+            <MultiPageCapture onPdf={(file) => queue.enqueue([file])} />
             <p className={styles.meta}>
               {t('dropzone.formats')} · {t('dropzone.maxSize')}
             </p>
