@@ -278,6 +278,30 @@ public class DocumentController {
         return new BulkDeleteResponse(deleted, refused);
     }
 
+    public record TypeRequest(String typeCode) {
+    }
+
+    /**
+     * A person puts a document into a drawer they chose. It is recorded as that person's decision (an approved
+     * classification review that names the type), so later re-sorting by the rules leaves it alone.
+     */
+    @PostMapping("/{id}/type")
+    @PreAuthorize("hasAuthority('documents.review')")
+    @Operation(summary = "Set the document type by hand; the choice is the person's and is not undone by re-sorting")
+    public ResponseEntity<DocumentResponse> setType(@PathVariable UUID id,
+                                                    @org.springframework.web.bind.annotation.RequestBody TypeRequest request) {
+        Document document = documentService.require(id);
+        if (request == null || request.typeCode() == null || request.typeCode().isBlank()) {
+            throw new de.buerokratiecopilot.shared.error.ApiException(
+                    de.buerokratiecopilot.shared.error.ErrorCode.VALIDATION_FAILED, "A document type is required");
+        }
+        var type = documentTypes.findByCode(request.typeCode())
+                .filter(de.buerokratiecopilot.documents.domain.DocumentType::isActive)
+                .orElseThrow(() -> de.buerokratiecopilot.shared.error.ApiException.notFound("Document type"));
+        return ResponseEntity.ok(DocumentResponse.from(resorter.setByPerson(document, type,
+                de.buerokratiecopilot.shared.context.CurrentUser.required()), type));
+    }
+
     @PostMapping("/resort")
     @PreAuthorize("hasAuthority('documents.review')")
     @Operation(summary = "Put the stored documents of this tenant in the drawers the current rules choose; "

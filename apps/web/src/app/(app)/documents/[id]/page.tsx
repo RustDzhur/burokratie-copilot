@@ -7,6 +7,7 @@ import { ProcessingPanel } from '@/components/app/processing-panel';
 import { PageHeader, PageSection, ResourceView } from '@/components/app/resource-view';
 import { DocumentExplanation } from '@/components/app/document-explanation';
 import { DocumentInsights } from '@/components/app/document-insights';
+import { DocumentTypeChanger } from '@/components/app/document-type-changer';
 import { Badge, Card, CardBody, CardHeader, EmptyState, StatusPill, Tabs } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { buttonClass } from '@/components/ui/button-class';
@@ -400,6 +401,11 @@ export default function DocumentViewerPage() {
               ]}
             />
 
+            <DocumentTypeChanger
+              documentId={document.id}
+              currentName={document.typeNames?.[locale] ?? document.typeNames?.de ?? null}
+              onChanged={reload}
+            />
             <DocumentInsights documentId={document.id} />
 
             <PageSection title={t('tab.metadata')}>

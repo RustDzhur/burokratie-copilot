@@ -173,6 +173,7 @@ import type {
   ScenarioRequest,
   ScenarioResult,
   DocumentCase,
+  TaskDetail,
   ExplanationOutcome,
 } from './types';
 
@@ -341,6 +342,8 @@ export interface ApiResources {
     /** The cases the document is linked to, as far as the reader may see them. */
     cases: (id: string, signal?: AbortSignal) => Promise<readonly DocumentCase[]>;
     createTask: (id: string) => Promise<void>;
+    /** A person files the document under a type they chose; re-sorting by the rules leaves it alone. */
+    setType: (id: string, typeCode: string) => Promise<void>;
     /** Files the stored documents again by the current rules; returns what was done in numbers. */
     resort: () => Promise<Readonly<Record<'checked' | 'unchanged' | 'moved' | 'sentToReview' | 'keptByPerson' | 'withoutText' | 'failed', number>>>;
     /** Reads the pages with AI vision (handwriting); the values come back as proposals. */
@@ -383,6 +386,10 @@ export interface ApiResources {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<TaskSummary>>;
     create: (payload: CreateTaskPayload) => Promise<TaskSummary>;
     setStatus: (id: string, status: TaskSummary['status']) => Promise<TaskSummary>;
+    detail: (id: string, signal?: AbortSignal) => Promise<TaskDetail>;
+    tick: (itemId: string, done: boolean) => Promise<void>;
+    /** Finishes the task; `acknowledgeOpenItems` with a note finishes it although required items are open. */
+    complete: (id: string, options?: { readonly note?: string; readonly acknowledgeOpenItems?: boolean }) => Promise<void>;
   };
   readonly calendar: {
     events: (params?: ListParams, signal?: AbortSignal) => Promise<Page<CalendarEvent>>;
@@ -928,6 +935,9 @@ export function createResources(client: ApiClient): ApiResources {
           { idempotencyKey: true },
         ),
       resort: () => client.post('/documents/resort', undefined, { idempotencyKey: true }),
+      setType: async (id, typeCode) => {
+        await client.post<unknown>(`/documents/${id}/type`, { typeCode }, { idempotencyKey: true });
+      },
       createTask: async (id) => {
         await client.post<unknown>(`/documents/${id}/create-task`, undefined, { idempotencyKey: true });
       },
@@ -1121,6 +1131,46 @@ export function createResources(client: ApiClient): ApiResources {
             { idempotencyKey: true },
           ),
         ),
+      detail: async (id, signal) => {
+        const wire = await client.get<{
+          readonly task: {
+            readonly id: string; readonly title: string; readonly description?: string | null; readonly status: string;
+            readonly dueAt?: string | null; readonly completionCriteria?: string | null; readonly requiresApproval: boolean;
+            readonly approvedAt?: string | null; readonly sourceDocumentId?: string | null; readonly caseId?: string | null;
+            readonly caseReference?: string | null;
+          };
+          readonly checklist: readonly { readonly id: string; readonly label: string; readonly required: boolean; readonly done: boolean }[];
+        }>(`/tasks/${id}`, withSignal(signal));
+        const task = wire.task;
+        return {
+          id: task.id,
+          title: task.title,
+          description: task.description ?? null,
+          status: task.status,
+          finished: task.status === 'DONE' || task.status === 'CANCELLED',
+          dueAt: task.dueAt ?? null,
+          completionCriteria: task.completionCriteria ?? null,
+          requiresApproval: task.requiresApproval,
+          approved: !!task.approvedAt,
+          sourceDocumentId: task.sourceDocumentId ?? null,
+          caseId: task.caseId ?? null,
+          caseReference: task.caseReference ?? null,
+          checklist: wire.checklist,
+        };
+      },
+      tick: async (itemId, done) => {
+        await client.post<unknown>(`/tasks/checklist/${itemId}/tick`, undefined, {
+          query: { done: String(done) },
+          idempotencyKey: true,
+        });
+      },
+      complete: async (id, options) => {
+        await client.post<unknown>(
+          `/tasks/${id}/complete`,
+          { note: options?.note, acknowledgeOpenItems: options?.acknowledgeOpenItems ?? false },
+          { idempotencyKey: true },
+        );
+      },
       setStatus: async (id, status) =>
         taskFromWire(
           status === 'done'

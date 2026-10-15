@@ -129,7 +129,7 @@ public class TaskController {
                                String startedAt, String completionCriteria, boolean requiresApproval,
                                String approvedAt, String blockedReason, String completedAt,
                                List<String> tags, long openRequiredItems, List<String> assigneeNames,
-                               String caseReference) {
+                               String caseReference, String sourceDocumentId) {
 
         static TaskResponse from(Task task, long openRequiredItems) {
             return new TaskResponse(task.getId().toString(),
@@ -141,14 +141,15 @@ public class TaskController {
                     instant(task.getStartedAt()), task.getCompletionCriteria(),
                     task.isRequiresApproval(), instant(task.getApprovedAt()),
                     task.getBlockedReason(), instant(task.getCompletedAt()), task.getTags(),
-                    openRequiredItems, List.of(), null);
+                    openRequiredItems, List.of(), null,
+                    task.getSourceDocumentId() == null ? null : task.getSourceDocumentId().toString());
         }
 
         TaskResponse withContext(List<String> assigneeNames, String caseReference) {
             return new TaskResponse(id, caseId, parentTaskId, title, description, status, priority,
                     prioritySource, priorityRationale, assignmentPending, dueAt, remindAt, startedAt,
                     completionCriteria, requiresApproval, approvedAt, blockedReason, completedAt, tags,
-                    openRequiredItems, assigneeNames, caseReference);
+                    openRequiredItems, assigneeNames, caseReference, sourceDocumentId);
         }
 
         private static String instant(Instant value) {

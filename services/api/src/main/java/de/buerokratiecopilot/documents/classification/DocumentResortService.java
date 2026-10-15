@@ -107,6 +107,32 @@ public class DocumentResortService {
         return summary;
     }
 
+    /** Files one document under a type a person chose, and records that it is their choice. */
+    public Document setByPerson(Document document, de.buerokratiecopilot.documents.domain.DocumentType type, UUID userId) {
+        return transaction.execute(status -> {
+            var version = versions.findFirstByDocumentIdOrderByVersionDesc(document.getId()).orElse(null);
+            classification.correctManually(document, version, type, userId, "Von einer Person gewählt");
+            jdbc.update("""
+                    insert into document_reviews (tenant_id, document_id, version_id, review_type, status, reason, decided_by,
+                                                  decision_note, changes, decided_at)
+                    values (?, ?, ?, 'CLASSIFICATION', 'APPROVED', 'Typ von einer Person gewählt', ?, 'Typ gewählt',
+                            jsonb_build_object('documentTypeCode', ?::text), now())
+                    """, document.getTenantId(), document.getId(), version == null ? null : version.getId(), userId,
+                    type.getCode());
+            // A pending question about the type is answered by this choice.
+            jdbc.update("""
+                    update document_reviews set status = 'APPROVED', decided_by = ?, decided_at = now(), decision_note = 'Typ gewählt'
+                    where document_id = ? and review_type = 'CLASSIFICATION' and status in ('PENDING', 'IN_REVIEW')
+                    """, userId, document.getId());
+            Document fresh = documents.findById(document.getId()).orElseThrow();
+            if (fresh.getReviewStatus() == Document.ReviewStatus.PENDING) {
+                fresh.setReviewStatus(Document.ReviewStatus.APPROVED);
+                documents.save(fresh);
+            }
+            return fresh;
+        });
+    }
+
     private static boolean isPicture(Document document) {
         return document.getMimeType() != null && document.getMimeType().startsWith("image/");
     }

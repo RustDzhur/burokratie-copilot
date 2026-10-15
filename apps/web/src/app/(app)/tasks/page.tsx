@@ -40,7 +40,7 @@ export default function TasksPage() {
   };
 
   const columns: readonly Column<TaskSummary>[] = [
-    { key: 'title', header: t('column.title'), sortable: true, render: (row) => row.title },
+    { key: 'title', header: t('column.title'), sortable: true, link: (row) => `/tasks/${row.id}`, render: (row) => row.title },
     {
       key: 'dueDate',
       header: t('column.dueDate'),

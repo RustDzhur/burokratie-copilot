@@ -978,3 +978,27 @@ export interface DocumentCase {
   readonly is_primary: boolean;
   readonly confirmed_at: string | null;
 }
+
+export interface TaskChecklistItem {
+  readonly id: string;
+  readonly label: string;
+  readonly required: boolean;
+  readonly done: boolean;
+}
+
+/** One task with what it takes to finish it: the criterion, the checklist and the document it came from. */
+export interface TaskDetail {
+  readonly id: string;
+  readonly title: string;
+  readonly description: string | null;
+  readonly status: string;
+  readonly finished: boolean;
+  readonly dueAt: string | null;
+  readonly completionCriteria: string | null;
+  readonly requiresApproval: boolean;
+  readonly approved: boolean;
+  readonly sourceDocumentId: string | null;
+  readonly caseId: string | null;
+  readonly caseReference: string | null;
+  readonly checklist: readonly TaskChecklistItem[];
+}
