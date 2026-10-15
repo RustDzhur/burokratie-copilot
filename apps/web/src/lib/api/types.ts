@@ -772,3 +772,27 @@ export type PlanStepAction =
   | { readonly kind: 'complete'; readonly note?: string }
   | { readonly kind: 'fail'; readonly reason: string }
   | { readonly kind: 'skip'; readonly reason: string };
+
+
+/* -------------------------------------------------------------------------- */
+/* Business memory: contact profile                                            */
+/* -------------------------------------------------------------------------- */
+
+export interface ContactProfile {
+  readonly contact: { readonly id: string; readonly name: string; readonly email: string | null; readonly phone: string | null; readonly isCustomer: boolean; readonly isSupplier: boolean };
+  readonly identifiers: readonly { readonly id: string; readonly kind: string; readonly value: string }[];
+  readonly documents: readonly { readonly relationshipId: string; readonly documentId: string; readonly name: string; readonly status: 'SUGGESTED' | 'CONFIRMED'; readonly score: number | null }[];
+  readonly contracts: readonly { readonly id: string; readonly title: string; readonly status: string; readonly noticeDeadline: string | null }[];
+  readonly invoices: readonly { readonly id: string; readonly number: string | null; readonly gross: string | null; readonly currency: string; readonly status: string }[];
+  readonly cases: readonly { readonly id: string; readonly reference: string; readonly title: string; readonly status: string }[];
+  readonly openFindings: readonly { readonly id: string; readonly title: string; readonly severity: RadarSeverity }[];
+}
+
+export interface TimelineEntry {
+  readonly source: string;
+  readonly id: string;
+  readonly eventType: string;
+  readonly title: string;
+  readonly eventTime: string;
+  readonly recordedAt: string;
+}

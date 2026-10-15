@@ -147,6 +147,8 @@ import type {
   TemplateSummary,
   CaseDeadline,
   ApprovalDecision,
+  ContactProfile,
+  TimelineEntry,
   ApprovalRequestItem,
   CaseWorkspace,
   PlanStepAction,
@@ -398,6 +400,15 @@ export interface ApiResources {
   readonly payments: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<PaymentSummary>>;
     match: (id: string, invoiceId: string) => Promise<void>;
+  };
+  readonly memory: {
+    profile: (contactId: string, signal?: AbortSignal) => Promise<ContactProfile>;
+    contactTimeline: (contactId: string, signal?: AbortSignal) => Promise<readonly TimelineEntry[]>;
+    contractTimeline: (contractId: string, signal?: AbortSignal) => Promise<readonly TimelineEntry[]>;
+    confirmRelationship: (id: string) => Promise<void>;
+    rejectRelationship: (id: string) => Promise<void>;
+    addIdentifier: (contactId: string, kind: string, value: string) => Promise<void>;
+    removeIdentifier: (contactId: string, identifierId: string) => Promise<void>;
   };
   readonly contacts: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<ContactSummary>>;
@@ -720,6 +731,16 @@ interface AdminTenantWire {
   readonly owner_email?: string | null;
   readonly members: number;
 }
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const timelineEntry = (row: any): TimelineEntry => ({
+  source: row.source,
+  id: row.source_event_id,
+  eventType: row.event_type,
+  title: row.title ?? row.event_type,
+  eventTime: row.event_time,
+  recordedAt: row.recorded_at,
+});
 
 const withSignal = (signal?: AbortSignal): { signal?: AbortSignal } => (signal ? { signal } : {});
 
@@ -1474,6 +1495,37 @@ export function createResources(client: ApiClient): ApiResources {
       },
       unlink: async () => {
         await client.delete<unknown>('/telegram/link', { idempotencyKey: true });
+      },
+    },
+    memory: {
+      profile: async (contactId, signal) => {
+        const wire = await client.get<Record<string, any>>(`/memory/entities/${contactId}`, withSignal(signal));
+        const c = wire.contact as Record<string, any>;
+        return {
+          contact: { id: c.id, name: c.display_name, email: c.email ?? null, phone: c.phone ?? null, isCustomer: c.is_customer === true, isSupplier: c.is_supplier === true },
+          identifiers: (wire.identifiers ?? []).map((i: any) => ({ id: i.id, kind: i.kind, value: i.value })),
+          documents: (wire.documents ?? []).map((d: any) => ({ relationshipId: d.relationship_id, documentId: d.document_id, name: d.name, status: d.status, score: d.score ?? null })),
+          contracts: (wire.contracts ?? []).map((k: any) => ({ id: k.id, title: k.title, status: k.status, noticeDeadline: k.notice_deadline_date ?? null })),
+          invoices: (wire.invoices ?? []).map((i: any) => ({ id: i.id, number: i.invoice_number ?? null, gross: i.gross_amount ?? null, currency: i.currency, status: i.status })),
+          cases: (wire.cases ?? []).map((k: any) => ({ id: k.id, reference: k.reference, title: k.title, status: k.status })),
+          openFindings: (wire.openFindings ?? []).map((f: any) => ({ id: f.id, title: f.title, severity: f.severity })),
+        };
+      },
+      contactTimeline: async (contactId, signal) =>
+        (await client.get<any[]>(`/memory/entities/${contactId}/timeline`, withSignal(signal))).map(timelineEntry),
+      contractTimeline: async (contractId, signal) =>
+        (await client.get<any[]>(`/memory/contracts/${contractId}/timeline`, withSignal(signal))).map(timelineEntry),
+      confirmRelationship: async (id) => {
+        await client.post<unknown>(`/memory/relationships/${id}/confirm`, undefined, { idempotencyKey: true });
+      },
+      rejectRelationship: async (id) => {
+        await client.post<unknown>(`/memory/relationships/${id}/reject`, undefined, { idempotencyKey: true });
+      },
+      addIdentifier: async (contactId, kind, value) => {
+        await client.post<unknown>(`/contacts/${contactId}/identifiers`, { kind, value }, { idempotencyKey: true });
+      },
+      removeIdentifier: async (contactId, identifierId) => {
+        await client.delete<unknown>(`/contacts/${contactId}/identifiers/${identifierId}`);
       },
     },
     approvals: {

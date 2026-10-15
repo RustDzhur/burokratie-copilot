@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import de.buerokratiecopilot.memory.ContactProfileService;
 import de.buerokratiecopilot.memory.FactService;
 import de.buerokratiecopilot.memory.MemoryAskService;
 import de.buerokratiecopilot.memory.MemoryRetrievalService;
@@ -32,11 +33,13 @@ public class MemoryController {
     private final MemoryRetrievalService search;
     private final MemoryAskService asking;
     private final ObligationService obligations;
+    private final ContactProfileService profiles;
 
     public MemoryController(RelationshipService relationships, FactService facts, TimelineService timeline,
                             MemoryRetrievalService search, MemoryAskService asking,
-                            ObligationService obligations) {
+                            ObligationService obligations, ContactProfileService profiles) {
         this.obligations = obligations;
+        this.profiles = profiles;
         this.search = search;
         this.asking = asking;
         this.relationships = relationships;
@@ -112,6 +115,12 @@ public class MemoryController {
     @PreAuthorize("hasAuthority('memory.confirm')")
     public Map<String, Object> assignSubject(@PathVariable UUID id, @org.springframework.web.bind.annotation.RequestBody SubjectRequest request) {
         return facts.assignSubject(tenant(), id, request.type() == null ? null : request.type().toUpperCase(java.util.Locale.ROOT), request.id());
+    }
+
+    @GetMapping("/entities/{contactId}")
+    @PreAuthorize("hasAuthority('memory.view') and hasAuthority('contacts.view')")
+    public Map<String, Object> profile(@PathVariable UUID contactId) {
+        return profiles.profile(tenant(), CurrentUser.required(), contactId);
     }
 
     @GetMapping("/entities/{contactId}/timeline")

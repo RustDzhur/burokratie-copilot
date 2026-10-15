@@ -16,7 +16,7 @@ export default function ContactsPage() {
   const typeLabel = useGroupedLabels('contacts', 'type');
 
   const columns: readonly Column<ContactSummary>[] = [
-    { key: 'name', header: t('column.name'), sortable: true, render: (row) => row.name },
+    { key: 'name', header: t('column.name'), sortable: true, link: (row) => `/contacts/${row.id}`, render: (row) => row.name },
     { key: 'type', header: t('column.type'), render: (row) => typeLabel(row.contactType) },
     {
       key: 'email',
