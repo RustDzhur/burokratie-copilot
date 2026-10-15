@@ -100,6 +100,20 @@ class EvaluationHarnessIT {
                 .allSatisfy(r -> assertThat(r.accepted()).as("garbled text must not be accepted: " + r.id()).isNull());
     }
 
+    @Test
+    @DisplayName("owner cases: business plans, trade-office papers, medical reports and foreign-language letters land in the right drawer, or with a person")
+    void measureOwnerCases() throws Exception {
+        List<Result> results = run("/eval/owner-cases.json", "owner-report.md", "owner cases (the sorting complaints of 2026-10-15)");
+        assertThat(results).filteredOn(r -> r.error() != null).as("no document may break the pipeline").isEmpty();
+        // Nothing may be filed by itself under a wrong type; a document that is not German, or not anything, waits for a person.
+        assertThat(wrongAutomation(results)).as("an automatically accepted type must be right").isZero();
+        assertThat(results).filteredOn(r -> r.expectedType() == null)
+                .allSatisfy(r -> assertThat(r.accepted()).as("must not be filed by itself: " + r.id()).isNull());
+        // A right type that the platform only suggests is fine (health documents always wait for a person); a wrong or missing one is not.
+        assertThat(results).filteredOn(r -> r.expectedType() != null && r.typeKnown())
+                .allSatisfy(r -> assertThat(typeRight(r, r.classified())).as(r.id() + " expected " + r.expectedType() + " but classified " + r.classified()).isTrue());
+    }
+
     private static double typeAccuracy(List<Result> results) {
         List<Result> typed = results.stream().filter(r -> r.expectedType() != null && r.typeKnown()).toList();
         return typed.isEmpty() ? 1.0 : (double) typed.stream().filter(r -> typeRight(r, r.classified())).count() / typed.size();

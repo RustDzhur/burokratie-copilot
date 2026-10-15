@@ -51,6 +51,11 @@ public class DocumentTypeRule {
     @Column(nullable = false, precision = 4, scale = 3)
     private java.math.BigDecimal weight = java.math.BigDecimal.valueOf(0.5);
 
+    /** Terms that must ALL be in the text for the rule to count; empty means none are required. Read-only here: the default stays. */
+    @Column(name = "requires_all", insertable = false, updatable = false, columnDefinition = "jsonb")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    private java.util.List<String> requiresAll;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
@@ -137,6 +142,10 @@ public class DocumentTypeRule {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public java.util.List<String> getRequiresAll() {
+        return requiresAll == null ? java.util.List.of() : requiresAll;
     }
 
     public double weightAsDouble() {

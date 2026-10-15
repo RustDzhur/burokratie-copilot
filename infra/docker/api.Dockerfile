@@ -112,7 +112,7 @@ LABEL org.opencontainers.image.title="burokratie-copilot-api" \
 # start in production without a scanner and OCR, see ProductionConfigurationGuard.
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends curl dumb-init tesseract-ocr tesseract-ocr-deu tesseract-ocr-eng \
+    apt-get install -y --no-install-recommends curl dumb-init tesseract-ocr tesseract-ocr-deu tesseract-ocr-eng tesseract-ocr-rus tesseract-ocr-ukr \
         clamdscan; \
     rm -rf /var/lib/apt/lists/*; \
     tesseract --version; command -v clamdscan

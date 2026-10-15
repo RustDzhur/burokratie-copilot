@@ -185,13 +185,45 @@ public class OcrStepHandler implements ProcessingStepHandler {
         if (!poor(best)) {
             return best;
         }
+        int bestDegrees = 0;
         for (int degrees : new int[] { 90, 180, 270 }) {
             OcrEngine.Result candidate = engine.recognise(ImagePreparer.rotated(prepared, degrees), languages);
             if (score(candidate) > score(best)) {
                 best = candidate;
+                bestDegrees = degrees;
+            }
+        }
+        if (poor(best)) {
+            // A page in Cyrillic read with German models comes out as noise. Try the Slavic models on the best turn; the
+            // reading with more trustworthy words wins, and the language step then sees the script and can say so.
+            List<String> slavic = slavicLanguages(languages);
+            if (!slavic.isEmpty()) {
+                byte[] turned = bestDegrees == 0 ? prepared : ImagePreparer.rotated(prepared, bestDegrees);
+                OcrEngine.Result candidate = engine.recognise(turned, slavic);
+                if (score(candidate) > score(best)) {
+                    best = candidate;
+                }
             }
         }
         return best;
+    }
+
+    /** Russian and Ukrainian (with English for the Latin parts) when the engine has them and they were not tried already. */
+    private List<String> slavicLanguages(List<String> tried) {
+        List<String> available = engine.availableLanguages();
+        List<String> slavic = new ArrayList<>();
+        for (String code : List.of("rus", "ukr")) {
+            if (available.contains(code) && !tried.contains(code)) {
+                slavic.add(code);
+            }
+        }
+        if (slavic.isEmpty()) {
+            return slavic;
+        }
+        if (available.contains("eng")) {
+            slavic.add("eng");
+        }
+        return slavic;
     }
 
     private static boolean poor(OcrEngine.Result result) {

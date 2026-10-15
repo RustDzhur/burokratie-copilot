@@ -37,7 +37,15 @@ public interface DocumentClassifier {
      * @param rationale   one sentence a user can read
      */
     record Classification(UUID typeId, String code, Double confidence, List<String> matchedRules,
-                          String rationale) {
+                          String rationale, Alternative alternative) {
+
+        /** The second-best type, kept so that a close call between two different areas can be sent to a person. */
+        public record Alternative(UUID typeId, double score) {
+        }
+
+        public Classification(UUID typeId, String code, Double confidence, List<String> matchedRules, String rationale) {
+            this(typeId, code, confidence, matchedRules, rationale, null);
+        }
 
         public static Classification none(String rationale) {
             return new Classification(null, null, null, List.of(), rationale);

@@ -87,6 +87,13 @@ public class ClassificationService {
         double reviewThreshold = settings.getDouble("classification.review_threshold",
                 DEFAULT_REVIEW_THRESHOLD);
 
+        // The platform reads German documents. A document in another script cannot be sorted by German rules; a guess from
+        // the few Latin look-alikes in it would file it under a wrong drawer, so it goes to a person with the reason.
+        if ("ru".equals(document.getLanguage())) {
+            return new Outcome(false, null, null, null,
+                    "Das Dokument ist nicht deutschsprachig (erkannte Sprache: Russisch); es wird nicht nach deutschen Regeln einsortiert", true);
+        }
+
         DocumentClassifier.Classification result = classifier.classify(new DocumentClassifier.Input(
                 document.getTenantId(), textFor(document, senderEmail), document.getOriginalFilename(),
                 senderEmail, document.getSender()));
@@ -105,11 +112,16 @@ public class ClassificationService {
 
         double confidence = result.confidence() == null ? 0 : result.confidence();
         boolean requiresReview = type.isRequiresReview() || confidence < acceptThreshold;
+        String closeCall = closeCall(type, confidence, result.alternative());
+        if (closeCall != null) {
+            requiresReview = true;
+        }
 
         store(document, version, type, result, confidence);
 
         if (requiresReview) {
-            String reason = type.isRequiresReview()
+            String reason = closeCall != null ? closeCall
+                    : type.isRequiresReview()
                     ? "Document type '%s' always requires human confirmation".formatted(type.nameIn("de"))
                     : "Confidence %.2f is below the acceptance threshold %.2f".formatted(confidence,
                             acceptThreshold);
@@ -124,6 +136,26 @@ public class ClassificationService {
         log.info("Document {} classified as {} with confidence {}", document.getId(), type.getCode(),
                 confidence);
         return new Outcome(true, type.getId(), type.getCode(), confidence, result.rationale(), false);
+    }
+
+    /** How close the second type may be before two different areas count as undecided. */
+    private static final double CLOSE_CALL_MARGIN = 0.08;
+    private static final double CLOSE_CALL_FLOOR = 0.5;
+
+    /**
+     * A reason to ask a person when the best and the second-best type are nearly equal and belong to different areas (a
+     * medical report against a contract): the higher number is then luck, not evidence, and an automatic filing would be a coin
+     * toss. Two types of the same area are not a problem for the drawer the document lands in.
+     */
+    private String closeCall(DocumentType best, double confidence, DocumentClassifier.Classification.Alternative alternative) {
+        if (alternative == null || alternative.score() < CLOSE_CALL_FLOOR || confidence - alternative.score() >= CLOSE_CALL_MARGIN) {
+            return null;
+        }
+        return types.findById(alternative.typeId())
+                .filter(other -> !other.getCategory().equals(best.getCategory()))
+                .map(other -> "Zwei Typen aus verschiedenen Bereichen passen fast gleich gut: '%s' und '%s'"
+                        .formatted(best.nameIn("de"), other.nameIn("de")))
+                .orElse(null);
     }
 
     /** A manual correction: stores the decision as MANUAL and makes it the current one. */

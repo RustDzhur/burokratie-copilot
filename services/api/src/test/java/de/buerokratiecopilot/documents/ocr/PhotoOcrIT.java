@@ -61,7 +61,16 @@ class PhotoOcrIT {
     @Autowired
     private DocumentProcessingPipeline pipeline;
 
+    private static final String[] RUSSIAN = {
+            "ЗАКЛЮЧЕНИЕ МЕДИЦИНСКОЙ КОМИССИИ", "Ребенок: Мустерман Макс, 12.05.2018", "Комиссия провела осмотр ребенка и изучила документы",
+            "Рекомендации: занятия с логопедом, обучение в обычной школе", "Диагноз и заключение врача прилагаются",
+            "Подпись председателя комиссии и печать учреждения" };
+
     private static byte[] photo(int quarterTurns) throws Exception {
+        return photo(LINES, quarterTurns);
+    }
+
+    private static byte[] photo(String[] lines, int quarterTurns) throws Exception {
         BufferedImage page = new BufferedImage(1700, 2300, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = page.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -70,7 +79,7 @@ class PhotoOcrIT {
         g.setColor(new Color(35, 35, 40));
         g.setFont(new Font("SansSerif", Font.PLAIN, 54));
         int y = 260;
-        for (String line : LINES) {
+        for (String line : lines) {
             g.drawString(line, 160, y);
             y += 120;
         }
@@ -131,5 +140,33 @@ class PhotoOcrIT {
     @DisplayName("upside down too")
     void upsideDownPhoto() throws Exception {
         readPhoto(2);
+    }
+
+    @Test
+    @DisplayName("a Russian medical report is read with the Slavic models, recognised as Russian, and waits for a person without any German type")
+    void russianPhotoIsNotSortedByGermanRules() throws Exception {
+        TesseractOcrEngine engine = new TesseractOcrEngine("tesseract", Duration.ofSeconds(20));
+        assumeTrue(engine.availableLanguages().contains("rus"), "The Russian model of Tesseract is not installed here");
+        String email = "photo-ru-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de";
+        MvcResult r = mockMvc.perform(post("/api/v1/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"%s\",\"password\":\"EinSicheresPasswort-2026!\",\"displayName\":\"P\",\"accountType\":\"COMPANY\"}".formatted(email)))
+                .andReturn();
+        UUID userId = UUID.fromString(JsonPath.read(r.getResponse().getContentAsString(), "$.userId"));
+        jdbc.update("update users set status = 'ACTIVE', email_verified_at = now() where id = ?", userId);
+        Cookie cookie = mockMvc.perform(post("/api/v1/auth/login").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"%s\",\"password\":\"EinSicheresPasswort-2026!\"}".formatted(email))).andReturn().getResponse().getCookie("bc_session");
+        MvcResult upload = mockMvc.perform(multipart("/api/v1/documents")
+                .file(new MockMultipartFile("file", "IMG_5120.jpg", "image/jpeg", photo(RUSSIAN, 0))).with(csrf()).cookie(cookie))
+                .andExpect(status().isCreated()).andReturn();
+        UUID id = UUID.fromString(JsonPath.read(upload.getResponse().getContentAsString(), "$.document.id"));
+        UUID tenant = jdbc.queryForObject("select tenant_id from documents where id = ?", UUID.class, id);
+        RequestContext.runAs(tenant, () -> pipeline.advance(id));
+
+        java.util.Map<String, Object> row = RequestContext.runAs(tenant, () -> jdbc.queryForMap(
+                "select coalesce(extracted_text, '') as text, language, document_type_id, processing_status from documents where id = ?", id));
+        assertThat((String) row.get("text")).as("the Cyrillic text read from the photo").containsIgnoringCase("комисси");
+        assertThat(row.get("language")).isEqualTo("ru");
+        assertThat(row.get("document_type_id")).as("no German type for a Russian document").isNull();
+        assertThat(row.get("processing_status")).isEqualTo("REVIEW_REQUIRED");
     }
 }

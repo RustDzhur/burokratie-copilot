@@ -75,4 +75,19 @@ class RuleBasedClassifierTest {
                 DocumentTypeRule.RuleType.KEYWORD, "x", 0.5))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    @DisplayName("umlauts, ß, accents, hyphens and case are levelled, so OCR without dots and typed ASCII meet the same rule")
+    void foldsForComparison() {
+        assertThat(RuleBasedClassifier.fold("Kündigung")).isEqualTo(RuleBasedClassifier.fold("KUENDIGUNG")).isEqualTo("kuendigung");
+        assertThat(RuleBasedClassifier.fold("Straße")).isEqualTo("strasse");
+        assertThat(RuleBasedClassifier.fold("Gewerbe-Abmeldung")).isEqualTo("gewerbe abmeldung");
+        assertThat(RuleBasedClassifier.fold("  Café \n\t Crème ")).isEqualTo("cafe creme");
+    }
+
+    @Test
+    @DisplayName("Cyrillic stays Cyrillic: the breve of 'й' is part of the letter, not an accent")
+    void keepsCyrillic() {
+        assertThat(RuleBasedClassifier.fold("Заключение МЕДИЦИНСКОЙ комиссии")).isEqualTo("заключение медицинской комиссии");
+    }
 }
