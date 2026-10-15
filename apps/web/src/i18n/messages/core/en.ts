@@ -140,6 +140,7 @@ export const enCore: CoreMessages = {
     'items.radar': 'Radar',
     'items.approvals': 'Approvals',
     'items.future': 'Future',
+    'items.rules': 'Rules and sensitivity',
     'items.calendar': 'Calendar and deadlines',
     'items.contracts': 'Contracts',
     'items.invoices': 'Invoices and expenses',

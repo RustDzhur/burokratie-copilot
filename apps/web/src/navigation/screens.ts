@@ -48,6 +48,7 @@ export type ScreenId =
   | 'radar'
   | 'approvals'
   | 'future'
+  | 'rules'
   | 'calendar'
   | 'contracts'
   | 'invoices'
@@ -194,6 +195,8 @@ export const screens: readonly ScreenDefinition[] = [
   screen('security', '/security', 'shield', 'governance'),
   // §5.2.28 — accessibility settings
   screen('accessibilitySettings', '/accessibility', 'accessibility', 'governance'),
+  // thresholds and switches of the Radar and of document recognition, with a version history
+  screen('rules', '/rules', 'shield', 'governance'),
   // §5.2.29 — notification centre
   screen('notifications', '/notifications', 'bell', 'governance'),
   // §5.2.30 — activity history and audit

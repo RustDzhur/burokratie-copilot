@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { expectNoA11yViolations, renderWithProviders, screen, userEvent, waitFor } from '@/test/render';
+import {
+  expectNoA11yViolations,
+  renderWithProviders,
+  screen,
+  userEvent,
+  waitFor,
+} from '@/test/render';
 import FuturePage from '../page';
 
 vi.mock('next/navigation', () => ({
@@ -74,7 +80,10 @@ function serve(scenario?: unknown): void {
         : url.includes('/memory/future')
           ? timeline
           : { items: [], total: 0, page: 0, size: 100 };
-      return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }),
   );
 }
@@ -89,12 +98,20 @@ describe('FuturePage', () => {
     serve();
     const { container } = renderWithProviders(<FuturePage />);
 
-    expect(await screen.findByRole('link', { name: 'Widerspruch prüfen' })).toHaveAttribute('href', '/documents/doc-1');
+    expect(await screen.findByRole('link', { name: 'Widerspruch prüfen' })).toHaveAttribute(
+      'href',
+      '/documents/doc-1',
+    );
     expect(screen.getByText('Nicht bestätigt')).toBeInTheDocument();
     expect(screen.getByText(/Nicht bekannt: Frist nicht bestätigt/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Vertragsende: Internet' })).toHaveAttribute('href', '/contracts/c1');
+    expect(screen.getByRole('link', { name: 'Vertragsende: Internet' })).toHaveAttribute(
+      'href',
+      '/contracts/c1',
+    );
     expect(screen.getByText(/Kündigungsfrist ist nicht erfasst/)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Wartet, Datum nicht bekannt' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Wartet, Datum nicht bekannt' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Kein Datum bekannt')).toBeInTheDocument();
     expect(screen.getByText(/Wann die Antwort kommt, ist nicht bekannt/)).toBeInTheDocument();
     await expectNoA11yViolations(container);
@@ -107,7 +124,9 @@ describe('FuturePage', () => {
     await screen.findByRole('link', { name: 'Widerspruch prüfen' });
 
     await user.click(screen.getByRole('button', { name: '90 Tage' }));
-    await waitFor(() => expect(urls.some((url) => url.includes('/memory/future?horizon=90'))).toBe(true));
+    await waitFor(() =>
+      expect(urls.some((url) => url.includes('/memory/future?horizon=90'))).toBe(true),
+    );
 
     await user.selectOptions(screen.getByLabelText('Art'), 'CONTRACT_END');
     expect(screen.queryByRole('link', { name: 'Widerspruch prüfen' })).not.toBeInTheDocument();
@@ -116,7 +135,12 @@ describe('FuturePage', () => {
 
   it('shows what is missing instead of a number when a scenario cannot be calculated', async () => {
     const user = userEvent.setup();
-    serve({ type: 'NOTICE_MISSED', status: 'INSUFFICIENT_DATA', readOnly: true, missing: ['Kündigungsfrist', 'Vertragsende'] });
+    serve({
+      type: 'NOTICE_MISSED',
+      status: 'INSUFFICIENT_DATA',
+      readOnly: true,
+      missing: ['Kündigungsfrist', 'Vertragsende'],
+    });
     renderWithProviders(<FuturePage />);
     await screen.findByRole('link', { name: 'Widerspruch prüfen' });
 

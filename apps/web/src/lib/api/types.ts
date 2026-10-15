@@ -930,3 +930,27 @@ export interface ScenarioResult {
   readonly assumptions?: readonly string[];
   readonly unknown?: readonly string[];
 }
+
+
+/** One threshold or switch a workspace may tune, with the platform default beside the value in force. */
+export interface RuleSetting {
+  readonly key: string;
+  readonly category: string;
+  readonly description: Readonly<Record<string, string>>;
+  readonly type: 'NUMBER' | 'BOOLEAN' | 'STRING';
+  readonly min: number | null;
+  readonly max: number | null;
+  readonly allowed: readonly string[] | null;
+  readonly default: unknown;
+  readonly value: unknown;
+  readonly overridden: boolean;
+  readonly version: number;
+}
+
+export interface RuleSettingVersion {
+  readonly version: number;
+  readonly previousValue: string | null;
+  readonly newValue: string;
+  readonly reason: string | null;
+  readonly changedAt: string;
+}

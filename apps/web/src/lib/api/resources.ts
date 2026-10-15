@@ -167,6 +167,8 @@ import type {
   PartySummary,
   TelegramStatus,
   StoredExplanation,
+  RuleSetting,
+  RuleSettingVersion,
   FutureTimeline,
   ScenarioRequest,
   ScenarioResult,
@@ -413,6 +415,12 @@ export interface ApiResources {
   readonly payments: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<PaymentSummary>>;
     match: (id: string, invoiceId: string) => Promise<void>;
+  };
+  readonly ruleSettings: {
+    list: (signal?: AbortSignal) => Promise<readonly RuleSetting[]>;
+    change: (key: string, value: unknown, reason: string) => Promise<void>;
+    reset: (key: string, reason: string) => Promise<void>;
+    history: (key: string, signal?: AbortSignal) => Promise<readonly RuleSettingVersion[]>;
   };
   readonly memory: {
     profile: (contactId: string, signal?: AbortSignal) => Promise<ContactProfile>;
@@ -1613,6 +1621,27 @@ export function createResources(client: ApiClient): ApiResources {
       future: (horizon, signal) =>
         client.get<FutureTimeline>('/memory/future', { ...withSignal(signal), query: { horizon: String(horizon) } }),
       scenario: (request) => client.post<ScenarioResult>('/memory/future/scenario', request),
+    },
+    ruleSettings: {
+      list: (signal) => client.get<readonly RuleSetting[]>('/settings/rules', withSignal(signal)),
+      change: async (key, value, reason) => {
+        await client.put<unknown>(`/settings/rules/${encodeURIComponent(key)}`, { value, reason });
+      },
+      reset: async (key, reason) => {
+        await client.post<unknown>(`/settings/rules/${encodeURIComponent(key)}/reset`, { reason });
+      },
+      history: async (key, signal) =>
+        (
+          await client.get<
+            readonly { version: number; previous_value: string | null; new_value: string; change_reason: string | null; created_at: string }[]
+          >(`/settings/rules/${encodeURIComponent(key)}/history`, withSignal(signal))
+        ).map((row) => ({
+          version: row.version,
+          previousValue: row.previous_value,
+          newValue: row.new_value,
+          reason: row.change_reason,
+          changedAt: row.created_at,
+        })),
     },
     approvals: {
       center: async (signal) =>

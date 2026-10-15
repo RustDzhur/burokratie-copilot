@@ -16,7 +16,10 @@ vi.mock('@/lib/api', () => ({
   },
 }));
 
-const documents = api.documents as unknown as Record<'explanation' | 'explain' | 'translation' | 'translate', ReturnType<typeof vi.fn>>;
+const documents = api.documents as unknown as Record<
+  'explanation' | 'explain' | 'translation' | 'translate',
+  ReturnType<typeof vi.fn>
+>;
 
 const explanation: StoredExplanation = {
   id: 'e1',
@@ -29,11 +32,21 @@ const explanation: StoredExplanation = {
       {
         key: 'AMOUNTS',
         claims: [
-          { text: 'Offen sind 280,00 EUR.', type: 'SOURCE_FACT', quote: 'über 280,00 EUR ist noch offen', page: 2 },
+          {
+            text: 'Offen sind 280,00 EUR.',
+            type: 'SOURCE_FACT',
+            quote: 'über 280,00 EUR ist noch offen',
+            page: 2,
+          },
           { text: 'Das ist vermutlich die Hauptforderung.', type: 'AI_INTERPRETATION' },
         ],
       },
-      { key: 'CONSEQUENCES', claims: [{ text: 'Diese Aussage hat eine rechtliche Seite.', type: 'REQUIRES_EXPERT_REVIEW' }] },
+      {
+        key: 'CONSEQUENCES',
+        claims: [
+          { text: 'Diese Aussage hat eine rechtliche Seite.', type: 'REQUIRES_EXPERT_REVIEW' },
+        ],
+      },
     ],
   },
 };
@@ -63,13 +76,18 @@ describe('DocumentExplanation', () => {
   it('offers to create an explanation when there is none, and says so when the answer was not accepted', async () => {
     const user = userEvent.setup();
     documents.explanation.mockResolvedValue(null);
-    documents.explain.mockResolvedValue({ kind: 'REJECTED', reason: 'Die Antwort hatte nicht die verlangte Form.' });
+    documents.explain.mockResolvedValue({
+      kind: 'REJECTED',
+      reason: 'Die Antwort hatte nicht die verlangte Form.',
+    });
     renderWithProviders(<DocumentExplanation documentId="doc-1" />);
 
     expect(await screen.findByText('Noch nichts erstellt.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Erstellen' }));
 
-    expect(await screen.findByTestId('explanation-outcome')).toHaveTextContent('Die Antwort wurde nicht übernommen.');
+    expect(await screen.findByTestId('explanation-outcome')).toHaveTextContent(
+      'Die Antwort wurde nicht übernommen.',
+    );
     expect(documents.explain).toHaveBeenCalledWith('doc-1', 'de');
   });
 
@@ -80,7 +98,12 @@ describe('DocumentExplanation', () => {
       id: 't1',
       createdAt: '2026-10-15T10:00:00Z',
       current: false,
-      content: { language: 'en', disclaimer: 'Written by an AI.', text: 'Payment reminder for 280,00 EUR.', machineTranslation: true },
+      content: {
+        language: 'en',
+        disclaimer: 'Written by an AI.',
+        text: 'Payment reminder for 280,00 EUR.',
+        machineTranslation: true,
+      },
     } satisfies StoredExplanation);
     renderWithProviders(<DocumentExplanation documentId="doc-1" />);
 

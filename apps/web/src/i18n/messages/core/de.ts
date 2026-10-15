@@ -149,6 +149,7 @@ export const deCore = {
     'items.radar': 'Radar',
     'items.approvals': 'Freigaben',
     'items.future': 'Zukunft',
+    'items.rules': 'Regeln und Empfindlichkeit',
     'items.calendar': 'Kalender und Fristen',
     'items.contracts': 'Verträge',
     'items.invoices': 'Rechnungen und Ausgaben',
