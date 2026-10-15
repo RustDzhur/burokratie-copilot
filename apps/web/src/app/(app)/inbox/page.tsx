@@ -10,7 +10,8 @@ import { FileDropzone, UploadList, useUploadQueue } from '@/components/ui/file-d
 import { InlineAlert } from '@/components/ui/feedback';
 import { Dialog } from '@/components/ui/overlay';
 import { useToast } from '@/components/ui/toast';
-import { formatDate, formatPercent } from '@/i18n/format';
+import { formatDate } from '@/i18n/format';
+import { useEstimateText } from '@/i18n/use-estimate';
 import { useLocale, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { toApiError } from '@/lib/api/errors';
@@ -40,6 +41,7 @@ export default function InboxPage() {
   const tErrors = useTranslations('errors');
   const tStates = useTranslations('states');
   const locale = useLocale();
+  const estimate = useEstimateText();
   const toast = useToast();
   const statusLabel = useStatusLabels('inbox');
   const channelLabel = useGroupedLabels('inbox', 'channel');
@@ -112,14 +114,14 @@ export default function InboxPage() {
                 row.confidence >= 0.85 ? 'success' : row.confidence >= 0.6 ? 'warning' : 'danger'
               }
             >
-              {formatPercent(row.confidence, locale)}
+              {estimate(row.confidence)}
             </Badge>
           ) : (
             tCommon('labels.unknown')
           ),
       },
     ],
-    [channelLabel, locale, statusLabel, t, tCommon],
+    [channelLabel, estimate, locale, statusLabel, t, tCommon],
   );
 
   const archive = useCallback(

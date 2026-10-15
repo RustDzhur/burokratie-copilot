@@ -7,6 +7,8 @@ import type { CoreMessages } from './de';
  */
 export const ruCore: CoreMessages = {
   common: {
+    'estimate.label': 'оценка модели',
+    'estimate.hint': 'Собственная оценка модели, а не вероятность',
     'app.name': 'Bürokratie-Copilot',
     'app.tagline': 'Интеллектуальный центр управления административными процессами в Германии',
     'actions.capture': 'Сделать фото',

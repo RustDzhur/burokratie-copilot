@@ -12,7 +12,8 @@ import { buttonClass } from '@/components/ui/button-class';
 import { InlineAlert, SkeletonText } from '@/components/ui/feedback';
 import { Select } from '@/components/ui/form';
 import { useToast } from '@/components/ui/toast';
-import { formatDate, formatDateTime, formatPercent } from '@/i18n/format';
+import { formatDate, formatDateTime } from '@/i18n/format';
+import { useEstimateText } from '@/i18n/use-estimate';
 import { useFormatters, useLocale, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { toApiError } from '@/lib/api/errors';
@@ -72,6 +73,7 @@ export default function DocumentViewerPage() {
   const tErrors = useTranslations('errors');
   const tStates = useTranslations('states');
   const locale = useLocale();
+  const estimate = useEstimateText();
   const formatters = useFormatters();
   const statusLabel = useStatusLabels('documents');
   const toast = useToast();
@@ -295,7 +297,7 @@ export default function DocumentViewerPage() {
                             <tr key={field.name}>
                               <th scope="row">{field.label}</th>
                               <td>{field.value ?? t('field.noValue')}</td>
-                              <td>{formatPercent(field.confidence, locale)}</td>
+                              <td>{estimate(field.confidence)}</td>
                               <td>{field.source ?? tCommon('labels.unknown')}</td>
                             </tr>
                           ))}

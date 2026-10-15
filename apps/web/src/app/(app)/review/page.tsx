@@ -8,7 +8,8 @@ import { Badge, Card, CardBody, CardHeader, EmptyState, StatusPill } from '@/com
 import { Button } from '@/components/ui/button';
 import { InlineAlert, SkeletonTable } from '@/components/ui/feedback';
 import { useToast } from '@/components/ui/toast';
-import { formatDate, formatPercent } from '@/i18n/format';
+import { formatDate } from '@/i18n/format';
+import { useEstimateText } from '@/i18n/use-estimate';
 import { useLocale, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { toApiError } from '@/lib/api/errors';
@@ -35,6 +36,7 @@ export default function ReviewPage() {
   const tStates = useTranslations('states');
   const tErrors = useTranslations('errors');
   const locale = useLocale();
+  const estimate = useEstimateText();
   const toast = useToast();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -187,7 +189,7 @@ export default function ReviewPage() {
                               <td>{field.value ?? <em>{tViewer('field.noValue')}</em>}</td>
                               <td>
                                 <StatusPill
-                                  label={formatPercent(field.confidence, locale)}
+                                  label={estimate(field.confidence)}
                                   tone={confidenceTone(field.confidence)}
                                 />
                               </td>
@@ -219,7 +221,7 @@ export default function ReviewPage() {
                   </div>
                   <p className={styles.hint}>{tStates('success.saved')}</p>
                   <Badge tone="info" variant="outline">
-                    {t('confidence.high')} ≥ 85 %
+                    {t('confidence.high')} ≥ 85 % · {tCommon('estimate.label')}
                   </Badge>
                 </>
               ) : (

@@ -6,7 +6,8 @@ import { Badge, Card, CardBody, CardHeader } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { InlineAlert, SkeletonText } from '@/components/ui/feedback';
-import { formatDateTime, formatPercent } from '@/i18n/format';
+import { formatDateTime } from '@/i18n/format';
+import { useEstimateText } from '@/i18n/use-estimate';
 import { useLocale, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { useApiResource } from '@/lib/api/hooks';
@@ -65,6 +66,7 @@ interface ProcessingPanelProps {
 export function ProcessingPanel({ documentId, reloadKey = 0 }: ProcessingPanelProps) {
   const t = useTranslations('documentViewer');
   const locale = useLocale();
+  const estimate = useEstimateText();
   const [polling, setPolling] = useState(true);
   const [creating, setCreating] = useState(false);
   const toast = useToast();
@@ -224,7 +226,7 @@ export function ProcessingPanel({ documentId, reloadKey = 0 }: ProcessingPanelPr
             <Badge tone="accent" variant="outline">
               {typeLabel ?? flow.documentTypeName}
               {typeof flow.confidence === 'number'
-                ? ` · ${formatPercent(flow.confidence, locale)}`
+                ? ` · ${estimate(flow.confidence)}`
                 : ''}
             </Badge>
           ) : null}
@@ -232,7 +234,7 @@ export function ProcessingPanel({ documentId, reloadKey = 0 }: ProcessingPanelPr
             <Badge tone="warning" variant="outline">
               {t('flow.suggested')}: {typeLabel ?? flow.suggestedType.name}
               {typeof flow.suggestedType.confidence === 'number'
-                ? ` · ${formatPercent(flow.suggestedType.confidence, locale)}`
+                ? ` · ${estimate(flow.suggestedType.confidence)}`
                 : ''}
             </Badge>
           ) : null}

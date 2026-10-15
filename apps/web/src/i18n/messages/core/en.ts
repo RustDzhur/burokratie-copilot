@@ -6,6 +6,8 @@ import type { CoreMessages } from './de';
  */
 export const enCore: CoreMessages = {
   common: {
+    'estimate.label': 'model estimate',
+    'estimate.hint': "The model's own estimate, not a probability",
     'app.name': 'Bürokratie-Copilot',
     'app.tagline': 'The intelligent administrative cockpit for Germany',
     'actions.capture': 'Take a photo',

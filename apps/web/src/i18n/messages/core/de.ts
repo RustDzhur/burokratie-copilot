@@ -15,6 +15,8 @@
 
 export const deCore = {
   common: {
+    'estimate.label': 'Modellschätzung',
+    'estimate.hint': 'Einschätzung des Modells, keine Wahrscheinlichkeit',
     'app.name': 'Bürokratie-Copilot',
     'app.tagline': 'Der intelligente Verwaltungs-Cockpit für Deutschland',
     'actions.capture': 'Foto aufnehmen',
