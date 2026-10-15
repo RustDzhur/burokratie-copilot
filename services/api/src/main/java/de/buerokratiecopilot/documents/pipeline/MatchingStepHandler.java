@@ -18,11 +18,8 @@ public class MatchingStepHandler implements ProcessingStepHandler {
 
     private final MatchingService matching;
 
-    private final de.buerokratiecopilot.documents.sender.SenderService senders;
-
-    public MatchingStepHandler(MatchingService matching, de.buerokratiecopilot.documents.sender.SenderService senders) {
+    public MatchingStepHandler(MatchingService matching) {
         this.matching = matching;
-        this.senders = senders;
     }
 
     @Override
@@ -32,8 +29,6 @@ public class MatchingStepHandler implements ProcessingStepHandler {
 
     @Override
     public StepResult handle(ProcessingContext context) {
-        // Who sent the letter is read first, so that the contact exists before anything is matched.
-        senders.apply(context.document());
         MatchingService.Outcome outcome = matching.match(context.document(), context.version(), null);
 
         // A proposal a person has to judge means the document is not "ready": the next stage would

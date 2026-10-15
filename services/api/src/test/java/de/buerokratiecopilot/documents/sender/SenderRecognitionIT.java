@@ -42,6 +42,8 @@ class SenderRecognitionIT {
     private JdbcTemplate jdbc;
     @Autowired
     private DocumentProcessingPipeline pipeline;
+    @Autowired
+    private de.buerokratiecopilot.documents.classification.DocumentResortService resort;
 
     private record Session(Cookie cookie, UUID userId) {
     }
@@ -130,6 +132,27 @@ class SenderRecognitionIT {
         RequestContext.runAs(tenant, () -> {
             assertThat(jdbc.queryForObject("select sender from documents where id = ?", String.class, id)).isEqualTo("Dr. Beispiel");
             assertThat(jdbc.queryForObject("select sender from documents where id = ?", String.class, other)).isEqualTo("Stadtwerke Musterstadt GmbH");
+            return null;
+        });
+    }
+
+    @Test
+    @DisplayName("documents stored before senders were read get their sender when everything is sorted again")
+    void oldDocumentsGetTheirSender() throws Exception {
+        Session me = register();
+        UUID tenant = jdbc.queryForObject("select tenant_id from memberships where user_id = ?", UUID.class, me.userId());
+        UUID id = RequestContext.runAs(tenant, () -> jdbc.queryForObject("""
+                insert into documents (id, tenant_id, original_filename, internal_name, mime_type, size_bytes, content_hash, source,
+                                       processing_status, review_status, extracted_text)
+                values (gen_random_uuid(), ?, 'alt.pdf', 'alt.pdf', 'application/pdf', 100, ?, 'UPLOAD', 'READY', 'NOT_REQUIRED', ?)
+                returning id
+                """, UUID.class, tenant, "%064x".formatted(java.util.concurrent.ThreadLocalRandom.current().nextLong()), LETTER.formatted("0009")));
+
+        var summary = RequestContext.runAs(tenant, () -> resort.resort(tenant));
+
+        assertThat(summary).containsEntry("sendersFound", 1);
+        RequestContext.runAs(tenant, () -> {
+            assertThat(jdbc.queryForObject("select sender from documents where id = ?", String.class, id)).isEqualTo("Stadtwerke Musterstadt GmbH");
             return null;
         });
     }

@@ -26,10 +26,14 @@ public class ClassifyStepHandler implements ProcessingStepHandler {
     private final ClassificationService classification;
     private final de.buerokratiecopilot.documents.fields.FieldExtractionService extraction;
 
+    private final de.buerokratiecopilot.documents.sender.SenderService senders;
+
     public ClassifyStepHandler(ClassificationService classification,
-                               de.buerokratiecopilot.documents.fields.FieldExtractionService extraction) {
+                               de.buerokratiecopilot.documents.fields.FieldExtractionService extraction,
+                               de.buerokratiecopilot.documents.sender.SenderService senders) {
         this.classification = classification;
         this.extraction = extraction;
+        this.senders = senders;
     }
 
     @Override
@@ -39,6 +43,9 @@ public class ClassifyStepHandler implements ProcessingStepHandler {
 
     @Override
     public StepResult handle(ProcessingContext context) {
+        // Who sent the letter is read as soon as there is text, whether or not the type needs a person's check: the sender is
+        // there to be found later, and a document that waits for a person has a sender too.
+        senders.apply(context.document());
         if (context.document().getDocumentTypeId() != null) {
             // The stage is the only one that sets a type by itself, so a type present before it runs was chosen by a person.
             // The rules do not ask again about what a person has decided.

@@ -235,7 +235,7 @@ export const ruScreens: ScreenMessages = {
     'uploadedBy.unknown': "—",
     'resort.action': "Заново разобрать все документы",
     'resort.confirm': "Все сохранённые документы будут снова разложены по текущим правилам. Что вы подтвердили сами — остаётся. Где правила не уверены или текст не прочитан, документ уходит на проверку. Ничего не удаляется. Продолжить?",
-    'resort.done': "Проверено {checked}: перенесено {moved}, на проверку {sentToReview}, без читаемого текста {withoutText}, подтверждено вами (без изменений) {keptByPerson}, без изменений {unchanged}. Дополнительно завершено: {finished}.",
+    'resort.done': "Проверено {checked}: перенесено {moved}, на проверку {sentToReview}, без читаемого текста {withoutText}, подтверждено вами (без изменений) {keptByPerson}, без изменений {unchanged}. Дополнительно завершено: {finished}. Распознано отправителей: {sendersFound}.",
     'category.label': 'Категории документов',
     'category.ALL': 'Все',
     'category.UNSORTED': 'Не распознаны',
