@@ -25,7 +25,17 @@ public class StorageConfiguration {
     private static final Logger log = LoggerFactory.getLogger(StorageConfiguration.class);
 
     @Bean
-    public BlobStore blobStore(BurokratieProperties properties) {
+    public BlobStore blobStore(BurokratieProperties properties, TenantKeyService keys) {
+        BlobStore backend = backend(properties);
+        if (keys.available()) {
+            log.info("Documents are encrypted at rest with a key per workspace");
+            return new EncryptingBlobStore(backend, keys);
+        }
+        log.warn("No platform key (BC_ENCRYPTION_KEY): documents are stored WITHOUT encryption at rest");
+        return backend;
+    }
+
+    private BlobStore backend(BurokratieProperties properties) {
         BurokratieProperties.Storage storage = properties.getStorage();
         if ("s3".equalsIgnoreCase(storage.getType())) {
             BurokratieProperties.Storage.S3 s3 = storage.getS3();

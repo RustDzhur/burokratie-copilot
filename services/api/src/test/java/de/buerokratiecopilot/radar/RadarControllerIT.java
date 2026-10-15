@@ -205,7 +205,7 @@ class RadarControllerIT {
                 .andExpect(status().isNotFound());
 
         String rules = json(a.cookie(), "/api/v1/radar/rules");
-        assertThat((List<?>) JsonPath.read(rules, "$")).hasSize(6);
+        assertThat((List<?>) JsonPath.read(rules, "$")).hasSize(7);
         assertThat((Object) JsonPath.read(rules, "$[?(@.id == 'B1')].closedWhen[0]")).isNotNull();
     }
 
