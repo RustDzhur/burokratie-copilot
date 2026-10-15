@@ -1,5 +1,6 @@
 'use client';
 
+import { comfortAllowed } from '@/consent/consent';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Icon } from '@/components/icons';
@@ -50,7 +51,7 @@ export function IrisWidget() {
 
   useEffect(() => {
     try {
-      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-20)));
+      if (comfortAllowed()) window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-20)));
     } catch {
       // The conversation simply is not kept when the browser refuses storage.
     }

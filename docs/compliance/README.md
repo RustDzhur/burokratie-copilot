@@ -10,7 +10,7 @@ Barrierefreiheit) написаны для этой платформы и **тр�
 |---|---|---|
 | Impressum из данных оператора (ничего не выдумывается; чего нет — видно) | § 5 DDG | `/impressum`, `LegalIT`, `legal-pages.test.tsx`, форма в `/admin` → «Betreiber» |
 | Datenschutzerklärung (роли: ответственный и обработчик, цели, основания, сроки, права, жалоба, Art. 22) | Art. 13/14 DSGVO | `/datenschutz` |
-| Cookie-страница: полный список того, что пишется в браузер; без трекинга, без внешних ресурсов (CSP `default-src 'self'`) | § 25 Abs. 2 Nr. 2 TDDDG | `/cookies`; согласие не нужно, баннера нет — **пока нет аналитики/маркетинга** |
+| Cookie-страница и баннер: полный список того, что пишется в браузер; без трекинга, без внешних ресурсов (CSP `default-src 'self'`) | § 25 Abs. 2 Nr. 2 TDDDG | `/cookies`; согласие не нужно, баннера нет — **пока нет аналитики/маркетинга** |
 | AGB, Widerrufsbelehrung + Muster-Widerrufsformular (для потребителей) | §§ 312g, 355 BGB, Anlage 1 EGBGB | `/agb`, `/widerruf` |
 | AVV — договор об обработке по заказу, TOM, субподрядчики | Art. 28 DSGVO | `/avv`; компании принимают при регистрации |
 | Доказательство согласия: документ, версия, время (без IP) | Art. 7 Abs. 1 DSGVO | `legal_consents` (V67), `LegalIT`; в продакшене регистрация без галочки отклоняется (`require-terms-acceptance`) |

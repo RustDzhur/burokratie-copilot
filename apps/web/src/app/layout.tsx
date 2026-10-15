@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import '@/styles/tokens.css';
 import '@/styles/globals.css';
 import { AppProviders } from '@/components/app/providers';
+import { CookieConsent } from '@/components/app/cookie-consent';
 import { ServiceWorkerRegistrar } from '@/components/app/service-worker';
 import { getServerLocale } from '@/i18n/server';
 import {
@@ -73,6 +74,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <AppProviders initialLocale={locale} initialAppearance={appearance}>
         <ServiceWorkerRegistrar />
           {children}
+          <CookieConsent />
         </AppProviders>
       </body>
     </html>

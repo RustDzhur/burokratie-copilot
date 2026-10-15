@@ -1,5 +1,6 @@
 'use client';
 
+import { comfortAllowed } from '@/consent/consent';
 import {
   createContext,
   useCallback,
@@ -45,6 +46,8 @@ export function applyAppearance(settings: AppearanceSettings): void {
   for (const [name, value] of Object.entries(attributes)) {
     document.documentElement.setAttribute(name, value);
   }
+  // The look of the page is applied now; it is kept for the next visit only if the visitor agreed to convenience storage.
+  if (!comfortAllowed()) return;
   try {
     localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(settings));
   } catch {

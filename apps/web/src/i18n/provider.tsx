@@ -1,5 +1,6 @@
 'use client';
 
+import { comfortAllowed } from '@/consent/consent';
 import {
   createContext,
   useCallback,
@@ -77,9 +78,11 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 
 function persistLocale(locale: Locale): void {
   if (typeof document === 'undefined') return;
+  document.documentElement.lang = locale;
+  // Remembered for the next visit only with the visitor's consent to convenience storage.
+  if (!comfortAllowed()) return;
   const maxAge = 60 * 60 * 24 * 365;
   document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=${maxAge}; samesite=lax`;
-  document.documentElement.lang = locale;
 }
 
 export interface I18nProviderProps {

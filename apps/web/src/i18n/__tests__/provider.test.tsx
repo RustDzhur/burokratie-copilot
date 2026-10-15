@@ -66,10 +66,19 @@ describe('i18n provider', () => {
     expect(screen.getByTestId('action')).toHaveTextContent('Speichern');
   });
 
-  it('persists the locale choice in a cookie for the next server render', async () => {
+  it('persists the locale choice in a cookie for the next server render, but only after the visitor agreed to convenience storage', async () => {
+    document.cookie = 'bc_locale=; path=/; max-age=0';
+    document.cookie = 'bc_consent=; path=/; max-age=0';
     renderWithProviders(<Probe />);
     await userEvent.click(screen.getByRole('button', { name: 'EN' }));
-    expect(document.cookie).toContain('bc_locale=en');
+    expect(document.cookie).not.toContain('bc_locale=en');
+    expect(document.documentElement.lang).toBe('en');
+
+    document.cookie = 'bc_consent=v1.comfort; path=/';
+    await userEvent.click(screen.getByRole('button', { name: 'RU' }));
+    expect(document.cookie).toContain('bc_locale=ru');
+    document.cookie = 'bc_consent=; path=/; max-age=0';
+    document.cookie = 'bc_locale=; path=/; max-age=0';
   });
 
   it('returns an empty string for unknown keys instead of leaking a placeholder', () => {

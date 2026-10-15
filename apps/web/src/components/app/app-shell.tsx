@@ -1,4 +1,5 @@
 'use client';
+import { CookieSettingsButton } from '@/components/app/cookie-consent';
 
 import { LEGAL_LINKS } from '@/legal/links';
 import Link from 'next/link';
@@ -175,6 +176,7 @@ export function AppShell({ children }: AppShellProps) {
                 {link.label}
               </Link>
             ))}
+          <CookieSettingsButton />
           </nav>
         </footer>
       </div>

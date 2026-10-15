@@ -1,3 +1,4 @@
+import { CookieSettingsButton } from '@/components/app/cookie-consent';
 import Link from 'next/link';
 import { BrandMark } from '@/components/app/brand-mark';
 import type { ReactNode } from 'react';
@@ -38,6 +39,7 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
             {link.label}
           </Link>
         ))}
+      <CookieSettingsButton />
       </nav>
     </div>
   );

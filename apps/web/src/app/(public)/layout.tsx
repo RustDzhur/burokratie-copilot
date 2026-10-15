@@ -1,3 +1,4 @@
+import { CookieSettingsButton } from '@/components/app/cookie-consent';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { PublicHeader } from '@/components/app/public-header';
@@ -32,6 +33,7 @@ export default async function PublicLayout({ children }: { children: ReactNode }
               {link.label}
             </Link>
           ))}
+          <CookieSettingsButton />
           <Link href="/login">{t('nav', 'items.login')}</Link>
           <Link href="/register">{t('nav', 'items.register')}</Link>
         </nav>

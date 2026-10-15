@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { BrandMark } from '@/components/app/brand-mark';
 import { Icon, type IconName } from '@/components/icons';
 import { buttonClass } from '@/components/ui/button-class';
-import { Badge, Card } from '@/components/ui/data';
-import { useTranslations } from '@/i18n/provider';
+import { Card } from '@/components/ui/data';
+import { formatDateTime } from '@/i18n/format';
+import { useLocale, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { useApiResource } from '@/lib/api/hooks';
 import { PlanGrid } from '@/components/app/plan-grid';
@@ -55,21 +56,17 @@ const TRUST_KEYS = ['trust.gdpr', 'trust.audit', 'trust.access', 'trust.hosting'
 /**
  * Public landing page.
  *
- * This is the only screen allowed to show illustrative numbers; they are marked
- * as sample data (`landing.hero.demoNotice` + a visible badge) so they can never
- * be mistaken for real records of a customer workspace.
+ * The numbers are the platform's real totals, counted from the database (documents captured, cases created, tasks completed).
+ * Nothing on this page is sample data; a demo cabinet's invented documents are not counted.
  */
 export default function LandingPage() {
   const t = useTranslations('landing');
   const tCommon = useTranslations('common');
+  const locale = useLocale();
   const tDemo = useTranslations('demo');
   const [demoOpen, setDemoOpen] = useState(false);
 
-  const demoStats = [
-    { labelKey: 'stats.documents', value: '128.400' },
-    { labelKey: 'stats.cases', value: '9.750' },
-    { labelKey: 'stats.hours', value: '6,5' },
-  ] as const;
+  const { state: totals } = useApiResource((signal) => api.publicStats.get(signal), []);
 
   return (
     <div className={styles.page}>
@@ -98,25 +95,25 @@ export default function LandingPage() {
           </a>
         </div>
 
-        <div className={styles.demoStats}>
-          <p className={styles.demoNotice}>
-            <Icon name="info" size={15} />
-            <span>{t('hero.demoNotice')}</span>
-          </p>
-          <dl className={styles.statGrid}>
-            {demoStats.map((stat) => (
-              <div key={stat.labelKey} className={styles.stat}>
-                <dt>{t(stat.labelKey)}</dt>
-                <dd>
-                  {stat.value}
-                  <Badge tone="warning" variant="outline" icon="info">
-                    {tCommon('labels.demoData')}
-                  </Badge>
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </div>
+        {totals.status === 'ready' ? (
+          <div className={styles.demoStats}>
+            <dl className={styles.statGrid}>
+              {[
+                { key: 'stats.documents', value: totals.data.documents },
+                { key: 'stats.cases', value: totals.data.cases },
+                { key: 'stats.tasks', value: totals.data.tasksDone },
+              ].map((stat) => (
+                <div key={stat.key} className={styles.stat}>
+                  <dt>{t(stat.key as 'stats.documents')}</dt>
+                  <dd>{new Intl.NumberFormat(locale).format(stat.value)}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className={styles.demoNotice}>
+              <small>{t('stats.asOf', { when: formatDateTime(totals.data.asOf, locale) })}</small>
+            </p>
+          </div>
+        ) : null}
       </section>
 
       <section className={styles.section} id="features" aria-labelledby="landing-features-title">

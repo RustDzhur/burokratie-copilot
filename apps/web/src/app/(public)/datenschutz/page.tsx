@@ -77,9 +77,11 @@ function Body() {
 
       <H2>3. Cookies und Speicher im Browser</H2>
       <p>
-        Wir setzen nur technisch notwendige Cookies und Browser-Speicher ein; Tracking oder Werbung gibt es nicht. Einzelheiten und die
-        vollständige Liste stehen unter <Link href="/cookies">Cookies und Speicher</Link>. Rechtsgrundlage: § 25 Abs. 2 Nr. 2 TDDDG und
-        Art. 6 Abs. 1 lit. b, f DSGVO.
+        Notwendige Cookies (Anmeldung, Schutz vor gefälschten Anfragen, Ihre Cookie-Auswahl) setzen wir ohne Einwilligung. Komfort-Einträge
+        (Sprache, Darstellung, Verlauf des Hilfe-Assistenten) legen wir nur mit Ihrer Einwilligung an, die Sie jederzeit über
+        „Cookie-Einstellungen“ ändern oder widerrufen können. Tracking oder Werbung gibt es nicht. Einzelheiten und die vollständige Liste
+        stehen unter <Link href="/cookies">Cookies und Speicher</Link>. Rechtsgrundlage: § 25 Abs. 1 und 2 Nr. 2 TDDDG und Art. 6 Abs. 1
+        lit. a, b, f DSGVO.
       </p>
 
       <H2>4. Empfänger und Auftragsverarbeiter</H2>
