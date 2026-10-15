@@ -299,6 +299,9 @@ class EvaluationHarnessIT {
         out.append("| Embedded instructions detected | ").append(percent((int) injectionsCaught, (int) injections)).append(" |\n");
         out.append("| Normal documents flagged as instruction | ").append(falseAlarms).append(" |\n\n");
 
+        appendPerType(out, results, typed);
+        appendThresholds(out, results);
+
         out.append("## Per document\n\n| Id | Expected | Classified | Confidence | Accepted | Fields | Identifiers |\n|---|---|---|---|---|---|---|\n");
         for (Result r : results) {
             out.append("| ").append(r.id()).append(" | ").append(r.expectedType() == null ? "-" : r.expectedType())
@@ -319,5 +322,59 @@ class EvaluationHarnessIT {
         }
         out.append("\nKnown types in the taxonomy: ").append(knownTypes.size()).append('\n');
         return out.toString();
+    }
+
+    /** Precision and recall per type: precision over what was classified as the type, recall over what was expected to be it. */
+    private static void appendPerType(StringBuilder out, List<Result> results, List<Result> typed) {
+        java.util.Map<String, int[]> perType = new java.util.TreeMap<>(); // [classified, classifiedRight, expected, expectedFound]
+        for (Result r : results) {
+            if (r.classified() != null) {
+                int[] row = perType.computeIfAbsent(r.classified(), k -> new int[4]);
+                row[0]++;
+                if (typeRight(r, r.classified())) {
+                    row[1]++;
+                }
+            }
+        }
+        for (Result r : typed) {
+            int[] row = perType.computeIfAbsent(r.expectedType(), k -> new int[4]);
+            row[2]++;
+            if (typeRight(r, r.classified())) {
+                row[3]++;
+            }
+        }
+        out.append("## Per type (precision = of what was called this type, how much was right; recall = of what is this type, how much was found)\n\n");
+        out.append("| Type | Classified as | Precision | Expected | Recall |\n|---|---:|---:|---:|---:|\n");
+        double precisionSum = 0;
+        double recallSum = 0;
+        int precisionN = 0;
+        int recallN = 0;
+        for (var entry : perType.entrySet()) {
+            int[] row = entry.getValue();
+            out.append("| ").append(entry.getKey()).append(" | ").append(row[0]).append(" | ").append(row[0] == 0 ? "n/a" : percent(row[1], row[0]))
+                    .append(" | ").append(row[2]).append(" | ").append(row[2] == 0 ? "n/a" : percent(row[3], row[2])).append(" |\n");
+            if (row[0] > 0) {
+                precisionSum += (double) row[1] / row[0];
+                precisionN++;
+            }
+            if (row[2] > 0) {
+                recallSum += (double) row[3] / row[2];
+                recallN++;
+            }
+        }
+        out.append(String.format(java.util.Locale.ROOT, "%nMacro precision %.1f %%, macro recall %.1f %% (types with at least one document)%n%n",
+                precisionN == 0 ? 0.0 : 100 * precisionSum / precisionN, recallN == 0 ? 0.0 : 100 * recallSum / recallN));
+    }
+
+    /** What the acceptance threshold would do: how many documents reach it and how many of those are wrong. */
+    private static void appendThresholds(StringBuilder out, List<Result> results) {
+        out.append("## Threshold sweep (confidence of the current classification)\n\n| Threshold | Reaching it | Wrong among them | Precision |\n|---:|---:|---:|---:|\n");
+        for (double threshold : new double[] { 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95 }) {
+            List<Result> reached = results.stream().filter(r -> r.classified() != null && r.confidence() != null && r.confidence() >= threshold).toList();
+            long wrong = reached.stream().filter(r -> !typeRight(r, r.classified())).count();
+            out.append(String.format(java.util.Locale.ROOT, "| %.2f | %d | %d | %s |%n", threshold, reached.size(), wrong,
+                    reached.isEmpty() ? "n/a" : percent((int) (reached.size() - wrong), reached.size())));
+        }
+        out.append('\n');
     }
 }
