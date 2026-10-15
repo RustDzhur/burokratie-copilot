@@ -181,6 +181,15 @@ public class InvoicePdfRenderer {
             if (character == '\n' || character == '\r') {
                 cleaned.append(' ');
             }
+            else if (character == '\u2014' || character == '\u2013') {
+                cleaned.append('-'); // dashes are printable in WinAnsi, but a plain hyphen cannot fail
+            }
+            else if (character == '\u2026') {
+                cleaned.append("...");
+            }
+            else if (character == '\u20AC') {
+                cleaned.append(character); // the euro sign is part of WinAnsi
+            }
             else if (character < 256) {
                 cleaned.append(character);
             }
