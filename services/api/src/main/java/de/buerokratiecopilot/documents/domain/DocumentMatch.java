@@ -170,6 +170,20 @@ public class DocumentMatch {
         this.decidedAt = Instant.now();
     }
 
+    /**
+     * Puts a rejected pair in front of a person again because new data supports it much more strongly than what was
+     * rejected. The person decides again; nothing is confirmed by this.
+     */
+    public void reopen(UUID newVersionId, BigDecimal newScore, Map<String, Object> why, Map<String, Object> newEvidence) {
+        this.status = Status.SUGGESTED;
+        this.versionId = newVersionId;
+        this.score = newScore;
+        this.rationale = why;
+        this.evidence = newEvidence == null ? Map.of() : newEvidence;
+        this.decidedBy = null;
+        this.decidedAt = null;
+    }
+
     public boolean isSuggested() {
         return status == Status.SUGGESTED;
     }

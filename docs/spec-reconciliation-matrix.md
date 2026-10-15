@@ -26,9 +26,9 @@
 
 | Статус | Строк |
 |---|---:|
-| `IMPLEMENTED_AND_TESTED` | 94 |
+| `IMPLEMENTED_AND_TESTED` | 95 |
 | `IMPLEMENTED_UNVERIFIED` | 14 |
-| `PARTIALLY_IMPLEMENTED` | 50 |
+| `PARTIALLY_IMPLEMENTED` | 49 |
 | `DOCUMENTED_ONLY` | 4 |
 | `MISSING` | 0 |
 | `CONFLICT` | 6 |
@@ -37,9 +37,9 @@
 
 | Категория расхождения | Строк |
 |---|---:|
-| `NO_CONFLICT` | 82 |
+| `NO_CONFLICT` | 83 |
 | `IMPLEMENTATION_GAP` | 26 |
-| `ACCEPTANCE_GAP` | 22 |
+| `ACCEPTANCE_GAP` | 21 |
 | `DOCUMENTATION_GAP` | 19 |
 | `EXTERNAL_DEPENDENCY` | 9 |
 | `BEHAVIOR_CONFLICT` | 3 |
@@ -65,7 +65,7 @@
 | 6. Документы и файловое хранилище | 7 | 3 |
 | 7. OCR и извлечение данных | 7 | 3 |
 | 8. Email и внешние интеграции | 8 | 4 |
-| 9. Business Memory | 9 | 3 |
+| 9. Business Memory | 9 | 2 |
 | 10. Bürokratie-Radar | 13 | 3 |
 | 11. Case Autopilot | 10 | 2 |
 | 12. Approval Center | 4 | 1 |
@@ -215,9 +215,9 @@
 | S09-02 | Business Memory | §19 запрет универсальных связей «любой с любым»; явные таблицы для важных отношений | §5.2 BusinessRelationship: sourceType/sourceId/targetType/targetId, тип, confidence, evidence, verificationStatus | **`IMPLEMENTED_AND_TESTED`** — `document_matches` и `document_relations` с статусом и доказательствами, `RelationshipsIT`, решение D-04 в `docs/architecture/decisions.md` | **`NO_CONFLICT`** — универсальной таблицы связей нет сознательно (решение аудита) | Решение D-02: универсальную таблицу не создавать; добавить `status`/`evidence`/`decided_*` в `document_relations`, расширить `document_matches.match_type` (OBLIGATION, TASK); отношения «счёт→договор», «контракт→контрагент» — внешние ключи (`invoices.contract_id`, `contracts.counterparty_contact_id`) | P0 | BM-02 |
 | S09-03 | Business Memory | §9.4 поля с происхождением | §5.2 BusinessFact: субъект, предикат, значение, validFrom/validTo, supersedesFactId, различать оригинал/OCR/AI/пользователь/вывод/гипотеза | **`IMPLEMENTED_AND_TESTED`** — `memory/FactService`, `FactRevisionIT`, миграция `V49__fact_revisions.sql` | **`NO_CONFLICT`** — — | Решение D-04: факты остаются в `document_extractions`; добавить `fact_revisions` (прежние значения, кто и когда изменил, supersedes) и `subject_type/subject_id` (явные внешние ключи через `contact_id`/`contract_id`); категории происхождения сопоставить таблицей | P0 | BM-03 |
 | S09-04 | Business Memory | §11.1 история событий дела; §21.4 аудит | §5.2 BusinessEvent: тип, eventTime, recordedAt, источник, связанные сущности, дело, payload | **`IMPLEMENTED_AND_TESTED`** — представление `v_business_timeline`, `memory/TimelineService`, `TimelineIT` | **`NO_CONFLICT`** — — | Решение D-05: таблицу `business_events` НЕ создавать; хронология = SQL-представление `v_business_timeline` над существующими потоками + запрос по контрагенту/договору/делу (BM-04) | P0 | BM-04 |
-| S09-05 | Business Memory | §10.5 RAG и вопросы по документам; без выдумок | §5.5 вопросы на естественном языке: права, источники, страница/фрагмент, факт vs предположение, противоречия показывать | **`PARTIALLY_IMPLEMENTED`** — `ai/rag/RagService`, `RetrievalService`, `RagCitationTest`, `RagNoAnswerTest`, `PassageSearchControllerIT` | **`IMPLEMENTATION_GAP`** — поиск идёт только по тексту документов; факты, связи, обязательства и события в выборку не входят; противоречия не обнаруживаются | BM-05: расширить `RetrievalService` источниками (факты, связи, обязательства) с проверкой прав; ответ по-прежнему проверяется против выборки | P0 | BM-03, BM-04 |
+| S09-05 | Business Memory | §10.5 RAG и вопросы по документам; без выдумок | §5.5 вопросы на естественном языке: права, источники, страница/фрагмент, факт vs предположение, противоречия показывать | **`PARTIALLY_IMPLEMENTED`** — `ai/rag/RetrievalService` ищет по тексту страниц, извлечённым полям и условиям договоров (`CONTRACT_CLAUSE` со страницей и типом), `RagCitationTest.contractClauseCanBeCited` (включая изоляцию пространств) | **`IMPLEMENTATION_GAP`** — находки Радара, связи и события в выборку не входят (у находки нет проверки видимости по делу в `RetrievalService`); противоречия между источниками ответ не обнаруживает; проверка прав на уровне документа в выборке — только пространство | BM-05: расширить `RetrievalService` источниками (факты, связи, обязательства) с проверкой прав; ответ по-прежнему проверяется против выборки | P0 | BM-03, BM-04 |
 | S09-06 | Business Memory | §9.1 п.12 найти связанные дела и документы | §5.3 связи: ответ на письмо, замена версии, одна процедура | **`PARTIALLY_IMPLEMENTED`** — `documents/matching/MatchingService` (дело по ссылке, договор, контакт), `MatchingIT` | **`IMPLEMENTATION_GAP`** — нет связи «счёт ↔ договор по условиям», «письмо ↔ дело по цепочке», «замена версии» не устанавливается автоматически | BM-02, CA-06 | P0 | BM-02 |
-| S09-07 | Business Memory | §9.1 дубликаты | §5.6 ошибочную связь можно отклонить; отклонение учитывается при повторном анализе | **`PARTIALLY_IMPLEMENTED`** — `MatchingService.decide`, `MatchingIT` (отклонение сохраняется как решение; новый тест `rejectedProposalStaysRejectedAfterRerun`: после повторного запуска отклонённая пара остаётся REJECTED и второй строки нет — выполнен и пройден 2026-10-14), уникальный ключ (document, type, target) | **`ACCEPTANCE_GAP`** — нет правила повторного открытия отклонённой связи при существенно новых данных (ТЗ v2.0 §5.3 требует учитывать отклонение и не предлагать бесконечно, но допускает пересмотр при новых данных — правило не определено) | BM-02: правило повторного предложения только при росте score более чем на настраиваемый порог | P1 | BM-02 |
+| S09-07 | Business Memory | §9.1 дубликаты | §5.6 ошибочную связь можно отклонить; отклонение учитывается при повторном анализе | **`IMPLEMENTED_AND_TESTED`** — `MatchingService.match` + `DocumentMatch.reopen`, `MatchingIT.rejectedProposalReturnsOnlyOnMuchStrongerNewEvidence`: отклонённая пара не возвращается при повторном анализе; возвращается как предложение (решает человек) только если новая версия документа даёт оценку выше отклонённой не менее чем на 0,15 | **`NO_CONFLICT`** — порог 0,15 — выбор разработчика, не откалиброван на реальных данных; автоматически связь после повторного открытия не подтверждается | BM-02: правило повторного предложения только при росте score более чем на настраиваемый порог | P1 | BM-02 |
 | S09-08 | Business Memory | §4 разграничение личных документов | §5.6 пользователь из одного tenant не получает факты другого; AI retrieval с проверкой доступа | **`IMPLEMENTED_AND_TESTED`** — `TenantIsolationSuiteIT`, `SearchIsolationIT`, `AssistantToolAuthzIT` | **`ACCEPTANCE_GAP`** — на новые таблицы Business Memory тесты изоляции ещё не написаны (таблиц нет) | Тест изоляции обязателен в каждой задаче BM/RD/CA | P0 | BM-* |
 | S09-09 | Business Memory | §12.3 сроки и обязательства договора | §5.1 обязательства связаны с задачами | **`IMPLEMENTED_AND_TESTED`** — `contract_obligations` (тип, срок, повтор, ответственный, напоминание, статус, пункт договора), `ObligationReminderIT`, `ContractModelIT` | **`DUPLICATE_FUNCTIONALITY`** — `contract_id NOT NULL`: обязательство вне договора не хранится; связь обязательства с задачей не оформлена | Решение D-06: «Obligation» нового ТЗ = `contract_obligations` + срочные `tasks`/`task_deadlines`; общую таблицу `obligations` НЕ создавать; связь — `tasks.source_*`/внешний ключ `obligation_id` | P1 | BM-06 |
 

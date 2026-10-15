@@ -53,6 +53,9 @@ public class MatchingService {
     private final JdbcTemplate jdbc;
     private final SettingsService settings;
 
+    /** How much stronger new evidence must be than the rejected one before a rejected pair is offered again. */
+    static final double REOPEN_MARGIN = 0.15;
+
     public MatchingService(DocumentMatchRepository matches, JdbcTemplate jdbc, SettingsService settings) {
         this.matches = matches;
         this.jdbc = jdbc;
@@ -112,7 +115,21 @@ public class MatchingService {
                             document.getId(), version.getId(), proposal.type(), proposal.targetId(),
                             BigDecimal.valueOf(proposal.score())));
 
-            entity.setScore(BigDecimal.valueOf(proposal.score()).setScale(4, RoundingMode.HALF_UP));
+            BigDecimal newScore = BigDecimal.valueOf(proposal.score()).setScale(4, RoundingMode.HALF_UP);
+            if (entity.getStatus() == DocumentMatch.Status.REJECTED) {
+                // A person said no. The pair is not offered again by repeating the same analysis; it comes back only
+                // when a newer version of the document supports it clearly more strongly than what was rejected.
+                boolean newData = entity.getVersionId() != null && !entity.getVersionId().equals(version.getId());
+                if (newData && newScore.subtract(entity.getScore()).doubleValue() >= REOPEN_MARGIN) {
+                    entity.reopen(version.getId(), newScore, Map.of("de", proposal.rationale()
+                            + " (erneut vorgeschlagen: neue Fassung des Dokuments stützt die Zuordnung deutlich stärker)",
+                            "en", proposal.rationale() + " (proposed again: a newer version supports it much more strongly)"),
+                            proposal.evidence());
+                    matches.saveAndFlush(entity);
+                }
+                continue;
+            }
+            entity.setScore(newScore);
             entity.setRationale(Map.of("de", proposal.rationale(), "en", proposal.rationale()));
             entity.setEvidence(proposal.evidence());
 

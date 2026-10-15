@@ -311,6 +311,53 @@ class MatchingIT {
     }
 
     @Test
+    @DisplayName("a rejected proposal comes back only when a newer version supports it clearly more strongly, and then a person decides again")
+    void rejectedProposalReturnsOnlyOnMuchStrongerNewEvidence() throws Exception {
+        Tenant tenant = setUpTenant("2026-121");
+        advance(tenant.documentId());
+        DocumentMatch contact = asTenant(tenant.tenantId(),
+                () -> matches.findByDocumentId(tenant.documentId()).stream()
+                        .filter(match -> match.getMatchType() == DocumentMatch.MatchType.CONTACT)
+                        .findFirst().orElseThrow());
+        asTenant(tenant.tenantId(), () -> matching.decide(contact.getId(), DocumentMatch.Status.REJECTED, tenant.userId()));
+
+        // A second version of the same document with the same pages.
+        asTenant(tenant.tenantId(), () -> {
+            UUID first = jdbc.queryForObject("select id from document_versions where document_id = ? order by version limit 1",
+                    UUID.class, tenant.documentId());
+            UUID second = jdbc.queryForObject("""
+                    insert into document_versions (id, document_id, tenant_id, version, blob_id, content_hash, size_bytes,
+                                                   mime_type, original_filename)
+                    select gen_random_uuid(), document_id, tenant_id, version + 1, blob_id, md5(random()::text) || md5(random()::text),
+                           size_bytes, mime_type, original_filename
+                    from document_versions where id = ? returning id
+                    """, UUID.class, first);
+            jdbc.update("""
+                    insert into document_pages (id, document_id, version_id, page_number, text_content, ocr_used, text_blocks)
+                    select gen_random_uuid(), document_id, ?, page_number, text_content, ocr_used, text_blocks
+                    from document_pages where version_id = ?
+                    """, second, first);
+            return null;
+        });
+        Runnable rerun = () -> asTenant(tenant.tenantId(), () -> {
+            Document document = documents.findById(tenant.documentId()).orElseThrow();
+            var version = versions.findFirstByDocumentIdOrderByVersionDesc(document.getId()).orElseThrow();
+            return matching.match(document, version, null);
+        });
+        java.util.function.Supplier<DocumentMatch.Status> status = () -> asTenant(tenant.tenantId(),
+                () -> matches.findByDocumentId(tenant.documentId()).stream()
+                        .filter(match -> match.getId().equals(contact.getId())).findFirst().orElseThrow().getStatus());
+
+        rerun.run();
+        assertThat(status.get()).as("a new version with the same evidence is not new evidence").isEqualTo(DocumentMatch.Status.REJECTED);
+
+        // The pair was rejected on weak evidence; the new version supports it far more strongly.
+        asTenant(tenant.tenantId(), () -> jdbc.update("update document_matches set score = 0.30 where id = ?", contact.getId()));
+        rerun.run();
+        assertThat(status.get()).isEqualTo(DocumentMatch.Status.SUGGESTED);
+    }
+
+    @Test
     @DisplayName("a contact is found by the IBAN or VAT id written in the letter, in any spelling, and only proposed")
     void contactFoundByIdentifierInAnySpelling() throws Exception {
         String text = invoiceText("2026-120") + "USt-IdNr.: DE 123 456 789\n"
