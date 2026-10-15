@@ -210,7 +210,7 @@ export const enScreens: ScreenMessages = {
   documents: {
     'resort.action': "Re-sort all documents",
     'resort.confirm': "All stored documents are filed again by the current rules. Whatever you confirmed yourself stays. Where the rules are unsure or no text was read, the document goes to review. Nothing is deleted. Continue?",
-    'resort.done': "{checked} checked: {moved} moved, {sentToReview} sent to review, {withoutText} without readable text, {keptByPerson} confirmed by you (unchanged), {unchanged} unchanged.",
+    'resort.done': "{checked} checked: {moved} moved, {sentToReview} sent to review, {withoutText} without readable text, {keptByPerson} confirmed by you (unchanged), {unchanged} unchanged. Also finished: {finished}.",
     'category.label': 'Document categories',
     'category.ALL': 'All',
     'category.UNSORTED': 'Not sorted yet',

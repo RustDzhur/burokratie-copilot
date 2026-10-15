@@ -154,6 +154,17 @@ public class DocumentProcessingPipeline {
 
         return tx.execute(status -> {
             Document document = documents.findById(documentId).orElseThrow();
+            // Every stage is finished. A document that was waiting for people and has no question left is ready: the status
+            // only changes when a stage runs, and after the last answer none does, so without this a document filed
+            // in the right drawer would stay "in processing" for ever.
+            if (document.getProcessingStatus() == Document.ProcessingStatus.REVIEW_REQUIRED
+                    && !reviews.hasOpenReview(documentId)) {
+                document.setProcessingStatus(Document.ProcessingStatus.READY);
+                if (document.getReviewStatus() == Document.ReviewStatus.PENDING) {
+                    document.setReviewStatus(Document.ReviewStatus.APPROVED);
+                }
+                documents.save(document);
+            }
             outbox.publish(new DomainEvent("document.processing_completed", "documents", documentId,
                     document.getTenantId(), Map.of("status", document.getProcessingStatus().name())));
             return new AdvanceResult(documentId, null, null, document.getProcessingStatus(), executed);
@@ -247,7 +258,8 @@ public class DocumentProcessingPipeline {
             return StepOutcome.stop(true, step, result.reason(), document.getProcessingStatus());
         }
 
-        if (document.getProcessingStatus() == Document.ProcessingStatus.REVIEW_REQUIRED) {
+        if (document.getProcessingStatus() == Document.ProcessingStatus.REVIEW_REQUIRED
+                && reviews.hasOpenReview(documentId)) {
             // A document waiting for a human must not keep moving. Without this the next stage
             // would overwrite the status and later stages would act on data nobody has confirmed
             // - classification that a person still has to accept, for example. The pipeline

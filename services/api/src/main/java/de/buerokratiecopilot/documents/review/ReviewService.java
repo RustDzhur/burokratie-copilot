@@ -116,6 +116,12 @@ public class ReviewService {
         return Optional.of(saved);
     }
 
+    /** Whether a question about this document still waits for a person. */
+    @Transactional(readOnly = true)
+    public boolean hasOpenReview(UUID documentId) {
+        return reviews.findFirstByDocumentIdAndStatusIn(documentId, OPEN_STATUSES).isPresent();
+    }
+
     private static final List<DocumentReview.Status> OPEN_STATUSES =
             List.of(DocumentReview.Status.PENDING, DocumentReview.Status.IN_REVIEW);
 
@@ -252,7 +258,7 @@ public class ReviewService {
      * extracted values. A skipped stage counts as finished, so without this the pipeline would resume
      * straight past them and the document would be "ready" with no data read from it.
      */
-    private void reopenStepsThatNeededTheType(UUID documentId) {
+    public void reopenStepsThatNeededTheType(UUID documentId) {
         for (var step : List.of(de.buerokratiecopilot.documents.domain.DocumentProcessingStep.Step.FIELD_EXTRACT,
                 de.buerokratiecopilot.documents.domain.DocumentProcessingStep.Step.MATCHING)) {
             processingSteps.findByDocumentIdAndStep(documentId, step)

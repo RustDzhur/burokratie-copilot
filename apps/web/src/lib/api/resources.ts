@@ -345,7 +345,7 @@ export interface ApiResources {
     /** A person files the document under a type they chose; re-sorting by the rules leaves it alone. */
     setType: (id: string, typeCode: string) => Promise<void>;
     /** Files the stored documents again by the current rules; returns what was done in numbers. */
-    resort: () => Promise<Readonly<Record<'checked' | 'unchanged' | 'moved' | 'sentToReview' | 'keptByPerson' | 'withoutText' | 'failed', number>>>;
+    resort: () => Promise<Readonly<Record<'finished' | 'checked' | 'unchanged' | 'moved' | 'sentToReview' | 'keptByPerson' | 'withoutText' | 'failed', number>>>;
     /** Reads the pages with AI vision (handwriting); the values come back as proposals. */
     aiRead: (id: string) => Promise<{ readonly status: string; readonly found: Readonly<Record<string, string>>; readonly summary: string | null }>;
     /** The stored explanation or translation; null when none was made yet. */

@@ -298,8 +298,11 @@ public class DocumentController {
         var type = documentTypes.findByCode(request.typeCode())
                 .filter(de.buerokratiecopilot.documents.domain.DocumentType::isActive)
                 .orElseThrow(() -> de.buerokratiecopilot.shared.error.ApiException.notFound("Document type"));
-        return ResponseEntity.ok(DocumentResponse.from(resorter.setByPerson(document, type,
-                de.buerokratiecopilot.shared.context.CurrentUser.required()), type));
+        Document filed = resorter.setByPerson(document, type, de.buerokratiecopilot.shared.context.CurrentUser.required());
+        // The person answered the question about the type: processing goes on from where it waited, and a document with
+        // no other open question becomes ready. Without this it stayed "in processing" for ever.
+        pipeline.advance(id);
+        return ResponseEntity.ok(DocumentResponse.from(documentService.require(id), type));
     }
 
     @PostMapping("/resort")

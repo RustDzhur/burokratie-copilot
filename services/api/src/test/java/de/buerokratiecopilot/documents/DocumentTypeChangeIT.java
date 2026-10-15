@@ -77,6 +77,10 @@ class DocumentTypeChangeIT {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         assertThat((String) JsonPath.read(answer, "$.documentTypeCode")).isEqualTo("vertrag");
 
+        // The question about the type is answered: nothing is left in "in processing" because of it.
+        assertThat(jdbc.queryForObject("select count(*) from document_reviews where document_id = ? and status in ('PENDING','IN_REVIEW')",
+                Integer.class, doc)).isZero();
+
         RequestContext.runAs(tenant, () -> resort.resort(tenant));
         String shown = mockMvc.perform(get("/api/v1/documents/" + doc).cookie(owner.cookie()))
                 .andReturn().getResponse().getContentAsString();

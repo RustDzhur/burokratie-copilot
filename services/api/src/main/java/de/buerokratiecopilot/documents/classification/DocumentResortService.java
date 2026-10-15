@@ -43,6 +43,7 @@ public class DocumentResortService {
     private final ClassificationService classification;
     private final ReviewService reviews;
     private final TransactionTemplate transaction;
+    private final de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline;
     private final de.buerokratiecopilot.documents.DocumentBlobRepository blobs;
     private final Map<de.buerokratiecopilot.documents.domain.DocumentProcessingStep.Step,
             de.buerokratiecopilot.documents.pipeline.ProcessingStepHandler> handlers = new java.util.EnumMap<>(
@@ -52,7 +53,9 @@ public class DocumentResortService {
                                  ClassificationService classification, ReviewService reviews,
                                  PlatformTransactionManager transactionManager,
                                  de.buerokratiecopilot.documents.DocumentBlobRepository blobs,
-                                 List<de.buerokratiecopilot.documents.pipeline.ProcessingStepHandler> stepHandlers) {
+                                 List<de.buerokratiecopilot.documents.pipeline.ProcessingStepHandler> stepHandlers,
+                                 de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline) {
+        this.pipeline = pipeline;
         this.blobs = blobs;
         stepHandlers.forEach(handler -> handlers.put(handler.step(), handler));
         this.jdbc = jdbc;
@@ -95,7 +98,27 @@ public class DocumentResortService {
                 log.warn("Re-sorting document {} failed: {}", id, ex.getMessage());
             }
         }
+        // Documents that sit in "in processing" although nobody is asked anything any more (their questions were answered
+        // before the status could follow) are finished now.
+        int finished = 0;
+        List<UUID> stuck = jdbc.queryForList("""
+                select d.id from documents d
+                where d.tenant_id = ? and d.deleted_at is null and d.processing_status = 'REVIEW_REQUIRED'
+                  and d.document_type_id is not null
+                  and not exists (select 1 from document_reviews r where r.document_id = d.id and r.status in ('PENDING', 'IN_REVIEW'))
+                """, UUID.class, tenantId);
+        for (UUID id : stuck) {
+            try {
+                pipeline.advance(id);
+                finished++;
+            }
+            catch (RuntimeException ex) {
+                failed++;
+                log.warn("Finishing document {} failed: {}", id, ex.getMessage());
+            }
+        }
         Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("finished", finished);
         summary.put("checked", ids.size());
         summary.put("unchanged", unchanged);
         summary.put("moved", moved);
@@ -124,6 +147,7 @@ public class DocumentResortService {
                     update document_reviews set status = 'APPROVED', decided_by = ?, decided_at = now(), decision_note = 'Typ gewählt'
                     where document_id = ? and review_type = 'CLASSIFICATION' and status in ('PENDING', 'IN_REVIEW')
                     """, userId, document.getId());
+            reviews.reopenStepsThatNeededTheType(document.getId());
             Document fresh = documents.findById(document.getId()).orElseThrow();
             if (fresh.getReviewStatus() == Document.ReviewStatus.PENDING) {
                 fresh.setReviewStatus(Document.ReviewStatus.APPROVED);

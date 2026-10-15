@@ -458,4 +458,23 @@ class MatchingIT {
                 .isEqualTo(Document.ProcessingStatus.REVIEW_REQUIRED);
         assertThat(document.getReviewStatus()).isEqualTo(Document.ReviewStatus.PENDING);
     }
+
+    @Test
+    @DisplayName("once the last question about a document is answered, processing finishes and the document is ready")
+    void answeredQuestionsMakeTheDocumentReady() throws Exception {
+        Tenant tenant = setUpTenant("2026-123");
+        advance(tenant.documentId());
+        assertThat(documents.findById(tenant.documentId()).orElseThrow().getProcessingStatus())
+                .isEqualTo(Document.ProcessingStatus.REVIEW_REQUIRED);
+
+        asTenant(tenant.tenantId(), () -> jdbc.update("""
+                update document_reviews set status = 'APPROVED', decided_by = ?, decided_at = now()
+                where document_id = ? and status in ('PENDING', 'IN_REVIEW')
+                """, tenant.userId(), tenant.documentId()));
+        advance(tenant.documentId());
+
+        Document document = documents.findById(tenant.documentId()).orElseThrow();
+        assertThat(document.getProcessingStatus()).isEqualTo(Document.ProcessingStatus.READY);
+        assertThat(document.getReviewStatus()).isEqualTo(Document.ReviewStatus.APPROVED);
+    }
 }
