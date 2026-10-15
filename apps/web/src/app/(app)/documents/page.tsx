@@ -26,6 +26,7 @@ const CATEGORY_TABS = [
   'HOUSING',
   'EMPLOYMENT',
   'FAMILY_EDUCATION_HEALTH',
+  'BUSINESS',
   'LEGAL',
   'OTHER',
 ] as const;

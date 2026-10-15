@@ -32,4 +32,9 @@
 - ☐ S5 Сквозной прогон на локальном стеке (фото двух страниц → один PDF → тип → вкладка), запись результата сюда.
 
 ### Где остановились
-S0, S1, S2, S4 готовы и проверены локально (CI смотреть после пуша). Следующий шаг — S3 (распределение по вкладкам: таксономия, классификатор, выбор типа на проверке, набор оценки).
+S0, S1, S2, S4 готовы. S3 в работе: ✔ экран проверки с явным выбором типа (`TypeChooser`, «Bestätigen» недоступно без типа), вкладка «Unternehmen»
+(BUSINESS) в интерфейсе. ☐ Осталось в S3 (по порядку): (1) миграция V64: категория BUSINESS в CHECK, новые типы и правила (Businessplan,
+Gewerbe-ab/-ummeldung/-formular, Förderantrag, ärztliches Gutachten/Kommission, Attest, Schwerbehinderung, Förderbedarf, Impf/Vorsorge),
+перенос gewerbeanmeldung/handelsregisterauszug/ihk_beitragsbescheid в BUSINESS; (2) классификатор: свёртка ä/ö/ü/ß, `requires_all`
+(сейчас игнорируется!), бонус за начало текста, отрыв от второго места, шлюз языка (ru → на проверку); (3) OCR: второй проход rus+ukr+eng
+при слабом чтении; (4) набор оценки `owner-cases.json` и тест на нём; (5) сквозной прогон S5.

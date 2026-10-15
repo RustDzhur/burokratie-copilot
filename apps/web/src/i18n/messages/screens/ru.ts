@@ -219,6 +219,7 @@ export const ruScreens: ScreenMessages = {
     'category.HOUSING': 'Жильё',
     'category.EMPLOYMENT': 'Работа',
     'category.FAMILY_EDUCATION_HEALTH': 'Семья, учёба, здоровье',
+    'category.BUSINESS': 'Бизнес',
     'category.LEGAL': 'Право',
     'category.OTHER': 'Прочее',
     'status.received': 'Получен',
@@ -352,6 +353,14 @@ export const ruScreens: ScreenMessages = {
     'relations.empty': 'Документ пока не связан с делом, договором или контактом.',
   },
   review: {
+    'type.title': 'Тип документа',
+    'type.current': 'Распознан как: {type}.',
+    'type.required': 'У этого документа ещё нет типа. Выберите тип, чтобы документ лёг в нужное место.',
+    'type.accept': 'Принять «{type}»',
+    'type.pick': 'Выберите тип',
+    'type.change': 'Изменить тип',
+    'type.none': '– выберите –',
+    'type.keep': 'Оставить тип',
     subtitle: 'Проверка, исправление и подтверждение извлечённых данных.',
     'queue.title': 'Очередь проверки',
     'queue.count':

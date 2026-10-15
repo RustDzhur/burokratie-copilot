@@ -219,6 +219,7 @@ export const deScreens = {
     'category.HOUSING': 'Wohnen',
     'category.EMPLOYMENT': 'Arbeit',
     'category.FAMILY_EDUCATION_HEALTH': 'Familie, Bildung, Gesundheit',
+    'category.BUSINESS': 'Unternehmen',
     'category.LEGAL': 'Recht',
     'category.OTHER': 'Sonstiges',
     'status.received': 'Eingegangen',
@@ -352,6 +353,14 @@ export const deScreens = {
     'relations.empty': 'Das Dokument ist noch keinem Vorgang, Vertrag oder Kontakt zugeordnet.',
   },
   review: {
+    'type.title': 'Dokumenttyp',
+    'type.current': 'Erkannt als: {type}.',
+    'type.required': 'Dieses Dokument hat noch keinen Typ. Bitte wählen Sie den Typ, damit es richtig abgelegt wird.',
+    'type.accept': '„{type}“ übernehmen',
+    'type.pick': 'Typ wählen',
+    'type.change': 'Typ ändern',
+    'type.none': '– bitte wählen –',
+    'type.keep': 'Typ beibehalten',
     subtitle: 'Extrahierte Daten prüfen, korrigieren und bestätigen.',
     'queue.title': 'Prüfliste',
     'queue.count':

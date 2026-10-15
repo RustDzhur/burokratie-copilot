@@ -284,6 +284,8 @@ export interface OnboardingPayload {
 }
 
 export interface ConfirmFieldsPayload {
+  /** The type the person chose or took over; sent as the reviewer's decision, never implied. */
+  readonly typeCode?: string | null;
   readonly fields: readonly { readonly name: string; readonly value: string }[];
 }
 
@@ -962,7 +964,7 @@ export function createResources(client: ApiClient): ApiResources {
         return { items, page: 0, size: shown.length, totalItems: entries.length, totalPages: 1 };
       },
       confirm: (documentId, payload) =>
-        decideOpenReview(client, documentId, approvalFromFields(payload.fields)),
+        decideOpenReview(client, documentId, approvalFromFields(payload.fields, payload.typeCode)),
       reject: (documentId, reason) =>
         decideOpenReview(client, documentId, { decision: 'REJECTED', note: reason }),
     },

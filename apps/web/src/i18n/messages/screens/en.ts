@@ -217,6 +217,7 @@ export const enScreens: ScreenMessages = {
     'category.HOUSING': 'Housing',
     'category.EMPLOYMENT': 'Employment',
     'category.FAMILY_EDUCATION_HEALTH': 'Family, education, health',
+    'category.BUSINESS': 'Business',
     'category.LEGAL': 'Legal',
     'category.OTHER': 'Other',
     'status.received': 'Received',
@@ -349,6 +350,14 @@ export const enScreens: ScreenMessages = {
     'relations.empty': 'This document is not linked to a case, contract or contact yet.',
   },
   review: {
+    'type.title': 'Document type',
+    'type.current': 'Recognised as: {type}.',
+    'type.required': 'This document has no type yet. Please choose the type so that it is filed correctly.',
+    'type.accept': 'Take over "{type}"',
+    'type.pick': 'Choose the type',
+    'type.change': 'Change the type',
+    'type.none': '– please choose –',
+    'type.keep': 'Keep the type',
     subtitle: 'Review, correct and confirm extracted data.',
     'queue.title': 'Review queue',
     'queue.count':

@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { TypeChooser, type TypeChoice } from '@/components/app/type-chooser';
 import { ProcessingPanel } from '@/components/app/processing-panel';
 import { PageHeader, PageSection, ResourceView } from '@/components/app/resource-view';
 import { Badge, Card, CardBody, CardHeader, EmptyState, StatusPill } from '@/components/ui';
@@ -41,6 +42,12 @@ export default function ReviewPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [typeCode, setTypeCode] = useState<string | null>(null);
+  const [typeReady, setTypeReady] = useState(false);
+  const onType = useCallback((choice: TypeChoice) => {
+    setTypeCode(choice.code);
+    setTypeReady(choice.ready);
+  }, []);
 
   const { state, reload, isRefreshing } = useApiResource(
     (signal) => api.review.queue({ size: 50 }, signal),
@@ -59,12 +66,15 @@ export default function ReviewPage() {
     setPending(true);
     try {
       await api.review.confirm(selected.documentId, {
+        typeCode,
         fields: selected.fields.map((field: ExtractedField) => ({
           name: field.name,
           value: field.value ?? '',
         })),
       });
       toast.success(t('saved'));
+      setTypeCode(null);
+      setTypeReady(false);
       reload();
     } catch (error) {
       toast.error(tErrors(toApiError(error).kind));
@@ -164,6 +174,8 @@ export default function ReviewPage() {
 
                   <ProcessingPanel documentId={selected.documentId} />
 
+                  <TypeChooser key={selected.documentId} documentId={selected.documentId} value={typeCode} onChange={onType} />
+
                   <Card padding="none">
                     <CardHeader
                       title={t('column.field')}
@@ -214,6 +226,7 @@ export default function ReviewPage() {
                       variant="primary"
                       onClick={() => void confirm()}
                       loading={pending}
+                      disabled={!typeReady}
                       iconLeft="check"
                     >
                       {t('action.confirm')}

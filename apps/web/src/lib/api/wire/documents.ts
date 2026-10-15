@@ -270,11 +270,15 @@ export function reviewItemFromWire(
 /** The decision body for the fields a reviewer confirmed (or corrected). */
 export function approvalFromFields(
   fields: readonly { readonly name: string; readonly value: string }[],
-): { decision: 'APPROVED'; changes: { fieldValues: Record<string, string> } } {
+  typeCode?: string | null,
+): { decision: 'APPROVED'; changes: { fieldValues: Record<string, string>; documentTypeCode?: string } } {
   // ReviewService stores every value under `fieldValues` as verified, so a corrected value stays
   // distinguishable from an extracted one.
   return {
     decision: 'APPROVED',
-    changes: { fieldValues: Object.fromEntries(fields.map((field) => [field.name, field.value])) },
+    changes: {
+      fieldValues: Object.fromEntries(fields.map((field) => [field.name, field.value])),
+      ...(typeCode ? { documentTypeCode: typeCode } : {}),
+    },
   };
 }
