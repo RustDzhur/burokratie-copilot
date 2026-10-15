@@ -115,6 +115,21 @@ export default function DocumentsPage() {
       ? [{ key: 'party', header: t('column.party'), render: (row: DocumentSummary) => partyName(row.partyId) }]
       : []),
     {
+      key: 'sender',
+      header: t('column.sender'),
+      render: (row) =>
+        row.senderName ? (
+          <span title={row.sender?.address ?? undefined}>{row.senderName}</span>
+        ) : (
+          t('sender.unknown')
+        ),
+    },
+    {
+      key: 'uploadedBy',
+      header: t('column.uploadedBy'),
+      render: (row) => row.uploadedByName ?? (row.channel === 'email' ? t('uploadedBy.mail') : t('uploadedBy.unknown')),
+    },
+    {
       key: 'status',
       header: t('column.status'),
       render: (row) => <StatusPill label={statusLabel(row.status)} status={row.status} />,

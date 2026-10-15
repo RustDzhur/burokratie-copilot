@@ -71,6 +71,8 @@ class DemoCabinetIT {
                 .as("and the unsure ones wait for a person, which the visitor can try").isGreaterThan(0);
         assertThat(count("select count(*) from tasks where tenant_id = ?", tenant)).as("work follows from the letters").isGreaterThan(0);
         assertThat(count("select count(*) from parties where tenant_id = ?", tenant)).isEqualTo(3);
+        assertThat(count("select count(*) from documents where tenant_id = ? and sender is not null and sender_contact_id is not null", tenant))
+                .as("the senders are read from the letters and kept as contacts").isGreaterThanOrEqualTo(3);
         assertThat(count("select count(*) from contracts where tenant_id = ?", tenant)).isGreaterThan(0);
 
         mockMvc.perform(get("/api/v1/demo/status").cookie(cookie)).andExpect(jsonPath("$.demo").value(true))

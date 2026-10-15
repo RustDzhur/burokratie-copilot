@@ -17,6 +17,18 @@ export type IsoDate = string;
 export type DocumentStatus =
   'received' | 'processing' | 'needs_review' | 'processed' | 'failed' | 'archived';
 
+export interface DocumentSender {
+  readonly kind?: string;
+  readonly address?: string;
+  readonly phone?: string;
+  readonly email?: string;
+  readonly website?: string;
+  readonly vatId?: string;
+  readonly iban?: string;
+  /** LETTER read by the platform, MAIL from the mail, PERSON typed by a person. */
+  readonly source?: string | null;
+}
+
 export type DocumentChannel = 'upload' | 'email' | 'scan' | 'api' | 'mobile';
 
 export interface DocumentSummary {
@@ -26,6 +38,11 @@ export interface DocumentSummary {
   readonly status: DocumentStatus;
   readonly channel: DocumentChannel;
   readonly senderName?: string | null;
+  /** What the platform read about the sender from the letter (address, telephone, e-mail, website, VAT id). */
+  readonly sender?: DocumentSender | null;
+  readonly senderContactId?: string | null;
+  /** The person who uploaded the document; null for mail and imports. */
+  readonly uploadedByName?: string | null;
   readonly receivedAt: IsoDateTime;
   readonly confidence?: number | null;
   readonly retentionUntil?: IsoDate | null;

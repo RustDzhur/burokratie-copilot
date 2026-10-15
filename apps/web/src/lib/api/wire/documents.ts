@@ -33,6 +33,11 @@ export interface DocumentWire {
   readonly partyId?: string | null;
   readonly legalHold?: boolean;
   readonly receivedAt: string;
+  readonly sender?: string | null;
+  readonly senderDetails?: Readonly<Record<string, string>> | null;
+  readonly senderContactId?: string | null;
+  readonly senderSource?: string | null;
+  readonly uploadedByName?: string | null;
 }
 
 export interface UploadWire {
@@ -175,7 +180,12 @@ export function documentFromWire(wire: DocumentWire): DocumentSummary {
     partyId: wire.partyId ?? null,
     status: STATUS_FROM_WIRE[wire.processingStatus] ?? 'received',
     channel: CHANNEL_FROM_WIRE[wire.source] ?? 'upload',
-    senderName: null,
+    senderName: wire.sender ?? null,
+    sender: wire.sender || wire.senderContactId
+      ? { ...(wire.senderDetails ?? {}), source: wire.senderSource ?? null }
+      : null,
+    senderContactId: wire.senderContactId ?? null,
+    uploadedByName: wire.uploadedByName ?? null,
     receivedAt: wire.receivedAt,
     confidence: null,
     legalHold: wire.legalHold ?? false,
@@ -231,6 +241,7 @@ export function documentDetailFromWire(
 ): DocumentDetail {
   return {
     ...documentFromWire(document),
+    uploadedBy: document.uploadedByName ?? (document.source === 'EMAIL' ? 'E-Mail' : null),
     checksum: document.contentHash ?? null,
     mimeType: document.mimeType ?? null,
     fields: (fields?.fields ?? []).map(fieldFromWire),

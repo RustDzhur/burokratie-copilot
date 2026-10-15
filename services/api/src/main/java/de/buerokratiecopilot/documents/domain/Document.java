@@ -88,6 +88,19 @@ public class Document {
     @Column(name = "sender", length = 400)
     private String sender;
 
+    /** Address, telephone, e-mail, website, VAT id and IBAN of the sender as read from the letter. */
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(name = "sender_details", columnDefinition = "jsonb", nullable = false)
+    private java.util.Map<String, Object> senderDetails = java.util.Map.of();
+
+    /** The contact this sender is, found or created by the platform. */
+    @Column(name = "sender_contact_id")
+    private UUID senderContactId;
+
+    /** LETTER read by the platform, MAIL taken from the mail, PERSON typed or confirmed by a person. */
+    @Column(name = "sender_source", length = 10)
+    private String senderSource;
+
     @Column(name = "recipient", length = 400)
     private String recipient;
 
@@ -229,6 +242,30 @@ public class Document {
 
     public String getSender() {
         return sender;
+    }
+
+    public java.util.Map<String, Object> getSenderDetails() {
+        return senderDetails;
+    }
+
+    public void setSenderDetails(java.util.Map<String, Object> senderDetails) {
+        this.senderDetails = senderDetails == null ? java.util.Map.of() : senderDetails;
+    }
+
+    public UUID getSenderContactId() {
+        return senderContactId;
+    }
+
+    public void setSenderContactId(UUID senderContactId) {
+        this.senderContactId = senderContactId;
+    }
+
+    public String getSenderSource() {
+        return senderSource;
+    }
+
+    public void setSenderSource(String senderSource) {
+        this.senderSource = senderSource;
     }
 
     public void setSender(String sender) {

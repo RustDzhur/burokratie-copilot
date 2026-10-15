@@ -44,6 +44,7 @@ public class DocumentResortService {
     private final ReviewService reviews;
     private final TransactionTemplate transaction;
     private final de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline;
+    private final de.buerokratiecopilot.documents.sender.SenderService senders;
     private final de.buerokratiecopilot.documents.DocumentBlobRepository blobs;
     private final Map<de.buerokratiecopilot.documents.domain.DocumentProcessingStep.Step,
             de.buerokratiecopilot.documents.pipeline.ProcessingStepHandler> handlers = new java.util.EnumMap<>(
@@ -54,7 +55,9 @@ public class DocumentResortService {
                                  PlatformTransactionManager transactionManager,
                                  de.buerokratiecopilot.documents.DocumentBlobRepository blobs,
                                  List<de.buerokratiecopilot.documents.pipeline.ProcessingStepHandler> stepHandlers,
-                                 de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline) {
+                                 de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline,
+                                 de.buerokratiecopilot.documents.sender.SenderService senders) {
+        this.senders = senders;
         this.pipeline = pipeline;
         this.blobs = blobs;
         stepHandlers.forEach(handler -> handlers.put(handler.step(), handler));
@@ -76,11 +79,31 @@ public class DocumentResortService {
                 order by received_at desc
                 """, UUID.class, tenantId);
         int unchanged = 0;
+        int sendersFound = 0;
         int moved = 0;
         int sentToReview = 0;
         int keptByPerson = 0;
         int withoutText = 0;
         int failed = 0;
+        // Who sent each letter is read for the documents that have no sender yet, so that it can be found by name afterwards.
+        for (UUID id : ids) {
+            try {
+                Boolean filled = transaction.execute(status -> {
+                    Document document = documents.findById(id).orElseThrow();
+                    boolean changed = senders.apply(document);
+                    if (changed) {
+                        documents.save(document);
+                    }
+                    return changed;
+                });
+                if (Boolean.TRUE.equals(filled)) {
+                    sendersFound++;
+                }
+            }
+            catch (RuntimeException ex) {
+                log.warn("Reading the sender of document {} failed: {}", id, ex.getMessage());
+            }
+        }
         for (UUID id : ids) {
             try {
                 String result = transaction.execute(status -> resortOne(id));
@@ -119,6 +142,7 @@ public class DocumentResortService {
         }
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("finished", finished);
+        summary.put("sendersFound", sendersFound);
         summary.put("checked", ids.size());
         summary.put("unchanged", unchanged);
         summary.put("moved", moved);

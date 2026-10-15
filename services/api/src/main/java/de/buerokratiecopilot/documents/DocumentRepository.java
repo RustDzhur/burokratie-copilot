@@ -49,6 +49,7 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
                    or d.documentTypeId in (select t.id from DocumentType t where t.code = :typeCode))
               and (:query = ''
                    or lower(d.originalFilename) like lower(concat('%', :query, '%'))
+                   or lower(d.sender) like lower(concat('%', :query, '%'))
                    or lower(d.documentNumber) like lower(concat('%', :query, '%')))
             """)
     Page<Document> search(@Param("tenantId") UUID tenantId,

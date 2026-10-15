@@ -2,7 +2,7 @@
  {
   "id": "strom-rechnung",
   "filename": "Rechnung_Stadtwerke.txt",
-  "text": "Stadtwerke Musterstadt GmbH\nHauptstraße 12, 12345 Musterstadt\nUSt-IdNr.: DE123456789\n\nRechnung\nRechnungsnummer: RE-2026-0412\nRechnungsdatum: {{-3}}\nLeistungszeitraum: 01.09.2026 bis 30.09.2026\n\nStrom Abschlag September                     80,67 EUR\nNettobetrag:                                 80,67 EUR\nUmsatzsteuer 19 %:                           15,33 EUR\nBruttobetrag:                                96,00 EUR\n\nZahlbar bis {{+9}} auf das Konto IBAN DE89 3704 0044 0532 0130 00.\nBitte geben Sie bei der Überweisung die Rechnungsnummer an.",
+  "text": "Stadtwerke Musterstadt GmbH\nHauptstraße 12, 12345 Musterstadt\nTelefon: 0123 / 456 789-0\nE-Mail: service@stadtwerke-musterstadt.example\nUSt-IdNr.: DE123456789\n\nRechnung\nRechnungsnummer: RE-2026-0412\nRechnungsdatum: {{-3}}\nLeistungszeitraum: 01.09.2026 bis 30.09.2026\n\nStrom Abschlag September                     80,67 EUR\nNettobetrag:                                 80,67 EUR\nUmsatzsteuer 19 %:                           15,33 EUR\nBruttobetrag:                                96,00 EUR\n\nZahlbar bis {{+9}} auf das Konto IBAN DE89 3704 0044 0532 0130 00.\nBitte geben Sie bei der Überweisung die Rechnungsnummer an.",
   "personas": [
    "PERSON",
    "FAMILY",
@@ -14,7 +14,7 @@
  {
   "id": "software-rechnung",
   "filename": "Rechnung_Software.txt",
-  "text": "Beispiel Software AG\nInvoice / Rechnung 88-2026-33\nRechnungsdatum {{-5}}\nLizenz Jahresabo Büro-Suite (12 Monate)       1.200,00 EUR\nUmsatzsteuer 19 %                               228,00 EUR\nRechnungsbetrag                               1.428,00 EUR\nFällig am {{+11}}",
+  "text": "Beispiel Software AG\nIndustriestraße 4, 80331 München\nTelefon: 089 / 123 456-0\nE-Mail: rechnung@beispiel-software.example\nwww.beispiel-software.example\nInvoice / Rechnung 88-2026-33\nRechnungsdatum {{-5}}\nLizenz Jahresabo Büro-Suite (12 Monate)       1.200,00 EUR\nUmsatzsteuer 19 %                               228,00 EUR\nRechnungsbetrag                               1.428,00 EUR\nFällig am {{+11}}",
   "personas": [
    "FREELANCER",
    "COMPANY",
@@ -24,7 +24,7 @@
  {
   "id": "handwerker-rechnung",
   "filename": "Rechnung_Handwerker.txt",
-  "text": "Elektro Schneider e.K.\nSteuernummer: 21/815/08150\nRechnung Nr. 2026-117\nDatum: {{-8}}\nFür Ihren Auftrag vom {{-30}}\nMaterial und Arbeitszeit                      840,00 EUR\nUmsatzsteuer 19 %                             159,60 EUR\nRechnungsbetrag                               999,60 EUR\nZahlbar bis {{+6}} ohne Abzug\nIBAN DE75 5121 0800 1245 1261 99",
+  "text": "Elektro Schneider e.K.\nWerkstattweg 8, 12345 Musterstadt\nTelefon: 0123 / 777 888\nE-Mail: info@elektro-schneider.example\nSteuernummer: 21/815/08150\nRechnung Nr. 2026-117\nDatum: {{-8}}\nFür Ihren Auftrag vom {{-30}}\nMaterial und Arbeitszeit                      840,00 EUR\nUmsatzsteuer 19 %                             159,60 EUR\nRechnungsbetrag                               999,60 EUR\nZahlbar bis {{+6}} ohne Abzug\nIBAN DE75 5121 0800 1245 1261 99",
   "personas": [
    "COMPANY",
    "FREELANCER"
@@ -33,7 +33,7 @@
  {
   "id": "zahlungserinnerung",
   "filename": "Zahlungserinnerung.txt",
-  "text": "Stadtwerke Musterstadt GmbH\nZahlungserinnerung\nSehr geehrte Damen und Herren,\nsicherlich ist es Ihrer Aufmerksamkeit entgangen, dass unsere Rechnung RE-2026-0388 vom {{-40}}\nüber 96,00 EUR noch nicht beglichen ist. Bitte überweisen Sie den Betrag bis zum {{+4}}.\nSollte sich Ihre Zahlung mit diesem Schreiben überschnitten haben, betrachten Sie es als gegenstandslos.",
+  "text": "Stadtwerke Musterstadt GmbH\nHauptstraße 12, 12345 Musterstadt\nTelefon: 0123 / 456 789-0\nE-Mail: service@stadtwerke-musterstadt.example\nZahlungserinnerung\nSehr geehrte Damen und Herren,\nsicherlich ist es Ihrer Aufmerksamkeit entgangen, dass unsere Rechnung RE-2026-0388 vom {{-40}}\nüber 96,00 EUR noch nicht beglichen ist. Bitte überweisen Sie den Betrag bis zum {{+4}}.\nSollte sich Ihre Zahlung mit diesem Schreiben überschnitten haben, betrachten Sie es als gegenstandslos.",
   "personas": [
    "PERSON",
    "FAMILY",
@@ -43,7 +43,7 @@
  {
   "id": "mahnung",
   "filename": "Mahnung.txt",
-  "text": "Stadtwerke Musterstadt GmbH\n1. Mahnung\nRechnungsnummer: RE-2026-0388\nTrotz unserer Zahlungserinnerung ist der Rechnungsbetrag von 96,00 EUR nicht bei uns eingegangen.\nWir mahnen die Zahlung an und berechnen eine Mahngebühr von 5,00 EUR.\nOffener Betrag: 101,00 EUR\nZahlen Sie bitte bis zum {{+3}}.",
+  "text": "Stadtwerke Musterstadt GmbH\nHauptstraße 12, 12345 Musterstadt\nTelefon: 0123 / 456 789-0\nE-Mail: forderung@stadtwerke-musterstadt.example\n1. Mahnung\nRechnungsnummer: RE-2026-0388\nTrotz unserer Zahlungserinnerung ist der Rechnungsbetrag von 96,00 EUR nicht bei uns eingegangen.\nWir mahnen die Zahlung an und berechnen eine Mahngebühr von 5,00 EUR.\nOffener Betrag: 101,00 EUR\nZahlen Sie bitte bis zum {{+3}}.",
   "personas": [
    "COMPANY",
    "ADVISOR"
@@ -72,7 +72,7 @@
  {
   "id": "preiserhoehung",
   "filename": "Preiserhoehung.txt",
-  "text": "Beispiel Telekom GmbH\nInformation über die Anpassung Ihres Entgelts\nSehr geehrte Frau Mustermann,\nzum {{+25}} erhöht sich das monatliche Entgelt für Ihren Internetanschluss von 39,95 EUR auf 44,95 EUR.\nSie haben das Recht, den Vertrag innerhalb von sechs Wochen nach Zugang dieses Schreibens außerordentlich zu kündigen.",
+  "text": "Beispiel Telekom GmbH\nNetzstraße 1, 50667 Köln\nTelefon: 0221 / 555 100\nE-Mail: kundenservice@beispiel-telekom.example\nwww.beispiel-telekom.example\nInformation über die Anpassung Ihres Entgelts\nSehr geehrte Frau Mustermann,\nzum {{+25}} erhöht sich das monatliche Entgelt für Ihren Internetanschluss von 39,95 EUR auf 44,95 EUR.\nSie haben das Recht, den Vertrag innerhalb von sechs Wochen nach Zugang dieses Schreibens außerordentlich zu kündigen.",
   "personas": [
    "PERSON",
    "FAMILY",
@@ -83,7 +83,7 @@
  {
   "id": "mieterhoehung",
   "filename": "Mieterhoehung.txt",
-  "text": "Hausverwaltung Beispiel GmbH\nMieterhöhungsverlangen gemäß § 558 BGB\nSehr geehrte Frau Mustermann,\nwir bitten Sie um Zustimmung zur Erhöhung der Kaltmiete für die Wohnung Musterstraße 5 von 850,00 EUR auf 905,00 EUR ab dem {{+60}}.\nBitte erklären Sie Ihre Zustimmung bis zum Ablauf des zweiten Kalendermonats nach Zugang dieses Schreibens.",
+  "text": "Hausverwaltung Beispiel GmbH\nParkallee 3, 10115 Berlin\nTelefon: 030 / 987 654\nE-Mail: verwaltung@hausverwaltung-beispiel.example\nMieterhöhungsverlangen gemäß § 558 BGB\nSehr geehrte Frau Mustermann,\nwir bitten Sie um Zustimmung zur Erhöhung der Kaltmiete für die Wohnung Musterstraße 5 von 850,00 EUR auf 905,00 EUR ab dem {{+60}}.\nBitte erklären Sie Ihre Zustimmung bis zum Ablauf des zweiten Kalendermonats nach Zugang dieses Schreibens.",
   "personas": [
    "PERSON",
    "FAMILY"
@@ -92,7 +92,7 @@
  {
   "id": "einkommensteuerbescheid",
   "filename": "Bescheid_Finanzamt.txt",
-  "text": "Finanzamt Musterstadt\nSteuernummer 21/815/08150\nEinkommensteuerbescheid 2025 vom {{-12}}\nFestgesetzte Einkommensteuer: 4.215,00 EUR. Bereits entrichtet: 3.800,00 EUR.\nAbschlusszahlung: 415,00 EUR, fällig bis zum {{+18}}.\nRechtsbehelfsbelehrung: Gegen diesen Bescheid kann innerhalb eines Monats nach Bekanntgabe Einspruch eingelegt werden.",
+  "text": "Finanzamt Musterstadt\nAmtsstraße 7, 12345 Musterstadt\nTelefon: 0123 / 400 400\nE-Mail: poststelle@finanzamt-musterstadt.example\nSteuernummer 21/815/08150\nEinkommensteuerbescheid 2025 vom {{-12}}\nFestgesetzte Einkommensteuer: 4.215,00 EUR. Bereits entrichtet: 3.800,00 EUR.\nAbschlusszahlung: 415,00 EUR, fällig bis zum {{+18}}.\nRechtsbehelfsbelehrung: Gegen diesen Bescheid kann innerhalb eines Monats nach Bekanntgabe Einspruch eingelegt werden.",
   "personas": [
    "PERSON",
    "FAMILY",
@@ -102,7 +102,7 @@
  {
   "id": "krankenkasse",
   "filename": "Krankenkasse.txt",
-  "text": "Beispiel Krankenkasse\nVersichertennummer A123456789\nBescheid über die Beitragsfestsetzung ab {{+70}}\nIhr monatlicher Beitrag beträgt 214,30 EUR.\nGegen diesen Bescheid können Sie innerhalb eines Monats Widerspruch erheben.",
+  "text": "Beispiel Krankenkasse\nGesundheitsplatz 2, 20095 Hamburg\nTelefon: 040 / 300 200\nE-Mail: service@beispiel-krankenkasse.example\nVersichertennummer A123456789\nBescheid über die Beitragsfestsetzung ab {{+70}}\nIhr monatlicher Beitrag beträgt 214,30 EUR.\nGegen diesen Bescheid können Sie innerhalb eines Monats Widerspruch erheben.",
   "personas": [
    "PERSON",
    "FAMILY"
@@ -111,7 +111,7 @@
  {
   "id": "familienkasse",
   "filename": "Familienkasse.txt",
-  "text": "Familienkasse Musterstadt\nKindergeld, Kindergeldnummer 123FK456789\nWir benötigen für die Weiterzahlung des Kindergeldes eine Schulbescheinigung Ihres Kindes bis zum {{+16}}.",
+  "text": "Familienkasse Musterstadt\nKindergeldstraße 3, 12345 Musterstadt\nTelefon: 0800 / 4 5555 30\nE-Mail: info@familienkasse-musterstadt.example\nKindergeld, Kindergeldnummer 123FK456789\nWir benötigen für die Weiterzahlung des Kindergeldes eine Schulbescheinigung Ihres Kindes bis zum {{+16}}.",
   "personas": [
    "FAMILY"
   ]
@@ -144,7 +144,7 @@
  {
   "id": "angebot",
   "filename": "Angebot.txt",
-  "text": "Beispiel Druck GmbH\nAngebot Nr. A-2026-044\nWir bieten Ihnen 500 Visitenkarten und 2 Rollups zum Gesamtpreis von 640,00 EUR netto an.\nDieses Angebot gilt bis {{+14}}.",
+  "text": "Beispiel Druck GmbH\nDruckerweg 6, 70173 Stuttgart\nTelefon: 0711 / 222 333\nE-Mail: vertrieb@beispiel-druck.example\nAngebot Nr. A-2026-044\nWir bieten Ihnen 500 Visitenkarten und 2 Rollups zum Gesamtpreis von 640,00 EUR netto an.\nDieses Angebot gilt bis {{+14}}.",
   "personas": [
    "FREELANCER",
    "COMPANY"
@@ -153,7 +153,7 @@
  {
   "id": "ihk",
   "filename": "IHK.txt",
-  "text": "Industrie- und Handelskammer\nBeitragsbescheid 2026\nIHK-Beitrag Grundbeitrag und Umlage\nZahlbar bis {{+21}}",
+  "text": "Industrie- und Handelskammer\nKammerplatz 1, 12345 Musterstadt\nTelefon: 0123 / 500 500\nE-Mail: beitrag@ihk-musterstadt.example\nBeitragsbescheid 2026\nIHK-Beitrag Grundbeitrag und Umlage\nZahlbar bis {{+21}}",
   "personas": [
    "FREELANCER",
    "COMPANY"

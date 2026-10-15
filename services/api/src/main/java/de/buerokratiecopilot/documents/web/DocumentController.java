@@ -48,11 +48,14 @@ public class DocumentController {
     private final de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline;
     private final de.buerokratiecopilot.documents.DocumentTypeRepository documentTypes;
     private final de.buerokratiecopilot.documents.classification.DocumentResortService resorter;
+    private final de.buerokratiecopilot.documents.UploaderNames uploaders;
 
     public DocumentController(DocumentService documentService,
                               de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline,
                               de.buerokratiecopilot.documents.DocumentTypeRepository documentTypes,
-                              de.buerokratiecopilot.documents.classification.DocumentResortService resorter) {
+                              de.buerokratiecopilot.documents.classification.DocumentResortService resorter,
+                              de.buerokratiecopilot.documents.UploaderNames uploaders) {
+        this.uploaders = uploaders;
         this.resorter = resorter;
         this.documentService = documentService;
         this.pipeline = pipeline;
@@ -81,7 +84,13 @@ public class DocumentController {
             String documentTypeCode,
             String category,
             java.util.Map<String, String> documentTypeNames,
-            UUID partyId) {
+            UUID partyId,
+            String sender,
+            java.util.Map<String, Object> senderDetails,
+            UUID senderContactId,
+            String senderSource,
+            UUID uploadedBy,
+            String uploadedByName) {
 
         static DocumentResponse from(Document document) {
             return from(document, null);
@@ -101,7 +110,16 @@ public class DocumentController {
                     type == null ? null : type.getCode(), type == null ? null : type.getCategory(),
                     type == null ? null : java.util.Map.of("de", type.nameIn("de"), "en", type.nameIn("en"),
                             "ru", type.nameIn("ru")),
-                    document.getPartyId());
+                    document.getPartyId(), document.getSender(), document.getSenderDetails(),
+                    document.getSenderContactId(), document.getSenderSource(), document.getCreatedBy(), null);
+        }
+
+        /** The same answer with the name of the person who uploaded the document. */
+        DocumentResponse withUploader(java.util.Map<UUID, String> names) {
+            return new DocumentResponse(id, originalFilename, mimeType, sizeBytes, contentHash, version, processingStatus,
+                    reviewStatus, confidentiality, source, documentNumber, documentDate, documentTypeId, duplicateOfDocumentId,
+                    legalHold, receivedAt, updatedAt, documentTypeCode, category, documentTypeNames, partyId, sender,
+                    senderDetails, senderContactId, senderSource, uploadedBy, uploadedBy == null ? null : names.get(uploadedBy));
         }
     }
 
@@ -127,7 +145,7 @@ public class DocumentController {
                 : "PROCESSING_PENDING";
 
         return ResponseEntity.status(HttpStatus.CREATED).body(new UploadResponse(
-                DocumentResponse.from(received.document()), received.duplicate(),
+                DocumentResponse.from(received.document()).withUploader(namesFor(received.document())), received.duplicate(),
                 received.duplicateOf(), nextStep));
     }
 
@@ -147,10 +165,16 @@ public class DocumentController {
         java.util.Map<java.util.UUID, de.buerokratiecopilot.documents.domain.DocumentType> byId =
                 new java.util.HashMap<>();
         documentTypes.findAll().forEach(documentType -> byId.put(documentType.getId(), documentType));
-        Page<DocumentResponse> page = documentService.list(q, status, source, category, type, party, pageable)
+        Page<Document> documents = documentService.list(q, status, source, category, type, party, pageable);
+        java.util.Map<UUID, String> names = uploaders.namesOf(documents.getContent().stream().map(Document::getCreatedBy).toList());
+        Page<DocumentResponse> page = documents
                 .map(document -> DocumentResponse.from(document,
-                        document.getDocumentTypeId() == null ? null : byId.get(document.getDocumentTypeId())));
+                        document.getDocumentTypeId() == null ? null : byId.get(document.getDocumentTypeId())).withUploader(names));
         return ResponseEntity.ok(page);
+    }
+
+    private java.util.Map<UUID, String> namesFor(Document document) {
+        return document.getCreatedBy() == null ? java.util.Map.of() : uploaders.namesOf(java.util.List.of(document.getCreatedBy()));
     }
 
     /** One entry of the catalogue of document types the platform recognises. */
@@ -186,7 +210,8 @@ public class DocumentController {
         Document document = documentService.require(id);
         // The type is named in the answer, as in the list: a screen that opens one document must not have to ask again.
         return ResponseEntity.ok(DocumentResponse.from(document,
-                document.getDocumentTypeId() == null ? null : documentTypes.findById(document.getDocumentTypeId()).orElse(null)));
+                document.getDocumentTypeId() == null ? null : documentTypes.findById(document.getDocumentTypeId()).orElse(null))
+                .withUploader(namesFor(document)));
     }
 
     /**

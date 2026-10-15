@@ -417,6 +417,60 @@ export default function DocumentViewerPage() {
                   headingLevel={3}
                 />
                 <CardBody>
+                  <dl style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '0.4rem 1rem', margin: 0 }}>
+                    <dt>{t('metadata.uploadedBy')}</dt>
+                    <dd style={{ margin: 0 }}>{document.uploadedBy ?? tCommon('labels.unknown')}</dd>
+                    <dt>{t('sender.title')}</dt>
+                    <dd style={{ margin: 0 }}>
+                      {document.senderName ? (
+                        <>
+                          <strong>{document.senderName}</strong>
+                          {document.sender?.source === 'LETTER' ? <small> ({t('sender.fromLetter')})</small> : null}
+                        </>
+                      ) : (
+                        t('sender.unknown')
+                      )}
+                    </dd>
+                    {document.sender?.address ? (
+                      <>
+                        <dt>{t('sender.address')}</dt>
+                        <dd style={{ margin: 0 }}>{document.sender.address}</dd>
+                      </>
+                    ) : null}
+                    {document.sender?.phone ? (
+                      <>
+                        <dt>{t('sender.phone')}</dt>
+                        <dd style={{ margin: 0 }}>
+                          <a href={`tel:${document.sender.phone.replace(/[^+\d]/g, '')}`}>{document.sender.phone}</a>
+                        </dd>
+                      </>
+                    ) : null}
+                    {document.sender?.email ? (
+                      <>
+                        <dt>{t('sender.email')}</dt>
+                        <dd style={{ margin: 0 }}>
+                          <a href={`mailto:${document.sender.email}`}>{document.sender.email}</a>
+                        </dd>
+                      </>
+                    ) : null}
+                    {document.sender?.website ? (
+                      <>
+                        <dt>{t('sender.website')}</dt>
+                        <dd style={{ margin: 0 }}>{document.sender.website}</dd>
+                      </>
+                    ) : null}
+                    {document.sender?.vatId ? (
+                      <>
+                        <dt>{t('sender.vatId')}</dt>
+                        <dd style={{ margin: 0 }}>{document.sender.vatId}</dd>
+                      </>
+                    ) : null}
+                  </dl>
+                  {document.senderContactId ? (
+                    <p>
+                      <Link href="/contacts">{t('sender.contact')}</Link>
+                    </p>
+                  ) : null}
                   <span className={styles.summaryMeta}>{t('preview.downloadHint')}</span>
                 </CardBody>
               </Card>

@@ -176,3 +176,24 @@ describe('documents ↔ backend', () => {
     expect(queue.items[0]?.fields[0]).toMatchObject({ name: 'date', value: '2026-10-01' });
   });
 });
+
+describe('documentFromWire: sender and uploader', () => {
+  it('carries the sender read from the letter and the person who uploaded the document', () => {
+    const summary = documentFromWire({
+      id: 'd1', originalFilename: 'Brief.pdf', processingStatus: 'READY', source: 'UPLOAD', receivedAt: '2026-10-15T08:00:00Z',
+      sender: 'Stadtwerke Musterstadt GmbH', senderContactId: 'c1', senderSource: 'LETTER', uploadedByName: 'Erika Mustermann',
+      senderDetails: { address: 'Hauptstraße 12, 12345 Musterstadt', phone: '0123 / 456 789-0', email: 'service@stadtwerke.example' },
+    });
+    expect(summary.senderName).toBe('Stadtwerke Musterstadt GmbH');
+    expect(summary.sender).toMatchObject({ address: 'Hauptstraße 12, 12345 Musterstadt', phone: '0123 / 456 789-0', source: 'LETTER' });
+    expect(summary.senderContactId).toBe('c1');
+    expect(summary.uploadedByName).toBe('Erika Mustermann');
+  });
+
+  it('has no sender block when nothing was recognised, instead of an empty one', () => {
+    const summary = documentFromWire({ id: 'd2', originalFilename: 'x.pdf', processingStatus: 'READY', source: 'UPLOAD', receivedAt: '2026-10-15T08:00:00Z' });
+    expect(summary.senderName).toBeNull();
+    expect(summary.sender).toBeNull();
+    expect(summary.uploadedByName).toBeNull();
+  });
+});
