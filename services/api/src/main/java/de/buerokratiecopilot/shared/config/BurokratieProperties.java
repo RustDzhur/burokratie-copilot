@@ -69,6 +69,7 @@ public class BurokratieProperties {
         private final Session session = new Session();
         private final Password password = new Password();
         private final Login login = new Login();
+        private final RateLimit rateLimit = new RateLimit();
         private final Mfa mfa = new Mfa();
         private final Encryption encryption = new Encryption();
         private final MalwareScanner malwareScanner = new MalwareScanner();
@@ -181,6 +182,33 @@ public class BurokratieProperties {
 
             public void setMaxLength(int maxLength) {
                 this.maxLength = maxLength;
+            }
+        }
+
+        public RateLimit getRateLimit() {
+            return rateLimit;
+        }
+
+        /** The general limit on how often one person (or one address, before sign-in) may call the API (HD-RATE-01). */
+        public static class RateLimit {
+
+            private boolean enabled = true;
+            private int requestsPerMinute = 600;
+
+            public boolean isEnabled() {
+                return enabled;
+            }
+
+            public void setEnabled(boolean enabled) {
+                this.enabled = enabled;
+            }
+
+            public int getRequestsPerMinute() {
+                return requestsPerMinute;
+            }
+
+            public void setRequestsPerMinute(int requestsPerMinute) {
+                this.requestsPerMinute = requestsPerMinute;
             }
         }
 

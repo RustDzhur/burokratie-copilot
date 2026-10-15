@@ -97,11 +97,14 @@ public class SecurityConfiguration {
                                                    org.springframework.context.MessageSource messageSource,
                                                    BurokratieProperties properties,
                                                    de.buerokratiecopilot.identity.mfa.MfaService mfa,
+                                                   de.buerokratiecopilot.audit.AuditService auditService,
                                                    org.springframework.beans.factory.ObjectProvider<AccessPolicy> accessPolicy)
             throws Exception {
         SessionAuthenticationFilter sessionAuthenticationFilter =
                 new SessionAuthenticationFilter(sessionService, authorityResolver, properties, mfa,
                         accessPolicy.getIfAvailable(() -> AccessPolicy.OPEN));
+        de.buerokratiecopilot.shared.ratelimit.RateLimitFilter rateLimitFilter =
+                new de.buerokratiecopilot.shared.ratelimit.RateLimitFilter(properties.getSecurity().getRateLimit(), objectMapper, auditService);
         de.buerokratiecopilot.shared.idempotency.IdempotencyFilter idempotencyFilter =
                 new de.buerokratiecopilot.shared.idempotency.IdempotencyFilter(idempotencyService, objectMapper);
 
@@ -147,7 +150,9 @@ public class SecurityConfiguration {
                         org.springframework.security.web.context.SecurityContextHolderFilter.class)
                 // Idempotency needs the authenticated tenant, so it runs right after the session
                 // filter and before any request reaches a controller.
-                .addFilterAfter(idempotencyFilter, SessionAuthenticationFilter.class);
+                // The general limit comes first, so that a flood is answered before any work is done for it.
+                .addFilterAfter(rateLimitFilter, SessionAuthenticationFilter.class)
+                .addFilterAfter(idempotencyFilter, de.buerokratiecopilot.shared.ratelimit.RateLimitFilter.class);
 
         return http.build();
     }
