@@ -1,5 +1,7 @@
 'use client';
 
+import { LEGAL_LINKS } from '@/legal/links';
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Drawer } from '@/components/ui/overlay';
@@ -165,6 +167,13 @@ export function AppShell({ children }: AppShellProps) {
           <p>
             {tCommon('app.name')} · {tCommon('app.tagline')}
           </p>
+          <nav aria-label="Rechtliche Hinweise" lang="de" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            {LEGAL_LINKS.map((link) => (
+              <Link key={link.href} href={link.href}>
+                {link.label}
+              </Link>
+            ))}
+          </nav>
         </footer>
       </div>
 

@@ -79,7 +79,8 @@ public class AuthController {
             String accountType,
             @Size(max = 200) String tenantName,
             @Size(max = 10) String locale,
-            @Size(max = 60) String timeZone) {
+            @Size(max = 60) String timeZone,
+            Boolean acceptedTerms) {
     }
 
     public record RegisterResponse(UUID userId, UUID tenantId, boolean verificationMailSent,
@@ -119,7 +120,8 @@ public class AuthController {
                                                      HttpServletRequest httpRequest) {
         AuthService.RegistrationResult result = authService.register(
                 new AuthService.RegisterCommand(request.email(), request.password(), request.displayName(),
-                        request.accountType(), request.tenantName(), request.locale(), request.timeZone()),
+                        request.accountType(), request.tenantName(), request.locale(), request.timeZone(),
+                        Boolean.TRUE.equals(request.acceptedTerms())),
                 clientIp(httpRequest), httpRequest.getHeader(HttpHeaders.USER_AGENT));
 
         return ResponseEntity.status(HttpStatus.CREATED).body(new RegisterResponse(

@@ -61,6 +61,7 @@ public class AuthService {
 
     private final de.buerokratiecopilot.identity.mfa.MfaService mfa;
     private final de.buerokratiecopilot.billing.SubscriptionService subscriptions;
+    private final de.buerokratiecopilot.legal.LegalService legal;
     private final UserRepository users;
     private final TenantRepository tenants;
     private final WorkspaceRepository workspaces;
@@ -84,7 +85,9 @@ public class AuthService {
                        EmailSender emailSender, BurokratieProperties properties,
                        org.springframework.transaction.PlatformTransactionManager transactionManager,
                        de.buerokratiecopilot.identity.mfa.MfaService mfa,
-                       de.buerokratiecopilot.billing.SubscriptionService subscriptions) {
+                       de.buerokratiecopilot.billing.SubscriptionService subscriptions,
+                       de.buerokratiecopilot.legal.LegalService legal) {
+        this.legal = legal;
         this.subscriptions = subscriptions;
         this.mfa = mfa;
         this.users = users;
@@ -105,7 +108,7 @@ public class AuthService {
 
     /** Input of a registration; the account type decides the workspace mode (§3.1). */
     public record RegisterCommand(String email, String password, String displayName, String accountType,
-                                  String tenantName, String locale, String timeZone) {
+                                  String tenantName, String locale, String timeZone, boolean acceptedTerms) {
     }
 
     public record RegistrationResult(UUID userId, UUID tenantId, boolean verificationMailSent) {
@@ -124,6 +127,10 @@ public class AuthService {
         if (!properties.getSecurity().isRegistrationOpen()) {
             // Said plainly rather than as a generic refusal: a person who tries to register should know why.
             throw new ApiException(ErrorCode.FORBIDDEN, "Registration is closed on this installation");
+        }
+        if (properties.getSecurity().isRequireTermsAcceptance() && !command.acceptedTerms()) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED,
+                    "Die Nutzungsbedingungen und die Datenschutzerklärung müssen akzeptiert werden");
         }
         String email = normalizeEmail(command.email());
         String displayName = command.displayName() == null || command.displayName().isBlank()
@@ -157,7 +164,11 @@ public class AuthService {
         if (command.timeZone() != null && !command.timeZone().isBlank()) {
             user.setTimeZone(command.timeZone());
         }
-        users.save(user);
+        // Flushed: the proof of acceptance below is written with plain SQL and needs the row to exist.
+        users.saveAndFlush(user);
+        if (command.acceptedTerms()) {
+            legal.recordAcceptance(user.getId(), command.accountType() == null ? "PRIVATE_PERSON" : command.accountType());
+        }
 
         Tenant tenant = new Tenant(UUID.randomUUID(), uniqueSlug(email),
                 command.tenantName() == null || command.tenantName().isBlank()

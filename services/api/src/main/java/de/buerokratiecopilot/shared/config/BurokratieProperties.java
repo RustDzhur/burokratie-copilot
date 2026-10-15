@@ -66,6 +66,8 @@ public class BurokratieProperties {
          * the endpoint is reachable from the internet and each registration creates a tenant.
          */
         private boolean registrationOpen = true;
+        /** Registration needs the explicit acceptance of the terms and the privacy notice; recorded with the version. */
+        private boolean requireTermsAcceptance = false;
         private final Session session = new Session();
         private final Password password = new Password();
         private final Login login = new Login();
@@ -81,6 +83,14 @@ public class BurokratieProperties {
 
         public boolean isRegistrationOpen() {
             return registrationOpen;
+        }
+
+        public boolean isRequireTermsAcceptance() {
+            return requireTermsAcceptance;
+        }
+
+        public void setRequireTermsAcceptance(boolean requireTermsAcceptance) {
+            this.requireTermsAcceptance = requireTermsAcceptance;
         }
 
         public void setRegistrationOpen(boolean registrationOpen) {

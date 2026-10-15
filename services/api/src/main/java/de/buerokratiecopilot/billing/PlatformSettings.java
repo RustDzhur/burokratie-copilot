@@ -70,7 +70,7 @@ public class PlatformSettings {
 
     @Transactional
     public void put(String key, Object value, UUID actor) {
-        if (!key.startsWith("billing.")) {
+        if (!key.startsWith("billing.") && !key.startsWith("legal.")) {
             throw new ApiException(ErrorCode.INVALID_REQUEST, "Unbekannte Einstellung: " + key);
         }
         try {

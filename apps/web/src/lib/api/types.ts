@@ -1026,3 +1026,12 @@ export interface ProfileData {
   readonly timeZone: string;
   readonly avatarVersion: number | null;
 }
+
+/** What the public legal pages need: the operator's entered data, what is still missing, and the version of the texts. */
+export interface LegalInfo {
+  readonly operator: Readonly<Record<string, string>>;
+  readonly missing: readonly string[];
+  readonly version: string;
+  readonly trialDays: number;
+  readonly retentionDays: number;
+}

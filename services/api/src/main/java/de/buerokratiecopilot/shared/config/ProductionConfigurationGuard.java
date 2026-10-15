@@ -29,10 +29,20 @@ public class ProductionConfigurationGuard implements ApplicationListener<Applica
 
     private final Environment environment;
     private final BurokratieProperties properties;
+    private final org.springframework.beans.factory.ObjectProvider<de.buerokratiecopilot.legal.LegalService> legal;
 
+    /** Without the imprint check; for the callers that only look at the configuration. */
     public ProductionConfigurationGuard(Environment environment, BurokratieProperties properties) {
+        this(environment, properties, new org.springframework.beans.factory.support.StaticListableBeanFactory()
+                .getBeanProvider(de.buerokratiecopilot.legal.LegalService.class));
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ProductionConfigurationGuard(Environment environment, BurokratieProperties properties,
+                                        org.springframework.beans.factory.ObjectProvider<de.buerokratiecopilot.legal.LegalService> legal) {
         this.environment = environment;
         this.properties = properties;
+        this.legal = legal;
     }
 
     @Override
@@ -58,6 +68,18 @@ public class ProductionConfigurationGuard implements ApplicationListener<Applica
             notices.add("Session cookie SameSite is "
                     + properties.getSecurity().getSession().getCookieSameSite()
                     + "; 'Strict' is recommended for an administrative application");
+        }
+
+        try {
+            var legalService = legal.getIfAvailable();
+            if (legalService != null && !legalService.missing().isEmpty()) {
+                // Not fatal, but the imprint is a legal duty (§ 5 DDG): the operator enters it in the admin area.
+                notices.add("The operator's imprint data is incomplete (missing: " + legalService.missing()
+                        + "); enter it in the admin area before the platform is offered to the public");
+            }
+        }
+        catch (RuntimeException ex) {
+            notices.add("The imprint data could not be checked: " + ex.getMessage());
         }
 
         if (environment.getProperty("spring.mail.host") == null) {

@@ -173,6 +173,7 @@ import type {
   ScenarioRequest,
   ScenarioResult,
   DocumentCase,
+  LegalInfo,
   ProfileData,
   WorkspaceEntry,
   WorkspaceList,
@@ -277,6 +278,8 @@ export function sessionUserFromMe(me: MeResponse): SessionUser {
 }
 
 export interface RegisterPayload {
+  /** The person ticked the box for the terms and the privacy notice; the server records which version. */
+  readonly acceptedTerms: boolean;
   readonly fullName: string;
   readonly email: string;
   readonly password: string;
@@ -579,6 +582,9 @@ export interface ApiResources {
     /** Asks the language model for a plain-words explanation; `kind` says what came of it. */
     explain: (id: string) => Promise<{ readonly kind: 'EXPLAINED' | 'REJECTED' | 'UNAVAILABLE' | 'DISABLED' | 'NO_EVIDENCE'; readonly explanation: string | null }>;
   };
+  readonly legal: {
+    get: (signal?: AbortSignal) => Promise<LegalInfo>;
+  };
   readonly profile: {
     get: (signal?: AbortSignal) => Promise<ProfileData>;
     update: (values: { readonly displayName: string; readonly locale: string; readonly timeZone: string }) => Promise<ProfileData>;
@@ -856,6 +862,7 @@ export function createResources(client: ApiClient): ApiResources {
             password: payload.password,
             displayName: payload.fullName,
             accountType: ACCOUNT_TYPE_TO_BACKEND[payload.accountType],
+            acceptedTerms: payload.acceptedTerms,
           },
           { idempotencyKey: true },
         );
@@ -1808,6 +1815,9 @@ export function createResources(client: ApiClient): ApiResources {
           undefined,
           { idempotencyKey: true },
         ),
+    },
+    legal: {
+      get: (signal) => client.get<LegalInfo>('/public/legal', withSignal(signal)),
     },
     profile: {
       get: (signal) => client.get<ProfileData>('/profile', withSignal(signal)),

@@ -387,7 +387,7 @@ export const deCore = {
     'register.typePrivate': 'Privatperson',
     'register.typeFamily': 'Familie',
     'register.typeBusiness': 'Unternehmen',
-    'register.terms': 'Ich akzeptiere die Nutzungsbedingungen und die Datenschutzerklärung.',
+    'register.terms': "Ich akzeptiere die AGB und habe die Datenschutzerklärung gelesen. Als Unternehmen schließe ich zugleich den Vertrag zur Auftragsverarbeitung (AVV) ab.",
     'register.submit': 'Konto erstellen',
     'register.hasAccount': 'Sie haben bereits ein Konto?',
     'register.login': 'Anmelden',

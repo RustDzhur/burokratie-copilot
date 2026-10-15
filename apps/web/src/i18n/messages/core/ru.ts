@@ -375,7 +375,7 @@ export const ruCore: CoreMessages = {
     'register.typePrivate': 'Частное лицо',
     'register.typeFamily': 'Семья',
     'register.typeBusiness': 'Компания',
-    'register.terms': 'Я принимаю условия использования и политику защиты данных.',
+    'register.terms': "Я принимаю условия (AGB) и прочитал(а) политику конфиденциальности. Как компания я одновременно заключаю договор об обработке данных (AVV).",
     'register.submit': 'Создать аккаунт',
     'register.hasAccount': 'Уже есть аккаунт?',
     'register.login': 'Войти',

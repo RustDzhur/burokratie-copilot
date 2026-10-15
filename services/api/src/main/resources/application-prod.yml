@@ -24,6 +24,11 @@ springdoc:
   swagger-ui:
     enabled: false
 
+burokratie:
+  security:
+    # Whoever registers has accepted the terms and read the privacy notice, and the platform can show when.
+    require-terms-acceptance: true
+
 server:
   shutdown: graceful
   tomcat:

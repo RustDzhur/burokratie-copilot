@@ -57,7 +57,7 @@ export default function RegisterPage() {
     setPending(true);
     setError(null);
     try {
-      await api.auth.register({ fullName, email, password, accountType });
+      await api.auth.register({ fullName, email, password, accountType, acceptedTerms: terms });
       router.push('/verify-email');
     } catch (caught) {
       setError(toApiError(caught));
@@ -140,6 +140,16 @@ export default function RegisterPage() {
           required
           onChange={(event) => setTerms(event.target.checked)}
         />
+        <p className={styles.subtitle} lang="de">
+          <Link href="/agb">AGB</Link> · <Link href="/datenschutz">Datenschutzerklärung</Link> ·{' '}
+          <Link href="/widerruf">Widerrufsbelehrung</Link>
+          {accountType === 'company' ? (
+            <>
+              {' '}
+              · <Link href="/avv">Auftragsverarbeitungsvertrag (AVV)</Link>
+            </>
+          ) : null}
+        </p>
         <Button
           type="submit"
           variant="primary"

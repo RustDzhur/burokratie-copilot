@@ -392,6 +392,15 @@ function SettingsTab() {
             multiline={['address', 'note']}
           />
           <ObjectForm
+            title={t('settings.legal')}
+            settingKey="legal.operator"
+            keys={['name', 'legalForm', 'address', 'representative', 'email', 'phone', 'contactForm', 'register', 'registerNumber', 'vatId', 'dpoName', 'dpoEmail', 'supervisoryAuthority', 'hosting', 'subProcessors', 'thirdCountry', 'disputeResolution']}
+            labelPrefix="settings.legal."
+            value={(settings['legal.operator'] ?? {}) as Record<string, unknown>}
+            onSave={put}
+            multiline={['address', 'hosting', 'subProcessors', 'thirdCountry']}
+          />
+          <ObjectForm
             title={t('settings.crypto')}
             settingKey="billing.crypto"
             keys={['asset', 'network', 'address', 'eurPerUnit']}

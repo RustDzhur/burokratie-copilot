@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { PublicHeader } from '@/components/app/public-header';
+import { LEGAL_LINKS } from '@/legal/links';
 import { getServerTranslations } from '@/i18n/server';
 import styles from './public-layout.module.css';
 
@@ -26,7 +27,11 @@ export default async function PublicLayout({ children }: { children: ReactNode }
           © {new Date().getFullYear()} {t('common', 'app.name')} · {t('landing', 'footer.rights')}
         </p>
         <nav className={styles.footerNav} aria-label={t('landing', 'footer.privacy')}>
-          <Link href="/accessibility">{t('nav', 'items.accessibilitySettings')}</Link>
+          {LEGAL_LINKS.map((link) => (
+            <Link key={link.href} href={link.href} lang="de">
+              {link.label}
+            </Link>
+          ))}
           <Link href="/login">{t('nav', 'items.login')}</Link>
           <Link href="/register">{t('nav', 'items.register')}</Link>
         </nav>

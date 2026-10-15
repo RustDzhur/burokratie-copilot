@@ -372,7 +372,7 @@ export const enCore: CoreMessages = {
     'register.typePrivate': 'Individual',
     'register.typeFamily': 'Family',
     'register.typeBusiness': 'Company',
-    'register.terms': 'I accept the terms of use and the privacy policy.',
+    'register.terms': "I accept the terms and have read the privacy notice. As a business I also conclude the data processing agreement (AVV).",
     'register.submit': 'Create account',
     'register.hasAccount': 'Already have an account?',
     'register.login': 'Sign in',

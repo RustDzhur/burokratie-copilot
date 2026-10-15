@@ -3,6 +3,7 @@ import { BrandMark } from '@/components/app/brand-mark';
 import type { ReactNode } from 'react';
 import { ThemeMenu, LanguageMenu } from '@/components/app/preference-controls';
 import { getServerTranslations } from '@/i18n/server';
+import { LEGAL_LINKS } from '@/legal/links';
 import styles from './auth-layout.module.css';
 
 /** Centered form layout for sign-in, registration, verification and reset. */
@@ -31,6 +32,13 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
         {t('common', 'app.slogan')}
       </p>
       <p className={styles.note}>{t('auth', 'security.note')}</p>
+      <nav className={styles.note} aria-label="Rechtliche Hinweise" lang="de" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+        {LEGAL_LINKS.map((link) => (
+          <Link key={link.href} href={link.href}>
+            {link.label}
+          </Link>
+        ))}
+      </nav>
     </div>
   );
 }
