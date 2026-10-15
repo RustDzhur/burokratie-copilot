@@ -84,9 +84,9 @@ public class DocumentOutcomeController {
         List<Map<String, Object>> rows = jdbc.queryForList("""
                 select r.pattern, lower(left(d.extracted_text, 30000)) as lowered, left(d.extracted_text, 30000) as text
                 from document_classifications c
+                join documents d on d.id = c.document_id
                 join document_type_rules r on r.document_type_id = c.document_type_id and r.is_active
                      and r.rule_type = 'KEYWORD' and (r.tenant_id is null or r.tenant_id = d.tenant_id)
-                join documents d on d.id = c.document_id
                 where c.document_id = ? and c.is_current
                 """, documentId);
         List<Map<String, Object>> passages = new java.util.ArrayList<>();
