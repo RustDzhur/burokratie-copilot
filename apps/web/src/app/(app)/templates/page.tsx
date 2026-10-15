@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { ListPage } from '@/components/app/list-page';
 import { StatusPill } from '@/components/ui';
 import type { Column } from '@/components/ui';
@@ -32,7 +33,11 @@ export default function TemplatesPage() {
   ];
 
   return (
-    <ListPage<TemplateSummary>
+    <>
+      <p>
+        <Link href="/templates/new">{t('visual.open')}</Link>
+      </p>
+      <ListPage<TemplateSummary>
       screenId="templates"
       namespace="templates"
       deletable={{ kind: 'TEMPLATE', rowLabel: (row) => row.name }}
@@ -60,5 +65,6 @@ export default function TemplatesPage() {
         })
       }
     />
+    </>
   );
 }
