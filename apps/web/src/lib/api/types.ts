@@ -873,3 +873,60 @@ export interface ExplanationOutcome {
   readonly kind: 'EXPLAINED' | 'TRANSLATED' | 'NO_TEXT' | 'UNAVAILABLE' | 'REJECTED';
   readonly reason: string | null;
 }
+
+
+/** One thing that is recorded to happen; it always names its source, and says what is not known about it. */
+export interface FutureEvent {
+  readonly id: string;
+  readonly kind:
+    | 'DEADLINE'
+    | 'TASK'
+    | 'OBLIGATION'
+    | 'CONTRACT_NOTICE'
+    | 'CONTRACT_END'
+    | 'INVOICE_DUE'
+    | 'CASE_DUE'
+    | 'EXPECTED_REPLY';
+  readonly date: IsoDate | null;
+  readonly title: string;
+  readonly amount: number | string | null;
+  readonly currency: string | null;
+  readonly certainty: string;
+  readonly unknown: readonly string[];
+  readonly source: { readonly type: string; readonly id: string };
+  readonly documentId: string | null;
+  readonly caseId: string | null;
+  readonly contractId: string | null;
+}
+
+export interface FutureTimeline {
+  readonly horizon: 30 | 60 | 90;
+  readonly from: IsoDate;
+  readonly to: IsoDate;
+  readonly events: readonly FutureEvent[];
+  readonly undated: readonly FutureEvent[];
+}
+
+export type ScenarioType = 'NOTICE_MISSED' | 'PRICE_CHANGE' | 'PAYMENT_LATE';
+
+export interface ScenarioRequest {
+  readonly type: ScenarioType;
+  readonly contractId?: string;
+  readonly invoiceId?: string;
+  readonly percent?: number;
+  readonly days?: number;
+}
+
+/** The answer to a what-if: computed from recorded values, or the list of what is missing. Nothing is changed. */
+export interface ScenarioResult {
+  readonly type: ScenarioType;
+  readonly status: 'COMPUTED' | 'INSUFFICIENT_DATA';
+  readonly readOnly: true;
+  readonly missing?: readonly string[];
+  readonly baseline?: Readonly<Record<string, unknown>>;
+  readonly alternative?: Readonly<Record<string, unknown>>;
+  readonly difference?: number | string;
+  readonly currency?: string;
+  readonly assumptions?: readonly string[];
+  readonly unknown?: readonly string[];
+}
