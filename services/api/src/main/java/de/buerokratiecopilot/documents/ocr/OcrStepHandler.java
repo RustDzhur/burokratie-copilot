@@ -120,7 +120,7 @@ public class OcrStepHandler implements ProcessingStepHandler {
                 continue;
             }
 
-            OcrEngine.Result result = engine.recognise(image, languages);
+            OcrEngine.Result result = recogniseBest(image, languages);
             page.setOcrUsed(true);
             page.setOcrEngine(result.engine());
             page.setOcrLanguage(result.language());
@@ -171,6 +171,45 @@ public class OcrStepHandler implements ProcessingStepHandler {
         return StepResult.succeeded(diagnostics, Document.ProcessingStatus.EXTRACTING);
     }
 
+    /** Below this a first reading is not trusted and the page is tried turned. */
+    private static final int ENOUGH_WORDS = 15;
+    private static final double GOOD_CONFIDENCE = 0.6;
+
+    /**
+     * Reads a page after preparing the picture; when that finds little (a photo lying on its side or upside down), the page
+     * is also read turned by 90, 180 and 270 degrees and the reading with the most trustworthy words wins.
+     */
+    OcrEngine.Result recogniseBest(byte[] original, List<String> languages) {
+        byte[] prepared = ImagePreparer.prepare(original);
+        OcrEngine.Result best = engine.recognise(prepared, languages);
+        if (!poor(best)) {
+            return best;
+        }
+        for (int degrees : new int[] { 90, 180, 270 }) {
+            OcrEngine.Result candidate = engine.recognise(ImagePreparer.rotated(prepared, degrees), languages);
+            if (score(candidate) > score(best)) {
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
+    private static boolean poor(OcrEngine.Result result) {
+        return !result.recognised() || words(result) < ENOUGH_WORDS
+                || (result.confidence() != null && result.confidence() < GOOD_CONFIDENCE);
+    }
+
+    private static int words(OcrEngine.Result result) {
+        return result.text() == null || result.text().isBlank() ? 0 : result.text().strip().split("\\s+").length;
+    }
+
+    private static double score(OcrEngine.Result result) {
+        if (!result.recognised()) {
+            return -1;
+        }
+        return Math.min(words(result), 400) * (result.confidence() == null ? 0.5 : result.confidence());
+    }
+
     /** Rebuilds the aggregated text from all pages of the document. */
     private void mergeIntoExtractedText(Document document) {
         List<DocumentPage> all = pages.findByDocumentIdOrderByPageNumberAsc(document.getId());
@@ -199,6 +238,7 @@ public class OcrStepHandler implements ProcessingStepHandler {
 
     private static boolean isImage(String contentType) {
         return "image/png".equals(contentType) || "image/jpeg".equals(contentType)
-                || "image/tiff".equals(contentType);
+                || "image/tiff".equals(contentType) || "image/webp".equals(contentType)
+                || "image/bmp".equals(contentType) || "image/gif".equals(contentType);
     }
 }

@@ -122,6 +122,13 @@ jobs:
           CREATE EXTENSION IF NOT EXISTS pg_trgm;
           SQL
 
+      - name: Install Tesseract for the photo reading tests
+        run: |
+          # The photo tests (PhotoOcrIT) read real pictures; without the program they are skipped, and a skipped test proves nothing.
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-deu tesseract-ocr-eng
+          tesseract --list-langs
+
       - name: Allow enough connections for a full run (HD-TEST-01)
         env:
           PGPASSWORD: postgres
