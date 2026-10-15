@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
+import { RelationshipGraph } from '@/components/app/relationship-graph';
 import { PageHeader, PageSection, ResourceView } from '@/components/app/resource-view';
 import { Badge, Card, CardBody } from '@/components/ui';
 import { Input } from '@/components/ui/form';
@@ -22,6 +23,7 @@ const KINDS = ['VAT_ID', 'TAX_NUMBER', 'IBAN', 'EMAIL', 'DOMAIN', 'PHONE'] as co
 export default function ContactProfilePage() {
   const { id } = useParams<{ id: string }>();
   const t = useTranslations('contactProfile');
+  const tMemory = useTranslations('entityMemory');
   const tErrors = useTranslations('errors');
   const locale = useLocale();
   const toast = useToast();
@@ -106,6 +108,18 @@ export default function ContactProfilePage() {
                   </Button>
                 </CardBody>
               </Card>
+            </PageSection>
+
+            <PageSection title={tMemory('graph.title')}>
+              <RelationshipGraph
+                centre={profile.contact.name}
+                nodes={[
+                  ...profile.documents.map((d) => ({ id: d.relationshipId, kind: 'document' as const, label: d.name, href: `/documents/${d.documentId}`, suggested: d.status === 'SUGGESTED' })),
+                  ...profile.contracts.map((c) => ({ id: c.id, kind: 'contract' as const, label: c.title, href: `/contracts/${c.id}` })),
+                  ...profile.invoices.map((i) => ({ id: i.id, kind: 'invoice' as const, label: i.number ?? i.id, href: `/invoices/${i.id}` })),
+                  ...profile.cases.map((c) => ({ id: c.id, kind: 'case' as const, label: `${c.reference} ${c.title}`, href: `/cases/${c.id}` })),
+                ]}
+              />
             </PageSection>
 
             <PageSection title={t('documents')}>

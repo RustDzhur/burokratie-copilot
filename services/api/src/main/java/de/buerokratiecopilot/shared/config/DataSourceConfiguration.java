@@ -23,10 +23,14 @@ public class DataSourceConfiguration {
 
     @Bean
     @Primary
-    public DataSource dataSource(DataSourceProperties properties) {
+    public DataSource dataSource(DataSourceProperties properties, org.springframework.core.env.Environment environment) {
         HikariDataSource hikari = properties.initializeDataSourceBuilder()
                 .type(HikariDataSource.class)
                 .build();
+        // Spring Boot binds spring.datasource.hikari.* only to the pool it builds itself. This pool is built here, so the
+        // settings (pool size, idle time) are bound explicitly; otherwise they were silently ignored.
+        org.springframework.boot.context.properties.bind.Binder.get(environment)
+                .bind("spring.datasource.hikari", org.springframework.boot.context.properties.bind.Bindable.ofInstance(hikari));
         hikari.setPoolName("burokratie-pool");
         return new TenantAwareDataSource(hikari);
     }

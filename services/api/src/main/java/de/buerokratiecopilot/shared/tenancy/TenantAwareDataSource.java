@@ -24,7 +24,7 @@ import de.buerokratiecopilot.shared.context.RequestContext;
  * <p>Defence in depth: the primary isolation mechanism remains server-side authorization —
  * this class only makes the database refuse to return foreign rows even if a query is wrong.</p>
  */
-public class TenantAwareDataSource extends DelegatingDataSource {
+public class TenantAwareDataSource extends DelegatingDataSource implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(TenantAwareDataSource.class);
 
@@ -61,6 +61,18 @@ public class TenantAwareDataSource extends DelegatingDataSource {
         catch (SQLException ex) {
             log.error("Failed to bind tenant context to the database connection", ex);
             throw ex;
+        }
+    }
+
+    /**
+     * Closes the pool behind this wrapper when the application context is closed. Spring calls a public {@code close()} of a
+     * bean by itself; without it the pool of a context that is gone (a test context evicted from the cache, a restarted
+     * application context) stays open and keeps its connections to the database for the rest of the run.
+     */
+    @Override
+    public void close() throws Exception {
+        if (getTargetDataSource() instanceof AutoCloseable closeable) {
+            closeable.close();
         }
     }
 }

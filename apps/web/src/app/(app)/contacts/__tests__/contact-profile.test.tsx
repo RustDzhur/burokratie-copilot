@@ -43,7 +43,8 @@ describe('Contact profile', () => {
     serve();
     const { container } = renderWithProviders(<ContactProfilePage />);
     expect(await screen.findByText('DE89370400440532013000')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Rechnung.pdf' })).toHaveAttribute('href', '/documents/d1');
+    expect(screen.getAllByRole('link', { name: 'Rechnung.pdf' }).every((link) => link.getAttribute('href') === '/documents/d1')).toBe(true);
+    expect(screen.getByTestId('relationship-graph')).toBeInTheDocument();
     expect(screen.getByText(/Strom · ACTIVE/)).toBeInTheDocument();
     expect(screen.getByText(/R-1 · 96.00 EUR/)).toBeInTheDocument();
     expect(await screen.findByText(/Vorgang angelegt/)).toBeInTheDocument();
@@ -53,7 +54,7 @@ describe('Contact profile', () => {
   it('offers confirm and reject only for a suggested link, and sends the decision', async () => {
     serve();
     renderWithProviders(<ContactProfilePage />);
-    await screen.findByText('Rechnung.pdf');
+    await screen.findAllByText('Rechnung.pdf');
     expect(screen.getAllByRole('button', { name: 'Bestätigen' })).toHaveLength(1);
     await userEvent.click(screen.getByRole('button', { name: 'Ablehnen' }));
     await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url.includes('/memory/relationships/r1/reject'))).toBe(true));
