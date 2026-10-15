@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ExportButton } from '@/components/app/export-button';
 import { ListPage } from '@/components/app/list-page';
+import { MergeDialog } from '@/components/app/merge-dialog';
 import { StatusPill } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
@@ -50,6 +51,7 @@ export default function DocumentsPage() {
   const toast = useToast();
   const [listVersion, setListVersion] = useState(0);
   const [sorting, setSorting] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
   const tErrors = useTranslations('errors');
   const parties = useApiResource((signal) => api.parties.list(signal), []);
   const catalogue = useApiResource((signal) => api.documents.catalogue(signal), []);
@@ -153,8 +155,19 @@ export default function DocumentsPage() {
       <div style={{ marginBottom: '1.25rem' }}>
         <Button variant="secondary" loading={sorting} onClick={() => void resort()}>
           {t('resort.action')}
+        </Button>{' '}
+        <Button variant="secondary" onClick={() => setMergeOpen(true)}>
+          {t('merge.action')}
         </Button>
       </div>
+      <MergeDialog
+        open={mergeOpen}
+        onClose={() => setMergeOpen(false)}
+        onMerged={() => {
+          reloadCounts();
+          setListVersion((value) => value + 1);
+        }}
+      />
       <div role="tablist" aria-label={t('category.label')} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
         {CATEGORY_TABS.map((tab) => {
           const count = countOf(tab);

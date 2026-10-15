@@ -1,8 +1,5 @@
 package de.buerokratiecopilot.demo;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -20,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.web.multipart.MultipartFile;
 
 import de.buerokratiecopilot.billing.TenantPurgeService;
 import de.buerokratiecopilot.documents.DocumentService;
@@ -266,7 +262,7 @@ public class DemoService {
     private void file(DemoSamples.Sample sample) {
         String text = DemoSamples.resolve(sample.text(), LocalDate.now());
         var received = documents.receive(new DocumentService.UploadRequest(
-                new InMemoryFile(sample.filename(), text.getBytes(StandardCharsets.UTF_8)), null, null, Document.Source.UPLOAD, null));
+                new de.buerokratiecopilot.documents.InMemoryUpload(sample.filename(), "text/plain", text.getBytes(StandardCharsets.UTF_8)), null, null, Document.Source.UPLOAD, null));
         UUID id = received.document().getId();
         pipeline.advance(id);
         try {
@@ -344,49 +340,6 @@ public class DemoService {
             jdbc.update("insert into task_assignees (task_id, tenant_id, user_id) values (?, ?, ?) on conflict do nothing",
                     tasks.get(i), tenantId, colleagues.get(i % colleagues.size()));
             jdbc.update("update tasks set assignment_pending = false where id = ?", tasks.get(i));
-        }
-    }
-
-    /** A file held in memory, so that a sample letter goes through the same upload path as a real file. */
-    private record InMemoryFile(String name, byte[] bytes) implements MultipartFile {
-        @Override
-        public String getName() {
-            return "file";
-        }
-
-        @Override
-        public String getOriginalFilename() {
-            return name;
-        }
-
-        @Override
-        public String getContentType() {
-            return "text/plain";
-        }
-
-        @Override
-        public boolean isEmpty() {
-            return bytes.length == 0;
-        }
-
-        @Override
-        public long getSize() {
-            return bytes.length;
-        }
-
-        @Override
-        public byte[] getBytes() {
-            return bytes;
-        }
-
-        @Override
-        public InputStream getInputStream() throws IOException {
-            return new ByteArrayInputStream(bytes);
-        }
-
-        @Override
-        public void transferTo(java.io.File dest) throws IOException {
-            java.nio.file.Files.write(dest.toPath(), bytes);
         }
     }
 }

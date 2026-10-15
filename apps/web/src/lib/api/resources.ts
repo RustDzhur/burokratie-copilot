@@ -173,6 +173,7 @@ import type {
   ScenarioRequest,
   ScenarioResult,
   DocumentCase,
+  MergeGroup,
   LegalInfo,
   ProfileData,
   WorkspaceEntry,
@@ -350,6 +351,10 @@ export interface ApiResources {
     /** The cases the document is linked to, as far as the reader may see them. */
     cases: (id: string, signal?: AbortSignal) => Promise<readonly DocumentCase[]>;
     createTask: (id: string) => Promise<void>;
+    /** Groups of uploaded photos that probably are the pages of one document. */
+    mergeCandidates: (signal?: AbortSignal) => Promise<readonly MergeGroup[]>;
+    /** Makes one PDF of the pages in the given order and deletes the single ones. */
+    merge: (documentIds: readonly string[], title?: string) => Promise<{ readonly documentId: string; readonly filename: string }>;
     /** A person files the document under a type they chose; re-sorting by the rules leaves it alone. */
     setType: (id: string, typeCode: string) => Promise<void>;
     /** Files the stored documents again by the current rules; returns what was done in numbers. */
@@ -971,6 +976,9 @@ export function createResources(client: ApiClient): ApiResources {
       setType: async (id, typeCode) => {
         await client.post<unknown>(`/documents/${id}/type`, { typeCode }, { idempotencyKey: true });
       },
+      mergeCandidates: (signal) => client.get<readonly MergeGroup[]>('/documents/merge-candidates', withSignal(signal)),
+      merge: (documentIds, title) =>
+        client.post('/documents/merge', { documentIds, title }, { idempotencyKey: true }),
       createTask: async (id) => {
         await client.post<unknown>(`/documents/${id}/create-task`, undefined, { idempotencyKey: true });
       },

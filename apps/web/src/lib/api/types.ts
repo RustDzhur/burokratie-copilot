@@ -1052,3 +1052,10 @@ export interface LegalInfo {
   readonly trialDays: number;
   readonly retentionDays: number;
 }
+
+/** Uploaded pages that probably belong together, in the order the platform proposes. */
+export interface MergeGroup {
+  readonly documentIds: readonly string[];
+  readonly filenames: readonly string[];
+  readonly suggestedTitle: string;
+}
