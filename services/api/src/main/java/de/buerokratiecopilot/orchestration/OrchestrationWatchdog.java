@@ -11,6 +11,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline;
+import java.time.LocalDate;
+
 import de.buerokratiecopilot.notifications.domain.Notification;
 import de.buerokratiecopilot.shared.context.RequestContext;
 
@@ -43,17 +45,20 @@ public class OrchestrationWatchdog {
     private final OwnerNotifier notifier;
     private final boolean enabled;
     private final int backfillDays;
+    private final int deadlineLeadDays;
 
     public OrchestrationWatchdog(JdbcTemplate jdbc, DocumentProcessingPipeline pipeline,
                                  CaseOrchestrator orchestrator, OwnerNotifier notifier,
                                  @Value("${burokratie.orchestration.watchdog-enabled:true}") boolean enabled,
-                                 @Value("${burokratie.orchestration.backfill-days:14}") int backfillDays) {
+                                 @Value("${burokratie.orchestration.backfill-days:14}") int backfillDays,
+                                 @Value("${burokratie.orchestration.deadline-lead-days:3}") int deadlineLeadDays) {
         this.jdbc = jdbc;
         this.pipeline = pipeline;
         this.orchestrator = orchestrator;
         this.notifier = notifier;
         this.enabled = enabled;
         this.backfillDays = backfillDays;
+        this.deadlineLeadDays = deadlineLeadDays;
     }
 
     @Scheduled(fixedDelayString = "${burokratie.orchestration.watchdog-poll-ms:60000}",
@@ -65,6 +70,10 @@ public class OrchestrationWatchdog {
         guarded("stuck documents", this::recoverDocuments);
         guarded("overdue tasks", this::reportOverdue);
         guarded("reminders", this::remind);
+        // Deadlines derived from documents had nobody telling anyone: remind_at was only ever set for tasks
+        // the orchestrator created with a lead time that was still in the future, so a deadline that arrived
+        // late, or one a person entered, sat in the calendar and never produced a notification.
+        guarded("deadline reminders", () -> remindDeadlines(deadlineLeadDays));
         guarded("unassigned tasks", this::reportUnassigned);
     }
 
@@ -170,6 +179,11 @@ public class OrchestrationWatchdog {
         return task.documentId() == null ? "/tasks" : "/documents/" + task.documentId();
     }
 
+    /** The same rule for a deadline: its source document if it has one, otherwise the task list. */
+    private String link(DeadlineRef deadline) {
+        return deadline.documentId() == null ? "/tasks" : "/documents/" + deadline.documentId();
+    }
+
     public int reportOverdue() {
         return reportOverdue(null);
     }
@@ -218,6 +232,79 @@ public class OrchestrationWatchdog {
                             "tasks", task.id(), link(task), "task-reminder-" + task.id(), java.util.Map.of("taskTitle", task.title()));
                 }
                 mark(task.id(), "remindedAt");
+            });
+        }
+        return due.size();
+    }
+
+    /** One deadline close enough to be worth telling somebody about. */
+    record DeadlineRef(UUID deadlineId, UUID taskId, UUID tenantId, String title, UUID documentId,
+                       LocalDate dueDate, List<UUID> assignees) {
+    }
+
+    public int remindDeadlines(int leadDays) {
+        return remindDeadlines(leadDays, null);
+    }
+
+    /**
+     * Reminds the responsible people about deadlines that are due within {@code leadDays}.
+     *
+     * <p><strong>Why this is separate from {@link #remind()}.</strong> That one follows
+     * {@code tasks.remind_at}, which the orchestrator sets to one day before the internal due date and only
+     * when that date is still in the future — so a document that arrives late, or a deadline a person enters,
+     * never gets a reminder and never reaches anybody outside the calendar. This one reads the deadlines
+     * themselves.</p>
+     *
+     * <p>Repeating is prevented by the notification's dedup key, checked in the query: the same deadline
+     * reminds once, however often the watchdog runs.</p>
+     */
+    public int remindDeadlines(int leadDays, UUID onlyTenant) {
+        List<DeadlineRef> due = jdbc.query("""
+                select d.id as deadline_id, t.id as task_id, t.tenant_id, t.title, t.source_document_id,
+                       d.due_date,
+                       coalesce((select array_agg(a.user_id) from task_assignees a
+                                  where a.task_id = t.id and a.completed_at is null), '{}') as assignees
+                  from task_deadlines d
+                  join tasks t on t.id = d.task_id
+                 where d.is_active
+                   and t.deleted_at is null and t.status not in ('DONE', 'CANCELLED')
+                   and d.due_date between current_date and current_date + make_interval(days => ?)
+                   and (cast(? as uuid) is null or t.tenant_id = cast(? as uuid))
+                   and not exists (select 1 from notifications n
+                                    where n.dedup_key = 'deadline-reminder-' || d.id)
+                 order by d.due_date
+                """, (rs, i) -> new DeadlineRef(
+                        rs.getObject("deadline_id", UUID.class),
+                        rs.getObject("task_id", UUID.class),
+                        rs.getObject("tenant_id", UUID.class),
+                        rs.getString("title"),
+                        rs.getObject("source_document_id", UUID.class),
+                        rs.getDate("due_date") == null ? null : rs.getDate("due_date").toLocalDate(),
+                        java.util.Arrays.asList((UUID[]) rs.getArray("assignees").getArray())),
+                leadDays, onlyTenant, onlyTenant);
+
+        for (DeadlineRef deadline : due) {
+            RequestContext.runAs(deadline.tenantId(), () -> {
+                String body = "Die Frist für „" + deadline.title() + "“ läuft am "
+                        + deadline.dueDate() + " ab.";
+                java.util.Map<String, Object> parameters = java.util.Map.of(
+                        "taskTitle", deadline.title(),
+                        "dueDate", String.valueOf(deadline.dueDate()));
+                // The dedup key is what makes this once per deadline; the query already excludes the ones
+                // that were reminded.
+                String dedupKey = "deadline-reminder-" + deadline.deadlineId();
+                if (deadline.assignees().isEmpty()) {
+                    notifier.tell(deadline.tenantId(), Notification.Category.DEADLINE,
+                            Notification.Severity.WARNING, "task.deadline_approaching",
+                            "Frist naht", body, "tasks", deadline.taskId(), link(deadline),
+                            dedupKey, parameters);
+                }
+                else {
+                    notifier.tell(deadline.tenantId(), deadline.assignees(),
+                            Notification.Category.DEADLINE, Notification.Severity.WARNING,
+                            "task.deadline_approaching", "Frist naht", body, "tasks",
+                            deadline.taskId(), link(deadline), dedupKey, parameters);
+                }
             });
         }
         return due.size();
