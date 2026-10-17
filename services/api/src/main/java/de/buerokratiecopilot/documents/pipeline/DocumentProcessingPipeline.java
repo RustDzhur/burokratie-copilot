@@ -49,7 +49,8 @@ public class DocumentProcessingPipeline {
     private static final Logger log = LoggerFactory.getLogger(DocumentProcessingPipeline.class);
 
     /** Order of execution; the same order as in the specification. */
-    private static final List<DocumentProcessingStep.Step> ORDER = List.of(
+    /** The stages that actually run, in order. Visible so that the coverage test can compare. */
+    public static final List<DocumentProcessingStep.Step> ORDER = List.of(
             DocumentProcessingStep.Step.SECURITY_SCAN,
             DocumentProcessingStep.Step.HASH,
             DocumentProcessingStep.Step.DUPLICATE_CHECK,

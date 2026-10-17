@@ -26,7 +26,19 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "document_processing_steps")
 public class DocumentProcessingStep {
 
-    /** The pipeline of spec §9.1, in execution order. */
+    /**
+     * The pipeline of spec §9.1, in execution order.
+     *
+     * <p><strong>Not every value here runs.</strong> Five of them — {@link #NOT_IMPLEMENTED} — are declared
+     * because the specification names them, and the enum has to be able to store them if they ever arrive,
+     * but nothing executes them. The list used to be invisible: the enum said fifteen stages, the pipeline ran
+     * ten, and no test compared the two.</p>
+     *
+     * <p>Keeping them explicit is the honest option: deleting them would quietly change the domain to match
+     * the code, and the specification would still ask for them. {@code DocumentProcessingStepCoverageTest}
+     * fails if an enum value is neither executed nor listed below, so the next person cannot add a stage and
+     * forget to wire it.</p>
+     */
     public enum Step {
         SECURITY_SCAN,
         HASH,
@@ -44,6 +56,19 @@ public class DocumentProcessingStep {
         PERSIST,
         INDEX
     }
+
+    /**
+     * The stages the specification names and the product does not run.
+     *
+     * <p>They are not silently missing: this list is checked against the enum by a test, so the gap is a
+     * recorded decision rather than an oversight.</p>
+     */
+    public static final java.util.Set<Step> NOT_IMPLEMENTED = java.util.Set.of(
+            Step.CONTRADICTION_CHECK,
+            Step.ACTION_DERIVATION,
+            Step.RISK_ASSESSMENT,
+            Step.PERSIST,
+            Step.INDEX);
 
     public enum Status {
         PENDING,
