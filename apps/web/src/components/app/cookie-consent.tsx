@@ -45,7 +45,11 @@ export function CookieConsent() {
     <section
       aria-label={t('label')}
       style={{
-        position: 'fixed', left: 12, right: 12, bottom: 12, zIndex: 10001, maxWidth: 720, margin: '0 auto', padding: '1rem',
+        // Below --z-dialog on purpose. The banner used to sit at a hardcoded 10001, above every dialog, and
+        // it covered the action buttons of modal forms: the browser test could not click "Erstellen" in the
+        // task dialog because the centre of the button resolved to a paragraph of the cookie notice. A
+        // persistent notice must never be able to block a modal, so it uses the drawer layer of the scale.
+        position: 'fixed', left: 12, right: 12, bottom: 12, zIndex: 'var(--z-drawer)', maxWidth: 720, margin: '0 auto', padding: '1rem',
         background: 'var(--color-surface, #fff)', color: 'var(--color-text, #111)', border: '1px solid var(--color-border, #ccc)',
         borderRadius: 12, boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
       }}
