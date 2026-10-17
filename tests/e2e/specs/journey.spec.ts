@@ -93,10 +93,13 @@ test('dashboard cards: a card link only covers its own card (hover does not flic
   // And a point inside the first card does hit that card's own link.
   const inside = await page.evaluate(() => {
     const link = document.querySelector('a[class*="cardLink"]');
-    const card = link?.closest('li');
+    // The card is the positioning context of the stretched overlay, and the list item around it is taller
+    // than the card because the grid row is sized by the tallest one. Measuring the card, at a point on its
+    // own padding rather than over its text, is what "the card is one click target" actually means.
+    const card = link?.closest('[class*="cardInteractive"]');
     if (!link || !card) return false;
     const box = card.getBoundingClientRect();
-    const element = document.elementFromPoint(box.left + box.width / 2, box.top + box.height - 6);
+    const element = document.elementFromPoint(box.left + 8, box.top + box.height / 2);
     return element === link || link.contains(element);
   });
   expect(inside).toBe(true);
