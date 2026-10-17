@@ -68,6 +68,7 @@ public class DocumentProcessingPipeline {
     private final AuditService auditService;
     private final OutboxWriter outbox;
     private final de.buerokratiecopilot.documents.review.ReviewService reviews;
+    private final de.buerokratiecopilot.documents.dates.DetectedDateService detectedDates;
     private final Map<DocumentProcessingStep.Step, ProcessingStepHandler> handlers =
             new EnumMap<>(DocumentProcessingStep.Step.class);
     /** One transaction per unit of work; see {@link #advance}. */
@@ -78,7 +79,8 @@ public class DocumentProcessingPipeline {
                                       AuditService auditService, OutboxWriter outbox,
                                       de.buerokratiecopilot.documents.review.ReviewService reviews,
                                       List<ProcessingStepHandler> stepHandlers,
-                                      org.springframework.transaction.PlatformTransactionManager transactionManager) {
+                                      org.springframework.transaction.PlatformTransactionManager transactionManager,
+                                      de.buerokratiecopilot.documents.dates.DetectedDateService detectedDates) {
         this.documents = documents;
         this.versions = versions;
         this.blobs = blobs;
@@ -86,6 +88,7 @@ public class DocumentProcessingPipeline {
         this.auditService = auditService;
         this.outbox = outbox;
         this.reviews = reviews;
+        this.detectedDates = detectedDates;
         this.tx = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
         // REQUIRES_NEW, not REQUIRED: the pipeline is usually started from inside the outbox delivery, which
         // runs in a transaction of its own. Joining it would put every step back into one transaction, and a
@@ -151,6 +154,26 @@ public class DocumentProcessingPipeline {
                         executed);
             }
         }
+
+        // The dates in this document that name an obligation become calendar entries here, without anybody
+        // clicking anything. Before this, a letter saying "Zahlung bis zum 31.10.2026" had its date read and
+        // discarded, because deadlines were only ever computed from a register of rules that ships empty.
+        tx.execute(status -> {
+            Document finished = documents.findById(documentId).orElse(null);
+            if (finished != null && finished.getCreatedBy() != null) {
+                try {
+                    detectedDates.deriveAppointments(finished.getTenantId(), documentId,
+                            finished.getCreatedBy());
+                }
+                catch (RuntimeException ex) {
+                    // A calendar entry is a convenience; it must never turn a successfully processed document
+                    // into a failed one.
+                    log.warn("Termine aus Dokument {} konnten nicht abgeleitet werden: {}",
+                            documentId, ex.getMessage());
+                }
+            }
+            return null;
+        });
 
         return tx.execute(status -> {
             Document document = documents.findById(documentId).orElseThrow();

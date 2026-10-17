@@ -361,6 +361,8 @@ export interface ApiResources {
     resort: () => Promise<Readonly<Record<'finished' | 'sendersFound' | 'checked' | 'unchanged' | 'moved' | 'sentToReview' | 'keptByPerson' | 'withoutText' | 'failed', number>>>;
     /** Reads the pages with AI vision (handwriting); the values come back as proposals. */
     aiRead: (id: string) => Promise<{ readonly status: string; readonly found: Readonly<Record<string, string>>; readonly summary: string | null }>;
+    /** Dates found in the document, each with the page and the sentence it appears in. */
+    detectedDates: (id: string, signal?: AbortSignal) => Promise<{ readonly dates: readonly DetectedDate[]; readonly count: number; readonly note: string }>;
     /** The stored explanation or translation; null when none was made yet. */
     explanation: (id: string, language: string, signal?: AbortSignal) => Promise<StoredExplanation | null>;
     explain: (id: string, language: string) => Promise<ExplanationOutcome>;
@@ -971,6 +973,11 @@ export function createResources(client: ApiClient): ApiResources {
           `/documents/${id}/ai-read`,
           undefined,
           { idempotencyKey: true },
+        ),
+      detectedDates: (id, signal) =>
+        client.get<{ dates: readonly DetectedDate[]; count: number; note: string }>(
+          `/documents/${id}/detected-dates`,
+          withSignal(signal),
         ),
       resort: () => client.post('/documents/resort', undefined, { idempotencyKey: true }),
       setType: async (id, typeCode) => {
