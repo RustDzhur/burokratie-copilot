@@ -69,7 +69,18 @@ public class CalendarEventService {
                 from calendar_events e left join cases c on c.id = e.case_id
                 where e.tenant_id = ? and e.deleted_at is null
                   and e.starts_on <= ? and coalesce(e.ends_on, e.starts_on) >= ?
-                """, tenantId, to, from));
+                  -- The same visibility the task deadlines and the case due dates already have. This read
+                  -- had none, so every personal entry and every entry derived from a document was shown to
+                  -- everybody in the account and landed in their calendar feed. An entry with no owner and
+                  -- no case stays visible: it predates the rule, and hiding it would lose a date silently.
+                  and (?::boolean
+                       or e.created_by = ?
+                       or (e.case_id is not null and exists (
+                             select 1 from case_participants p
+                              where p.case_id = e.case_id and p.user_id = ? and p.revoked_at is null
+                                and (p.expires_at is null or p.expires_at > now())))
+                       or (e.created_by is null and e.case_id is null))
+                """, tenantId, to, from, seeAll, userId, userId));
 
         events.addAll(jdbc.queryForList("""
                 select 'task-deadline:' || d.id as id,
