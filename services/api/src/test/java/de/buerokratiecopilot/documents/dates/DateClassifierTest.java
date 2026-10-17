@@ -112,6 +112,42 @@ class DateClassifierTest {
     }
 
     @Nested
+    @DisplayName("the nearest marker decides - the defect the audit found")
+    class ProximityDecides {
+
+        @Test
+        @DisplayName("a Mahnung's own date is a letter date, not a payment deadline")
+        void aMahnungDoesNotTurnItsDateIntoADeadline() {
+            // Before the fix this returned PAYMENT_DEADLINE with 0.9, because the word "Mahnung" matched the
+            // payment rule first even though "Datum:" stood right beside the date and "Mahnung" ninety
+            // characters away - and the letter's own date went into the calendar as a deadline.
+            DateClassifier.Classified classified = classify(
+                    "Mahnung. Sehr geehrte Damen und Herren, wir erinnern an Ihre Zahlung. "
+                            + "Datum: 12.10.2026. Aktenzeichen 4711.");
+            assertThat(classified.kind()).isEqualTo(DateClassifier.Kind.DOCUMENT_DATE);
+            assertThat(DateClassifier.createAutomatically(classified)).isFalse();
+        }
+
+        @Test
+        @DisplayName("two dates in one sentence get their own markers")
+        void twoDatesGetTheirOwnMarkers() {
+            // Before the fix both dates came out as PAYMENT_DEADLINE 0.9, because the payment rule was checked
+            // before the appointment rule and the window held both.
+            String text = "Ihr Termin am 12.11.2026, die Zahlung bis 30.11.2026.";
+            int first = text.indexOf("12.11.2026");
+            int second = text.indexOf("30.11.2026");
+
+            DateClassifier.Classified appointment =
+                    DateClassifier.classify(text, first, "12.11.2026".length());
+            DateClassifier.Classified payment =
+                    DateClassifier.classify(text, second, "30.11.2026".length());
+
+            assertThat(appointment.kind()).isEqualTo(DateClassifier.Kind.APPOINTMENT);
+            assertThat(payment.kind()).isEqualTo(DateClassifier.Kind.PAYMENT_DEADLINE);
+        }
+    }
+
+    @Nested
     @DisplayName("the wording nearest the date decides")
     class NearestWins {
 

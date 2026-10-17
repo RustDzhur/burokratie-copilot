@@ -182,6 +182,17 @@ public class DetectedDateService {
             catch (java.time.format.DateTimeParseException ex) {
                 continue;
             }
+            // A date in the past is not a reminder. An old invoice reprocessed today would otherwise put its
+            // long-passed payment date back into the calendar, and the archive rule already promises that an
+            // archived document does not reappear there.
+            if (day.isBefore(java.time.LocalDate.now())) {
+                continue;
+            }
+            // The orchestrator may already have made a deadline for this document on that day. A second entry
+            // would show the same obligation twice and teach people to ignore the calendar.
+            if (deadlineAlreadyCovers(documentId, date.isoDate())) {
+                continue;
+            }
             try {
                 calendar.create(tenantId,
                         new CalendarEventService.Draft(title(date), day, null,
@@ -216,6 +227,21 @@ public class DetectedDateService {
         Integer count = jdbc.queryForObject("""
                 select count(*) from calendar_events
                  where source_document_id = ? and starts_on = ?::date and deleted_at is null
+                """, Integer.class, documentId, isoDate);
+        return count != null && count > 0;
+    }
+
+    /**
+     * Whether the orchestration already derived a deadline for this document on that day.
+     *
+     * <p>The document pipeline creates task deadlines from the extracted data, and this service creates
+     * calendar entries from the same dates. Both are right on their own, but together they show one obligation
+     * twice — and a calendar that repeats itself is a calendar people stop reading.</p>
+     */
+    private boolean deadlineAlreadyCovers(UUID documentId, String isoDate) {
+        Integer count = jdbc.queryForObject("""
+                select count(*) from task_deadlines
+                 where source_document_id = ? and coalesce(due_date, due_at::date) = ?::date
                 """, Integer.class, documentId, isoDate);
         return count != null && count > 0;
     }

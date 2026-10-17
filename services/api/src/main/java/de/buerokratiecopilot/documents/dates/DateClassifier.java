@@ -122,18 +122,39 @@ public final class DateClassifier {
         int to = Math.min(text.length(), dateAt + dateLength + WINDOW);
         String window = text.substring(from, to).toLowerCase(Locale.GERMAN);
 
+        // The marker NEAREST the date decides, not the first rule in the list that matches.
+        //
+        // Checking in list order was a real defect: "Mahnung / Datum: 12.10.2026" put the letter's own date in
+        // the calendar as a payment deadline, because "Mahnung" matched the payment rule first even though
+        // "Datum:" stood right beside the date and "Mahnung" stood ninety characters away. The same defect
+        // marked both dates of "Termin am 12.11.2026, Zahlung bis 30.11.2026" as payment deadlines.
+        //
+        // Distance alone is the right measure: in a German sentence the words that describe a date are the
+        // ones next to it, and a marker further away belongs to another clause or another sentence.
+        Rule bestRule = null;
+        String bestEvidence = null;
+        int bestDistance = Integer.MAX_VALUE;
+        int dateStart = dateAt - from;
         for (Rule rule : RULES) {
             var matcher = rule.pattern().matcher(window);
-            if (matcher.find()) {
-                String evidence = matcher.group().trim();
-                // Confidence is high when the marker stands right beside the date, and lower when it is at
-                // the edge of the window - the caller uses this to decide whether to act on it.
-                int distance = Math.abs(matcher.start() - (dateAt - from));
-                double confidence = distance <= 30 ? 0.9 : distance <= 60 ? 0.7 : 0.5;
-                return new Classified(rule.kind(), confidence, evidence);
+            while (matcher.find()) {
+                int distance = Math.abs(matcher.start() - dateStart);
+                // Ties go to the earlier rule only when the distances are equal, which keeps the outcome
+                // stable instead of depending on which pattern happened to be compiled first.
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    bestRule = rule;
+                    bestEvidence = matcher.group();
+                }
             }
         }
-        return new Classified(Kind.OTHER, 0, null);
+        if (bestRule == null) {
+            return new Classified(Kind.OTHER, 0, null);
+        }
+        // Confidence is high when the marker stands right beside the date, and lower when it is at the edge
+        // of the window - the caller uses this to decide whether to act on it.
+        double confidence = bestDistance <= 30 ? 0.9 : bestDistance <= 60 ? 0.7 : 0.5;
+        return new Classified(bestRule.kind(), confidence, bestEvidence == null ? null : bestEvidence.trim());
     }
 
     /**
