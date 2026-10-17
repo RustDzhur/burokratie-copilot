@@ -153,18 +153,36 @@ public class ClassificationService {
     private static final double CLOSE_CALL_FLOOR = 0.5;
 
     /**
-     * A reason to ask a person when the best and the second-best type are nearly equal and belong to different areas (a
-     * medical report against a contract): the higher number is then luck, not evidence, and an automatic filing would be a coin
-     * toss. Two types of the same area are not a problem for the drawer the document lands in.
+     * A reason to ask a person when the best and the second-best type are nearly equal.
+     *
+     * <p><strong>Different areas are not the only dangerous case.</strong> The comment here used to say two
+     * types of the same area are harmless because the document lands in the same drawer. That is true of the
+     * drawer and false of everything that follows: the task, the checklist and the deadline come from
+     * {@code document_type_scenarios} keyed by the <em>type</em>, not by the category. Filing a payment
+     * reminder as "Rechnung" puts it in the right drawer and derives the wrong work.</p>
+     *
+     * <p>Rechnung, Mahnung, Zahlungserinnerung and Inkasso are all {@code FINANCE} and their wordings overlap
+     * heavily — the audit found that a reminder quoting "Rechnungsnummer" and "Zahlbar bis" can score about
+     * 0.99 as invoice and 0.90 as dunning, clear the margin, and be accepted without anybody looking. So a
+     * close call between two different types asks a person even when the category matches.</p>
      */
     private String closeCall(DocumentType best, double confidence, DocumentClassifier.Classification.Alternative alternative) {
         if (alternative == null || alternative.score() < CLOSE_CALL_FLOOR || confidence - alternative.score() >= CLOSE_CALL_MARGIN) {
             return null;
         }
         return types.findById(alternative.typeId())
-                .filter(other -> !other.getCategory().equals(best.getCategory()))
-                .map(other -> "Zwei Typen aus verschiedenen Bereichen passen fast gleich gut: '%s' und '%s'"
-                        .formatted(best.nameIn("de"), other.nameIn("de")))
+                .map(other -> {
+                    if (!other.getCategory().equals(best.getCategory())) {
+                        return "Zwei Typen aus verschiedenen Bereichen passen fast gleich gut: '%s' und '%s'"
+                                .formatted(best.nameIn("de"), other.nameIn("de"));
+                    }
+                    if (other.getCode().equals(best.getCode())) {
+                        return null;
+                    }
+                    // Same drawer, different consequence: the task is derived from the type.
+                    return "Zwei Typen aus demselben Bereich passen fast gleich gut: '%s' und '%s' — die Aufgabe ergibt sich aus dem Typ, nicht aus dem Bereich"
+                            .formatted(best.nameIn("de"), other.nameIn("de"));
+                })
                 .orElse(null);
     }
 
