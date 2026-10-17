@@ -225,10 +225,13 @@ public class WorkflowEngine {
                 return new StepResult(step.key(), step.type(), "WAITING", step.key(),
                         "Wartet auf eine Freigabe durch eine Person");
             }
+            case "TASK_CREATE" -> {
+                return taskCreate(tenantId, runId, step);
+            }
             default -> {
-                // ACTION, NOTIFICATION, TASK_CREATE and the rest are carried out by whoever owns them;
-                // the engine records that the step was reached and moves on. Pretending to have done
-                // something here would be worse than saying it was reached.
+                // ACTION, NOTIFICATION and the rest are carried out by whoever owns them; the engine
+                // records that the step was reached and moves on. Pretending to have done something here
+                // would be worse than saying it was reached.
                 String next = step.next();
                 moveTo(tenantId, runId, next);
                 journal(tenantId, runId, "STEP_REACHED", step.key(),
@@ -237,6 +240,61 @@ public class WorkflowEngine {
                         "Schritt erreicht");
             }
         }
+    }
+
+    /**
+     * A step that creates work.
+     *
+     * <p><strong>What changed.</strong> The engine used to record {@code TASK_CREATE} as "step reached" and
+     * move on. A process could be drawn, checked, published and run, and create no task at all — while the
+     * editor and the manual both said it would. That is the difference between a drawing tool and an
+     * automation, and it is the one gap a person would notice first.</p>
+     *
+     * <p>The step carries its own title ({@code config.title}) and, optionally, whom to assign
+     * ({@code config.assigneeUserId}). The task is linked to the case of the run, so the work appears where
+     * the case is, and it is marked as coming from a process rather than from a person.</p>
+     */
+    private StepResult taskCreate(UUID tenantId, UUID runId, Step step) {
+        String title = configString(step, "title");
+        if (title == null || title.isBlank()) {
+            // The definition is the better name when the step has none, and the step key is the last resort:
+            // a task called "task1" tells nobody anything.
+            String definition = jdbc.query("""
+                    select w.name from workflow_runs r join workflow_definitions w on w.id = r.definition_id
+                     where r.id = ?
+                    """, rs -> rs.next() ? rs.getString(1) : null, runId);
+            title = (definition == null ? "Prozess" : definition) + ": " + step.key();
+        }
+        Object caseIdRaw = jdbc.query("""
+                select case_id from workflow_runs where id = ?
+                """, rs -> rs.next() ? rs.getObject(1) : null, runId);
+        UUID caseId = caseIdRaw == null ? null : (UUID) caseIdRaw;
+
+        UUID taskId = jdbc.queryForObject("""
+                insert into tasks (id, tenant_id, title, status, priority, priority_source, case_id,
+                                   source, created_by_user_id)
+                values (gen_random_uuid(), ?, ?, 'NEW', 'NORMAL', 'RULE', ?, 'WORKFLOW', null)
+                returning id
+                """, UUID.class, tenantId, title, caseId);
+
+        String assignee = configString(step, "assigneeUserId");
+        if (assignee != null && !assignee.isBlank()) {
+            jdbc.update("""
+                    insert into task_assignees (id, task_id, tenant_id, user_id, role, assigned_at)
+                    values (gen_random_uuid(), ?, ?, cast(? as uuid), 'ASSIGNEE', now())
+                    """, taskId, tenantId, assignee);
+        }
+
+        String next = step.next();
+        moveTo(tenantId, runId, next);
+        journal(tenantId, runId, "TASK_CREATED", step.key(), "Aufgabe angelegt: " + title);
+        return new StepResult(step.key(), step.type(), "SUCCEEDED", next, "Aufgabe angelegt: " + title);
+    }
+
+    /** A configuration value of a step, or null when the step does not carry it. */
+    private static String configString(Step step, String key) {
+        Object value = step.config() == null ? null : step.config().get(key);
+        return value == null ? null : String.valueOf(value);
     }
 
     private StepResult wait(UUID tenantId, UUID runId, Step step) {
