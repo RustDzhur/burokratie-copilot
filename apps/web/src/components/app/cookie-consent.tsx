@@ -41,7 +41,8 @@ export function CookieConsent() {
 
   return (
     <section
-      role="region"
+      // A section already has the implicit role of region; naming it again is redundant, and eslint's
+      // jsx-a11y rule is right to say so. The aria-label is what makes the region identifiable.
       aria-label={t('label')}
       style={{
         position: 'fixed', left: 12, right: 12, bottom: 12, zIndex: 10001, maxWidth: 720, margin: '0 auto', padding: '1rem',
