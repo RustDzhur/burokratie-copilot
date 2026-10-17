@@ -43,15 +43,43 @@ public class NotificationService {
     private final NotificationPreferenceRepository preferences;
     private final NotificationDeliveryRepository deliveries;
     private final List<NotificationChannelAdapter> adapters;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     public NotificationService(NotificationRepository notifications,
                                NotificationPreferenceRepository preferences,
                                NotificationDeliveryRepository deliveries,
-                               List<NotificationChannelAdapter> adapters) {
+                               List<NotificationChannelAdapter> adapters,
+                               org.springframework.jdbc.core.JdbcTemplate jdbc) {
         this.notifications = notifications;
         this.preferences = preferences;
         this.deliveries = deliveries;
         this.adapters = adapters;
+        this.jdbc = jdbc;
+    }
+
+    /**
+     * The address to deliver to, looking the person up when the caller did not name one.
+     *
+     * <p><strong>Why here and not at each call site.</strong> The orchestrator and the owner notifier both
+     * passed {@code null}, and the email adapter throws on a null address — so every email notification ended
+     * as a delivery exception while in-app delivery worked, and the product looked as if email had been
+     * switched off. The address was always available: it is the recipient's e-mail in the account. Resolving
+     * it in one place fixes every caller, including the ones written later.</p>
+     *
+     * <p>An address the caller does name wins: a caller that already knows where the message goes is not
+     * overruled.</p>
+     */
+    private String addressFor(Request request) {
+        if (request.recipientAddress() != null && !request.recipientAddress().isBlank()) {
+            return request.recipientAddress();
+        }
+        if (request.userId() == null) {
+            return null;
+        }
+        // users carries no tenant_id: the row is identified by its id, and the notification already carries
+        // the tenant this delivery belongs to.
+        return jdbc.query("select email from users where id = ? and deleted_at is null",
+                rs -> rs.next() ? rs.getString(1) : null, request.userId());
     }
 
     /** What to notify about. */
@@ -150,7 +178,9 @@ public class NotificationService {
 
         Payload payload = payloadFor(notification, adapter.channel());
         try {
-            adapter.send(request.recipientAddress(), payload);
+            // The address is resolved here, not passed through: a caller that does not name one still gets
+            // the mail, and a null address no longer turns every email into a delivery exception.
+            adapter.send(addressFor(request), payload);
             delivery.markSent(null);
         }
         catch (RuntimeException ex) {

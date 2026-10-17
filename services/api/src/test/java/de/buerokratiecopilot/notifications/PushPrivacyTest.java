@@ -36,7 +36,7 @@ class PushPrivacyTest {
     @Test
     @DisplayName("a confidential notification reaches push and e-mail only as neutral wording")
     void confidentialNeverCarriesDetailsOutside() {
-        NotificationService service = new NotificationService(null, null, null, List.of());
+        NotificationService service = new NotificationService(null, null, null, List.of(), null);
         Notification confidential = notification(true);
 
         Payload push = service.payloadFor(confidential, Channel.PUSH);
@@ -65,7 +65,7 @@ class PushPrivacyTest {
     @Test
     @DisplayName("inside the application the details are shown, because the user has authenticated")
     void inAppKeepsTheDetails() {
-        NotificationService service = new NotificationService(null, null, null, List.of());
+        NotificationService service = new NotificationService(null, null, null, List.of(), null);
 
         Payload inApp = service.payloadFor(notification(true), Channel.IN_APP);
 
@@ -76,7 +76,7 @@ class PushPrivacyTest {
     @Test
     @DisplayName("a notification that is not confidential keeps its wording on every channel")
     void unrestrictedNotificationsKeepTheirWording() {
-        NotificationService service = new NotificationService(null, null, null, List.of());
+        NotificationService service = new NotificationService(null, null, null, List.of(), null);
         Notification open = notification(false);
 
         for (Channel channel : Channel.values()) {
