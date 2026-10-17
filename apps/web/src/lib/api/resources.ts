@@ -182,6 +182,29 @@ import type {
   ExplanationOutcome,
 } from './types';
 
+/**
+ * A date found in a document, with the sentence it came from.
+ *
+ * <p>The sentence is not decoration: it is what makes such a date checkable against the letter. A date
+ * without its source cannot be verified, and a wrong date in a calendar is worse than an empty one.</p>
+ */
+export interface DetectedDate {
+  /** The date as it is written in the document, e.g. 31.10.2026. */
+  readonly text: string;
+  /** The same date normalised to JJJJ-MM-TT, or null when it could not be read unambiguously. */
+  readonly date: string | null;
+  readonly page: number | null;
+  /** The sentence around it, so that the offer can be checked. */
+  readonly snippet: string | null;
+  /** FIELD when it came from an extracted field, PAGE_TEXT when it was read from the page. */
+  readonly origin: string;
+  /** What the wording says it is: PAYMENT_DEADLINE, APPOINTMENT, DOCUMENT_DATE, OTHER and so on. */
+  readonly kind: string;
+  readonly confidence: number;
+  /** The words that decided the kind. */
+  readonly evidence: string | null;
+}
+
 export interface LoginPayload {
   readonly email: string;
   readonly password: string;
