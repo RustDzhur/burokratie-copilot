@@ -42,10 +42,13 @@ public class WorkflowEngine {
 
     private final JdbcTemplate jdbc;
     private final WorkflowService workflows;
+    private final de.buerokratiecopilot.notifications.NotificationService notifications;
 
-    public WorkflowEngine(JdbcTemplate jdbc, WorkflowService workflows) {
+    public WorkflowEngine(JdbcTemplate jdbc, WorkflowService workflows,
+                          de.buerokratiecopilot.notifications.NotificationService notifications) {
         this.jdbc = jdbc;
         this.workflows = workflows;
+        this.notifications = notifications;
     }
 
     /** A run of a process. */
@@ -228,6 +231,9 @@ public class WorkflowEngine {
             case "TASK_CREATE" -> {
                 return taskCreate(tenantId, runId, step);
             }
+            case "NOTIFICATION" -> {
+                return notifyStep(tenantId, runId, step);
+            }
             default -> {
                 // ACTION, NOTIFICATION and the rest are carried out by whoever owns them; the engine
                 // records that the step was reached and moves on. Pretending to have done something here
@@ -289,6 +295,68 @@ public class WorkflowEngine {
         moveTo(tenantId, runId, next);
         journal(tenantId, runId, "TASK_CREATED", step.key(), "Aufgabe angelegt: " + title);
         return new StepResult(step.key(), step.type(), "SUCCEEDED", next, "Aufgabe angelegt: " + title);
+    }
+
+    /**
+     * A step that tells somebody something.
+     *
+     * <p>Like {@code TASK_CREATE}, this used to be journalled as "step reached" and nothing was sent. A process
+     * whose whole point is "when this happens, tell the person responsible" did nothing of the kind.</p>
+     *
+     * <p>Who is told: the step's {@code config.notifyUserId} when it names somebody, otherwise everybody who
+     * takes part in the case of the run. With neither, the step says so in its result instead of silently
+     * succeeding, because a notification nobody receives is not a notification.</p>
+     */
+    private StepResult notifyStep(UUID tenantId, UUID runId, Step step) {
+        String message = configString(step, "message");
+        if (message == null || message.isBlank()) {
+            message = "Der Prozess hat einen Schritt erreicht, der Sie betrifft.";
+        }
+        Object explicit = configString(step, "notifyUserId");
+        java.util.List<UUID> recipients = new java.util.ArrayList<>();
+        if (explicit != null && !String.valueOf(explicit).isBlank()) {
+            recipients.add(UUID.fromString(String.valueOf(explicit)));
+        }
+        else {
+            // No named person: everybody on the case, which is who the message is about.
+            recipients.addAll(jdbc.query("""
+                    select p.user_id from case_participants p
+                      join workflow_runs r on r.case_id = p.case_id
+                     where r.id = ? and p.revoked_at is null
+                       and (p.expires_at is null or p.expires_at > now())
+                    """, (rs, i) -> (UUID) rs.getObject(1), runId));
+        }
+
+        String next = step.next();
+        if (recipients.isEmpty()) {
+            moveTo(tenantId, runId, next);
+            journal(tenantId, runId, "NOTIFICATION_SKIPPED", step.key(),
+                    "Niemand zu benachrichtigen: kein Empfänger am Schritt und kein Fall am Lauf");
+            return new StepResult(step.key(), step.type(), "SUCCEEDED", next,
+                    "Niemand zu benachrichtigen");
+        }
+
+        Object caseIdRaw = jdbc.query("select case_id from workflow_runs where id = ?",
+                rs -> rs.next() ? rs.getObject(1) : null, runId);
+        for (UUID recipient : recipients) {
+            notifications.notify(new de.buerokratiecopilot.notifications.NotificationService.Request(
+                    tenantId, recipient, null, "workflow.notification",
+                    de.buerokratiecopilot.notifications.domain.Notification.Category.AUTOMATION_RESULT,
+                    de.buerokratiecopilot.notifications.domain.Notification.Severity.NOTICE,
+                    "workflow.notification", "workflow.notification.body",
+                    java.util.Map.of("message", message),
+                    "workflow_run", runId,
+                    caseIdRaw == null ? null : "/cases/" + caseIdRaw,
+                    false,
+                    // One message per run and step: the engine may advance the same step again after a retry.
+                    "workflow-notify-" + runId + "-" + step.key()));
+        }
+
+        moveTo(tenantId, runId, next);
+        journal(tenantId, runId, "NOTIFICATION_SENT", step.key(),
+                "Benachrichtigt: " + recipients.size());
+        return new StepResult(step.key(), step.type(), "SUCCEEDED", next,
+                "Benachrichtigt: " + recipients.size());
     }
 
     /** A configuration value of a step, or null when the step does not carry it. */

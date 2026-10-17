@@ -144,6 +144,39 @@ class WorkflowTaskCreateIT {
     }
 
     @Test
+    @DisplayName("a NOTIFICATION step tells the person the step names")
+    void aNotificationStepTellsThePerson() throws Exception {
+        Tenant owner = register();
+        Map<String, Object> definition = Map.of("entryStep", "start", "steps", List.of(
+                Map.of("key", "start", "type", "ACTION", "config", Map.of("next", "tell")),
+                Map.of("key", "tell", "type", "NOTIFICATION",
+                        "config", Map.of("next", "end", "message", "Bitte prüfen Sie den Vorgang",
+                                "notifyUserId", owner.userId().toString())),
+                Map.of("key", "end", "type", "TERMINATE", "config", Map.of())));
+        UUID definitionId = publish(owner, "wf-notify-" + UUID.randomUUID().toString().substring(0, 6),
+                definition);
+
+        WorkflowEngine.Run run = RequestContext.runAs(owner.tenantId(),
+                () -> engine.start(owner.tenantId(), definitionId, "MANUAL", Map.of(), null, null, null,
+                        null, owner.userId()));
+        for (int i = 0; i < 5; i++) {
+            try {
+                RequestContext.runAs(owner.tenantId(), () -> engine.advance(owner.tenantId(), run.runId()));
+            }
+            catch (RuntimeException done) {
+                break;
+            }
+        }
+
+        // Before the change this step was journalled as reached and nothing was sent.
+        Integer sent = jdbc.queryForObject("""
+                select count(*) from notifications
+                 where tenant_id = ? and notification_type = 'workflow.notification'
+                """, Integer.class, owner.tenantId());
+        assertThat(sent).as("the process promised to tell somebody and must have").isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("a step without a title still creates a task that says what it is")
     void aStepWithoutATitleNamesTheProcess() throws Exception {
         Tenant owner = register();
