@@ -43,9 +43,15 @@ import de.buerokratiecopilot.shared.context.RequestContext;
 public class InvoiceController {
 
     private final InvoiceService invoices;
+    private final de.buerokratiecopilot.invoices.outgoing.InvoicePdfRenderer renderer;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
-    public InvoiceController(InvoiceService invoices) {
+    public InvoiceController(InvoiceService invoices,
+                             de.buerokratiecopilot.invoices.outgoing.InvoicePdfRenderer renderer,
+                             org.springframework.jdbc.core.JdbcTemplate jdbc) {
         this.invoices = invoices;
+        this.renderer = renderer;
+        this.jdbc = jdbc;
     }
 
     public record LineBody(Integer lineNumber, String description, BigDecimal quantity, String unit,
@@ -167,6 +173,45 @@ public class InvoiceController {
     public ResponseEntity<InvoiceResponse> detail(@PathVariable UUID id) {
         Invoice invoice = invoices.requireInvoice(id, RequestContext.tenantId().orElseThrow());
         return ResponseEntity.ok(InvoiceResponse.from(invoice, invoices.linesOf(id)));
+    }
+
+    /**
+     * The invoice as a PDF.
+     *
+     * <p><strong>Why this endpoint exists.</strong> {@code InvoicePdfRenderer} was written, tested and called
+     * by nothing. An invoice could be created, validated and approved, and there was no way to get it out of
+     * the product as a document — which is the one thing a customer does with an invoice.</p>
+     *
+     * <p>The renderer prints what the record says and computes nothing; this route only feeds it, so a wrong
+     * amount on the PDF is a wrong amount in the invoice, not a second place to look.</p>
+     */
+    @GetMapping("/{id}/pdf")
+    @PreAuthorize("hasAuthority('finance.view')")
+    @Operation(summary = "The invoice as a PDF")
+    public org.springframework.http.ResponseEntity<byte[]> pdf(@PathVariable UUID id) throws java.io.IOException {
+        UUID tenantId = RequestContext.tenantId().orElseThrow();
+        var invoice = invoices.requireInvoice(id, tenantId);
+        var lines = invoices.linesOf(id).stream()
+                .map(line -> new de.buerokratiecopilot.invoices.outgoing.InvoicePdfRenderer.RenderLine(
+                        line.getLineNumber(),
+                        line.getDescription(), line.getQuantity(), line.getUnit(),
+                        line.getUnitPrice(), line.getNetAmount(), line.getTaxRatePercent()))
+                .toList();
+        String seller = jdbc.query("select name from tenants where id = ?",
+                rs -> rs.next() ? rs.getString(1) : null, tenantId);
+        String buyer = invoice.getContactId() == null ? null : jdbc.query("""
+                select display_name from contacts where id = ? and tenant_id = ?
+                """, rs -> rs.next() ? rs.getString(1) : null, invoice.getContactId(), tenantId);
+
+        byte[] pdf = renderer.render(new de.buerokratiecopilot.invoices.outgoing.InvoicePdfRenderer.Document(
+                invoice, lines, seller, buyer));
+        String filename = (invoice.getInvoiceNumber() == null ? "Rechnung" : invoice.getInvoiceNumber())
+                .replaceAll("[^A-Za-z0-9._-]", "_") + ".pdf";
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + filename + "\"")
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
 
     /** Re-runs the validation, for the case where a person corrected the data. */
