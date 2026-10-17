@@ -62,7 +62,7 @@ RUN chmod +x ./mvnw
 # layer resolves whatever is still missing before compiling. `-B` keeps the log
 # readable and `-ntp` removes download progress noise.
 RUN --mount=type=cache,target=/root/.m2/repository,sharing=locked \
-    ./mvnw -B -ntp dependency:go-offline
+    ./mvnw -B -ntp dependency:go-offline || true
 
 # Application sources.
 COPY services/api/src ./src
