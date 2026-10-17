@@ -49,17 +49,20 @@ public class DocumentController {
     private final de.buerokratiecopilot.documents.DocumentTypeRepository documentTypes;
     private final de.buerokratiecopilot.documents.classification.DocumentResortService resorter;
     private final de.buerokratiecopilot.documents.UploaderNames uploaders;
+    private final de.buerokratiecopilot.documents.integrity.DocumentIntegrityService integrity;
 
     public DocumentController(DocumentService documentService,
                               de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline,
                               de.buerokratiecopilot.documents.DocumentTypeRepository documentTypes,
                               de.buerokratiecopilot.documents.classification.DocumentResortService resorter,
-                              de.buerokratiecopilot.documents.UploaderNames uploaders) {
+                              de.buerokratiecopilot.documents.UploaderNames uploaders,
+                              de.buerokratiecopilot.documents.integrity.DocumentIntegrityService integrity) {
         this.uploaders = uploaders;
         this.resorter = resorter;
         this.documentService = documentService;
         this.pipeline = pipeline;
         this.documentTypes = documentTypes;
+        this.integrity = integrity;
     }
 
     /** Summary of a document as returned by the API. */
@@ -201,6 +204,27 @@ public class DocumentController {
     @Operation(summary = "How many documents lie in each category (UNSORTED: no confirmed type yet)")
     public ResponseEntity<java.util.Map<String, Long>> categories() {
         return ResponseEntity.ok(documentService.countByCategory());
+    }
+
+    /**
+     * Whether the stored file still matches the hash it was recorded with.
+     *
+     * <p>§22 asks for an archive whose integrity can be shown. The hashes were written and never compared with
+     * the bytes, so the answer was a claim rather than a check.</p>
+     */
+    @GetMapping("/{id}/integrity")
+    @PreAuthorize("hasAnyAuthority('documents.view','documents.review')")
+    @Operation(summary = "Recomputes the hash of the stored file and compares it with the recorded one")
+    public java.util.Map<String, Object> integrity(@PathVariable UUID id) {
+        var result = integrity.verify(de.buerokratiecopilot.shared.context.RequestContext.tenantId().orElseThrow(), id);
+        java.util.Map<String, Object> answer = new java.util.LinkedHashMap<>();
+        answer.put("documentId", result.documentId().toString());
+        answer.put("version", result.version());
+        answer.put("expected", result.expected());
+        answer.put("actual", result.actual());
+        answer.put("matches", result.matches());
+        answer.put("note", result.message());
+        return answer;
     }
 
     @GetMapping("/{id}")
