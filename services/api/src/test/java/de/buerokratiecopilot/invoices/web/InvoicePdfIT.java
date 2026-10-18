@@ -143,6 +143,31 @@ class InvoicePdfIT {
     }
 
     @Test
+    @DisplayName("the invoice comes back as an XRechnung that the platform reads back")
+    void theInvoiceComesBackAsXRechnung() throws Exception {
+        Session session = register();
+        String id = record(session, "RE-XR-1");
+
+        MvcResult result = mockMvc.perform(get("/api/v1/invoices/{id}/xrechnung", id)
+                        .cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        assertThat(result.getResponse().getContentType()).contains("xml");
+        byte[] body = result.getResponse().getContentAsByteArray();
+
+        // The strongest check available without a validator: the platform's own parser reads it back, and it
+        // must not call the result incomplete.
+        var parsed = de.buerokratiecopilot.einvoicing.EInvoiceParser.parse(body);
+        assertThat(parsed.invoiceNumber()).isEqualTo("RE-XR-1");
+        assertThat(parsed.missingRequiredFields())
+                .as("a generated e-invoice its own reader calls incomplete would be worse than none")
+                .isEmpty();
+        assertThat(parsed.lines()).hasSize(1);
+        assertThat(result.getResponse().getHeader("Content-Disposition")).contains("RE-XR-1");
+    }
+
+    @Test
     @DisplayName("another account cannot fetch the invoice as a PDF")
     void anotherAccountCannotFetchIt() throws Exception {
         Session first = register();

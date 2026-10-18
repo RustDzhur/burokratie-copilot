@@ -214,6 +214,60 @@ public class InvoiceController {
                 .body(pdf);
     }
 
+    /**
+     * The invoice as an XRechnung (spec §14.3).
+     *
+     * <p><strong>Why this is here and not only in a test.</strong> {@code XRechnungWriter} was written,
+     * covered by a round-trip test and called by nothing — I produced exactly the defect I had spent four
+     * rounds finding in this project. An invoice could be recorded and validated, and its e-invoice could not
+     * be obtained. This route is what turns the writer into a feature.</p>
+     *
+     * <p>A draft or unpaid invoice is still writable: an e-invoice is a document, not a payment, and refusing
+     * to produce it before payment would make it useless for the purpose it exists for.</p>
+     */
+    @GetMapping("/{id}/xrechnung")
+    @PreAuthorize("hasAuthority('finance.view')")
+    @Operation(summary = "The invoice as an XRechnung (UBL)")
+    public org.springframework.http.ResponseEntity<byte[]> xrechnung(@PathVariable UUID id) {
+        UUID tenantId = RequestContext.tenantId().orElseThrow();
+        var invoice = invoices.requireInvoice(id, tenantId);
+        var lines = invoices.linesOf(id).stream()
+                .map(line -> new de.buerokratiecopilot.einvoicing.XRechnungWriter.Line(
+                        line.getDescription(), line.getQuantity(), line.getUnit(),
+                        line.getUnitPrice(), line.getNetAmount(), line.getTaxRatePercent()))
+                .toList();
+        String seller = jdbc.query("select name from tenants where id = ?",
+                rs -> rs.next() ? rs.getString(1) : null, tenantId);
+        String buyer = invoice.getContactId() == null ? null : jdbc.query("""
+                select display_name from contacts where id = ? and tenant_id = ?
+                """, rs -> rs.next() ? rs.getString(1) : null, invoice.getContactId(), tenantId);
+
+        byte[] xml;
+        try {
+            xml = de.buerokratiecopilot.einvoicing.XRechnungWriter.write(
+                    new de.buerokratiecopilot.einvoicing.XRechnungWriter.Input(
+                            invoice.getInvoiceNumber(), invoice.getIssueDate(), invoice.getDueDate(),
+                            invoice.getCurrency(), seller, null, buyer, invoice.getIban(),
+                            invoice.getPaymentReference(), invoice.getNetAmount(),
+                            invoice.getTaxAmount(), invoice.getGrossAmount(), invoice.getGrossAmount(),
+                            lines));
+        }
+        catch (IllegalArgumentException ex) {
+            // The writer refuses an incomplete invoice on purpose: a file a receiver rejects for reasons the
+            // sender cannot see is worse than a clear refusal here.
+            throw new de.buerokratiecopilot.shared.error.ApiException(
+                    de.buerokratiecopilot.shared.error.ErrorCode.INVALID_REQUEST, ex.getMessage());
+        }
+
+        String filename = (invoice.getInvoiceNumber() == null ? "Rechnung" : invoice.getInvoiceNumber())
+                .replaceAll("[^A-Za-z0-9._-]", "_") + ".xml";
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + filename + "\"")
+                .contentType(org.springframework.http.MediaType.APPLICATION_XML)
+                .body(xml);
+    }
+
     /** Re-runs the validation, for the case where a person corrected the data. */
     @PostMapping("/{id}/revalidate")
     @PreAuthorize("hasAuthority('finance.edit')")
