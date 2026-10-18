@@ -46,9 +46,15 @@ public class GeneratedDocumentController {
     private static final String SEE = "hasAnyAuthority('templates.view','templates.create','templates.edit')";
 
     private final GeneratedDocumentService generated;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+    private final de.buerokratiecopilot.shared.storage.BlobStore blobs;
 
-    public GeneratedDocumentController(GeneratedDocumentService generated) {
+    public GeneratedDocumentController(GeneratedDocumentService generated,
+                                       org.springframework.jdbc.core.JdbcTemplate jdbc,
+                                       de.buerokratiecopilot.shared.storage.BlobStore blobs) {
         this.generated = generated;
+        this.jdbc = jdbc;
+        this.blobs = blobs;
     }
 
     /**
@@ -56,6 +62,59 @@ public class GeneratedDocumentController {
      *
      * <p>A number, and the route below is what turns it into something somebody can act on.</p>
      */
+    /**
+     * The produced file of a generated document.
+     *
+     * <p><strong>Why this exists.</strong> A generated letter is rendered, stored as a blob and recorded with
+     * its {@code rendered_blob_id} — and nothing ever read that column. The document existed and could not be
+     * downloaded, which is the whole point of generating it. {@code GeneratedDocumentExportService} next to it
+     * was likewise called by nothing; it produces a file at generation time, while this route serves the one
+     * that was already produced.</p>
+     */
+    @GetMapping("/{id}/download")
+    @PreAuthorize("hasAnyAuthority('documents.view','documents.review')")
+    @Operation(summary = "The produced file of a generated document")
+    public org.springframework.http.ResponseEntity<byte[]> download(@PathVariable UUID id) {
+        UUID tenantId = de.buerokratiecopilot.shared.context.RequestContext.tenantId().orElseThrow();
+        var row = jdbc.query("""
+                select b.storage_key, b.content_type, g.title, g.output_format
+                  from generated_documents g
+                  join document_blobs b on b.id = g.rendered_blob_id
+                 where g.id = ? and g.tenant_id = ? and b.deleted_at is null
+                """, rs -> {
+            if (!rs.next()) {
+                return null;
+            }
+            return new Object[] {rs.getString("storage_key"), rs.getString("content_type"),
+                    rs.getString("title"), rs.getString("output_format")};
+        }, id, tenantId);
+        if (row == null) {
+            throw de.buerokratiecopilot.shared.error.ApiException.notFound(
+                    "Zu diesem Dokument gibt es keine erzeugte Datei");
+        }
+
+        byte[] content;
+        try (java.io.InputStream data = blobs.retrieve((String) row[0])) {
+            content = data.readAllBytes();
+        }
+        catch (java.io.IOException ex) {
+            // The record says a file exists and it cannot be read: that is a failure worth reporting, not an
+            // empty download that looks like a document.
+            throw de.buerokratiecopilot.shared.error.ApiException.notFound(
+                    "Die erzeugte Datei konnte nicht gelesen werden: " + ex.getMessage());
+        }
+
+        String title = row[2] == null ? "Dokument" : (String) row[2];
+        String extension = row[3] == null ? "" : "." + ((String) row[3]).toLowerCase();
+        String filename = title.replaceAll("[^A-Za-z0-9._-]", "_") + extension;
+        String mimeType = row[1] == null ? "application/octet-stream" : (String) row[1];
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + filename + "\"")
+                .contentType(org.springframework.http.MediaType.parseMediaType(mimeType))
+                .body(content);
+    }
+
     @GetMapping("/blocked")
     @PreAuthorize(SEE)
     @Operation(summary = "How many generated documents are blocked")
