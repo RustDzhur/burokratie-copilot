@@ -130,8 +130,12 @@ public class OcrStepHandler implements ProcessingStepHandler {
         for (DocumentPage page : needingOcr) {
             byte[] image;
             try {
+                // For an image the engine needs THIS frame, not the whole file: a multi-page TIFF was
+                // recognised as page one over and over. The helper falls back to the whole file when it
+                // cannot read a frame, so a single-page photo behaves exactly as before.
                 image = isImage(document.getMimeType())
-                        ? content
+                        ? de.buerokratiecopilot.documents.extraction.ImageFrames.frame(
+                                content, page.getPageNumber())
                         : renderer.renderPage(content, page.getPageNumber());
             }
             catch (IOException ex) {

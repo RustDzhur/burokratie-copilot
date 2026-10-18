@@ -32,7 +32,11 @@ public class ImageTextExtractor implements TextExtractor {
 
     @Override
     public ExtractedText extract(InputStream content, long sizeBytes) throws IOException {
-        return ExtractedText.of(List.of(new ExtractedText.Page(1, "", null)), ExtractedText.Method.TEXT_LAYER,
-                Map.of("image", true));
+        int frames = ImageFrames.count(content.readAllBytes());
+        List<ExtractedText.Page> pages = new java.util.ArrayList<>(frames);
+        for (int page = 1; page <= frames; page++) {
+            pages.add(new ExtractedText.Page(page, "", null));
+        }
+        return ExtractedText.of(pages, ExtractedText.Method.TEXT_LAYER, Map.of("image", true));
     }
 }
