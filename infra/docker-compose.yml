@@ -347,8 +347,15 @@ services:
       BC_WORKER_CONCURRENCY: ${BC_WORKER_CONCURRENCY:-4}
       JAVA_OPTS: ${BC_JAVA_OPTS:--XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -XX:+UseContainerSupport -Djava.security.egd=file:/dev/./urandom}
     # No published ports: the worker must not be reachable from outside.
+    #
+    # The SAME data volume as the api, because both processes share one blob store. With the default
+    # `local-fs` storage they write files, not rows in an object store, so two separate volumes meant the
+    # api stored an upload in api-data and the worker, which runs the pipeline, looked for it in worker-data
+    # and found nothing: TEXT_EXTRACT failed with "BlobStorageException: Object not found" and the document
+    # was quarantined. With MinIO or S3 the two volumes never mattered, which is why this survived - the
+    # configuration that breaks is the one the product uses by default.
     volumes:
-      - worker-data:/app/data
+      - api-data:/app/data
     tmpfs:
       - /tmp:mode=1777,size=256m
     healthcheck:
@@ -437,5 +444,3 @@ volumes:
     name: ${COMPOSE_PROJECT_NAME:-burokratie-copilot}-minio-data
   api-data:
     name: ${COMPOSE_PROJECT_NAME:-burokratie-copilot}-api-data
-  worker-data:
-    name: ${COMPOSE_PROJECT_NAME:-burokratie-copilot}-worker-data
