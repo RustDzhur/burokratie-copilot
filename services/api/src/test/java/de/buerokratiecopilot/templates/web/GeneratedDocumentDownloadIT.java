@@ -127,6 +127,49 @@ class GeneratedDocumentDownloadIT {
         assertThat(result.getResponse().getHeader("Content-Disposition")).contains("Anschreiben");
     }
 
+    /** A generated document with the given field map and unresolved placeholders. */
+    private UUID letter(Session owner, String title, String body, String fields, String unresolved) {
+        return RequestContext.runAs(owner.tenantId(), () -> jdbc.queryForObject("""
+                insert into generated_documents (id, tenant_id, title, output_format, status,
+                                                 body_html, field_values, unresolved_fields)
+                values (gen_random_uuid(), ?, ?, 'PDF', 'DRAFT', ?, ?::jsonb, ?::jsonb)
+                returning id
+                """, UUID.class, owner.tenantId(), title, body, fields, unresolved));
+    }
+
+    @Test
+    @DisplayName("a letter with unresolved placeholders is not ready to send")
+    void aLetterWithPlaceholdersIsNotReady() throws Exception {
+        Session owner = register();
+        UUID id = letter(owner, "Antwort auf Ihr Schreiben",
+                "<p>Sehr geehrte Damen und Herren, ...</p>",
+                "{\"Betreff\":\"Antwort\"}", "[\"Name des Empfängers\"]");
+
+        // DraftValidation existed with two tests and no caller: this is the check the product now uses.
+        mockMvc.perform(get("/api/v1/generated-documents/{id}/readiness", id).cookie(owner.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.readyToSend").value(false))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.unconfirmed").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("a letter with nothing open is ready to send")
+    void aCompleteLetterIsReady() throws Exception {
+        Session owner = register();
+        UUID id = letter(owner, "Antwort auf Ihr Schreiben",
+                "<p>Sehr geehrte Damen und Herren, anbei unsere Antwort.</p>",
+                // A letter without a recipient and a subject is not sendable, and the check says so. The
+                // structural minimum is exactly those two.
+                "{\"recipient\":\"Beispiel Kunde AG\",\"subject\":\"Antwort auf Ihr Schreiben\"}", "[]");
+
+        mockMvc.perform(get("/api/v1/generated-documents/{id}/readiness", id).cookie(owner.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.readyToSend").value(true));
+    }
+
     @Test
     @DisplayName("another account cannot download the generated document")
     void anotherAccountCannotDownloadIt() throws Exception {

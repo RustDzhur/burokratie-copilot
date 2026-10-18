@@ -48,13 +48,16 @@ public class GeneratedDocumentController {
     private final GeneratedDocumentService generated;
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
     private final de.buerokratiecopilot.shared.storage.BlobStore blobs;
+    private final de.buerokratiecopilot.templates.DraftReadinessService readiness;
 
     public GeneratedDocumentController(GeneratedDocumentService generated,
                                        org.springframework.jdbc.core.JdbcTemplate jdbc,
-                                       de.buerokratiecopilot.shared.storage.BlobStore blobs) {
+                                       de.buerokratiecopilot.shared.storage.BlobStore blobs,
+                                       de.buerokratiecopilot.templates.DraftReadinessService readiness) {
         this.generated = generated;
         this.jdbc = jdbc;
         this.blobs = blobs;
+        this.readiness = readiness;
     }
 
     /**
@@ -113,6 +116,28 @@ public class GeneratedDocumentController {
                         "attachment; filename=\"" + filename + "\"")
                 .contentType(org.springframework.http.MediaType.parseMediaType(mimeType))
                 .body(content);
+    }
+
+    /**
+     * Whether a generated letter is ready to be sent (spec §15).
+     *
+     * <p>The check existed as {@code DraftValidation} with two tests and no caller, so a letter could be
+     * generated with unresolved placeholders and despatched. This route is what makes the check part of the
+     * product rather than part of the test suite.</p>
+     */
+    @GetMapping("/{id}/readiness")
+    @PreAuthorize("hasAnyAuthority('documents.view','documents.review')")
+    @Operation(summary = "Whether a generated letter is ready to be sent, and what stands in the way")
+    public Map<String, Object> readiness(@PathVariable UUID id) {
+        var result = readiness.readiness(
+                de.buerokratiecopilot.shared.context.RequestContext.tenantId().orElseThrow(), id);
+        Map<String, Object> answer = new java.util.LinkedHashMap<>();
+        answer.put("status", result.status());
+        answer.put("readyToSend", "READY".equals(result.status()));
+        answer.put("missing", result.missing());
+        answer.put("unconfirmed", result.unconfirmed());
+        answer.put("problems", result.problems());
+        return answer;
     }
 
     @GetMapping("/blocked")

@@ -234,7 +234,12 @@ public final class DraftValidation {
     private List<Requisite> missingRequisites(Draft draft) {
         List<Requisite> requisites = draft.requisites() == null ? List.of() : draft.requisites();
         Set<String> required = new LinkedHashSet<>(STRUCTURAL_REQUISITES);
-        required.addAll(declaredRequisites.getOrDefault(draft.type(), List.of()));
+        // A draft may have no type: it was produced from a template whose type is not recorded on the letter,
+        // and asking for the declared requisites of a null type throws on an immutable map. No type means no
+        // extra requisites, which is the honest answer - the structural minimum still applies.
+        if (draft.type() != null) {
+            required.addAll(declaredRequisites.getOrDefault(draft.type(), List.of()));
+        }
 
         List<Requisite> missing = new ArrayList<>();
         for (String key : required) {
