@@ -153,6 +153,37 @@ class AssistantConfirmationTest {
     }
 
     @Test
+    @DisplayName("a confirmed create_task actually creates the task")
+    void confirmingCreateTaskCreatesIt() {
+        // The tool was registered in the policy and missing from the dispatcher, and the existing test only
+        // asserted that the confirmation returned true - so it passed while nothing was created. This is the
+        // assertion that would have caught it.
+        UUID tenantId = tenant();
+        UUID user = person(tenantId, "tasks.create");
+        enable(tenantId, "create_task");
+        AssistantService.Answer proposal = ask(tenantId, turn(tenantId, user), "create_task",
+                Map.of("title", "Rechnung prüfen"));
+
+        assertThat(jdbc.queryForObject("select count(*) from tasks where tenant_id = ?",
+                Integer.class, tenantId))
+                .as("nothing may exist before the person confirms")
+                .isZero();
+
+        RequestContext.runAs(tenantId, () -> assistant.confirm(tenantId, user, proposal.proposalId()));
+
+        assertThat(jdbc.queryForObject("select count(*) from tasks where tenant_id = ?",
+                Integer.class, tenantId)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select title from tasks where tenant_id = ?",
+                String.class, tenantId)).isEqualTo("Rechnung prüfen");
+        // The assignee is the person who confirmed, not somebody the model named: an assistant that can hand
+        // work to other people is an assistant that can quietly assign a job.
+        assertThat(jdbc.queryForObject("""
+                select count(*) from task_assignees a join tasks t on t.id = a.task_id
+                 where t.tenant_id = ? and a.user_id = ?
+                """, Integer.class, tenantId, user)).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("a proposal cannot be confirmed by somebody else")
     void anotherPersonCannotConfirm() {
         UUID tenantId = tenant();

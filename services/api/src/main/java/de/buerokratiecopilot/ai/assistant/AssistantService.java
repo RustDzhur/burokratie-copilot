@@ -154,6 +154,7 @@ public class AssistantService {
         Map<String, Object> job = jdbc.queryForMap("""
                 select input ->> 'tool' as tool_name,
                        input ->> 'awaitingConfirmation' as awaiting, status, requested_by, model,
+                       input -> 'parameters' as parameters,
                        instruction_version, created_at
                 from ai_jobs where id = ? and tenant_id = ?
                 """, proposalId, tenantId);
@@ -190,9 +191,20 @@ public class AssistantService {
                   and input ->> 'awaitingConfirmation' = 'true'
                 """, proposalId, tenantId);
 
-        log.info("Assistant proposal {} confirmed by {}", proposalId, userId);
+        // The tool runs here, not at the moment it was proposed. Marking the job SUCCEEDED and returning
+        // "confirmed: true" was all this method did, so the screen said "the proposal was confirmed and
+        // executed" while nothing had been executed - the worst kind of lie, because it is a success message.
+        Map<String, Object> parameters = parametersOf(job.get("parameters"));
+        AssistantService.Turn confirming = new AssistantService.Turn(tenantId, userId, null,
+                String.valueOf(job.get("model")), String.valueOf(job.get("instruction_version")), null,
+                UntrustedContent.Origin.PLATFORM, null);
+        Map<String, Object> result = executeReadOnly(confirming, toolName, parameters);
+
+        log.info("Assistant proposal {} confirmed and executed by {}", proposalId, userId);
+        Map<String, Object> answer = new java.util.LinkedHashMap<>(result);
+        answer.put("confirmed", true);
         return new Answer("ANSWER", "Der Vorschlag wurde bestätigt und ausgeführt", proposalId, toolName,
-                null, Map.of("confirmed", true), null);
+                null, answer, null);
     }
 
     /** Rejects a proposal without applying it. */
@@ -234,6 +246,50 @@ public class AssistantService {
     }
 
     /** What a proposal would do, written out for a person to judge. */
+    /**
+     * Creates a task on behalf of the person who confirmed the proposal.
+     *
+     * <p>The assignee is the requester, not somebody the model chose: an assistant that can assign work to
+     * other people is an assistant that can quietly hand somebody a job. The title comes from the proposal and
+     * is required; the due date is optional and parsed only when it is a real date.</p>
+     */
+    private Map<String, Object> createTask(Turn turn, Map<String, Object> parameters) {
+        String title = parameters == null ? null : String.valueOf(parameters.get("title"));
+        if (title == null || title.isBlank() || "null".equals(title)) {
+            throw new de.buerokratiecopilot.shared.error.ApiException(
+                    de.buerokratiecopilot.shared.error.ErrorCode.INVALID_REQUEST,
+                    "Eine Aufgabe braucht einen Titel");
+        }
+        java.time.LocalDate due = null;
+        Object dueRaw = parameters == null ? null : parameters.get("dueDate");
+        if (dueRaw != null && !String.valueOf(dueRaw).isBlank()) {
+            try {
+                due = java.time.LocalDate.parse(String.valueOf(dueRaw));
+            }
+            catch (java.time.format.DateTimeParseException ex) {
+                // A date the model made up is not a reason to fail the person's confirmed action; the task
+                // is created without one and the answer says so.
+                due = null;
+            }
+        }
+        final java.time.LocalDate dueDate = due;
+        java.util.UUID taskId = jdbc.queryForObject("""
+                insert into tasks (id, tenant_id, title, status, priority, priority_source, source,
+                                   created_by_user_id, due_at)
+                values (gen_random_uuid(), ?, ?, 'NEW', 'NORMAL', 'AI', 'AI', ?, ?)
+                returning id
+                """, java.util.UUID.class, turn.tenantId(), title.strip(), turn.userId(),
+                dueDate == null ? null : java.sql.Timestamp.from(dueDate.atStartOfDay(
+                        java.time.ZoneId.systemDefault()).toInstant()));
+        jdbc.update("""
+                insert into task_assignees (id, task_id, tenant_id, user_id, role, assigned_at)
+                values (gen_random_uuid(), ?, ?, ?, 'ASSIGNEE', now())
+                """, taskId, turn.tenantId(), turn.userId());
+        return Map.of("taskId", taskId.toString(), "title", title.strip(),
+                "dueDate", dueDate == null ? "keine" : dueDate.toString(),
+                "created", true);
+    }
+
     private String preview(String toolName, Map<String, Object> parameters) {
         StringBuilder preview = new StringBuilder("Werkzeug: ").append(toolName);
         if (parameters != null && !parameters.isEmpty()) {
@@ -241,6 +297,29 @@ public class AssistantService {
                     .append(value == null ? "—" : String.valueOf(value)));
         }
         return preview.toString();
+    }
+
+    /** The stored parameters of a proposal, back from JSON. */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> parametersOf(Object stored) {
+        if (stored == null) {
+            return Map.of();
+        }
+        try {
+            Object parsed = new com.fasterxml.jackson.databind.ObjectMapper().readValue(
+                    String.valueOf(stored), Object.class);
+            if (parsed instanceof Map<?, ?> map) {
+                Map<String, Object> result = new java.util.LinkedHashMap<>();
+                map.forEach((key, value) -> result.put(String.valueOf(key), value));
+                return result;
+            }
+        }
+        catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            // A proposal whose parameters cannot be read is refused rather than executed with guesses.
+            throw de.buerokratiecopilot.shared.error.ApiException.conflict(
+                    "Die Parameter dieses Vorschlags sind nicht lesbar");
+        }
+        return Map.of();
     }
 
     /** Records the intent, which is the history entry. */
@@ -285,6 +364,10 @@ public class AssistantService {
                     new de.buerokratiecopilot.radar.RadarQueryService.Filter(null, null, null, null, null, null,
                             true), 0, 10).get("items"));
             case "explain_finding" -> explainFinding(turn, parameters);
+            // The one write the assistant may perform, and only after a person confirmed the proposal.
+            // It was registered in the policy and not implemented here, so the assistant could offer it and
+            // then fail - the worst of both: the tool exists in the catalogue and does nothing.
+            case "create_task" -> createTask(turn, parameters);
             case "list_contracts" -> Map.of("contracts", jdbc.queryForList("""
                     select id, title, contract_type, status, start_date, end_date, auto_renewal,
                            notice_period_value, notice_period_unit
