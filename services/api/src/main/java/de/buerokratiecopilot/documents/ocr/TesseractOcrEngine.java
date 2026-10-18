@@ -132,6 +132,11 @@ public class TesseractOcrEngine implements OcrEngine {
         double confidenceSum = 0;
         int confidenceCount = 0;
         int blockIndex = 0;
+        // The TSV says which line each word sits on, and that is the only place the line structure survives:
+        // joining every word with a space produced one endless paragraph, and the field extraction looks for
+        // the end of a line after a label. Without this, "Betrag: 119,00" was followed by the rest of the
+        // page and the value became the whole remainder instead of the amount.
+        String previousLineKey = null;
 
         for (String line : tsv.split("\\R")) {
             if (line.isBlank() || line.startsWith("level")) {
@@ -166,7 +171,12 @@ public class TesseractOcrEngine implements OcrEngine {
 
             blocksByKey.get(key).add(new OcrEngine.Result.Block(left, top, width, height, text,
                     confidence >= 0 ? toFraction(confidence) : null));
-            fullText.append(text).append(' ');
+            String wordLineKey = columns[2] + "-" + columns[3] + "-" + columns[4];
+            if (fullText.length() > 0) {
+                fullText.append(wordLineKey.equals(previousLineKey) ? ' ' : '\n');
+            }
+            previousLineKey = wordLineKey;
+            fullText.append(text);
             if (confidence >= 0) {
                 confidenceSum += confidence;
                 confidenceCount++;
@@ -180,6 +190,8 @@ public class TesseractOcrEngine implements OcrEngine {
                     .map(OcrEngine.Result.Block::text)
                     .reduce((a, b) -> a + " " + b)
                     .orElse("");
+            // A block is a paragraph; its words stay joined, because the paragraph is a unit and the caller
+            // uses the block for context rather than for line breaks.
             double mean = entry.getValue().stream()
                     .map(OcrEngine.Result.Block::confidence)
                     .filter(java.util.Objects::nonNull)
@@ -192,7 +204,11 @@ public class TesseractOcrEngine implements OcrEngine {
         // Percent from the engine becomes a fraction here and nowhere else, so every consumer can
         // assume the same unit as the classification thresholds and the database column.
         Double confidence = confidenceCount == 0 ? null : toFraction(confidenceSum / confidenceCount);
-        String text = fullText.toString().strip().replaceAll("[ \\t]{2,}", " ");
+        // Collapse runs of spaces and tabs, and at most one blank line: the line breaks are the point now.
+        String text = fullText.toString().strip()
+                .replaceAll("[ \\t]{2,}", " ")
+                .replaceAll(" ?\\n ?", "\n")
+                .replaceAll("\\n{3,}", "\n\n");
         return new Result(text, confidence, blocks, "tesseract", language, null);
     }
 

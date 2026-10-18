@@ -55,6 +55,20 @@ class TesseractOcrEngineTest {
     }
 
     @Test
+    @DisplayName("the lines the TSV describes survive into the text")
+    void lineBreaksSurvive() {
+        // Every word was joined with a space, so the whole page became one paragraph. The field extraction
+        // looks for the end of a line after a label: without line breaks, "Betrag:" was followed by the rest
+        // of the page and the value became the remainder instead of the amount.
+        OcrEngine.Result result = TesseractOcrEngine.parseTsv(TSV, "deu");
+
+        org.assertj.core.api.Assertions.assertThat(result.text())
+                .contains("Rechnung 2026-001\nBrutto 119,00");
+        org.assertj.core.api.Assertions.assertThat(result.text().split("\n"))
+                .as("two TSV lines are two lines of text").hasSize(2);
+    }
+
+    @Test
     @DisplayName("TSV output becomes text, blocks with coordinates and a mean confidence")
     void parsesTsvOutput() {
         OcrEngine.Result result = TesseractOcrEngine.parseTsv(TSV, "deu");
