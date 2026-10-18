@@ -151,6 +151,13 @@ public class DocumentProcessingPipeline {
                 executed.add(step);
             }
             if (outcome.stoppedAt() != null) {
+                // A stopped pipeline is not a document without dates. When the classifier asks for a person,
+                // the letter still says "Das Gespräch findet am 18. November 2026 statt", and that date has to
+                // reach the calendar: the type needs a decision, the date on the paper does not. Before this,
+                // the derivation sat after the loop and the loop returned first, so a photographed letter sent
+                // for review arrived with an empty calendar and the promise "photo becomes a deadline" held
+                // only for documents the classifier was already sure about.
+                deriveFor(documentId);
                 return new AdvanceResult(documentId, outcome.stoppedAt(), outcome.reason(), outcome.status(),
                         executed);
             }
@@ -159,22 +166,7 @@ public class DocumentProcessingPipeline {
         // The dates in this document that name an obligation become calendar entries here, without anybody
         // clicking anything. Before this, a letter saying "Zahlung bis zum 31.10.2026" had its date read and
         // discarded, because deadlines were only ever computed from a register of rules that ships empty.
-        tx.execute(status -> {
-            Document finished = documents.findById(documentId).orElse(null);
-            if (finished != null && finished.getCreatedBy() != null) {
-                try {
-                    detectedDates.deriveAppointments(finished.getTenantId(), documentId,
-                            finished.getCreatedBy());
-                }
-                catch (RuntimeException ex) {
-                    // A calendar entry is a convenience; it must never turn a successfully processed document
-                    // into a failed one.
-                    log.warn("Termine aus Dokument {} konnten nicht abgeleitet werden: {}",
-                            documentId, ex.getMessage());
-                }
-            }
-            return null;
-        });
+        deriveFor(documentId);
 
         return tx.execute(status -> {
             Document document = documents.findById(documentId).orElseThrow();
@@ -395,5 +387,31 @@ public class DocumentProcessingPipeline {
         row.start();
         row.succeed(diagnostics);
         steps.save(row);
+    }
+
+    /**
+     * Turns the dates read from a document into calendar entries, if anybody asked for them.
+     *
+     * <p>Called on both paths - after the last step and when a step stops the pipeline for a person - because a
+     * letter that needs a decision about its <em>type</em> still carries a date somebody has to keep.</p>
+     *
+     * <p>A calendar entry is a convenience: it must never turn a successfully processed document into a failed
+     * one, which is why the failure is logged and swallowed here rather than propagated.</p>
+     */
+    private void deriveFor(UUID documentId) {
+        tx.execute(status -> {
+            Document finished = documents.findById(documentId).orElse(null);
+            if (finished != null && finished.getCreatedBy() != null) {
+                try {
+                    detectedDates.deriveAppointments(finished.getTenantId(), documentId,
+                            finished.getCreatedBy());
+                }
+                catch (RuntimeException ex) {
+                    log.warn("Termine aus Dokument {} konnten nicht abgeleitet werden: {}",
+                            documentId, ex.getMessage());
+                }
+            }
+            return null;
+        });
     }
 }

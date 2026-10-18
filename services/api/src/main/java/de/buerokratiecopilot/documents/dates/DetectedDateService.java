@@ -49,6 +49,26 @@ public class DetectedDateService {
     private static final Pattern NUMERIC = Pattern.compile("\\b(\\d{1,2})[.\\-/](\\d{1,2})[.\\-/](\\d{2,4})\\b");
     private static final Pattern ISO = Pattern.compile("\\b(\\d{4})-(\\d{2})-(\\d{2})\\b");
 
+    /**
+     * A date written in words: "18. November 2026", "3. Dez 2026", "1. Mai 2026".
+     *
+     * <p><strong>Why this exists.</strong> German letters write dates out at least as often as they write them
+     * in digits - "Das Gespräch findet am 18. November 2026 statt", "bis spätestens dritten Dezember". Only
+     * numeric dates were scanned, so a photographed invitation was read perfectly and carried no date at all:
+     * the platform's main promise failed on the most ordinary phrasing there is. The parser already knew the
+     * month names; nothing ever offered it one.</p>
+     *
+     * <p>The month is a word, so the pattern cannot be case-sensitive: a letter may write "November", a
+     * heading "NOVEMBER", and a careless typist "november".</p>
+     */
+    private static final Pattern WORDS = Pattern.compile(
+            "\\b(\\d{1,2})\\.?\\s+("
+                    + "Januar|Jänner|Februar|Feber|März|Maerz|April|Mai|Juni|Juli|August|September|Oktober|"
+                    + "October|November|Dezember|"
+                    + "Jan|Feb|Mär|Apr|Jun|Jul|Aug|Sep|Sept|Okt|Nov|Dez"
+                    + ")\\.?\\s+(\\d{4})\\b",
+            java.util.regex.Pattern.CASE_INSENSITIVE | java.util.regex.Pattern.UNICODE_CASE);
+
     /** How much text around a date is kept as its explanation. */
     private static final int SNIPPET_BEFORE = 90;
     private static final int SNIPPET_AFTER = 90;
@@ -253,6 +273,7 @@ public class DetectedDateService {
             case OBJECTION_DEADLINE -> "Frist zur Antwort: " + date.original();
             case APPOINTMENT -> "Termin: " + date.original();
             case VALIDITY_END -> "Gültig bis: " + date.original();
+            case DEADLINE -> "Frist: " + date.original();
             case DOCUMENT_DATE, OTHER -> "Datum: " + date.original();
         };
     }
@@ -292,6 +313,12 @@ public class DetectedDateService {
         Matcher iso = ISO.matcher(text);
         while (iso.find()) {
             found.add(new int[] {iso.start(), iso.end()});
+        }
+        // "18. November 2026" is a date the same way "18.11.2026" is, and in a German letter it is the more
+        // common of the two. Both are offered to the same parser, which decides whether the span is a date.
+        Matcher words = WORDS.matcher(text);
+        while (words.find()) {
+            found.add(new int[] {words.start(), words.end()});
         }
         return found;
     }

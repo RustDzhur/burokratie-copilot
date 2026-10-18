@@ -40,6 +40,17 @@ public final class DateClassifier {
         APPOINTMENT,
         /** "gültig bis", "läuft ab", "Ablauf" — something ends then. */
         VALIDITY_END,
+        /**
+         * "bis spätestens 03.12.2026", "Frist zur Vorlage", "Übersendung bis" — an administrative deadline:
+         * the office expects the papers by then.
+         *
+         * <p>A distinct kind from {@link #OBJECTION_DEADLINE} because it is not a reply the law grants a
+         * period for, and distinct from {@link #PAYMENT_DEADLINE} because no money is owed. Before this kind
+         * existed, the most ordinary German phrasing — "Wir bitten um Übersendung bis spätestens 03.12.2026"
+         * — matched no rule at all and the date was filed as OTHER, which is kept but never calendared: a
+         * photographed request from an authority arrived with no deadline on it.</p>
+         */
+        DEADLINE,
         /** "Datum", "vom", "Schreiben vom" — when the letter was written. Not an appointment. */
         DOCUMENT_DATE,
         /** Recognised in the text but not in any of the above: shown, never calendared. */
@@ -48,7 +59,7 @@ public final class DateClassifier {
         /** Whether this kind belongs in a calendar. A letter's own date does not. */
         public boolean belongsInCalendar() {
             return this == PAYMENT_DEADLINE || this == OBJECTION_DEADLINE || this == APPOINTMENT
-                    || this == VALIDITY_END;
+                    || this == VALIDITY_END || this == DEADLINE;
         }
     }
 
@@ -86,6 +97,18 @@ public final class DateClassifier {
             new Rule(Kind.OBJECTION_DEADLINE, Pattern.compile(
                     "widerspruch|einspruch|stellungnahme|antwort(?:en)?\\s+(?:bis|zum)|"
                             + "erwiderung|rückmeldung|äußerung",
+                    Pattern.CASE_INSENSITIVE)),
+            // Something has to be handed in by then. Ordered after the money and the objection rules, so that
+            // "Zahlungsfrist" stays a payment and "Widerspruchsfrist" stays an objection; what is left is the
+            // ordinary administrative deadline, which is the most common phrasing of all: "bis spätestens
+            // 03.12.2026", "Frist zur Vorlage", "Übersendung bis", "einzureichen bis".
+            new Rule(Kind.DEADLINE, Pattern.compile(
+                    // Only markers that name an administrative duty and nothing else. "bis zum" and a bare
+                    // "frist" were tried and dropped: the nearest marker decides, so they swallowed "Zahlung
+                    // bis zum 31.10." and "Widerspruchsfrist" from the rules that describe those better.
+                    // \bfrist\b cannot match inside "Zahlungsfrist", which is where it would do damage.
+                    "spätestens|\\bfrist\\b|übersendung|vorzulegen|einzureichen|nachzureichen|"
+                            + "abzugeben|\\beingang\\b|\\beingehen\\b|innerhalb\\s+von",
                     Pattern.CASE_INSENSITIVE)),
             // Somebody is expected somewhere. "Uhr" catches an appointment whose time is written out without
             // the word "Termin".

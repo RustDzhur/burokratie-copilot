@@ -156,6 +156,39 @@ class DetectedDateControllerIT {
     }
 
     @Test
+    @DisplayName("a date written out in words is a date, and an appointment stays an appointment")
+    void aWrittenOutDateIsFound() throws Exception {
+        Session session = register();
+        // German official mail writes dates out at least as often as it writes them in digits. Only digits were
+        // scanned, so this letter - read perfectly by the OCR - carried no date at all.
+        UUID documentId = photographedLetter(session,
+                "Sehr geehrte Damen und Herren, das Gespräch findet am 18. November 2026 um 14:30 Uhr "
+                        + "in unseren Räumen statt.");
+
+        mockMvc.perform(get("/api/v1/documents/{id}/detected-dates", documentId).cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.dates[0].date").value("2026-11-18"))
+                .andExpect(jsonPath("$.dates[0].kind").value("APPOINTMENT"))
+                .andExpect(jsonPath("$.dates[0].origin").value("PAGE_TEXT"));
+    }
+
+    @Test
+    @DisplayName("an administrative deadline written as \"bis spätestens\" is a deadline")
+    void anAdministrativeDeadlineIsFound() throws Exception {
+        Session session = register();
+        UUID documentId = photographedLetter(session,
+                "Zur weiteren Bearbeitung bitten wir um Übersendung der Unterlagen "
+                        + "bis spätestens 03.12.2026.");
+
+        mockMvc.perform(get("/api/v1/documents/{id}/detected-dates", documentId).cookie(session.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.dates[0].date").value("2026-12-03"))
+                .andExpect(jsonPath("$.dates[0].kind").value("DEADLINE"));
+    }
+
+    @Test
     @DisplayName("a document with no readable date says so without claiming there is no deadline")
     void noDateIsNotTheSameAsNoDeadline() throws Exception {
         Session session = register();

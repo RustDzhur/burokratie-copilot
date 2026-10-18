@@ -28,6 +28,60 @@ class DateClassifierTest {
     }
 
     @Nested
+    @DisplayName("an administrative deadline is a deadline")
+    class AdministrativeDeadline {
+
+        @Test
+        @DisplayName("\"bis spätestens\" marks a deadline, not an unknown date")
+        void spaetestensIsADeadline() {
+            // The most ordinary phrasing in German official mail, and it matched no rule at all: a photographed
+            // request from an authority arrived with the date filed as OTHER, which is kept but never calendared.
+            String text = "Wir bitten um Übersendung bis spätestens 03.12.2026.";
+            int at = text.indexOf("03.12.2026");
+
+            DateClassifier.Classified classified = DateClassifier.classify(text, at, "03.12.2026".length());
+
+            assertThat(classified.kind()).isEqualTo(DateClassifier.Kind.DEADLINE);
+            assertThat(DateClassifier.createAutomatically(classified)).isTrue();
+        }
+
+        @Test
+        @DisplayName("\"Übersendung\" and \"einzureichen\" also name a deadline")
+        void handingInPapersIsADeadline() {
+            String text = "Die Unterlagen sind bis 15.01.2027 einzureichen.";
+            int at = text.indexOf("15.01.2027");
+
+            assertThat(DateClassifier.classify(text, at, "15.01.2027".length()).kind())
+                    .isEqualTo(DateClassifier.Kind.DEADLINE);
+        }
+
+        @Test
+        @DisplayName("a payment keeps its own kind, although it also says \"bis zum\"")
+        void paymentStaysAPayment() {
+            // The generic deadline markers must not swallow this: "Zahlung" is the better description, and the
+            // nearest marker decides.
+            String text = "Zahlung bis zum 31.10.2026 auf das bekannte Konto.";
+            int at = text.indexOf("31.10.2026");
+
+            assertThat(DateClassifier.classify(text, at, "31.10.2026".length()).kind())
+                    .isEqualTo(DateClassifier.Kind.PAYMENT_DEADLINE);
+        }
+
+        @Test
+        @DisplayName("a written-out appointment is still an appointment")
+        void writtenOutAppointment() {
+            String text = "Das Gespräch findet am 18. November 2026 um 14:30 Uhr statt.";
+            int at = text.indexOf("18. November 2026");
+
+            DateClassifier.Classified classified =
+                    DateClassifier.classify(text, at, "18. November 2026".length());
+
+            assertThat(classified.kind()).isEqualTo(DateClassifier.Kind.APPOINTMENT);
+            assertThat(classified.evidence()).containsIgnoringCase("gespräch");
+        }
+    }
+
+    @Nested
     @DisplayName("dates that name an obligation go to the calendar")
     class Obligations {
 
