@@ -306,6 +306,21 @@ export interface MailCollectResult {
   readonly documentsCreated: number;
 }
 
+/**
+ * Whether this installation can offer an OAuth mailbox connection, and what the operator still has to do.
+ *
+ * <p>`configured` is false on a fresh installation: registering the application with Microsoft or Google is a
+ * step only the operator can take, and the screen must say so instead of offering a button that cannot work.
+ * `missingConfiguration` names the settings, not secrets — the client secret itself never reaches the browser.</p>
+ */
+export interface MailOAuthProviderSummary {
+  readonly provider: string;
+  readonly displayName: string;
+  readonly configured: boolean;
+  readonly missingConfiguration: readonly string[];
+  readonly redirectUri: string;
+}
+
 export interface DeviceSummary {
   readonly id: string;
   readonly name: string;

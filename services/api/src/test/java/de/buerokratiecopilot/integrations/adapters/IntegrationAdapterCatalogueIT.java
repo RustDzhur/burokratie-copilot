@@ -125,13 +125,40 @@ class IntegrationAdapterCatalogueIT {
     }
 
     @Test
+    @DisplayName("the OAuth mail adapters are implemented but say that no live provider run was made")
+    void oauthAdaptersCarryTheirOwnHonestStatus() {
+        assertThat(IntegrationAdapterCatalogue.implemented()).extracting(
+                        IntegrationAdapterCatalogue.Adapter::provider)
+                .as("the OAuth flow and the XOAUTH2 ingest exist in this repository")
+                .contains("MICROSOFT365", "GOOGLE_WORKSPACE");
+
+        for (String provider : List.of("MICROSOFT365", "GOOGLE_WORKSPACE")) {
+            IntegrationAdapterCatalogue.Adapter adapter = IntegrationAdapterCatalogue.byProvider(provider);
+            assertThat(adapter.implemented()).isTrue();
+            assertThat(adapter.requiresAppRegistration())
+                    .as("nobody inside the software can register the application at Microsoft or Google")
+                    .isTrue();
+            assertThat(adapter.implementationStatus())
+                    .isEqualTo(IntegrationAdapterCatalogue.Adapter.NEEDS_APP_REGISTRATION);
+            assertThat(adapter.note())
+                    .as("the note must not turn 'tested against a mock' into 'works with the provider'")
+                    .contains("nicht ausgeführt");
+            assertThat(adapter.capabilities()).isNotEmpty();
+
+            Map<String, Object> requirements = IntegrationAdapterCatalogue.requirementsOf(provider);
+            assertThat(requirements).containsEntry("requiresAppRegistration", true);
+            assertThat(String.valueOf(requirements.get("conclusion")))
+                    .contains("noch nicht gegen den Anbieter ausgeführt");
+        }
+    }
+
+    @Test
     @DisplayName("the ones this repository does not contain are not claimed")
     void whatIsAbsentIsNotClaimed() {
         assertThat(IntegrationAdapterCatalogue.notImplemented()).extracting(
                         IntegrationAdapterCatalogue.Adapter::provider)
-                .as("no OAuth flow, no accounting hand-over and no signature exist here")
-                .contains("MICROSOFT365", "GOOGLE_WORKSPACE", "BANK_AGGREGATOR", "ACCOUNTING_DATEV",
-                        "E_SIGNATURE_DOCUSIGN", "CRM_HUBSPOT");
+                .as("no accounting hand-over and no signature exist here")
+                .contains("BANK_AGGREGATOR", "ACCOUNTING_DATEV", "E_SIGNATURE_DOCUSIGN", "CRM_HUBSPOT");
     }
 
     @Test
@@ -141,17 +168,17 @@ class IntegrationAdapterCatalogueIT {
         UUID userId = person(tenantId);
 
         Map<String, Object> result = RequestContext.runAs(tenantId, () -> catalogue.declareUnsupported(
-                tenantId, null, "MICROSOFT365", userId));
+                tenantId, null, "BANK_AGGREGATOR", userId));
 
         assertThat(result).containsEntry("status", "NOT_SUPPORTED");
         assertThat(jdbc.queryForObject("""
-                select status from integrations where tenant_id = ? and provider = 'MICROSOFT365'
+                select status from integrations where tenant_id = ? and provider = 'BANK_AGGREGATOR'
                 """, String.class, tenantId))
                 .as("'not configured' would send somebody looking for a setting that does not exist")
                 .isEqualTo("NOT_SUPPORTED");
         assertThat(jdbc.queryForObject("""
-                select owner_action_hint from integrations where tenant_id = ? and provider = 'MICROSOFT365'
-                """, String.class, tenantId)).contains("Entra");
+                select owner_action_hint from integrations where tenant_id = ? and provider = 'BANK_AGGREGATOR'
+                """, String.class, tenantId)).contains("Aggregator");
     }
 
     @Test

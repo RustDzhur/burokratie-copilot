@@ -1185,6 +1185,26 @@ export const enScreens: ScreenMessages = {
     'notConnected.title': 'No mailbox connected',
     'notConnected.description':
       'Connect a mailbox so that incoming authority mail is captured automatically. Credentials are stored in the backend.',
+    'oauth.title': 'Connect a mailbox with OAuth',
+    'oauth.description':
+      'Microsoft 365 and Google Workspace: you sign in with the provider. The platform never receives your password, only a time-limited access token.',
+    'oauth.microsoftName': 'Microsoft 365',
+    'oauth.googleName': 'Google Workspace',
+    'oauth.connect': 'Connect with {provider}',
+    'oauth.connected':
+      '{provider} was connected. The first collection checks the sign-in; the result is shown under "Integrations".',
+    'oauth.errorTitle': 'Connection not completed',
+    'oauth.error.state': 'The security check (state) failed. Please start the connection again.',
+    'oauth.error.denied': 'The consent was declined at the provider. No mailbox was connected.',
+    'oauth.error.code': 'The provider returned no authorization code. Please start again.',
+    'oauth.error.exchange': 'The provider issued no access. Please try again.',
+    'oauth.error.userinfo': 'The provider named no usable e-mail address.',
+    'oauth.error.unavailable':
+      'The connection is not configured on this server or the provider is unreachable.',
+    'oauth.error.unknown': 'The sign-in failed. Details are in the server log.',
+    'oauth.notConfigured':
+      'Not configured yet: the operator must register the application with the provider and supply the client id and secret. The steps are listed in the provider catalogue under "Integrations".',
+    'oauth.loadFailed': 'The status of the OAuth connection could not be loaded.',
     'empty.title': 'No messages',
     'empty.description':
       'Messages appear here once a mailbox is connected or messages have been sent.',

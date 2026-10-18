@@ -103,7 +103,7 @@ class IntegrationControllerIT {
     void theRequirementsAreServed() throws Exception {
         Session session = register();
 
-        mockMvc.perform(get("/api/v1/integrations/MICROSOFT365/requirements").cookie(session.cookie()))
+        mockMvc.perform(get("/api/v1/integrations/ACCOUNTING_DATEV/requirements").cookie(session.cookie()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.implemented").value(false))
                 .andExpect(jsonPath("$.steps").isArray())
@@ -141,7 +141,7 @@ class IntegrationControllerIT {
         MvcResult created = mockMvc.perform(post("/api/v1/integrations/unsupported").with(csrf())
                         .cookie(session.cookie())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"provider\":\"MICROSOFT365\"}"))
+                        .content("{\"provider\":\"BANK_AGGREGATOR\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("NOT_SUPPORTED"))
                 .andReturn();
@@ -308,7 +308,7 @@ class IntegrationControllerIT {
         mockMvc.perform(post("/api/v1/integrations/unsupported").with(csrf())
                         .cookie(first.cookie())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"provider\":\"MICROSOFT365\"}"))
+                        .content("{\"provider\":\"BANK_AGGREGATOR\"}"))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(get("/api/v1/integrations").cookie(second.cookie()))

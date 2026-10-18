@@ -7,16 +7,15 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.UUID;
 
 import jakarta.mail.Address;
+import jakarta.mail.AuthenticationFailedException;
 import jakarta.mail.BodyPart;
 import jakarta.mail.Folder;
 import jakarta.mail.Message;
 import jakarta.mail.Multipart;
 import jakarta.mail.Part;
-import jakarta.mail.Session;
 import jakarta.mail.Store;
 
 import org.slf4j.Logger;
@@ -25,6 +24,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import de.buerokratiecopilot.mail.oauth.MailOAuthProvider;
+import de.buerokratiecopilot.mail.oauth.MailOAuthTokenService;
 import de.buerokratiecopilot.shared.context.RequestContext;
 import de.buerokratiecopilot.shared.error.ApiException;
 import de.buerokratiecopilot.documents.DocumentService;
@@ -54,28 +55,20 @@ public class ImapMailIngester {
     private final de.buerokratiecopilot.autopilot.ReplyLinkService replies;
     private final JdbcTemplate jdbc;
     private final MailAccountService accounts;
+    private final MailOAuthTokenService oauthTokens;
+    private final ImapConnectionFactory connections;
     private final DocumentService documentService;
     private final org.springframework.transaction.support.TransactionTemplate attachmentTransaction;
 
-    /**
-     * Whether the TLS certificate must match the server name.
-     *
-     * <p>On by default, because a mailbox password crossing a connection to an unverified server is
-     * exactly what an attacker on the network wants. It is configurable because some self-hosted mail
-     * servers use certificates that do not carry the name the client dials, and the operator — not the
-     * platform — has to weigh that. A test that connects to a local server with a generated certificate
-     * turns it off explicitly rather than the default being weak for everybody.</p>
-     */
-    @org.springframework.beans.factory.annotation.Value(
-            "${burokratie.mail.imap.check-server-identity:true}")
-    private boolean checkServerIdentity = true;
-
-    public ImapMailIngester(JdbcTemplate jdbc, MailAccountService accounts, DocumentService documentService,
+    public ImapMailIngester(JdbcTemplate jdbc, MailAccountService accounts, MailOAuthTokenService oauthTokens,
+                            ImapConnectionFactory connections, DocumentService documentService,
                             org.springframework.transaction.PlatformTransactionManager transactionManager,
                             de.buerokratiecopilot.autopilot.ReplyLinkService replies) {
         this.replies = replies;
         this.jdbc = jdbc;
         this.accounts = accounts;
+        this.oauthTokens = oauthTokens;
+        this.connections = connections;
         this.documentService = documentService;
         // One attachment per transaction: a file the security check refuses throws out of the document service,
         // which marks the surrounding transaction rollback-only even though the exception is caught here; the
@@ -119,18 +112,65 @@ public class ImapMailIngester {
             log.info("Mailbox {} is already being collected, this run does nothing", accountId);
             return new SyncResult(0, 0, 0, 0);
         }
-        String password = accounts.passwordOf(tenantId, accountId);
         String username = username(tenantId, accountId);
         String host = host(tenantId, accountId);
         int port = port(tenantId, accountId);
+        String provider = accounts.providerOf(tenantId, accountId);
+        MailOAuthProvider oauth = MailOAuthProvider.fromDatabaseValue(provider).orElse(null);
 
+        if (oauth == null) {
+            String password = accounts.passwordOf(tenantId, accountId);
+            try {
+                return collect(tenantId, accountId, host, port, username, password,
+                        ImapConnectionFactory.Auth.PASSWORD, limit);
+            }
+            catch (ApiException ex) {
+                throw ex;
+            }
+            catch (Exception ex) {
+                throw failed(tenantId, accountId, ex);
+            }
+        }
+
+        // An OAuth mailbox is read with a short-lived access token. It is renewed before it expires; if the
+        // provider still rejects it (skew, revoked grant), it is renewed once more and the connection retried
+        // once, because a 401 is exactly the case a proactive expiry check cannot catch.
+        String accessToken = oauthTokens.accessToken(tenantId, accountId);
+        try {
+            return collect(tenantId, accountId, host, port, username, accessToken,
+                    ImapConnectionFactory.Auth.XOAUTH2, limit);
+        }
+        catch (AuthenticationFailedException rejected) {
+            log.info("Mailbox {} rejected its OAuth access token; renewing once and retrying", accountId);
+            String renewed = oauthTokens.refreshAfterUnauthorized(tenantId, accountId);
+            try {
+                return collect(tenantId, accountId, host, port, username, renewed,
+                        ImapConnectionFactory.Auth.XOAUTH2, limit);
+            }
+            catch (ApiException ex) {
+                throw ex;
+            }
+            catch (Exception ex) {
+                throw failed(tenantId, accountId, ex);
+            }
+        }
+        catch (ApiException ex) {
+            throw ex;
+        }
+        catch (Exception ex) {
+            throw failed(tenantId, accountId, ex);
+        }
+    }
+
+    /** Reads and stores one mailbox over an already authenticated connection. */
+    private SyncResult collect(UUID tenantId, UUID accountId, String host, int port, String username,
+                               String credential, ImapConnectionFactory.Auth auth, int limit) throws Exception {
         int seen = 0;
         int stored = 0;
         int skipped = 0;
         int documents = 0;
 
-        try (Store store = openStore(host, port, username, password)) {
-            store.connect(host, port, username, password);
+        try (Store store = connections.connect(host, port, username, credential, auth)) {
             Folder inbox = store.getFolder("INBOX");
             inbox.open(Folder.READ_ONLY);
 
@@ -166,32 +206,22 @@ public class ImapMailIngester {
             inbox.close(false);
             accounts.recordSync(tenantId, accountId, "SUCCESS", null);
         }
-        catch (ApiException ex) {
-            throw ex;
-        }
-        catch (Exception ex) {
-            // The mailbox did not answer. The platform records what the server said rather than
-            // pretending the mailbox was empty.
-            accounts.recordSync(tenantId, accountId, "FAILED", ex.getMessage());
-            throw ApiException.conflict("Der Abruf ist fehlgeschlagen: " + ex.getMessage());
-        }
 
         log.info("Mailbox {} read: {} seen, {} stored, {} skipped, {} documents", accountId, seen, stored,
                 skipped, documents);
         return new SyncResult(seen, stored, skipped, documents);
     }
 
-    private Store openStore(String host, int port, String username, String password) throws Exception {
-        Properties properties = new Properties();
-        properties.put("mail.store.protocol", "imaps");
-        properties.put("mail.imaps.host", host);
-        properties.put("mail.imaps.port", String.valueOf(port));
-        properties.put("mail.imaps.ssl.enable", String.valueOf(port != 143));
-        properties.put("mail.imaps.ssl.trust", "*");
-        properties.put("mail.imaps.ssl.checkserveridentity", String.valueOf(checkServerIdentity));
-        properties.put("mail.imaps.timeout", "10000");
-        Session session = Session.getInstance(properties);
-        return session.getStore("imaps");
+    /**
+     * Records what the server said and answers with a conflict.
+     *
+     * <p>The record runs in its own transaction, so it survives the rollback of the collection that failed.</p>
+     */
+    private ApiException failed(UUID tenantId, UUID accountId, Exception ex) {
+        // The mailbox did not answer. The platform records what the server said rather than
+        // pretending the mailbox was empty.
+        accounts.recordSync(tenantId, accountId, "FAILED", ex.getMessage());
+        return ApiException.conflict("Der Abruf ist fehlgeschlagen: " + ex.getMessage());
     }
 
     private void backfillBody(UUID tenantId, UUID accountId, String externalId, Message message) {

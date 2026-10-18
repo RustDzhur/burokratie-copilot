@@ -2,12 +2,12 @@
 import { ListPage } from '@/components/app/list-page';
 import { StatusPill } from '@/components/ui';
 import type { Column } from '@/components/ui';
-import { InlineAlert } from '@/components/ui/feedback';
 import { formatDate } from '@/i18n/format';
 import { useLocale, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import type { MailMessageSummary } from '@/lib/api/types';
 import { useGroupedLabels, useStatusLabels } from '@/lib/format/status';
+import { MailOAuthConnect } from './mail-oauth-connect';
 
 const STATUS_VALUES = ['new', 'processed', 'needs_reply'] as const;
 const FOLDER_VALUES = ['inbox', 'sent', 'drafts', 'archive'] as const;
@@ -66,7 +66,7 @@ export default function MailPage() {
           options: STATUS_VALUES.map((value) => ({ value, label: statusLabel(value) })),
         },
       ]}
-      notice={<InlineAlert tone="info">{t('notConnected.description')}</InlineAlert>}
+      notice={<MailOAuthConnect />}
     />
   );
 }

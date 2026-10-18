@@ -46,11 +46,32 @@ public class IntegrationAdapterCatalogue {
     /**
      * One adapter.
      *
-     * @param implemented whether this repository contains a working adapter for it
+     * <p>{@code implemented} says that this repository contains adapter code. It deliberately does not say
+     * that the code has been exercised against the live provider: for the two OAuth mail providers that is
+     * impossible without a registered application, a tenant and a real mailbox. {@code implementationStatus}
+     * carries that distinction, and {@code requiresAppRegistration} names the step only the operator can do.</p>
+     *
+     * @param implemented whether this repository contains an adapter for it
      * @param ownerRequirements what the owner has to do before it can work, in order
+     * @param implementationStatus {@code IMPLEMENTED}, {@code IMPLEMENTED_NEEDS_APP_REGISTRATION} or
+     *                             {@code NOT_IMPLEMENTED}
+     * @param requiresAppRegistration whether an application must be registered with the provider first
      */
     public record Adapter(String provider, String category, String displayName, boolean implemented,
-                          List<String> capabilities, List<String> ownerRequirements, String note) {
+                          List<String> capabilities, List<String> ownerRequirements, String note,
+                          String implementationStatus, boolean requiresAppRegistration) {
+
+        public static final String IMPLEMENTED = "IMPLEMENTED";
+        /** Code exists and is tested against a local stand-in, but no live provider run has been made. */
+        public static final String NEEDS_APP_REGISTRATION = "IMPLEMENTED_NEEDS_APP_REGISTRATION";
+        public static final String NOT_IMPLEMENTED = "NOT_IMPLEMENTED";
+
+        /** The shape of every adapter whose status needs no further explanation. */
+        public Adapter(String provider, String category, String displayName, boolean implemented,
+                       List<String> capabilities, List<String> ownerRequirements, String note) {
+            this(provider, category, displayName, implemented, capabilities, ownerRequirements, note,
+                    implemented ? IMPLEMENTED : NOT_IMPLEMENTED, false);
+        }
 
         public Map<String, Object> asMap() {
             Map<String, Object> map = new LinkedHashMap<>();
@@ -58,6 +79,8 @@ public class IntegrationAdapterCatalogue {
             map.put("category", category);
             map.put("displayName", displayName);
             map.put("implemented", implemented);
+            map.put("implementationStatus", implementationStatus);
+            map.put("requiresAppRegistration", requiresAppRegistration);
             map.put("capabilities", capabilities);
             map.put("ownerRequirements", ownerRequirements);
             map.put("note", note);
@@ -107,16 +130,28 @@ public class IntegrationAdapterCatalogue {
                         List.of("Geheimnis für die Signatur hinterlegen",
                                 "Adresse beim Absender eintragen"),
                         "Ohne gültige Signatur wird nichts angenommen."),
-                new Adapter("MICROSOFT365", "EMAIL", "Microsoft 365", false, List.of(),
+                new Adapter("MICROSOFT365", "EMAIL", "Microsoft 365", true,
+                        List.of("Nachrichten abholen", "Anhänge übernehmen"),
                         List.of("Anwendung in Entra ID registrieren", "Weiterleitungs-URI eintragen",
-                                "Berechtigungen für Mail und Kalender erteilen",
-                                "Zustimmung eines Administrators einholen"),
-                        "Nicht enthalten. Die Anmeldung bei Microsoft ist nicht implementiert."),
-                new Adapter("GOOGLE_WORKSPACE", "EMAIL", "Google Workspace", false, List.of(),
+                                "Berechtigungen für IMAP und SMTP erteilen",
+                                "Zustimmung eines Administrators einholen",
+                                "Client-ID und Geheimnis als BC_MAIL_OAUTH_MICROSOFT_* hinterlegen"),
+                        "Der OAuth-Ablauf (Authorization Code mit PKCE) und der Abruf per IMAP XOAUTH2 sind "
+                                + "vorhanden und gegen einen lokalen Mock-Server getestet. Ein Durchlauf gegen "
+                                + "Microsoft wurde nicht ausgeführt: dafür sind eine registrierte Anwendung, "
+                                + "ein Mandant und ein echtes Postfach nötig.",
+                        Adapter.NEEDS_APP_REGISTRATION, true),
+                new Adapter("GOOGLE_WORKSPACE", "EMAIL", "Google Workspace", true,
+                        List.of("Nachrichten abholen", "Anhänge übernehmen"),
                         List.of("Projekt in der Google Cloud Console anlegen",
-                                "OAuth-Zustimmung konfigurieren", "Bereiche für Gmail und Kalender wählen",
-                                "Zustimmung eines Administrators einholen"),
-                        "Nicht enthalten. Die Anmeldung bei Google ist nicht implementiert."),
+                                "OAuth-Zustimmung konfigurieren", "Bereich für Gmail wählen",
+                                "Zustimmung eines Administrators einholen",
+                                "Client-ID und Geheimnis als BC_MAIL_OAUTH_GOOGLE_* hinterlegen"),
+                        "Der OAuth-Ablauf (Authorization Code mit PKCE) und der Abruf per IMAP XOAUTH2 sind "
+                                + "vorhanden und gegen einen lokalen Mock-Server getestet. Ein Durchlauf gegen "
+                                + "Google wurde nicht ausgeführt: dafür sind ein Google-Cloud-Projekt, ein "
+                                + "Workspace-Konto und ein echtes Postfach nötig.",
+                        Adapter.NEEDS_APP_REGISTRATION, true),
                 new Adapter("CALENDAR_MICROSOFT", "CALENDAR", "Kalender (Microsoft)", false, List.of(),
                         List.of("Wie Microsoft 365", "Zusätzlich Calendars.ReadWrite erteilen"),
                         "Nicht enthalten."),
@@ -220,6 +255,13 @@ public class IntegrationAdapterCatalogue {
                                                   String provider, java.util.UUID requestedBy) {
         Adapter adapter = byProvider(provider);
         if (adapter.implemented()) {
+            if (adapter.requiresAppRegistration()) {
+                // Implemented, but nobody can use it until the operator registers the application. Saying
+                // only "vorhanden" would send the person looking for a setting inside their own workspace.
+                throw ApiException.conflict("Diese Anbindung ist im Code vorhanden, aber die Anwendung ist "
+                        + "beim Anbieter noch nicht registriert. Das kann nur der Betreiber der Plattform "
+                        + "einrichten");
+            }
             throw ApiException.conflict("Diese Anbindung ist vorhanden und wird normal eingerichtet");
         }
 
@@ -267,12 +309,22 @@ public class IntegrationAdapterCatalogue {
         map.put("provider", adapter.provider());
         map.put("displayName", adapter.displayName());
         map.put("implemented", adapter.implemented());
+        map.put("implementationStatus", adapter.implementationStatus());
+        map.put("requiresAppRegistration", adapter.requiresAppRegistration());
         map.put("steps", adapter.ownerRequirements());
         map.put("capabilities", adapter.capabilities());
         map.put("note", adapter.note());
         if (!adapter.implemented()) {
             map.put("conclusion", "Diese Anbindung ist in dieser Fassung nicht enthalten. Die Schritte "
                     + "beschreiben, was für eine eigene Anbindung nötig wäre.");
+        }
+        else if (adapter.requiresAppRegistration()) {
+            // "The code exists" and "it works on this installation" are different sentences, and a customer
+            // planning their week needs the second one.
+            map.put("conclusion", "Der Code ist in dieser Fassung enthalten, aber noch nicht gegen den "
+                    + "Anbieter ausgeführt. Ohne eine registrierte Anwendung und die Zustimmung eines "
+                    + "Administrators kann die Anbindung nicht genutzt werden. Die Schritte beschreiben, "
+                    + "was dafür nötig ist.");
         }
         return map;
     }

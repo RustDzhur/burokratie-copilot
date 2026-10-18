@@ -36,6 +36,18 @@ public class MailAccountService {
     private static final List<String> PROVIDERS = List.of("IMAP", "MICROSOFT365", "GMAIL", "SMTP_ONLY",
             "OTHER");
 
+    /**
+     * The fields of the encrypted OAuth token bundle. They are stored through the same
+     * {@link CredentialCipher} as a mailbox password, bound to the tenant and the mailbox, so an OAuth
+     * connection needs no second secret store and a stolen payload cannot be moved into another row.
+     */
+    public static final String ACCESS_TOKEN = "access_token";
+    public static final String REFRESH_TOKEN = "refresh_token";
+    public static final String EXPIRES_AT = "expires_at";
+    public static final String TOKEN_TYPE = "token_type";
+    public static final String SCOPE = "scope";
+    public static final String REFRESHED_AT = "refreshed_at";
+
     private final JdbcTemplate jdbc;
     private final CredentialCipher cipher;
 
@@ -74,6 +86,12 @@ public class MailAccountService {
                 : connection.provider().toUpperCase(java.util.Locale.ROOT);
         if (!PROVIDERS.contains(provider)) {
             throw new ApiException(ErrorCode.INVALID_REQUEST, "Unbekannter Anbieter: " + provider);
+        }
+        if (List.of("MICROSOFT365", "GMAIL").contains(provider)) {
+            // They authenticate with OAuth tokens, not a password. Accepting a password here would create a
+            // mailbox that the ingest then refuses to read, and nobody would understand why.
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "Microsoft 365 und Google Workspace werden "
+                    + "über die OAuth-Verbindung eingerichtet, nicht mit einem Passwort");
         }
 
         UUID accountId = UUID.randomUUID();
@@ -118,6 +136,150 @@ public class MailAccountService {
             throw ApiException.conflict("Für dieses Postfach ist kein Zugang hinterlegt");
         }
         return cipher.decrypt(stored.getFirst(), tenantId, accountId);
+    }
+
+    /**
+     * Registers a mailbox that is authenticated with OAuth tokens instead of a password.
+     *
+     * <p>The tokens were obtained from the provider's token endpoint moments ago; they are encrypted
+     * before they reach the database, exactly like a password. The mailbox starts {@code DISCONNECTED}:
+     * a token exchange proves that the provider issued a token, not that IMAP answered — that is what the
+     * first collection is for, and the platform says so rather than showing "connected" for a hope.</p>
+     *
+     * <p>Reconnecting an address that is already registered updates that mailbox instead of failing on the
+     * unique index. A person who connects their mailbox again after the token expired is doing the normal
+     * thing, and it must not look like a duplicate error.</p>
+     */
+    @Transactional
+    public Account connectOAuth(UUID tenantId, UUID workspaceId, String provider, String emailAddress,
+                                String displayName, String imapHost, int imapPort, String smtpHost,
+                                int smtpPort, Map<String, String> tokens, UUID createdBy) {
+        String normalizedProvider = provider == null ? "" : provider.toUpperCase(java.util.Locale.ROOT);
+        if (!List.of("MICROSOFT365", "GMAIL").contains(normalizedProvider)) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST,
+                    "OAuth ist für diesen Anbieter nicht vorgesehen: " + provider);
+        }
+        if (emailAddress == null || !emailAddress.contains("@")) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST,
+                    "Der Anbieter hat keine verwendbare E-Mail-Adresse genannt");
+        }
+        if (tokens == null || tokens.getOrDefault(ACCESS_TOKEN, "").isBlank()) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "Ein OAuth-Postfach braucht ein Zugangstoken");
+        }
+        String email = emailAddress.strip().toLowerCase(java.util.Locale.ROOT);
+        String name = displayName == null || displayName.isBlank()
+                ? provider + " – " + email
+                : displayName.strip();
+
+        List<UUID> existing = jdbc.query("""
+                select id from mail_accounts
+                where tenant_id = ? and email_address = ? and deleted_at is null
+                """, (rs, row) -> rs.getObject("id", UUID.class), tenantId, email);
+        UUID accountId = existing.isEmpty() ? UUID.randomUUID() : existing.getFirst();
+        // The ciphertext is bound to the account it belongs to; therefore the identifier is chosen first.
+        String encrypted = cipher.encryptFields(tokens, tenantId, accountId);
+
+        if (existing.isEmpty()) {
+            jdbc.update("""
+                    insert into mail_accounts (id, tenant_id, workspace_id, display_name, email_address,
+                                               provider, status, imap_host, imap_port, imap_username,
+                                               imap_use_ssl, smtp_host, smtp_port, smtp_username,
+                                               smtp_use_starttls, credential_encrypted, sync_folders,
+                                               sync_interval, routing_rules, import_attachments,
+                                               import_emails_as_documents, consecutive_failures, is_active,
+                                               created_by)
+                    values (?, ?, ?, ?, ?, ?, 'DISCONNECTED', ?, ?, ?, true, ?, ?, ?, true, ?,
+                            '["INBOX"]'::jsonb, 'PT5M', '{}'::jsonb, true, true, 0, true, ?)
+                    """, accountId, tenantId, workspaceId, name, email, normalizedProvider, imapHost, imapPort,
+                    email, smtpHost, smtpPort, email, encrypted, createdBy);
+        }
+        else {
+            jdbc.update("""
+                    update mail_accounts set display_name = ?, provider = ?, status = 'DISCONNECTED',
+                           imap_host = ?, imap_port = ?, imap_username = ?, imap_use_ssl = true,
+                           smtp_host = ?, smtp_port = ?, smtp_username = ?,
+                           credential_encrypted = ?, consecutive_failures = 0, last_sync_status = null,
+                           last_sync_error = null, is_active = true, updated_at = now()
+                    where id = ? and tenant_id = ? and deleted_at is null
+                    """, name, normalizedProvider, imapHost, imapPort, email, smtpHost, smtpPort, email,
+                    encrypted, accountId, tenantId);
+        }
+
+        log.info("Mailbox {} connected through OAuth for tenant {} ({})", accountId, tenantId,
+                normalizedProvider);
+        return new Account(accountId, "DISCONNECTED", email);
+    }
+
+    /** The provider of a mailbox, which decides whether it is read with a password or with a token. */
+    @Transactional(readOnly = true)
+    public String providerOf(UUID tenantId, UUID accountId) {
+        List<String> providers = jdbc.query("""
+                select provider from mail_accounts where id = ? and tenant_id = ?
+                """, (rs, row) -> rs.getString("provider"), accountId, tenantId);
+        if (providers.isEmpty()) {
+            throw ApiException.notFound("mail account");
+        }
+        return providers.getFirst();
+    }
+
+    /**
+     * The decrypted OAuth token bundle of a mailbox. Never logged and never returned by a route.
+     *
+     * @throws ApiException when the mailbox carries a password rather than tokens, or no credential at all
+     */
+    @Transactional(readOnly = true)
+    public Map<String, String> oauthCredentialsOf(UUID tenantId, UUID accountId) {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                select provider, credential_encrypted from mail_accounts where id = ? and tenant_id = ?
+                """, accountId, tenantId);
+        if (rows.isEmpty()) {
+            throw ApiException.notFound("mail account");
+        }
+        Map<String, Object> row = rows.getFirst();
+        if (!List.of("MICROSOFT365", "GMAIL").contains(String.valueOf(row.get("provider")))) {
+            throw ApiException.conflict("Dieses Postfach wird nicht über OAuth angemeldet");
+        }
+        Object stored = row.get("credential_encrypted");
+        if (stored == null) {
+            throw ApiException.conflict("Für dieses Postfach ist kein Zugang hinterlegt");
+        }
+        Map<String, String> fields = cipher.decryptFields(String.valueOf(stored), tenantId, accountId);
+        if (fields.isEmpty()) {
+            throw ApiException.conflict("Der gespeicherte OAuth-Zugang ist unvollständig");
+        }
+        return fields;
+    }
+
+    /** Replaces the encrypted token bundle after a successful refresh. */
+    @Transactional
+    public void storeOAuthTokens(UUID tenantId, UUID accountId, Map<String, String> fields) {
+        if (fields == null || fields.getOrDefault(ACCESS_TOKEN, "").isBlank()) {
+            throw new IllegalArgumentException("Nothing to store without an access token");
+        }
+        String encrypted = cipher.encryptFields(fields, tenantId, accountId);
+        int updated = jdbc.update("""
+                update mail_accounts set credential_encrypted = ?, updated_at = now()
+                where id = ? and tenant_id = ?
+                """, encrypted, accountId, tenantId);
+        if (updated == 0) {
+            throw ApiException.notFound("mail account");
+        }
+    }
+
+    /**
+     * Records that the stored grant can no longer be used.
+     *
+     * <p>Runs in its own transaction, like {@link #recordSync}: the caller is about to throw, and the
+     * warning that a person has to reconnect must not be rolled back together with the failed attempt.</p>
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void markAuthRequired(UUID tenantId, UUID accountId, String reason) {
+        jdbc.update("""
+                update mail_accounts set status = 'AUTH_REQUIRED', last_sync_status = 'FAILED',
+                       last_sync_error = ?, consecutive_failures = consecutive_failures + 1,
+                       updated_at = now()
+                where id = ? and tenant_id = ?
+                """, reason, accountId, tenantId);
     }
 
     /**

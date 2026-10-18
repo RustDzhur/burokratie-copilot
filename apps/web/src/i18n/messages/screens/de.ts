@@ -1192,6 +1192,27 @@ export const deScreens = {
     'notConnected.title': 'Kein Postfach verbunden',
     'notConnected.description':
       'Verbinden Sie ein Postfach, damit eingehende Behördenpost automatisch erfasst wird. Zugangsdaten werden im Backend hinterlegt.',
+    'oauth.title': 'Postfach mit OAuth verbinden',
+    'oauth.description':
+      'Microsoft 365 und Google Workspace: Die Anmeldung erfolgt beim Anbieter. Die Plattform erhält nie Ihr Passwort, sondern nur ein befristetes Zugangstoken.',
+    'oauth.microsoftName': 'Microsoft 365',
+    'oauth.googleName': 'Google Workspace',
+    'oauth.connect': 'Mit {provider} verbinden',
+    'oauth.connected':
+      '{provider} wurde verbunden. Der erste Abruf prüft die Anmeldung; das Ergebnis steht unter „Integrationen“.',
+    'oauth.errorTitle': 'Verbindung nicht abgeschlossen',
+    'oauth.error.state':
+      'Die Sicherheitsprüfung (State) ist fehlgeschlagen. Bitte starten Sie die Verbindung erneut.',
+    'oauth.error.denied': 'Die Zustimmung wurde beim Anbieter abgelehnt. Es wurde kein Postfach verbunden.',
+    'oauth.error.code': 'Der Anbieter hat keinen Autorisierungscode zurückgegeben. Bitte erneut starten.',
+    'oauth.error.exchange': 'Der Anbieter hat keinen Zugang ausgestellt. Bitte erneut versuchen.',
+    'oauth.error.userinfo': 'Der Anbieter hat keine verwendbare E-Mail-Adresse genannt.',
+    'oauth.error.unavailable':
+      'Die Anbindung ist auf diesem Server nicht eingerichtet oder der Anbieter ist nicht erreichbar.',
+    'oauth.error.unknown': 'Die Anmeldung ist fehlgeschlagen. Weitere Angaben stehen im Serverprotokoll.',
+    'oauth.notConfigured':
+      'Noch nicht eingerichtet: Der Betreiber muss die Anwendung beim Anbieter registrieren und Client-ID sowie Geheimnis hinterlegen. Die Schritte stehen im Anbieterkatalog unter „Integrationen“.',
+    'oauth.loadFailed': 'Der Status der OAuth-Anbindung konnte nicht geladen werden.',
     'empty.title': 'Keine Nachrichten',
     'empty.description':
       'Nachrichten erscheinen hier, sobald ein Postfach verbunden ist oder Nachrichten gesendet wurden.',

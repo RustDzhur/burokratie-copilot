@@ -132,6 +132,7 @@ import type {
   IntegrationSummary,
   MailAccountSummary,
   MailCollectResult,
+  MailOAuthProviderSummary,
   InvoiceSendResult,
   InvoiceSummary,
   MailMessageSummary,
@@ -613,6 +614,14 @@ export interface ApiResources {
       readonly imapPort: number;
     }) => Promise<{ readonly accountId: string }>;
     collect: (accountId: string) => Promise<MailCollectResult>;
+  };
+  /**
+   * OAuth mailbox connections. `startPath` is a URL the browser navigates to, not a fetch: the backend
+   * answers with a redirect to the provider. Everything secret stays on the server.
+   */
+  readonly mailOAuth: {
+    providers: (signal?: AbortSignal) => Promise<readonly MailOAuthProviderSummary[]>;
+    startPath: (provider: string) => string;
   };
   readonly publicPlans: {
     get: (signal?: AbortSignal) => Promise<{
@@ -1660,6 +1669,12 @@ export function createResources(client: ApiClient): ApiResources {
         ),
       collect: (accountId) =>
         client.post<MailCollectResult>(`/mail/accounts/${accountId}/collect`, {}, { idempotencyKey: true }),
+    },
+    mailOAuth: {
+      providers: (signal) =>
+        client.get<readonly MailOAuthProviderSummary[]>('/mail/oauth/providers', withSignal(signal)),
+      // The route redirects to the provider, so it must be a navigation and not a fetch.
+      startPath: (provider) => `/api/v1/mail/oauth/${encodeURIComponent(provider)}/start`,
     },
     publicPlans: {
       get: async (signal) => {

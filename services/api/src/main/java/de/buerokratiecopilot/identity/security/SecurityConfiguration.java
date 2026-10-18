@@ -61,6 +61,11 @@ public class SecurityConfiguration {
             "/api/v1/auth/oidc/available",
             "/api/v1/auth/oidc/start",
             "/api/v1/auth/oidc/callback",
+            // The mail provider sends the browser back here the same way. The callback is a top-level
+            // navigation from Microsoft/Google and must not depend on the session cookie being sent: a
+            // deployment with SameSite=Strict would fail every connection. The signed state cookie names the
+            // tenant and the person (MailOAuthState), and the code is only exchangeable with its PKCE verifier.
+            "/api/v1/mail/oauth/*/callback",
             "/api/v1/auth/verify-email",
             "/api/v1/auth/verify-email/resend",
             "/api/v1/auth/password-reset",
