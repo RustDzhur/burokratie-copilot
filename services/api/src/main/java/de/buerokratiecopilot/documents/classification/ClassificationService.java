@@ -53,15 +53,18 @@ public class ClassificationService {
     private final DocumentClassificationRepository classifications;
     private final DocumentRepository documents;
     private final SettingsService settings;
+    private final StatedDeadlineFields statedDeadline;
 
     public ClassificationService(DocumentClassifier classifier, DocumentTypeRepository types,
                                  DocumentClassificationRepository classifications,
-                                 DocumentRepository documents, SettingsService settings) {
+                                 DocumentRepository documents, SettingsService settings,
+                                 StatedDeadlineFields statedDeadline) {
         this.classifier = classifier;
         this.types = types;
         this.classifications = classifications;
         this.documents = documents;
         this.settings = settings;
+        this.statedDeadline = statedDeadline;
     }
 
     /** What the classification stage decided, and why. */
@@ -119,7 +122,7 @@ public class ClassificationService {
 
         double confidence = result.confidence() == null ? 0 : result.confidence();
         boolean requiresReview = type.isRequiresReview() || confidence < acceptThreshold;
-        String closeCall = closeCall(type, confidence, result.alternative());
+        String closeCall = closeCall(type, confidence, result.alternative(), document.getTenantId());
         boolean singleFeature = result.matchedRules() != null && result.matchedRules().size() < 2;
         if (closeCall != null || singleFeature) {
             requiresReview = true;
@@ -153,19 +156,44 @@ public class ClassificationService {
     private static final double CLOSE_CALL_FLOOR = 0.5;
 
     /**
-     * A reason to ask a person when the best and the second-best type are nearly equal and belong to different areas (a
-     * medical report against a contract): the higher number is then luck, not evidence, and an automatic filing would be a coin
-     * toss. Two types of the same area are not a problem for the drawer the document lands in.
+     * A reason to ask a person when the best and the second-best type are nearly equal: the higher number is then luck,
+     * not evidence, and an automatic filing would be a coin toss.
+     *
+     * <p>A second type of the same area used to be accepted without asking, on the ground that the drawer the document
+     * lands in does not change. That was wrong wherever the work changes: "Mahnung" and "Zahlungserinnerung" both belong
+     * to finance, but they read the stated deadline from different fields (the Mahnung a {@code Frist}, the
+     * Zahlungserinnerung a {@code Frist} and a {@code Zahlungsziel}), so the same letter would produce a different date
+     * depending on which of the two was applied (spec §9.3). Such a pair goes to a person like any other close call. A
+     * pair of one area that reads the deadline from the same fields stays automatic: the date on the paper lands in the
+     * same place either way, which is the promise the product makes for a letter with a date on it.</p>
      */
-    private String closeCall(DocumentType best, double confidence, DocumentClassifier.Classification.Alternative alternative) {
+    private String closeCall(DocumentType best, double confidence,
+                             DocumentClassifier.Classification.Alternative alternative, UUID tenantId) {
         if (alternative == null || alternative.score() < CLOSE_CALL_FLOOR || confidence - alternative.score() >= CLOSE_CALL_MARGIN) {
             return null;
         }
-        return types.findById(alternative.typeId())
-                .filter(other -> !other.getCategory().equals(best.getCategory()))
-                .map(other -> "Zwei Typen aus verschiedenen Bereichen passen fast gleich gut: '%s' und '%s'"
-                        .formatted(best.nameIn("de"), other.nameIn("de")))
-                .orElse(null);
+        DocumentType other = types.findById(alternative.typeId()).orElse(null);
+        if (other == null) {
+            return null;
+        }
+        boolean sameArea = other.getCategory().equals(best.getCategory());
+        if (sameArea && !readsDeadlineFromDifferentFields(best, other, tenantId)) {
+            return null;
+        }
+        return (sameArea
+                ? "Zwei Typen aus demselben Bereich lesen die Frist aus verschiedenen Feldern: '%s' und '%s'"
+                : "Zwei Typen aus verschiedenen Bereichen passen fast gleich gut: '%s' und '%s'")
+                .formatted(best.nameIn("de"), other.nameIn("de"));
+    }
+
+    /**
+     * Whether the two types would read the deadline the document states from different fields.
+     *
+     * <p>Conservative where the configuration is silent: a type without a scenario or without due fields counts as
+     * "different", because nothing then shows that the date would land in the same place.</p>
+     */
+    private boolean readsDeadlineFromDifferentFields(DocumentType best, DocumentType other, UUID tenantId) {
+        return !statedDeadline.of(tenantId, best.getCode()).equals(statedDeadline.of(tenantId, other.getCode()));
     }
 
     /** A manual correction: stores the decision as MANUAL and makes it the current one. */
