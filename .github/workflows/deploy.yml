@@ -1,0 +1,194 @@
+# =============================================================================
+#  Deployment — Bürokratie-Copilot
+# =============================================================================
+#  This file did not exist. Merging to `main` ran the five CI jobs and stopped
+#  there: nothing was ever deployed by the pipeline, and the belief that a merge
+#  goes live by itself was not true of this repository.
+#
+#  What it does, in the order a deployment actually has to happen:
+#    1. skips, loudly but green, when the deployment secrets are not configured -
+#       so a merge stays green on a fork or before the server exists, instead of
+#       painting the pipeline red for a missing ssh key;
+#    2. verifies the host: docker present, compose present, target directory;
+#    3. pulls the requested ref into the target directory (git, not rsync: the
+#       deployment of a commit should be the commit);
+#    4. renders the environment file from secrets only if it is missing, so a
+#       re-deploy never overwrites secrets an operator changed;
+#    5. builds and restarts the stack, then waits for the health endpoint.
+#
+#  Required repository secrets:
+#    DEPLOY_HOST     ssh host, e.g. copilot.example.com
+#    DEPLOY_USER     ssh user with docker access
+#    DEPLOY_SSH_KEY  private key (ed25519) for that user
+#    DEPLOY_PATH     absolute path on the host, e.g. /srv/burokratie-copilot
+#  Optional:
+#    DEPLOY_PORT     ssh port, default 22
+#    DEPLOY_KNOWN_HOSTS  pinned host keys; without it the host key is accepted
+#                        on first use and the job says so in the log
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to deploy (default: main)"
+        required: false
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to the host
+    runs-on: ubuntu-latest
+    steps:
+      - name: Is a deployment target configured?
+        id: configured
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          if [ -z "$HOST" ]; then
+            echo "::notice title=Deployment skipped::DEPLOY_HOST is not set, so this repository has no deployment target. Configure DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY and DEPLOY_PATH to enable it. Nothing was deployed."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out the repository
+        if: steps.configured.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare the ssh key
+        if: steps.configured.outputs.enabled == 'true'
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ -n "${KNOWN_HOSTS:-}" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            # Saying this out loud beats a silent first-use acceptance: an operator can pin the keys the next
+            # time and the log shows when that was not the case.
+            echo "::warning title=Host key not pinned::DEPLOY_KNOWN_HOSTS is empty; the host key will be accepted on first use."
+            ssh-keyscan -p "${PORT:-22}" -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          fi
+
+      - name: Verify the host
+        if: steps.configured.outputs.enabled == 'true'
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER_NAME: ${{ secrets.DEPLOY_USER }}
+          PORT: ${{ secrets.DEPLOY_PORT }}
+          PATH_ON_HOST: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key -p "${PORT:-22}" -o BatchMode=yes "$USER_NAME@$HOST" "
+            set -e
+            command -v docker >/dev/null || { echo 'docker is not installed on the host'; exit 1; }
+            docker compose version >/dev/null || { echo 'docker compose plugin is missing on the host'; exit 1; }
+            mkdir -p '$PATH_ON_HOST'
+            echo \"host is ready: \$(docker --version)\"
+          "
+
+      - name: Deploy the commit
+        if: steps.configured.outputs.enabled == 'true'
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER_NAME: ${{ secrets.DEPLOY_USER }}
+          PORT: ${{ secrets.DEPLOY_PORT }}
+          PATH_ON_HOST: ${{ secrets.DEPLOY_PATH }}
+          REF: ${{ github.event.inputs.ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          # The commit, not a copy of a working tree: a deployment has to be reproducible from a sha.
+          git ls-remote --exit-code https://github.com/${{ github.repository }}.git "$REF" >/dev/null
+          ssh -i ~/.ssh/deploy_key -p "${PORT:-22}" -o BatchMode=yes "$USER_NAME@$HOST" "
+            set -e
+            cd '$PATH_ON_HOST'
+            if [ ! -d .git ]; then
+              git clone https://github.com/${{ github.repository }}.git .
+            fi
+            git fetch --all --prune
+            git checkout --force '$REF'
+            git reset --hard 'origin/$REF' 2>/dev/null || true
+            echo \"on the host: \$(git rev-parse --short HEAD)\"
+          "
+
+      - name: Render the environment file if it is missing
+        if: steps.configured.outputs.enabled == 'true'
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER_NAME: ${{ secrets.DEPLOY_USER }}
+          PORT: ${{ secrets.DEPLOY_PORT }}
+          PATH_ON_HOST: ${{ secrets.DEPLOY_PATH }}
+          ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key -p "${PORT:-22}" -o BatchMode=yes "$USER_NAME@$HOST" "
+            set -e
+            cd '$PATH_ON_HOST'
+            if [ -f infra/.env ]; then
+              echo 'infra/.env already exists; leaving it untouched'
+            elif [ -n \"\${ENV_FILE:-}\" ]; then
+              printf '%s' \"\$ENV_FILE\" > infra/.env
+              chmod 600 infra/.env
+              echo 'infra/.env written from DEPLOY_ENV_FILE'
+            else
+              echo '::error title=No environment file::infra/.env is missing on the host and DEPLOY_ENV_FILE is not set. The stack cannot start without it.'
+              exit 1
+            fi
+          "
+        # The value travels in an env var rather than on the command line, so it does not appear in the log.
+
+      - name: Build and restart
+        if: steps.configured.outputs.enabled == 'true'
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER_NAME: ${{ secrets.DEPLOY_USER }}
+          PORT: ${{ secrets.DEPLOY_PORT }}
+          PATH_ON_HOST: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key -p "${PORT:-22}" -o BatchMode=yes "$USER_NAME@$HOST" "
+            set -e
+            cd '$PATH_ON_HOST'
+            docker compose --env-file infra/.env -f infra/docker-compose.yml -f infra/docker-compose.prod.yml build
+            docker compose --env-file infra/.env -f infra/docker-compose.yml -f infra/docker-compose.prod.yml --profile proxy up -d
+          "
+
+      - name: Wait for health
+        if: steps.configured.outputs.enabled == 'true'
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER_NAME: ${{ secrets.DEPLOY_USER }}
+          PORT: ${{ secrets.DEPLOY_PORT }}
+          PATH_ON_HOST: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          echo "Waiting for the api health endpoint inside the host..."
+          for attempt in $(seq 1 30); do
+            if ssh -i ~/.ssh/deploy_key -p "${PORT:-22}" -o BatchMode=yes "$USER_NAME@$HOST" \
+                 "docker exec bc-api curl -fsS http://127.0.0.1:8080/actuator/health/readiness >/dev/null"; then
+              echo "Healthy after ${attempt} attempt(s)."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error title=Deployment unhealthy::The api did not become ready within five minutes. The previous version was replaced, so inspect the host: docker compose logs api"
+          exit 1
