@@ -1103,6 +1103,8 @@ export const ruScreens: ScreenMessages = {
     'status.approved': 'Согласован',
     'status.paid': 'Оплачен',
     'status.overdue': 'Просрочен',
+    'documents.pdf': 'Скачать PDF',
+    'documents.xrechnung': 'XRechnung',
     'erechnung.notice':
       'Электронные счета (XRechnung, ZUGFeRD) проверяются отдельными валидаторами; результаты отображаются в записи.',
     'empty.title': 'Счетов нет',

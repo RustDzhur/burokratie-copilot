@@ -1105,6 +1105,8 @@ export const deScreens = {
     'status.approved': 'Freigegeben',
     'status.paid': 'Bezahlt',
     'status.overdue': 'Überfällig',
+    'documents.pdf': 'PDF herunterladen',
+    'documents.xrechnung': 'XRechnung',
     'erechnung.notice':
       'E-Rechnungen (XRechnung, ZUGFeRD) werden über eigene Validatoren geprüft; Ergebnisse erscheinen am Datensatz.',
     'empty.title': 'Keine Rechnungen vorhanden',

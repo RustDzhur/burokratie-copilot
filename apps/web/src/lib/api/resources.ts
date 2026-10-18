@@ -465,6 +465,15 @@ export interface ApiResources {
       readonly dueDate?: string;
       readonly direction: InvoiceSummary['direction'];
     }) => Promise<InvoiceSummary>;
+    /**
+     * The invoice as a PDF, as an address a link can point at.
+     *
+     * <p>A URL rather than a fetch, because the browser already knows how to download a file: the document is
+     * served with its own filename and the tab stays where it was.</p>
+     */
+    pdfUrl: (id: string) => string;
+    /** The invoice as an XRechnung (UBL), for a receiver that wants one. */
+    xrechnungUrl: (id: string) => string;
   };
   readonly payments: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<PaymentSummary>>;
@@ -1331,6 +1340,10 @@ export function createResources(client: ApiClient): ApiResources {
       },
     },
     invoices: {
+      // The two documents the backend can produce for an invoice. They were reachable through the API and
+      // through nothing a person uses, which is the gap this product keeps producing.
+      pdfUrl: (id) => `/api/v1/invoices/${id}/pdf`,
+      xrechnungUrl: (id) => `/api/v1/invoices/${id}/xrechnung`,
       list: async (params, signal) => {
         const { status, direction, sort, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
         const page = await client.list<InvoiceWire>(

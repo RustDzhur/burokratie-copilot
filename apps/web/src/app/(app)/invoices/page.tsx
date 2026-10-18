@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import type { InvoiceSummary } from '@/lib/api/types';
 import { useGroupedLabels, useStatusLabels } from '@/lib/format/status';
 import styles from '@/styles/list-cells.module.css';
+import { buttonClass } from '@/components/ui/button-class';
 
 const STATUS_VALUES = ['draft', 'review', 'approved', 'paid', 'overdue'] as const;
 const DIRECTION_VALUES = ['incoming', 'outgoing'] as const;
@@ -99,6 +100,20 @@ export default function InvoicesPage() {
           direction: (values.direction ?? 'incoming') as InvoiceSummary['direction'],
         })
       }
+      rowActions={(row) => (
+        // The two documents a customer actually receives. They existed as routes and as nothing a person
+        // could click, which is the gap this product produces more often than any other.
+        <>
+          <a href={api.invoices.pdfUrl(row.id)} target="_blank" rel="noopener"
+             className={buttonClass({ variant: 'secondary', size: 'sm' })}>
+            {t('documents.pdf')}
+          </a>
+          <a href={api.invoices.xrechnungUrl(row.id)} target="_blank" rel="noopener"
+             className={buttonClass({ variant: 'ghost', size: 'sm' })}>
+            {t('documents.xrechnung')}
+          </a>
+        </>
+      )}
     />
   );
 }

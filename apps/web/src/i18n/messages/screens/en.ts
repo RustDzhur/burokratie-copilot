@@ -1099,6 +1099,8 @@ export const enScreens: ScreenMessages = {
     'status.approved': 'Approved',
     'status.paid': 'Paid',
     'status.overdue': 'Overdue',
+    'documents.pdf': 'Download PDF',
+    'documents.xrechnung': 'XRechnung',
     'erechnung.notice':
       'E-invoices (XRechnung, ZUGFeRD) are validated by dedicated validators; results are attached to the record.',
     'empty.title': 'No invoices yet',
