@@ -1,5 +1,12 @@
 # Integrations — Bürokratie-Copilot
 
+> **СТАТУС ДОКУМЕНТА (обновлено).** Раздел «Reality today» ниже был написан, когда адаптеров и половины
+> API ещё не существовало, и с тех пор **устарел**: он утверждает, что нет `IntegrationController`,
+> `DocumentController` и OCR. Всё три существуют и работают — проверено на живом прогоне: документ загружен
+> через `POST /api/v1/documents`, фотография письма прочитана OCR (tesseract), дата и срок извлечены и
+> поставлены в календарь. Актуальное состояние — в таблице ниже; исходный текст сохранён под ней как запись
+> о том, что было.
+
 The specification (§18) requires a single **Integration Hub** with per-integration status, connected
 account, permissions, settings, last sync, errors, an event log, disconnect/reconnect, secure token
 storage and token refresh. It also names the adapters the platform must be able to talk to:
@@ -38,7 +45,11 @@ ls services/api/src/main/resources/db/migration              # V1..V15
 
 | What | Reality today |
 | --- | --- |
-| **Adapter classes** | **None.** The backend contains the identity/security core (`identity/**`), the audit trail (`audit/**`), a shared kernel (config, error handling, tenancy, correlation IDs, `shared/mail/**`) — and no integration adapter of any kind. |
+| **Интеграционный хаб (актуально)** | **Реализован.** `IntegrationController`, каталог адаптеров с честной градацией, события, подключение/отключение, шифрованное хранение токенов. |
+| **Загрузка документов (актуально)** | **Реализована.** `DocumentController`, `POST /api/v1/documents`; конвейер: безопасность → хеш → дубликаты → формат → текст → OCR → язык → классификация → поля → сопоставление. |
+| **OCR (актуально)** | **Реализован.** tesseract, языки de/en/ru; переносы строк сохраняются; даты цифрами и словами; фото выпрямляется. |
+| **Приём почты OAuth (актуально)** | **Реализован, но требует регистрации приложения.** Microsoft 365 и Google Workspace: authorization-code + PKCE, XOAUTH2, refresh. Без client-id/secret — `503 FEATURE_DISABLED` с перечнем недостающих ключей. |
+| **Адаптеры (историческая запись)** | **None.** The backend contains the identity/security core (`identity/**`), the audit trail (`audit/**`), a shared kernel (config, error handling, tenancy, correlation IDs, `shared/mail/**`) — and no integration adapter of any kind. |
 | **Integration Hub API** | **Not implemented.** No `IntegrationController`, no `integration/*` service. |
 | **Upload/ingest API** | **Not implemented.** No `DocumentController`; `POST /api/v1/documents` does not exist. |
 | **AI provider abstraction** | **Not implemented.** Configuration only: `burokratie.ai.*` (`BC_AI_ENABLED`, `BC_AI_PROVIDER`, `BC_AI_BASE_URL`, `BC_AI_API_KEY`, `BC_AI_MONTHLY_BUDGET_EUR`), defaulting to **disabled**. No provider client, no budget enforcement code. |
