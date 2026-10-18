@@ -84,7 +84,7 @@ final class SyntheticPhotos {
      */
     static byte[] photo(BufferedImage page, List<Point> corners, int canvasWidth, int canvasHeight,
                         Color background, String format) {
-        double[] transform = homography(canvasWidth, canvasHeight, corners);
+        double[] transform = homography(page.getWidth(), page.getHeight(), corners);
         if (transform == null) {
             throw new IllegalArgumentException("the four corners do not describe a perspective view");
         }
@@ -238,6 +238,10 @@ final class SyntheticPhotos {
         }
     }
 
+    static byte[] encodePng(BufferedImage image) {
+        return encode(image, "png");
+    }
+
     private static byte[] encode(BufferedImage image, String format) {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             if (!ImageIO.write(image, format, out)) {
@@ -250,17 +254,20 @@ final class SyntheticPhotos {
         }
     }
 
-    /** Maps the canvas rectangle onto the page (destination to source), so every pixel can be sampled. */
-    private static double[] homography(int canvasWidth, int canvasHeight, List<Point> corners) {
+    /**
+     * Maps the canvas onto the page (destination to source), so every pixel of the photograph can be
+     * sampled from the flat page. The four given points are where the page's corners land on the canvas.
+     */
+    private static double[] homography(int pageWidth, int pageHeight, List<Point> corners) {
         double[][] matrix = new double[8][9];
-        double[][] destinations = {
-                { 0, 0 }, { canvasWidth, 0 }, { canvasWidth, canvasHeight }, { 0, canvasHeight }
+        double[][] pageCorners = {
+                { 0, 0 }, { pageWidth, 0 }, { pageWidth, pageHeight }, { 0, pageHeight }
         };
         for (int index = 0; index < 4; index++) {
-            double u = destinations[index][0];
-            double v = destinations[index][1];
-            double x = corners.get(index).x();
-            double y = corners.get(index).y();
+            double u = corners.get(index).x();
+            double v = corners.get(index).y();
+            double x = pageCorners[index][0];
+            double y = pageCorners[index][1];
             matrix[2 * index] = new double[] { u, v, 1, 0, 0, 0, -u * x, -v * x, x };
             matrix[2 * index + 1] = new double[] { 0, 0, 0, u, v, 1, -u * y, -v * y, y };
         }

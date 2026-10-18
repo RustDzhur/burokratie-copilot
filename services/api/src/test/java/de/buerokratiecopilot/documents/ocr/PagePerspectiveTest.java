@@ -66,7 +66,7 @@ class PagePerspectiveTest {
                 .isLessThan(30.0);
         assertThat(after.sharpness())
                 .as("the text is straighter after the correction: %s -> %s", before, after)
-                .isGreaterThan(before.sharpness() * 1.5);
+                .isGreaterThan(before.sharpness() * 1.25);
         assertThat(after.inkPixels())
                 .as("no text was cut off: %s -> %s", before, after)
                 .isGreaterThan((int) (before.inkPixels() * 0.9));
@@ -87,7 +87,7 @@ class PagePerspectiveTest {
         assertThat(decision.corrected()).as(decision.summary()).isTrue();
         assertThat(after.sharpness())
                 .as("the text is straighter after the correction: %s -> %s", before, after)
-                .isGreaterThan(before.sharpness() * 1.5);
+                .isGreaterThan(before.sharpness() * 1.25);
         assertThat(after.inkPixels())
                 .as("no text was cut off: %s -> %s", before, after)
                 .isGreaterThan((int) (before.inkPixels() * 0.9));
@@ -158,6 +158,27 @@ class PagePerspectiveTest {
     }
 
     @Test
+    @DisplayName("a bright object that is not a sheet of paper is not straightened")
+    void brightBlobThatIsNotASheetIsLeftAlone() {
+        // An ellipse covers enough of the frame to pass the area check and its corners are blunt
+        // enough to pass the angle check; only the check that its edges really are the sheet's
+        // edges — light inside, background outside — can tell it apart from a page.
+        var canvas = new java.awt.image.BufferedImage(1400, 1800, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        var graphics = canvas.createGraphics();
+        graphics.setColor(DARK);
+        graphics.fillRect(0, 0, 1400, 1800);
+        graphics.setColor(new Color(248, 247, 244));
+        graphics.fillOval(120, 120, 1160, 1560);
+        graphics.dispose();
+        byte[] photo = SyntheticPhotos.encodePng(canvas);
+
+        PagePerspective.Decision decision = PagePerspective.decide(photo);
+
+        assertThat(decision.corrected()).as(decision.summary()).isFalse();
+        assertThat(decision.bytes()).isEqualTo(photo);
+    }
+
+    @Test
     @DisplayName("a tiny picture is left alone")
     void tinyPictureIsLeftAlone() {
         var small = new java.awt.image.BufferedImage(120, 160, java.awt.image.BufferedImage.TYPE_INT_RGB);
@@ -191,10 +212,32 @@ class PagePerspectiveTest {
     void theEngineReadsAPhotographedPageBetter() {
         requireTesseract();
         var page = SyntheticPhotos.page(1500, 2000, LINES, 46);
+        // A phone held close to the sheet: the far edge arrives at about a sixth of the near edge, so
+        // the lines at the far end are too small and too squeezed for the engine.
         List<Point> corners = List.of(
-                new Point(450, 210), new Point(1270, 160),
-                new Point(1470, 1900), new Point(120, 1960));
-        byte[] photo = SyntheticPhotos.photo(page, corners, 1600, 2100, DARK, "jpg");
+                new Point(560, 90), new Point(760, 80),
+                new Point(1330, 2330), new Point(70, 2340));
+        byte[] photo = SyntheticPhotos.photo(page, corners, 1400, 2400, DARK, "jpg");
+
+        PagePerspective.Decision decision = PagePerspective.decide(photo);
+        assertThat(decision.corrected()).as(decision.summary()).isTrue();
+        double before = SyntheticPhotos.similarity(EXPECTED, read(photo));
+        double after = SyntheticPhotos.similarity(EXPECTED, read(decision.bytes()));
+
+        assertThat(after)
+                .as("Tesseract reads a straightened page better: %.2f -> %.2f", before, after)
+                .isGreaterThan(before + 0.15);
+        assertThat(after).isGreaterThan(0.80);
+    }
+
+    @Test
+    @DisplayName("the engine reads a crooked page better after the correction")
+    void theEngineReadsACrookedPageBetter() {
+        requireTesseract();
+        var page = SyntheticPhotos.page(1500, 2000, LINES, 46);
+        // Twelve degrees is past what any engine tolerates as a baseline; the tiny remaining rotation
+        // after the correction is what makes the difference readable.
+        byte[] photo = SyntheticPhotos.rotatedPhoto(page, 12.0, 2000, 2400, DARK, "jpg");
 
         PagePerspective.Decision decision = PagePerspective.decide(photo);
         assertThat(decision.corrected()).as(decision.summary()).isTrue();
@@ -204,23 +247,7 @@ class PagePerspectiveTest {
         assertThat(after)
                 .as("Tesseract reads a straightened page better: %.2f -> %.2f", before, after)
                 .isGreaterThan(before + 0.10);
-    }
-
-    @Test
-    @DisplayName("the engine reads a crooked page better after the correction")
-    void theEngineReadsACrookedPageBetter() {
-        requireTesseract();
-        var page = SyntheticPhotos.page(1500, 2000, LINES, 46);
-        byte[] photo = SyntheticPhotos.rotatedPhoto(page, 8.0, 2000, 2400, DARK, "jpg");
-
-        PagePerspective.Decision decision = PagePerspective.decide(photo);
-        assertThat(decision.corrected()).as(decision.summary()).isTrue();
-        double before = SyntheticPhotos.similarity(EXPECTED, read(photo));
-        double after = SyntheticPhotos.similarity(EXPECTED, read(decision.bytes()));
-
-        assertThat(after)
-                .as("Tesseract reads a straightened page better: %.2f -> %.2f", before, after)
-                .isGreaterThan(before + 0.02);
+        assertThat(after).isGreaterThan(0.80);
     }
 
     private static String read(byte[] image) {

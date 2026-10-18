@@ -180,6 +180,10 @@ burokratie:
     engine: ${BC_OCR_ENGINE:tesseract}
     languages: ${BC_OCR_LANGUAGES:deu+eng}
     tesseract-path: ${BC_TESSERACT_PATH:tesseract}
+    # Straightening a photographed sheet before recognition. On by default because it only acts when the page
+    # boundary is found with confidence; when it is not, the picture is handed on unchanged. An operator can
+    # switch it off without a build if a particular scanner or phone produces pages it misreads (spec §7.3).
+    perspective-correction: ${BC_OCR_PERSPECTIVE_CORRECTION:true}
   outbox:
     batch-size: 50
     max-attempts: 8

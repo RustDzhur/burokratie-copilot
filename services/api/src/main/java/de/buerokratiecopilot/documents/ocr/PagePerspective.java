@@ -768,22 +768,23 @@ public final class PagePerspective {
         int sourceWidth = source.getWidth();
         int sourceHeight = source.getHeight();
         int[] pixels = source.getRGB(0, 0, sourceWidth, sourceHeight, null, 0, sourceWidth);
-        int[] result = new int[destinationWidth * destinationHeight];
+        BufferedImage image = new BufferedImage(destinationWidth, destinationHeight, BufferedImage.TYPE_INT_RGB);
+        // One row at a time: a second full-size array for the result would double the memory of a
+        // phone photo, and the page is written row by row anyway.
+        int[] row = new int[destinationWidth];
         for (int y = 0; y < destinationHeight; y++) {
-            int row = y * destinationWidth;
             for (int x = 0; x < destinationWidth; x++) {
                 double denominator = transform[6] * x + transform[7] * y + 1.0;
                 if (Math.abs(denominator) < 1e-9) {
-                    result[row + x] = 0xFFFFFFFF;
+                    row[x] = 0xFFFFFFFF;
                     continue;
                 }
                 double sourceX = (transform[0] * x + transform[1] * y + transform[2]) / denominator;
                 double sourceY = (transform[3] * x + transform[4] * y + transform[5]) / denominator;
-                result[row + x] = bilinear(pixels, sourceWidth, sourceHeight, sourceX, sourceY);
+                row[x] = bilinear(pixels, sourceWidth, sourceHeight, sourceX, sourceY);
             }
+            image.setRGB(0, y, destinationWidth, 1, row, 0, destinationWidth);
         }
-        BufferedImage image = new BufferedImage(destinationWidth, destinationHeight, BufferedImage.TYPE_INT_RGB);
-        image.setRGB(0, 0, destinationWidth, destinationHeight, result, 0, destinationWidth);
         return image;
     }
 

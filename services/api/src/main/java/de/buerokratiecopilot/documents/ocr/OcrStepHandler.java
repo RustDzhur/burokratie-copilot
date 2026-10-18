@@ -9,6 +9,7 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import de.buerokratiecopilot.documents.DocumentPageRepository;
@@ -28,6 +29,10 @@ import de.buerokratiecopilot.shared.storage.BlobStore;
  * because a value taken from a mediocre scan must be distinguishable from one read from a text
  * layer.</p>
  *
+ * <p>A photographed page is straightened before it is read (spec §7.3, {@link PagePerspective}).
+ * That step refuses whenever the sheet's corners are not certain and returns the picture unchanged;
+ * its decision and the reason are kept in the step diagnostics, so "left alone" is never silent.</p>
+ *
  * <p>When no engine is configured the step is reported as skipped with the reason and the document
  * goes to human review. Claiming an empty result would turn an unread scan into a blank document,
  * and the following classification stage would then classify it as "unknown" instead of "not read".</p>
@@ -37,22 +42,28 @@ public class OcrStepHandler implements ProcessingStepHandler {
 
     private static final Logger log = LoggerFactory.getLogger(OcrStepHandler.class);
 
+    /** The step keeps a few reasons for the diagnostics; a fifty-page scan needs no fifty lines there. */
+    private static final int MAX_LOGGED_PERSPECTIVE_DECISIONS = 5;
+
     private final OcrEngine engine;
     private final PdfPageRenderer renderer;
     private final DocumentPageRepository pages;
     private final DocumentRepository documents;
     private final BlobStore blobStore;
     private final BurokratieProperties properties;
+    private final boolean perspectiveCorrection;
 
     public OcrStepHandler(OcrEngine engine, PdfPageRenderer renderer, DocumentPageRepository pages,
                           DocumentRepository documents, BlobStore blobStore,
-                          BurokratieProperties properties) {
+                          BurokratieProperties properties,
+                          @Value("${burokratie.ocr.perspective-correction:true}") boolean perspectiveCorrection) {
         this.engine = engine;
         this.renderer = renderer;
         this.pages = pages;
         this.documents = documents;
         this.blobStore = blobStore;
         this.properties = properties;
+        this.perspectiveCorrection = perspectiveCorrection;
     }
 
     @Override
@@ -122,6 +133,9 @@ public class OcrStepHandler implements ProcessingStepHandler {
         int recognised = 0;
         int empty = 0;
         int failed = 0;
+        int straightened = 0;
+        int leftAsItWas = 0;
+        List<String> perspectiveDecisions = new ArrayList<>();
         List<Double> confidences = new ArrayList<>();
         Map<String, Object> diagnostics = new LinkedHashMap<>();
         diagnostics.put("engine", engine.name());
@@ -145,7 +159,24 @@ public class OcrStepHandler implements ProcessingStepHandler {
                 continue;
             }
 
-            OcrEngine.Result result = recogniseBest(image, languages);
+            // Only a photograph of a sheet can have a perspective to remove. A rendered PDF page is
+            // already flat, and warping it would be a resampling of a picture that needs none.
+            byte[] forRecognition = image;
+            if (imageDocument && perspectiveCorrection) {
+                PagePerspective.Decision perspective = PagePerspective.decide(image);
+                if (perspective.corrected()) {
+                    forRecognition = perspective.bytes();
+                    straightened++;
+                }
+                else {
+                    leftAsItWas++;
+                }
+                if (perspectiveDecisions.size() < MAX_LOGGED_PERSPECTIVE_DECISIONS) {
+                    perspectiveDecisions.add("page " + page.getPageNumber() + ": " + perspective.summary());
+                }
+            }
+
+            OcrEngine.Result result = recogniseBest(forRecognition, languages);
             page.setOcrUsed(true);
             page.setOcrEngine(result.engine());
             page.setOcrLanguage(result.language());
@@ -180,6 +211,14 @@ public class OcrStepHandler implements ProcessingStepHandler {
         diagnostics.put("pagesRecognised", recognised);
         diagnostics.put("pagesWithoutText", empty);
         diagnostics.put("pagesFailed", failed);
+        if (straightened + leftAsItWas > 0) {
+            // The decision is recorded, not only made: "not straightened" without a reason looks the
+            // same whether the page was already straight or the sheet could not be found.
+            diagnostics.put("perspectiveCorrectedPages", straightened);
+            diagnostics.put("perspectiveKeptPages", leftAsItWas);
+            diagnostics.put("perspectiveDecisions", String.join("; ", perspectiveDecisions)
+                    + (straightened + leftAsItWas > perspectiveDecisions.size() ? "; ..." : ""));
+        }
         diagnostics.put("averageConfidence", confidences.isEmpty() ? null
                 : confidences.stream().mapToDouble(Double::doubleValue).average().orElse(0));
 
