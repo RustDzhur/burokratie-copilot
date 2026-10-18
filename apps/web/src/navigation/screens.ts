@@ -173,6 +173,8 @@ export const screens: readonly ScreenDefinition[] = [
   screen('mail', '/mail', 'mail', 'organisation', { minTier: 1 }),
   // §5.2.17 — template editor
   screen('templates', '/templates', 'pencil', 'documents', { minTier: 1 }),
+  // §5.2.18 — the letters generated from those templates
+  screen('generated-documents', '/generated-documents', 'file-text', 'documents', { minTier: 1 }),
   // §5.2.18 — AI assistant
   screen('assistant', '/assistant', 'sparkles', 'workspace', { minTier: 1 }),
   // §5.2.19 — automations

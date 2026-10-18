@@ -1485,18 +1485,19 @@ export function createResources(client: ApiClient): ApiResources {
     },
     generatedDocuments: {
       list: async (_params, signal) => {
-        const page = await client.list<{
-          id: string;
-          title: string;
-          outputFormat: string;
-          status: string;
-          caseId: string | null;
-          generatedAt: string | null;
-          hasFile: boolean;
-        }>('/generated-documents', {}, withSignal(signal));
+        // The route answers {documents, count}; the table wants the paged shape. This mapping is the fix for
+        // the screen that shipped broken: client.list expects {items}, got undefined, and the page reported
+        // that the data could not be loaded. Nothing tested the page, so nothing noticed.
+        const body = await client.get<{
+          documents: readonly GeneratedDocumentSummary[];
+          count: number;
+        }>('/generated-documents', withSignal(signal));
         return {
-          ...page,
-          items: page.items.map((row) => ({ ...row })),
+          items: body.documents,
+          page: 1,
+          size: body.count,
+          totalItems: body.count,
+          totalPages: 1,
         };
       },
       readiness: (id, signal) =>

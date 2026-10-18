@@ -58,8 +58,10 @@ test.describe('first journey', () => {
     await signIn(page, email);
     await page.waitForURL(/\/(onboarding|dashboard)/);
 
+    // A hand-maintained list drifts: a screen was added and this list did not know about it, so the sweep
+    // that says 'every screen' was silently checking one screen fewer - and the one it missed was broken.
     const routes = ['dashboard', 'inbox', 'documents', 'review', 'cases', 'tasks', 'calendar', 'contracts', 'invoices',
-      'payments', 'contacts', 'mail', 'templates', 'assistant', 'automations', 'integrations', 'scan', 'family',
+      'payments', 'contacts', 'mail', 'templates', 'generated-documents', 'assistant', 'automations', 'integrations', 'scan', 'family',
       'company', 'employees', 'reports', 'archive', 'security', 'accessibility', 'notifications', 'audit'];
     for (const route of routes) {
       await page.goto(`/${route}`);
