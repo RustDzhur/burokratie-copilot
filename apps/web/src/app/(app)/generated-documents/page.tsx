@@ -52,6 +52,10 @@ export default function GeneratedDocumentsPage() {
               {t('action.download')}
             </a>
           ) : null}
+          <a href={`/generated-documents/${row.id}`}
+             className={buttonClass({ variant: 'ghost', size: 'sm' })}>
+            {t('action.readiness')}
+          </a>
         </>
       )}
     />

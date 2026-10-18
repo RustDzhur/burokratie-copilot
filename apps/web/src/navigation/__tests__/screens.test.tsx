@@ -23,9 +23,9 @@ describe('screen registry', () => {
     // §5.2.2 (registration and sign-in) is four routes; the generated letters are the forty-fourth screen.
     // The count is asserted on purpose: a screen added to the registry without appearing here is a screen the
     // product claims and does not have.
-    expect(screens).toHaveLength(44);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(44);
-    expect(new Set(screens.map((screen) => screen.href)).size).toBe(44);
+    expect(screens).toHaveLength(45);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(45);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(45);
   });
 
   it('puts every workspace screen into a sidebar section', () => {

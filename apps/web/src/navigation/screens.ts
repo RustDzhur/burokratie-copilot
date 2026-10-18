@@ -51,7 +51,7 @@ export type ScreenId =
   | 'rules'
   | 'calendar'
   | 'contracts'
-  | 'invoices' | 'generated-documents'
+  | 'invoices' | 'generated-documents' | 'generatedDocument'
   | 'payments'
   | 'contacts'
   | 'mail'
@@ -175,6 +175,10 @@ export const screens: readonly ScreenDefinition[] = [
   screen('templates', '/templates', 'pencil', 'documents', { minTier: 1 }),
   // §5.2.18 — the letters generated from those templates
   screen('generated-documents', '/generated-documents', 'file-text', 'documents', { minTier: 1 }),
+  // §5.2.18a — one generated letter, with what stands in the way of sending it. A detail route, not a
+  // destination of its own, so it stays out of the sidebar.
+  screen('generatedDocument', '/generated-documents/[id]', 'file-text', 'documents',
+    { inSidebar: false, minTier: 1 }),
   // §5.2.18 — AI assistant
   screen('assistant', '/assistant', 'sparkles', 'workspace', { minTier: 1 }),
   // §5.2.19 — automations

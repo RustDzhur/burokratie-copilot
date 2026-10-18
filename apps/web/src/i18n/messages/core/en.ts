@@ -155,6 +155,7 @@ export const enCore: CoreMessages = {
     'items.rules': 'Rules and sensitivity',
     'items.calendar': 'Calendar and deadlines',
     'items.contracts': 'Contracts',
+    'items.generatedDocument': 'Generated letter',
     'items.generated-documents': 'Generated letters',
     'items.invoices': 'Invoices and expenses',
     'items.payments': 'Payments and reconciliation',

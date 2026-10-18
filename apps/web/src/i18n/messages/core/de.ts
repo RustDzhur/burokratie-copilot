@@ -164,6 +164,7 @@ export const deCore = {
     'items.rules': 'Regeln und Empfindlichkeit',
     'items.calendar': 'Kalender und Fristen',
     'items.contracts': 'Verträge',
+    'items.generatedDocument': 'Erzeugtes Schreiben',
     'items.generated-documents': 'Erzeugte Schreiben',
     'items.invoices': 'Rechnungen und Ausgaben',
     'items.payments': 'Zahlungen und Abgleich',

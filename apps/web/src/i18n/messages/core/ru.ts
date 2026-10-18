@@ -157,6 +157,7 @@ export const ruCore: CoreMessages = {
     'items.rules': 'Правила и чувствительность',
     'items.calendar': 'Календарь и сроки',
     'items.contracts': 'Договоры',
+    'items.generatedDocument': 'Созданное письмо',
     'items.generated-documents': 'Созданные письма',
     'items.invoices': 'Счета и расходы',
     'items.payments': 'Платежи и сверка',
