@@ -57,6 +57,24 @@ public class FieldExtractionService {
      */
     private static final BigDecimal CONFIDENCE_TEXT = BigDecimal.valueOf(0.75);
 
+    /**
+     * How sure the engine was about the page a value was read from, or null when it was not read by OCR.
+     *
+     * <p>A digital page has no recognition confidence because nothing was recognised: the text was already
+     * there. Only a page that went through OCR can lower the certainty of what was taken from it.</p>
+     */
+    private BigDecimal ocrConfidenceOf(DocumentVersion version, Integer pageNumber) {
+        if (version == null || pageNumber == null) {
+            return null;
+        }
+        return pages.findByVersionIdOrderByPageNumberAsc(version.getId()).stream()
+                .filter(page -> page.getPageNumber() == pageNumber)
+                .findFirst()
+                .filter(DocumentPage::isOcrUsed)
+                .map(DocumentPage::getOcrConfidence)
+                .orElse(null);
+    }
+
     /** How much text around the value is stored as evidence. */
     private static final int SNIPPET_MARGIN = 60;
 
@@ -195,9 +213,17 @@ public class FieldExtractionService {
             entity.setNormalizedValue(parsed.normalized());
             entity.setSourcePage(raw.page());
             entity.setSourceSnippet(raw.snippet());
-            entity.setConfidence(FieldValueParser.isVerifiable(field.getValueType())
+            // A value cannot be more certain than the recognition it came from. The constants above were
+            // the whole story, so a field read from a poor scan carried the same 0.90 as one read from a
+            // clean digital document - and the review thresholds could not tell them apart.
+            BigDecimal confidence = FieldValueParser.isVerifiable(field.getValueType())
                     ? CONFIDENCE_VALIDATED
-                    : CONFIDENCE_TEXT);
+                    : CONFIDENCE_TEXT;
+            BigDecimal recognised = ocrConfidenceOf(version, raw.page());
+            if (recognised != null) {
+                confidence = confidence.multiply(recognised).setScale(2, java.math.RoundingMode.HALF_UP);
+            }
+            entity.setConfidence(confidence);
             extractions.save(entity);
 
             found.add(new Found(field.getFieldKey(), parsed.original(), parsed.normalized(), raw.page(),
