@@ -75,7 +75,7 @@
                                    templates, automations, reports, integrations, audit,
                                    security, accessibility, company, employees, design-system,
                                    входящие, регистрация, вход, сброс пароля, онбординг …)
-тестов фронтенда           : 148, все зелёные (13 файлов)
+тестов фронтенда           : печатает `scripts/facts.sh --tests`
 axe (jest-axe)             : pages.a11y.test.tsx — 7 экранов без нарушений
 контраст                   : contrast.test.ts — 16 проверок
 eslint-plugin-jsx-a11y     : установлен
@@ -146,8 +146,8 @@ eslint-plugin-jsx-a11y     : установлен
 
 | Что | Чем проверено |
 |---|---|
-| Бэкенд целиком | `mvnw clean verify` → 1093 теста, 0 падений |
-| Фронтенд целиком | `pnpm test` → 166 тестов, 15 файлов |
+| Бэкенд целиком | `mvnw clean verify` → зелёный; число печатает `scripts/facts.sh --tests` |
+| Фронтенд целиком | `pnpm test` → зелёный; число печатает `scripts/facts.sh --tests` |
 | Доступность — автоматически | axe по **7 экранам**, **16** проверок контраста, `eslint-plugin-jsx-a11y` |
 | Сборка фронтенда | `pnpm lint`, `pnpm typecheck`, `pnpm build` — чисто |
 | Развёртывание и откат | `backup.sh` + `verify-restore.sh` на dev-среде: 396 внешних ключей без сирот, 23/23 миграции |
