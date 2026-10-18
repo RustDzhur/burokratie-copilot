@@ -83,7 +83,20 @@ public class OutboundMessageService {
      * expects a reply, nothing is sent until a person releases it.</p>
      */
     @Transactional
+    /** A draft without attachments. */
     public UUID draft(DraftRequest request) {
+        return draft(request, java.util.List.of());
+    }
+
+    /**
+     * A draft with documents attached (spec §15).
+     *
+     * <p><strong>What was wrong.</strong> The column existed and the insert wrote it - as the literal
+     * {@code []}. Nothing could attach anything, so a letter could be composed and never carry the invoice it
+     * was written about. Attachments are document ids, not bytes: a document the account already holds is the
+     * only thing that can be attached.</p>
+     */
+    public UUID draft(DraftRequest request, java.util.List<UUID> attachmentDocumentIds) {
         if (request.toAddresses() == null || request.toAddresses().isEmpty()) {
             throw new ApiException(ErrorCode.INVALID_REQUEST, "Eine Nachricht braucht einen Empfänger");
         }
@@ -116,11 +129,13 @@ public class OutboundMessageService {
                                                cc_addresses, bcc_addresses, attachment_document_ids,
                                                draft_version, attempt_count, idempotency_key, created_by)
                 values (gen_random_uuid(), ?, ?, ?, 'DRAFT', ?, ?, ?, ?, ?::jsonb, ?::jsonb, '[]'::jsonb,
-                        '[]'::jsonb, 1, 0, ?, ?)
+                        ?::jsonb, 1, 0, ?, ?)
                 returning id
                 """, UUID.class, request.tenantId(), request.caseId(), channel, request.subject(),
                 request.bodyText(), request.bodyHtml(), request.fromAddress(),
                 toJsonArray(request.toAddresses()), toJsonArray(request.ccAddresses()),
+                toJsonArray((attachmentDocumentIds == null ? java.util.List.<UUID>of() : attachmentDocumentIds)
+                        .stream().map(UUID::toString).toList()),
                 request.idempotencyKey(), request.createdBy());
 
         log.info("Outbound message {} drafted as {} (reply: {})", messageId, channel,
