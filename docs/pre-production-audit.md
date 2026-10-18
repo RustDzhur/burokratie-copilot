@@ -927,8 +927,38 @@ DateClassifier:168       inCalendar() && confidence >= 0.7
 - срок из «Letzte Mahnung» **появляется**, но помечен неподтверждённым ✅
 - `DeadlineProvenanceIT` проходит без ослабления утверждения ✅
 
-**Это три связанные правки в трёх файлах** — `ClassificationService`, `ClassifyStepHandler`,
-`DetectedDateService`. Делать их без прогона двух интеграционных наборов нельзя.
+**Проверено попыткой (раунд 52) и опровергнуто:** вывод дат при остановке конвейера **не помогает** — ноль
+сроков остаётся. Значит причина **не в досрочном возврате**.
+
+**Найдено настоящее звено (раунд 53):**
+
+```
+DetectedDateService.detect():102-104
+    select field_value, normalized_value, ...
+      from document_extractions
+     where document_id = ? and value_type = 'DATE'
+```
+
+`document_extractions` заполняется шагом **`FIELD_EXTRACT`**, который в `ORDER` стоит **ПОСЛЕ `CLASSIFY`**
+(`… LANGUAGE_DETECT, CLASSIFY, FIELD_EXTRACT, MATCHING`). При `REVIEW_REQUIRED` конвейер останавливается на
+`CLASSIFY`, **`FIELD_EXTRACT` не выполняется**, таблица пуста — и срок не создаётся.
+
+**Почему `ClassifyStepHandler` не спасает:** он делает **превью** извлечения для проверки, но, судя по
+поведению теста, **не сохраняет** результат в `document_extractions`.
+
+**Запасной путь `detect()`** (разбор текста страниц, строки 119+) в этом сценарии тоже не даёт результата —
+это и нужно проверить следующим: почему fallback по `text_content` не находит «Frist: 31.10.2026».
+
+**Правильное исправление — одно из двух, и выбор требует проверки:**
+- **(A)** сохранять превью-извлечение `ClassifyStepHandler` в `document_extractions` — тогда `detect` работает
+  без изменения порядка шагов;
+- **(B)** перенести `FIELD_EXTRACT` **перед** `CLASSIFY` в `ORDER` — извлечение полей не зависит от типа.
+
+**(B) выглядит вернее:** поля документа не зависят от его типа, и порядок «сначала прочитать, потом решить»
+честнее. Но менять `ORDER` — значит перепроверить весь конвейер, поэтому вслепую этого делать нельзя.
+
+**Три правки** (`ClassificationService`, порядок в `DocumentProcessingPipeline`, `DetectedDateService`) —
+без прогона `DemoCabinetIT`, `DeadlineProvenanceIT` и `*Classif*` их делать нельзя.
 
 **Что нужно сделать, чтобы закрыть пункт 5:**
 1. убрать фильтр категории в `closeCall` (строка 165);
