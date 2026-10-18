@@ -190,3 +190,141 @@
   color: var(--color-text-subtle);
   border-bottom: 1px solid var(--color-border);
 }
+
+/* --- Personal menu: edit mode, drag handles and the "Weitere" block ------------------------------- */
+
+.brandActions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+
+/* The edit mode explains itself where the changes happen, not in a dialog far away. */
+.editPanel {
+  margin: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-subtle);
+}
+
+.editHint {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-muted);
+}
+
+.editActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.editStatus {
+  margin: var(--space-1) 0 0;
+  min-height: 1em;
+  font-size: var(--font-size-2xs);
+  color: var(--color-text-subtle);
+}
+
+/* One row: drag handle, link, and (in edit mode) the move/hide buttons. */
+.item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  border-radius: var(--radius-md);
+}
+
+.item > a {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemEditing:hover {
+  background-color: var(--color-bg-subtle);
+}
+
+.dragHandle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px;
+  color: var(--color-text-subtle);
+  cursor: grab;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.itemActions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Where the dragged entry would land: a line above or below the hovered one. */
+.dropBefore {
+  box-shadow: inset 0 2px 0 0 var(--color-accent);
+}
+
+.dropAfter {
+  box-shadow: inset 0 -2px 0 0 var(--color-accent);
+}
+
+/* "Weitere": everything the person put away, collapsed until they look for it. */
+.additional {
+  margin-top: var(--space-4);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.additionalToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 38px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-md);
+  text-align: start;
+}
+
+.additionalToggle:hover {
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text);
+}
+
+.additionalToggle:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: -1px;
+}
+
+.additionalCount {
+  margin-inline-start: auto;
+  min-width: 1.5em;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-subtle);
+  font-size: var(--font-size-2xs);
+  text-align: center;
+}
+
+.additionalBody {
+  padding-top: var(--space-1);
+}
+
+.additionalSectionLabel {
+  margin: var(--space-3) var(--space-3) var(--space-2);
+  font-size: var(--font-size-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-caps);
+  color: var(--color-text-subtle);
+}

@@ -418,6 +418,26 @@ export interface AssistantQueryPayload {
   readonly documentIds?: readonly string[];
 }
 
+/**
+ * The person's own menu: the order of the main list and the screens they put away into "Weitere".
+ *
+ * <p>Empty arrays mean the standard menu by sections. An account that never changed anything therefore
+ * keeps the layout it always had — a preference only exists once somebody actually reordered or hid
+ * something.</p>
+ */
+export interface NavigationPreferences {
+  readonly order: readonly string[];
+  readonly hidden: readonly string[];
+  /** When the menu was last changed; `null` while the standard menu applies. */
+  readonly updatedAt: string | null;
+}
+
+/** What `PUT /me/navigation` sends: the complete menu, never a patch. */
+export interface NavigationPreferencesInput {
+  readonly order: readonly string[];
+  readonly hidden: readonly string[];
+}
+
 export interface ApiResources {
   readonly auth: {
     /** Resolves to the user, or to `mfaRequired` when a second factor has to be proven first. */
@@ -808,6 +828,14 @@ export interface ApiResources {
     /** Switches the caller's active factor off. */
     disable: () => Promise<void>;
   };
+  readonly navigation: {
+    /** The person's own menu; empty arrays while nothing was saved. */
+    get: (signal?: AbortSignal) => Promise<NavigationPreferences>;
+    /** Replaces the whole menu; the request carries the complete order, so repeating it is harmless. */
+    save: (preferences: NavigationPreferencesInput) => Promise<NavigationPreferences>;
+    /** Returns to the standard menu by sections. */
+    reset: () => Promise<void>;
+  };
   readonly settings: {
     security: (signal?: AbortSignal) => Promise<SecuritySettings>;
     revokeSession: (id: string) => Promise<void>;
@@ -1000,6 +1028,38 @@ async function orNull<T>(request: Promise<T>): Promise<T | null> {
 }
 
 const withSignal = (signal?: AbortSignal): { signal?: AbortSignal } => (signal ? { signal } : {});
+
+/** The menu as the backend sends it; accepts camelCase and snake_case so a rename cannot blank the menu. */
+interface NavigationPreferencesWire {
+  readonly order?: readonly unknown[] | null;
+  readonly hidden?: readonly unknown[] | null;
+  readonly updatedAt?: string | null;
+  readonly updated_at?: string | null;
+}
+
+/**
+ * Only strings are ids. Unknown, repeated and malformed entries are dropped here; the screen registry is
+ * the second gate, because an id the UI no longer knows must never hide or reorder a menu entry.
+ */
+function navigationPreferencesFromWire(
+  wire: NavigationPreferencesWire | null | undefined,
+): NavigationPreferences {
+  const ids = (value: readonly unknown[] | null | undefined): readonly string[] => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const entry of value ?? []) {
+      if (typeof entry !== 'string' || seen.has(entry)) continue;
+      seen.add(entry);
+      result.push(entry);
+    }
+    return result;
+  };
+  return {
+    order: ids(wire?.order),
+    hidden: ids(wire?.hidden),
+    updatedAt: wire?.updatedAt ?? wire?.updated_at ?? null,
+  };
+}
 
 export function createResources(client: ApiClient): ApiResources {
   return {
@@ -2275,6 +2335,23 @@ export function createResources(client: ApiClient): ApiResources {
         const active = methods.filter((method) => method.confirmed_at && !method.disabled_at);
         await Promise.all(active.map((method) => client.delete<void>(`/mfa/methods/${method.id}`)));
       },
+    },
+    navigation: {
+      get: async (signal) =>
+        navigationPreferencesFromWire(
+          await client.get<NavigationPreferencesWire>('/me/navigation', withSignal(signal)),
+        ),
+      save: async (preferences) => {
+        const wire = await client.put<NavigationPreferencesWire | undefined>('/me/navigation', {
+          order: preferences.order,
+          hidden: preferences.hidden,
+        });
+        // A server that confirms without a body did what was asked; what we sent is then the answer.
+        return wire
+          ? navigationPreferencesFromWire(wire)
+          : { ...preferences, updatedAt: null };
+      },
+      reset: () => client.delete<void>('/me/navigation'),
     },
     settings: {
       security: (signal) => client.get<SecuritySettings>('/settings/security', withSignal(signal)),

@@ -5,7 +5,11 @@ import { createResources, type ApiResources } from './resources';
 export * from './client';
 export * from './errors';
 export * from './types';
-export type { ApiResources } from './resources';
+export type {
+  ApiResources,
+  NavigationPreferences,
+  NavigationPreferencesInput,
+} from './resources';
 
 type UnauthorizedListener = (error: ApiError) => void;
 const unauthorizedListeners = new Set<UnauthorizedListener>();
