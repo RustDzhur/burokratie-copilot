@@ -188,6 +188,20 @@ import type {
  * <p>The sentence is not decoration: it is what makes such a date checkable against the letter. A date
  * without its source cannot be verified, and a wrong date in a calendar is worse than an empty one.</p>
  */
+/**
+ * What stands in the way of sending a generated letter.
+ *
+ * <p>Missing requisites, statements nobody stands behind, and the problems in words - the same three the
+ * backend reports, so the screen can show a reason rather than a red dot.</p>
+ */
+export interface GeneratedDocumentReadiness {
+  readonly status: string;
+  readonly readyToSend: boolean;
+  readonly missing: readonly { readonly key: string; readonly label: string; readonly value: string | null }[];
+  readonly unconfirmed: readonly { readonly text: string }[];
+  readonly problems: readonly string[];
+}
+
 export interface DetectedDate {
   /** The date as it is written in the document, e.g. 31.10.2026. */
   readonly text: string;
@@ -511,6 +525,17 @@ export interface ApiResources {
   readonly mail: {
     get: (id: string, signal?: AbortSignal) => Promise<MailMessageDetail>;
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<MailMessageSummary>>;
+  };
+  readonly generatedDocuments: {
+    /**
+     * Whether a generated letter is ready to be sent, and what stands in the way.
+     *
+     * <p>The backend could answer this and the client had no way to ask: the check existed, a route existed,
+     * and a screen did not. This is the first half of closing that.</p>
+     */
+    readiness: (id: string, signal?: AbortSignal) => Promise<GeneratedDocumentReadiness>;
+    /** The produced file, as an address a link can point at. */
+    downloadUrl: (id: string) => string;
   };
   readonly templates: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<TemplateSummary>>;
@@ -1439,6 +1464,11 @@ export function createResources(client: ApiClient): ApiResources {
         );
         return { ...page, items: page.items.map(mailFromWire) };
       },
+    },
+    generatedDocuments: {
+      readiness: (id, signal) =>
+        client.get<GeneratedDocumentReadiness>(`/generated-documents/${id}/readiness`, withSignal(signal)),
+      downloadUrl: (id) => `/api/v1/generated-documents/${id}/download`,
     },
     templates: {
       list: async (params, signal) => {
