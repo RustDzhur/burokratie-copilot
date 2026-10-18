@@ -27,6 +27,9 @@ services:
       # Bewusste Entscheidung für diesen Stand: es gibt keinen ClamAV-Build für arm64. Die Anwendung
       # zeichnet jede Datei als „nicht geprüft" auf — niemals als „sauber".
       BC_ALLOW_UNSCANNED: "true"
+      # Details of the health endpoint, so a DOWN status names the component that is down instead of
+      # leaving an operator to guess.
+      MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: always
   worker:
     depends_on: !override
       postgres:

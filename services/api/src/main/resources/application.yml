@@ -91,6 +91,13 @@ management:
       show-details: when-authorized
       probes:
         enabled: true
+  health:
+    mail:
+      # Mail is optional: a deployment may run without SMTP and say so (the notification channel already logs
+      # "No mail provider is configured"). The health indicator, however, dials a host - and with none configured
+      # it dials port 587 of no host at all and reports DOWN, which turns a deliberate choice into a permanent
+      # red mark and makes every real alarm indistinguishable from this one. Off unless a mail host is set.
+      enabled: ${BC_MAIL_HEALTH_ENABLED:false}
   info:
     env:
       enabled: true
