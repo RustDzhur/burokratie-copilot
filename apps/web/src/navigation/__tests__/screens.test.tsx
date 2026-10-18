@@ -20,10 +20,12 @@ vi.mock('next/navigation', () => ({
 
 describe('screen registry', () => {
   it('covers all 30 screens required by the specification, and the people screen of the cabinets', () => {
-    // §5.2.2 (registration and sign-in) is four routes, hence 33 in total.
-    expect(screens).toHaveLength(43);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(43);
-    expect(new Set(screens.map((screen) => screen.href)).size).toBe(43);
+    // §5.2.2 (registration and sign-in) is four routes; the generated letters are the forty-fourth screen.
+    // The count is asserted on purpose: a screen added to the registry without appearing here is a screen the
+    // product claims and does not have.
+    expect(screens).toHaveLength(44);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(44);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(44);
   });
 
   it('puts every workspace screen into a sidebar section', () => {
@@ -33,7 +35,7 @@ describe('screen registry', () => {
         expect(sectionIds.has(screen.section)).toBe(true);
       }
     }
-    expect(sidebarScreens).toHaveLength(33);
+    expect(sidebarScreens).toHaveLength(34);
   });
 
   it('has a German, English and Russian title for every screen', () => {
@@ -106,7 +108,7 @@ describe('Sidebar', () => {
 
     const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
     // 27 workspace screens (the admin area is hidden from everybody but the platform administrator) plus the brand link back to the dashboard.
-    expect(within(nav).getAllByRole('link')).toHaveLength(33);
+    expect(within(nav).getAllByRole('link')).toHaveLength(34);
 
     for (const section of navSections) {
       expect(within(nav).getByText(catalogues.de.nav[section.labelKey])).toBeInTheDocument();

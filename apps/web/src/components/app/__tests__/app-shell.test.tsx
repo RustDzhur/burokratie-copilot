@@ -60,7 +60,7 @@ describe('AppShell', () => {
     );
 
     const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
-    expect(within(nav).getAllByRole('link')).toHaveLength(33);
+    expect(within(nav).getAllByRole('link')).toHaveLength(34);
     // No fabricated user data: the account button falls back to the sign-in label.
     expect(screen.getAllByRole('button', { name: /Anmelden|Benutzermenü/ }).length).toBeGreaterThan(
       0,
