@@ -163,6 +163,9 @@ import type {
   RadarSummary,
   CaseDetail,
   CatalogueEntry,
+  DateMarker,
+  DateMarkerKind,
+  DateMarkerList,
   DeletionKind,
   MailMessageDetail,
   PartyInput,
@@ -329,8 +332,52 @@ export function sessionUserFromMe(me: MeResponse): SessionUser {
     onboardingCompleted: me.onboardingCompleted ?? true,
     mfaEnrolmentRequired: me.mfaEnrolmentRequired ?? false,
     platformAdmin: (me.permissions ?? []).includes('platform.admin'),
+    permissions: me.permissions ?? [],
     subscription: me.subscription ? subscriptionFromWire(me.subscription) : null,
   };
+}
+
+/** One date word exactly as `GET /settings/date-markers` serves it. */
+interface DateMarkerWire {
+  readonly id: string;
+  readonly kind: DateMarkerKind;
+  readonly phrase: string;
+  readonly label?: string | null;
+  readonly enabled?: boolean;
+  readonly system?: boolean;
+  readonly tenantOverride?: boolean;
+}
+
+interface DateMarkerListWire {
+  readonly items?: readonly DateMarkerWire[];
+  readonly count?: number;
+}
+
+/** Readable defaults for a field an older backend may leave out: a word is active unless it says otherwise. */
+function dateMarkerFromWire(wire: DateMarkerWire): DateMarker {
+  return {
+    id: wire.id,
+    kind: wire.kind,
+    phrase: wire.phrase,
+    label: wire.label ?? null,
+    enabled: wire.enabled !== false,
+    system: wire.system === true,
+    tenantOverride: wire.tenantOverride === true,
+  };
+}
+
+/** What a workspace sends to add a word, or to switch a default off with the same kind and phrase. */
+export interface DateMarkerInput {
+  readonly kind: DateMarkerKind;
+  readonly phrase: string;
+  readonly label?: string;
+  readonly enabled?: boolean;
+}
+
+export interface DateMarkerPatch {
+  readonly enabled?: boolean;
+  readonly phrase?: string;
+  readonly label?: string;
 }
 
 export interface RegisterPayload {
@@ -770,6 +817,18 @@ export interface ApiResources {
     }) => Promise<void>;
     accessibility: (signal?: AbortSignal) => Promise<AccessibilityPreferences>;
     saveAccessibility: (preferences: AccessibilityPreferences) => Promise<AccessibilityPreferences>;
+    /**
+     * The words that explain a date (§9.3): the platform defaults, the workspace's own words and the
+     * defaults it switched off. `create` also switches a default off — a default cannot be patched (409),
+     * only replaced by an own word with the same kind and phrase.
+     */
+    readonly dateMarkers: {
+      list: (signal?: AbortSignal) => Promise<DateMarkerList>;
+      create: (payload: DateMarkerInput) => Promise<DateMarker>;
+      update: (id: string, patch: DateMarkerPatch) => Promise<DateMarker>;
+      remove: (id: string) => Promise<void>;
+      reset: () => Promise<{ readonly deleted: number }>;
+    };
   };
 }
 
@@ -2229,6 +2288,36 @@ export function createResources(client: ApiClient): ApiResources {
         client.get<AccessibilityPreferences>('/settings/accessibility', withSignal(signal)),
       saveAccessibility: (preferences) =>
         client.put<AccessibilityPreferences>('/settings/accessibility', preferences),
+      dateMarkers: {
+        list: async (signal) => {
+          const wire = await client.get<DateMarkerListWire>(
+            '/settings/date-markers',
+            withSignal(signal),
+          );
+          const items = (wire.items ?? []).map(dateMarkerFromWire);
+          // The server sends its own count; items.length keeps the screen correct if an older backend omits it.
+          return { items, count: wire.count ?? items.length };
+        },
+        create: async (payload) => {
+          const created = await client.post<DateMarkerWire>('/settings/date-markers', payload, {
+            idempotencyKey: true,
+          });
+          return dateMarkerFromWire(created);
+        },
+        update: async (id, patch) => {
+          const updated = await client.patch<DateMarkerWire>(
+            `/settings/date-markers/${encodeURIComponent(id)}`,
+            patch,
+          );
+          return dateMarkerFromWire(updated);
+        },
+        remove: async (id) => {
+          await client.delete<void>(`/settings/date-markers/${encodeURIComponent(id)}`);
+        },
+        // The colon is the contract, not a typo: the endpoint is `…/date-markers:reset`, a command on the
+        // collection rather than a member of it.
+        reset: () => client.post<{ readonly deleted: number }>('/settings/date-markers:reset'),
+      },
     },
   };
 }

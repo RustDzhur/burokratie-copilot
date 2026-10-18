@@ -28,6 +28,35 @@ class DateClassifierTest {
     }
 
     @Nested
+    @DisplayName("a vocabulary word only counts at the start of a word")
+    class WordBoundary {
+
+        @Test
+        @DisplayName("\"Berater\" is not the payment word \"rate\"")
+        void beraterIsNotRate() {
+            // A substring search found "rate" inside "Berater" and turned a letter that merely mentions an
+            // adviser into a payment deadline.
+            String text = "Ihr Berater steht Ihnen gern zur Verfügung. Der Termin am 12.11.2026 ist bestätigt.";
+            int at = text.indexOf("12.11.2026");
+
+            assertThat(DateClassifier.classify(text, at, "12.11.2026".length()).kind())
+                    .isEqualTo(DateClassifier.Kind.APPOINTMENT);
+        }
+
+        @Test
+        @DisplayName("a compound still matches: \"Zahlungsfrist\" contains \"zahlung\"")
+        void compoundStillMatches() {
+            // The boundary is required only at the start, because German compounds put the vocabulary word
+            // first: an end boundary would lose "Zahlungsfrist", "Terminbestätigung", "Fristsetzung".
+            String text = "Die Zahlungsfrist endet am 30.11.2026.";
+            int at = text.indexOf("30.11.2026");
+
+            assertThat(DateClassifier.classify(text, at, "30.11.2026".length()).kind())
+                    .isEqualTo(DateClassifier.Kind.PAYMENT_DEADLINE);
+        }
+    }
+
+    @Nested
     @DisplayName("an administrative deadline is a deadline")
     class AdministrativeDeadline {
 

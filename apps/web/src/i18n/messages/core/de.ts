@@ -162,6 +162,7 @@ export const deCore = {
     'items.approvals': 'Freigaben',
     'items.future': 'Zukunft',
     'items.rules': 'Regeln und Empfindlichkeit',
+    'items.dateMarkers': 'Datumsbegriffe',
     'items.calendar': 'Kalender und Fristen',
     'items.contracts': 'Verträge',
     'items.generatedDocument': 'Erzeugtes Schreiben',

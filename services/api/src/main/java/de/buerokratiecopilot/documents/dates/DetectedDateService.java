@@ -27,10 +27,10 @@ import de.buerokratiecopilot.documents.fields.FieldValueParser;
  * then offered every date with a button beside it, which turned every letter into a decision and added a
  * control to a screen that already has too many.</p>
  *
- * <p><strong>What it does now.</strong> {@link DateClassifier} reads the words around each date and says what
- * it is. Dates that name a payment, a reply, an appointment or an expiry become calendar entries on their own;
- * the date the letter was written is left out, because a letter's own date is not an appointment. Nothing is
- * asked of the reader.</p>
+ * <p><strong>What it does now.</strong> {@link DateMarkerClassifier} reads the words around each date — the
+ * vocabulary of this workspace, which lives in the database — and says what it is. Dates that name a payment,
+ * a reply, an appointment or an expiry become calendar entries on their own; the date the letter was written
+ * is left out, because a letter's own date is not an appointment. Nothing is asked of the reader.</p>
  *
  * <p><strong>What it deliberately still does not do.</strong> It does not compute a deadline from law. It does
  * not guess: a date whose wording it cannot read stays {@code OTHER} and goes nowhere, and a weak reading is
@@ -78,10 +78,13 @@ public class DetectedDateService {
 
     private final JdbcTemplate jdbc;
     private final CalendarEventService calendar;
+    private final DateMarkerClassifier classifier;
 
-    public DetectedDateService(JdbcTemplate jdbc, CalendarEventService calendar) {
+    public DetectedDateService(JdbcTemplate jdbc, CalendarEventService calendar,
+                               DateMarkerClassifier classifier) {
         this.jdbc = jdbc;
         this.calendar = calendar;
+        this.classifier = classifier;
     }
 
     /** One date, with where it was found and what its wording says it is. */
@@ -153,7 +156,7 @@ public class DetectedDateService {
                 // The words beside the date decide what it is, which is the reason a letter with a payment
                 // deadline can fill a calendar without anybody pressing anything.
                 DateClassifier.Classified classified =
-                        DateClassifier.classify(text, span[0], span[1] - span[0]);
+                        classifier.classify(text, span[0], span[1] - span[0]);
                 byDate.putIfAbsent(parsed.normalized(), new Detected(candidate, parsed.normalized(), number,
                         snippetAround(text, span[0], span[1]), "PAGE_TEXT",
                         classified.kind(), classified.confidence(), classified.evidence()));
@@ -279,15 +282,15 @@ public class DetectedDateService {
     }
 
     /** Classifies a date inside a stored sentence, or falls back to the sentence itself. */
-    private static DateClassifier.Classified classifyIn(String snippet, String original) {
+    private DateClassifier.Classified classifyIn(String snippet, String original) {
         if (snippet == null || snippet.isBlank()) {
             return new DateClassifier.Classified(DateClassifier.Kind.OTHER, 0, null);
         }
         int at = original == null ? -1 : snippet.indexOf(original);
         if (at < 0) {
-            return DateClassifier.classify(snippet, 0, 0);
+            return classifier.classify(snippet, 0, 0);
         }
-        return DateClassifier.classify(snippet, at, original.length());
+        return classifier.classify(snippet, at, original.length());
     }
 
     /** The pages of the document, in order, as far as they exist. */

@@ -68,6 +68,7 @@ export type ScreenId =
   | 'archive'
   | 'security'
   | 'accessibilitySettings'
+  | 'dateMarkers'
   | 'notifications'
   | 'audit'
   | 'billing'
@@ -93,6 +94,11 @@ export interface ScreenDefinition {
   readonly audience?: readonly WorkspaceKind[];
   /** Shown only to the platform administrator. */
   readonly adminOnly?: boolean;
+  /**
+   * One backend permission this screen needs (e.g. `settings.view`). The menu hides the screen when the
+   * person's permissions are known and do not include it; an unknown permission list hides nothing.
+   */
+  readonly requiredPermission?: string;
   /** Lowest plan tier that includes the screen; absent = every plan. Mirrors what the server enforces. */
   readonly minTier?: number;
 }
@@ -107,6 +113,8 @@ function screen(
     readonly requiresAuth?: boolean;
     readonly audience?: readonly WorkspaceKind[];
     readonly adminOnly?: boolean;
+    /** A backend permission the screen needs; see `ScreenDefinition.requiredPermission`. */
+    readonly requiredPermission?: string;
     /** The lowest plan tier (0 Free, 1 Personal, 2 Business, 3 Professional) that includes the screen. */
     readonly minTier?: number;
   } = {},
@@ -122,6 +130,7 @@ function screen(
     titleKey: `items.${id}`,
     audience: options.audience,
     adminOnly: options.adminOnly,
+    requiredPermission: options.requiredPermission,
     minTier: options.minTier,
   };
 }
@@ -205,6 +214,10 @@ export const screens: readonly ScreenDefinition[] = [
   screen('accessibilitySettings', '/accessibility', 'accessibility', 'governance'),
   // thresholds and switches of the Radar and of document recognition, with a version history
   screen('rules', '/rules', 'shield', 'governance'),
+  // the words that explain a date (Frist, Termin, Zahlungsziel), editable by the workspace
+  screen('dateMarkers', '/settings/date-markers', 'calendar', 'governance', {
+    requiredPermission: 'settings.view',
+  }),
   // §5.2.29 — notification centre
   screen('notifications', '/notifications', 'bell', 'governance'),
   // §5.2.30 — activity history and audit
@@ -227,6 +240,8 @@ export function screensVisibleFor(
     | {
         readonly workspaceType?: WorkspaceKind;
         readonly platformAdmin?: boolean;
+        /** What the server granted; `undefined` means "not known", which hides nothing. */
+        readonly permissions?: readonly string[];
         readonly subscription?: { readonly planTier?: number } | null;
       }
     | null
@@ -237,6 +252,14 @@ export function screensVisibleFor(
     if (item.adminOnly) return Boolean(user?.platformAdmin);
     // An unknown plan hides nothing: the server decides, the menu only follows it.
     if (item.minTier !== undefined && tier !== undefined && tier < item.minTier) return false;
+    // Same for permissions: only a list the server actually sent can hide a screen.
+    if (
+      item.requiredPermission !== undefined &&
+      user?.permissions !== undefined &&
+      !user.permissions.includes(item.requiredPermission)
+    ) {
+      return false;
+    }
     if (!item.audience || !user?.workspaceType) return true;
     return item.audience.includes(user.workspaceType);
   });

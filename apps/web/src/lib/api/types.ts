@@ -483,6 +483,12 @@ export interface SessionUser {
   readonly mfaEnrolmentRequired?: boolean;
   /** Runs the platform: gets the /admin area. Given by the server's configuration, never by the interface. */
   readonly platformAdmin?: boolean;
+  /**
+   * The permissions the server granted this person (`settings.view`, `settings.manage_rules`, …). The
+   * interface only follows them to hide what would be refused anyway; every call is checked again on the
+   * server. Absent when the session predates this field — the screens then do not hide anything.
+   */
+  readonly permissions?: readonly string[];
   readonly subscription?: SubscriptionInfo | null;
 }
 
@@ -1018,6 +1024,39 @@ export interface RuleSettingVersion {
   readonly newValue: string;
   readonly reason: string | null;
   readonly changedAt: string;
+}
+
+/**
+ * The date kinds a word can explain. `OTHER` exists in the classifier for a date that belongs to no
+ * kind, but it is never a word's category — the settings endpoint refuses it.
+ */
+export type DateMarkerKind =
+  | 'PAYMENT_DEADLINE'
+  | 'OBJECTION_DEADLINE'
+  | 'DEADLINE'
+  | 'APPOINTMENT'
+  | 'VALIDITY_END'
+  | 'DOCUMENT_DATE';
+
+/**
+ * One word that explains a date as seen by a workspace: the platform defaults plus the workspace's own
+ * words, its own word winning. `system` marks a platform default (read-only); `tenantOverride` marks an
+ * own word that replaces a default with the same kind and phrase (a switched-off or relabelled default).
+ */
+export interface DateMarker {
+  readonly id: string;
+  readonly kind: DateMarkerKind;
+  readonly phrase: string;
+  readonly label: string | null;
+  readonly enabled: boolean;
+  readonly system: boolean;
+  readonly tenantOverride: boolean;
+}
+
+/** Everything `GET /settings/date-markers` answers: the effective vocabulary and how many words it holds. */
+export interface DateMarkerList {
+  readonly items: readonly DateMarker[];
+  readonly count: number;
 }
 
 /** A case a document is linked to; `linkOrigin` says whether a person or a rule made the link. */

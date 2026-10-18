@@ -153,6 +153,7 @@ export const enCore: CoreMessages = {
     'items.approvals': 'Approvals',
     'items.future': 'Future',
     'items.rules': 'Rules and sensitivity',
+    'items.dateMarkers': 'Date terms',
     'items.calendar': 'Calendar and deadlines',
     'items.contracts': 'Contracts',
     'items.generatedDocument': 'Generated letter',

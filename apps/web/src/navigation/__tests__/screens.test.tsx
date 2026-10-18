@@ -10,6 +10,7 @@ import {
   getScreen,
 } from '../screens';
 import { catalogues } from '@/i18n/messages';
+import { SessionProvider } from '@/lib/auth/session-context';
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/cases',
@@ -21,11 +22,12 @@ vi.mock('next/navigation', () => ({
 describe('screen registry', () => {
   it('covers all 30 screens required by the specification, and the people screen of the cabinets', () => {
     // §5.2.2 (registration and sign-in) is four routes; the generated letters are the forty-fourth screen.
-    // The count is asserted on purpose: a screen added to the registry without appearing here is a screen the
-    // product claims and does not have.
-    expect(screens).toHaveLength(45);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(45);
-    expect(new Set(screens.map((screen) => screen.href)).size).toBe(45);
+    // The date vocabulary brings the count to forty-six: it is reached from the settings cabinet and stands
+    // in the governance section like the other settings screens. The count is asserted on purpose: a screen
+    // added to the registry without appearing here is a screen the product claims and does not have.
+    expect(screens).toHaveLength(46);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(46);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(46);
   });
 
   it('puts every workspace screen into a sidebar section', () => {
@@ -35,7 +37,7 @@ describe('screen registry', () => {
         expect(sectionIds.has(screen.section)).toBe(true);
       }
     }
-    expect(sidebarScreens).toHaveLength(34);
+    expect(sidebarScreens).toHaveLength(35);
   });
 
   it('has a German, English and Russian title for every screen', () => {
@@ -100,6 +102,17 @@ describe('plans and the menu', () => {
   it('hides nothing while the plan is unknown (the server decides)', () => {
     expect(names({ workspaceType: 'company' })).toContain('invoices');
   });
+
+  it('shows the date vocabulary only where the server granted settings.view', () => {
+    expect(names({ workspaceType: 'private', permissions: ['settings.view'] })).toContain(
+      'dateMarkers',
+    );
+    expect(names({ workspaceType: 'private', permissions: ['tasks.view'] })).not.toContain(
+      'dateMarkers',
+    );
+    // An unknown permission list hides nothing: the server decides and refuses the call instead.
+    expect(names({ workspaceType: 'private' })).toContain('dateMarkers');
+  });
 });
 
 describe('Sidebar', () => {
@@ -107,8 +120,9 @@ describe('Sidebar', () => {
     renderWithProviders(<Sidebar collapsed={false} onToggleCollapse={() => undefined} />);
 
     const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
-    // 27 workspace screens (the admin area is hidden from everybody but the platform administrator) plus the brand link back to the dashboard.
-    expect(within(nav).getAllByRole('link')).toHaveLength(34);
+    // 34 workspace screens (the admin area is hidden from everybody but the platform administrator) plus the
+    // brand link back to the dashboard.
+    expect(within(nav).getAllByRole('link')).toHaveLength(35);
 
     for (const section of navSections) {
       expect(within(nav).getByText(catalogues.de.nav[section.labelKey])).toBeInTheDocument();
@@ -164,5 +178,40 @@ describe('Sidebar', () => {
 
     const nav = screen.getByRole('navigation', { name: 'Основная навигация' });
     expect(within(nav).getByRole('link', { name: 'Входящие' })).toBeInTheDocument();
+  });
+
+  it('leaves the date vocabulary out of the menu for a person without settings.view', () => {
+    const user = {
+      id: 'u',
+      name: 'N',
+      email: 'n@example.de',
+      roles: [],
+      workspaceId: 'w',
+      workspaceName: 'W',
+      workspaceType: 'private' as const,
+      permissions: ['tasks.view'],
+    };
+    const { unmount } = renderWithProviders(
+      <SessionProvider user={user}>
+        <Sidebar collapsed={false} onToggleCollapse={() => undefined} />
+      </SessionProvider>,
+    );
+    expect(
+      within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).queryByRole('link', {
+        name: catalogues.de.nav['items.dateMarkers'],
+      }),
+    ).toBeNull();
+    unmount();
+
+    renderWithProviders(
+      <SessionProvider user={{ ...user, permissions: ['tasks.view', 'settings.view'] }}>
+        <Sidebar collapsed={false} onToggleCollapse={() => undefined} />
+      </SessionProvider>,
+    );
+    expect(
+      within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).getByRole('link', {
+        name: catalogues.de.nav['items.dateMarkers'],
+      }),
+    ).toHaveAttribute('href', '/settings/date-markers');
   });
 });

@@ -62,7 +62,8 @@ test.describe('first journey', () => {
     // that says 'every screen' was silently checking one screen fewer - and the one it missed was broken.
     const routes = ['dashboard', 'inbox', 'documents', 'review', 'cases', 'tasks', 'calendar', 'contracts', 'invoices',
       'payments', 'contacts', 'mail', 'templates', 'generated-documents', 'assistant', 'automations', 'integrations', 'scan', 'family',
-      'company', 'employees', 'reports', 'archive', 'security', 'accessibility', 'notifications', 'audit'];
+      'company', 'employees', 'reports', 'archive', 'security', 'accessibility', 'notifications', 'audit',
+      'settings/date-markers'];
     for (const route of routes) {
       await page.goto(`/${route}`);
       await expect(page.locator('main')).toBeVisible();
