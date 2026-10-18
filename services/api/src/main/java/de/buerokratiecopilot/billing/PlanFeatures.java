@@ -74,7 +74,12 @@ public class PlanFeatures {
             return cached;
         }
         List<Cached> rows = jdbc.query("""
-                select coalesce(p.tier, 1), t.account_type, p.analyses_per_month
+                -- A tenant without a subscription is not restricted, as the comment below says: the left
+                -- joins still produce a row for the tenant, so coalesce(p.tier, 1) silently gave every
+                -- subscription-less account the lowest tier and the check below never fired. The case makes
+                -- the documented rule true instead of only written down.
+                select case when s.tenant_id is null then 3 else coalesce(p.tier, 1) end,
+                       t.account_type, p.analyses_per_month
                 from tenants t
                 left join subscriptions s on s.tenant_id = t.id
                 left join plans p on p.code = s.plan_code
