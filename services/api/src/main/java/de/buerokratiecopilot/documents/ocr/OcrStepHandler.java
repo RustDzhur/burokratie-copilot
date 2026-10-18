@@ -68,6 +68,15 @@ public class OcrStepHandler implements ProcessingStepHandler {
         List<DocumentPage> stored = pages.findByVersionIdOrderByPageNumberAsc(context.version().getId());
         List<DocumentPage> needingOcr = stored.stream().filter(DocumentPage::isEmpty).toList();
 
+        if (stored.isEmpty()) {
+            // No page at all. everything below reasons about pages, and with zero of them "every page carries
+            // a text layer" is true and useless: it says a document has text when the extraction produced
+            // nothing to look at. Saying so is the difference between "nothing to do" and "nothing worked".
+            return StepResult.skipped(
+                    "Die Textgewinnung hat keine Seite ergeben; es gibt nichts zu erkennen",
+                    Document.ProcessingStatus.REVIEW_REQUIRED);
+        }
+
         if (!imageDocument && needingOcr.isEmpty()) {
             // Nothing to recognise. Checking this BEFORE the engine availability matters: a digital
             // letter must not be sent to human review just because the deployment has no OCR engine.
