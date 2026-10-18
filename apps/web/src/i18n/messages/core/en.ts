@@ -141,7 +141,7 @@ export const enCore: CoreMessages = {
     'cabinet.private': 'Individual',
     'cabinet.family': 'Family',
     'cabinet.company': 'Company',
-    'customise.open': 'Customise menu',
+    'customise.open': 'Customise',
     'customise.close': 'Finish customising',
     'customise.done': 'Done',
     'customise.editGroup': 'Menu customisation',

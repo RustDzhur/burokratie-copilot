@@ -143,7 +143,7 @@ export const ruCore: CoreMessages = {
     'cabinet.private': 'Одиночка',
     'cabinet.family': 'Семья',
     'cabinet.company': 'Фирма',
-    'customise.open': 'Настроить меню',
+    'customise.open': 'Настроить',
     'customise.close': 'Завершить настройку',
     'customise.done': 'Готово',
     'customise.editGroup': 'Настройка меню',

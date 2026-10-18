@@ -95,7 +95,7 @@ const mainLinks = (): HTMLElement[] =>
 
 async function openEditMode(): Promise<void> {
   const person = userEvent.setup();
-  await person.click(within(nav()).getByRole('button', { name: 'Menü anpassen' }));
+  await person.click(within(nav()).getByRole('button', { name: 'Anpassen' }));
 }
 
 function findPut(): Call | undefined {

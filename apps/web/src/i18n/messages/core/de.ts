@@ -150,7 +150,7 @@ export const deCore = {
     'cabinet.private': 'Einzelperson',
     'cabinet.family': 'Familie',
     'cabinet.company': 'Firma',
-    'customise.open': 'Menü anpassen',
+    'customise.open': 'Anpassen',
     'customise.close': 'Anpassen beenden',
     'customise.done': 'Fertig',
     'customise.editGroup': 'Menüanpassung',
