@@ -15,8 +15,9 @@ import type { GeneratedDocumentSummary } from '@/lib/api/types';
  * <p><strong>Why this page exists.</strong> Letters could be generated and were shown nowhere: no list route
  * and no screen, so the readiness check and the download existed as routes with nothing to click them from.</p>
  *
- * <p>The download is offered only where a file exists, and the readiness check is the question a person asks
- * before sending: a letter with open placeholders is exactly the one that must not go out.</p>
+ * <p>The download is offered only where a file exists. The readiness check belongs here too, but it needs a
+ * page of its own to show what stands in the way; until that exists the link is not offered, because a link
+ * that lands on nothing is worse than no link - and this page had exactly that for a few minutes.</p>
  */
 export default function GeneratedDocumentsPage() {
   const t = useTranslations('generatedDocuments');
@@ -51,10 +52,6 @@ export default function GeneratedDocumentsPage() {
               {t('action.download')}
             </a>
           ) : null}
-          <a href={`/generated-documents/${row.id}`}
-             className={buttonClass({ variant: 'ghost', size: 'sm' })}>
-            {t('action.readiness')}
-          </a>
         </>
       )}
     />
