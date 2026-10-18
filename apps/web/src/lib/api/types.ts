@@ -186,6 +186,24 @@ export interface InvoiceSummary {
   readonly eRechnung?: boolean;
 }
 
+/**
+ * What happened to an invoice that was sent to its customer.
+ *
+ * The status is the mail provider's answer and nothing more: "SENT" means the message was handed over, not
+ * that it arrived. The wording in the interface must not promise delivery.
+ */
+export interface InvoiceSendResult {
+  readonly invoiceId: string;
+  readonly documentId: string;
+  readonly messageId: string;
+  readonly status: string;
+  readonly providerMessageId: string;
+  readonly description: string;
+  readonly to: readonly string[];
+  readonly subject: string;
+  readonly documentFilename: string;
+}
+
 export type PaymentStatus = 'unmatched' | 'matched' | 'suggested' | 'ignored';
 
 export interface PaymentSummary {

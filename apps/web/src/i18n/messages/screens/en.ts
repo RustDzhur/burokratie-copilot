@@ -1101,6 +1101,11 @@ export const enScreens: ScreenMessages = {
     'status.overdue': 'Overdue',
     'documents.pdf': 'Download PDF',
     'documents.xrechnung': 'XRechnung',
+    'action.send': 'Send',
+    'action.sending': 'Sending …',
+    'send.confirm':
+      'Send the invoice to {counterparty} by e-mail now? The PDF is handed over to the stored address immediately.',
+    'send.success': 'Invoice handed to the mail provider for {to}',
     'erechnung.notice':
       'E-invoices (XRechnung, ZUGFeRD) are validated by dedicated validators; results are attached to the record.',
     'empty.title': 'No invoices yet',

@@ -1107,6 +1107,11 @@ export const deScreens = {
     'status.overdue': 'Überfällig',
     'documents.pdf': 'PDF herunterladen',
     'documents.xrechnung': 'XRechnung',
+    'action.send': 'Senden',
+    'action.sending': 'Wird gesendet …',
+    'send.confirm':
+      'Rechnung {counterparty} jetzt per E-Mail senden? Das PDF wird sofort an die hinterlegte Adresse übergeben.',
+    'send.success': 'Rechnung an {to} übergeben',
     'erechnung.notice':
       'E-Rechnungen (XRechnung, ZUGFeRD) werden über eigene Validatoren geprüft; Ergebnisse erscheinen am Datensatz.',
     'empty.title': 'Keine Rechnungen vorhanden',

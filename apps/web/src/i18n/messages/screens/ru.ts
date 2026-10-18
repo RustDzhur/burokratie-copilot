@@ -1105,6 +1105,11 @@ export const ruScreens: ScreenMessages = {
     'status.overdue': 'Просрочен',
     'documents.pdf': 'Скачать PDF',
     'documents.xrechnung': 'XRechnung',
+    'action.send': 'Отправить',
+    'action.sending': 'Отправка …',
+    'send.confirm':
+      'Отправить счёт {counterparty} по почте сейчас? PDF сразу уйдёт на сохранённый адрес.',
+    'send.success': 'Счёт передан почтовому провайдеру для {to}',
     'erechnung.notice':
       'Электронные счета (XRechnung, ZUGFeRD) проверяются отдельными валидаторами; результаты отображаются в записи.',
     'empty.title': 'Счетов нет',

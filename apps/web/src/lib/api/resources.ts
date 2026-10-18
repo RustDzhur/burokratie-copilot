@@ -132,6 +132,7 @@ import type {
   IntegrationSummary,
   MailAccountSummary,
   MailCollectResult,
+  InvoiceSendResult,
   InvoiceSummary,
   MailMessageSummary,
   MemberRole,
@@ -504,6 +505,17 @@ export interface ApiResources {
     pdfUrl: (id: string) => string;
     /** The invoice as an XRechnung (UBL), for a receiver that wants one. */
     xrechnungUrl: (id: string) => string;
+    /**
+     * Sends the invoice to the customer with the PDF attached.
+     *
+     * <p>The backend archives the PDF as a document, writes the letter and hands it to the mail provider.
+     * The answer says what the provider did — accepted the message — and deliberately does not claim that
+     * the customer received it.</p>
+     */
+    send: (
+      id: string,
+      payload?: { readonly to?: string; readonly subject?: string; readonly body?: string },
+    ) => Promise<InvoiceSendResult>;
   };
   readonly payments: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<PaymentSummary>>;
@@ -1387,6 +1399,10 @@ export function createResources(client: ApiClient): ApiResources {
       // through nothing a person uses, which is the gap this product keeps producing.
       pdfUrl: (id) => `/api/v1/invoices/${id}/pdf`,
       xrechnungUrl: (id) => `/api/v1/invoices/${id}/xrechnung`,
+      // Rendering the PDF, archiving it, writing the letter and handing it over is one call: splitting it
+      // on the client would let a click stop between "document stored" and "letter sent" with no record.
+      send: (id, payload) =>
+        client.post<InvoiceSendResult>(`/invoices/${id}/send`, payload ?? {}, { idempotencyKey: true }),
       list: async (params, signal) => {
         const { status, direction, sort, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
         const page = await client.list<InvoiceWire>(

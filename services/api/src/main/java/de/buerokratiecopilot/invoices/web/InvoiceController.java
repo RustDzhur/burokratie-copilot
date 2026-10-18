@@ -43,14 +43,17 @@ import de.buerokratiecopilot.shared.context.RequestContext;
 public class InvoiceController {
 
     private final InvoiceService invoices;
-    private final de.buerokratiecopilot.invoices.outgoing.InvoicePdfRenderer renderer;
+    private final de.buerokratiecopilot.invoices.outgoing.InvoicePdfService pdfs;
+    private final de.buerokratiecopilot.invoices.outgoing.InvoiceSendService sender;
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     public InvoiceController(InvoiceService invoices,
-                             de.buerokratiecopilot.invoices.outgoing.InvoicePdfRenderer renderer,
+                             de.buerokratiecopilot.invoices.outgoing.InvoicePdfService pdfs,
+                             de.buerokratiecopilot.invoices.outgoing.InvoiceSendService sender,
                              org.springframework.jdbc.core.JdbcTemplate jdbc) {
         this.invoices = invoices;
-        this.renderer = renderer;
+        this.pdfs = pdfs;
+        this.sender = sender;
         this.jdbc = jdbc;
     }
 
@@ -125,6 +128,10 @@ public class InvoiceController {
     public record ApproveBody(boolean acceptChangedBankDetails, String note) {
     }
 
+    /** What a person may change about the letter; everything else comes from the invoice. */
+    public record SendBody(String to, String subject, String body) {
+    }
+
     @PostMapping
     @PreAuthorize("hasAuthority('finance.create')")
     @Operation(summary = "Record an incoming invoice; it is validated before it can be approved")
@@ -189,29 +196,12 @@ public class InvoiceController {
     @PreAuthorize("hasAuthority('finance.view')")
     @Operation(summary = "The invoice as a PDF")
     public org.springframework.http.ResponseEntity<byte[]> pdf(@PathVariable UUID id) throws java.io.IOException {
-        UUID tenantId = RequestContext.tenantId().orElseThrow();
-        var invoice = invoices.requireInvoice(id, tenantId);
-        var lines = invoices.linesOf(id).stream()
-                .map(line -> new de.buerokratiecopilot.invoices.outgoing.InvoicePdfRenderer.RenderLine(
-                        line.getLineNumber(),
-                        line.getDescription(), line.getQuantity(), line.getUnit(),
-                        line.getUnitPrice(), line.getNetAmount(), line.getTaxRatePercent()))
-                .toList();
-        String seller = jdbc.query("select name from tenants where id = ?",
-                rs -> rs.next() ? rs.getString(1) : null, tenantId);
-        String buyer = invoice.getContactId() == null ? null : jdbc.query("""
-                select display_name from contacts where id = ? and tenant_id = ?
-                """, rs -> rs.next() ? rs.getString(1) : null, invoice.getContactId(), tenantId);
-
-        byte[] pdf = renderer.render(new de.buerokratiecopilot.invoices.outgoing.InvoicePdfRenderer.Document(
-                invoice, lines, seller, buyer));
-        String filename = (invoice.getInvoiceNumber() == null ? "Rechnung" : invoice.getInvoiceNumber())
-                .replaceAll("[^A-Za-z0-9._-]", "_") + ".pdf";
+        var rendered = pdfs.render(id, RequestContext.tenantId().orElseThrow());
         return org.springframework.http.ResponseEntity.ok()
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
-                        "inline; filename=\"" + filename + "\"")
+                        "inline; filename=\"" + rendered.filename() + "\"")
                 .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
-                .body(pdf);
+                .body(rendered.content());
     }
 
     /**
@@ -288,6 +278,35 @@ public class InvoiceController {
         Invoice approved = invoices.approve(id, tenantId, CurrentUser.required(),
                 body != null && body.acceptChangedBankDetails(), body == null ? null : body.note());
         return ResponseEntity.ok(InvoiceResponse.from(approved, invoices.linesOf(id)));
+    }
+
+    /**
+     * Sends the invoice to the customer (spec §14.2, §15.3).
+     *
+     * <p><strong>Why this route exists.</strong> The PDF could be produced, the letter could be drafted and
+     * handed over, and there was no way to do both for one invoice: a customer received nothing unless a
+     * person downloaded the file, wrote a separate mail and attached it by hand. Each half worked; the join
+     * between them was missing, which is the same defect this module has produced elsewhere.</p>
+     *
+     * <p>The recipient is taken from the request, and from the invoice's contact when the request names
+     * none. The platform does not guess an address: a letter to the wrong customer is worse than a refusal
+     * that asks for one.</p>
+     *
+     * <p>The answer says what the provider did — accepted the message — and not that it was delivered.</p>
+     */
+    @PostMapping("/{id}/send")
+    @PreAuthorize("hasAuthority('finance.edit')")
+    @Operation(summary = "Sends the invoice to the customer as an e-mail with the PDF attached")
+    public ResponseEntity<de.buerokratiecopilot.invoices.outgoing.InvoiceSendService.Sent> send(
+            @PathVariable UUID id,
+            @RequestBody(required = false) SendBody body,
+            @org.springframework.web.bind.annotation.RequestHeader(
+                    value = "Idempotency-Key", required = false) String idempotencyKey) {
+        UUID tenantId = RequestContext.tenantId().orElseThrow();
+        return ResponseEntity.ok(sender.send(id, tenantId, CurrentUser.required(),
+                new de.buerokratiecopilot.invoices.outgoing.InvoiceSendService.Request(
+                        body == null ? null : body.to(), body == null ? null : body.subject(),
+                        body == null ? null : body.body(), idempotencyKey)));
     }
 
     @GetMapping("/needing-review")

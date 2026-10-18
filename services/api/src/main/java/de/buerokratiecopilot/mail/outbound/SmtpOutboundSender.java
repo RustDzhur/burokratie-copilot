@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -22,6 +23,12 @@ import jakarta.mail.internet.MimeMessage;
  *
  * <p>If no mail server is configured, the sender says so instead of pretending: a message with nowhere
  * to go stays a draft, and the user is told that rather than watching it silently disappear.</p>
+ *
+ * <p><strong>Attachments are written into the MIME message, not mentioned in it.</strong> What was wrong:
+ * the draft carried the document ids and the message that left contained the text only — the receiver got
+ * an invoice letter without the invoice, and nothing anywhere said so. Each attachment is added as its own
+ * part with the file name and the type the document holds, so the receiver's client shows a file it can
+ * open instead of an unnamed blob.</p>
  */
 @Component
 public class SmtpOutboundSender implements OutboundSender {
@@ -36,7 +43,7 @@ public class SmtpOutboundSender implements OutboundSender {
 
     @Override
     public String send(UUID tenantId, String from, List<String> to, List<String> cc, String subject,
-                       String body) {
+                       String body, List<Attachment> attachments) {
         JavaMailSender sender = mailSender.getIfAvailable();
         if (sender == null) {
             throw new SendFailedException("NO_MAIL_SERVER",
@@ -58,13 +65,35 @@ public class SmtpOutboundSender implements OutboundSender {
             }
             helper.setSubject(subject);
             helper.setText(body == null ? "" : body, false);
+            int attached = 0;
+            if (attachments != null) {
+                for (Attachment attachment : attachments) {
+                    if (attachment == null || attachment.content() == null) {
+                        continue;
+                    }
+                    // The type is passed explicitly: a part without one arrives as application/octet-stream
+                    // and the receiver has to guess what the invoice is.
+                    helper.addAttachment(attachment.filename(),
+                            new ByteArrayResource(attachment.content()),
+                            attachment.contentType() == null ? "application/octet-stream"
+                                    : attachment.contentType());
+                    attached++;
+                }
+            }
 
             sender.send(message);
-            // The server accepted it. The identifier is the message id it assigned, which is the most
-            // this layer can honestly report.
-            String messageId = message.getMessageID();
-            log.info("Message handed to SMTP for tenant {} as {}", tenantId, messageId);
-            return messageId == null ? "accepted" : messageId;
+            // The server accepted it. The identifier is the Message-ID the message carries; after a real
+            // handover the transport has written it. The header is read instead of calling the getter,
+            // because that getter invents an identifier from the local host name when none is set - and
+            // that lookup waits on a reverse DNS answer on some networks. A message without one is
+            // reported as "accepted", which is all this layer can honestly say.
+            String[] messageIdHeader = message.getHeader("Message-ID");
+            String messageId = messageIdHeader == null || messageIdHeader.length == 0
+                    ? null : messageIdHeader[0];
+            String reported = messageId == null ? "accepted" : messageId;
+            log.info("Message handed to SMTP for tenant {} as {} with {} attachment(s)", tenantId,
+                    reported, attached);
+            return reported;
         }
         catch (MailException | jakarta.mail.MessagingException ex) {
             throw new SendFailedException("SMTP_FAILED",

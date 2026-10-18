@@ -69,4 +69,22 @@ describe('finance ↔ backend', () => {
     await api.payments.match('t1', 'i1');
     expect(JSON.parse(String(calls[0]?.init.body))).toEqual({ transactionId: 't1', invoiceId: 'i1', matchType: 'MANUAL' });
   });
+
+  it('sends an invoice through its own route, idempotently, with the letter as optional input', async () => {
+    const { api, calls } = resourcesWith(() => json({
+      invoiceId: 'i1', documentId: 'd1', messageId: 'm1', status: 'SENT',
+      providerMessageId: 'p1', description: 'accepted', to: ['kunde@example.de'], subject: 'Rechnung R-1',
+      documentFilename: 'R-1.pdf',
+    }));
+    const result = await api.invoices.send('i1', { to: 'kunde@example.de' });
+
+    const url = new URL(calls[0]?.url ?? '', 'http://x');
+    expect(calls[0]?.init.method).toBe('POST');
+    expect(url.pathname).toBe('/api/v1/invoices/i1/send');
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({ to: 'kunde@example.de' });
+    // A retry after a timeout must not post a second letter to the customer.
+    expect(new Headers(calls[0]?.init.headers as HeadersInit).get('Idempotency-Key')).toBeTruthy();
+    expect(result.to).toEqual(['kunde@example.de']);
+    expect(result.documentFilename).toBe('R-1.pdf');
+  });
 });

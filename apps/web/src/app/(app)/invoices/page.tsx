@@ -1,11 +1,15 @@
 'use client';
+import { useState } from 'react';
 import { ListPage } from '@/components/app/list-page';
 import { Badge, StatusPill } from '@/components/ui';
 import type { Column } from '@/components/ui';
+import { Button } from '@/components/ui/button';
 import { InlineAlert } from '@/components/ui/feedback';
+import { useToast } from '@/components/ui/toast';
 import { formatCurrency, formatDate } from '@/i18n/format';
 import { useLocale, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
+import { toApiError } from '@/lib/api/errors';
 import type { InvoiceSummary } from '@/lib/api/types';
 import { useGroupedLabels, useStatusLabels } from '@/lib/format/status';
 import styles from '@/styles/list-cells.module.css';
@@ -17,9 +21,38 @@ const DIRECTION_VALUES = ['incoming', 'outgoing'] as const;
 export default function InvoicesPage() {
   const t = useTranslations('invoices');
   const tCommon = useTranslations('common');
+  const tErrors = useTranslations('errors');
   const locale = useLocale();
   const statusLabel = useStatusLabels('invoices');
   const directionLabel = useGroupedLabels('invoices', 'direction');
+  const toast = useToast();
+  const [sendingId, setSendingId] = useState<string | null>(null);
+
+  /**
+   * Sends the invoice with its PDF attached.
+   *
+   * The answer is the provider's, not a delivery report, so the message says "handed over" and names the
+   * recipient. A failure keeps the button usable: the backend archives the PDF and the draft before it tries
+   * the handover, so retrying does not lose the work.
+   *
+   * A confirmation comes first: the letter leaves the house and cannot be recalled, and a misclick in a list
+   * of rows should not mail a customer. The list scaffold confirms its destructive bulk action the same way.
+   */
+  const send = async (invoice: InvoiceSummary, reload: () => void): Promise<void> => {
+    if (!window.confirm(t('send.confirm', { counterparty: invoice.counterparty }))) {
+      return;
+    }
+    setSendingId(invoice.id);
+    try {
+      const result = await api.invoices.send(invoice.id);
+      toast.success(t('send.success', { to: result.to.join(', ') }));
+      reload();
+    } catch (error) {
+      toast.error(tErrors(toApiError(error).kind));
+    } finally {
+      setSendingId(null);
+    }
+  };
 
   const columns: readonly Column<InvoiceSummary>[] = [
     { key: 'number', header: t('column.number'), sortable: true, link: (row) => `/invoices/${row.id}`, render: (row) => row.number },
@@ -100,10 +133,19 @@ export default function InvoicesPage() {
           direction: (values.direction ?? 'incoming') as InvoiceSummary['direction'],
         })
       }
-      rowActions={(row) => (
-        // The two documents a customer actually receives. They existed as routes and as nothing a person
-        // could click, which is the gap this product produces more often than any other.
+      rowActions={(row, context) => (
+        // What a customer actually receives: the letter with the invoice attached, and the two documents
+        // that existed as routes and as nothing a person could click.
         <>
+          <Button
+            variant="primary"
+            size="sm"
+            loading={sendingId === row.id}
+            loadingLabel={t('action.sending')}
+            onClick={() => void send(row, context.reload)}
+          >
+            {t('action.send')}
+          </Button>
           <a href={api.invoices.pdfUrl(row.id)} target="_blank" rel="noopener"
              className={buttonClass({ variant: 'secondary', size: 'sm' })}>
             {t('documents.pdf')}

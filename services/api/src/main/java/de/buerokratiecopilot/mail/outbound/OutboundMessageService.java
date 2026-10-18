@@ -43,16 +43,19 @@ public class OutboundMessageService {
 
     private final JdbcTemplate jdbc;
     private final OutboundSender sender;
+    private final OutboundAttachmentResolver attachments;
     private final de.buerokratiecopilot.workflow.approval.ApprovalService approvals;
     private final de.buerokratiecopilot.workflow.approval.ApprovalBinding binding;
 
     public OutboundMessageService(JdbcTemplate jdbc, OutboundSender sender,
+                                  OutboundAttachmentResolver attachments,
                                   de.buerokratiecopilot.workflow.approval.ApprovalService approvals,
                                   de.buerokratiecopilot.workflow.approval.ApprovalBinding binding) {
         this.approvals = approvals;
         this.binding = binding;
         this.jdbc = jdbc;
         this.sender = sender;
+        this.attachments = attachments;
     }
 
     /** A message that was handed over. */
@@ -201,7 +204,8 @@ public class OutboundMessageService {
                 select status, channel, coalesce(final_subject, subject) as subject,
                        coalesce(final_body_text, body_text) as body_text,
                        coalesce(final_body_html, body_html) as body_html,
-                       from_address, to_addresses, cc_addresses, approved_by
+                       from_address, to_addresses, cc_addresses, approved_by,
+                       attachment_document_ids::text as attachments
                 from outbound_messages where id = ? and tenant_id = ?
                 """, messageId, tenantId);
 
@@ -216,6 +220,12 @@ public class OutboundMessageService {
             throw ApiException.conflict(blocking);
         }
 
+        // The files are resolved before anything changes state. A message whose attachment cannot be read
+        // must not be handed over as a letter without it: that is the defect this column was added for,
+        // and a queued row with the attachment still listed would hide it again.
+        List<OutboundSender.Attachment> files = attachments.resolve(tenantId,
+                documentIds(message.get("attachments")));
+
         jdbc.update("""
                 update outbound_messages set status = 'QUEUED', queued_at = now(), updated_at = now()
                 where id = ? and tenant_id = ?
@@ -225,7 +235,7 @@ public class OutboundMessageService {
         try {
             providerMessageId = sender.send(tenantId, String.valueOf(message.get("from_address")),
                     addresses(message.get("to_addresses")), addresses(message.get("cc_addresses")),
-                    String.valueOf(message.get("subject")), bodyOf(message));
+                    String.valueOf(message.get("subject")), bodyOf(message), files);
         }
         catch (OutboundSender.SendFailedException ex) {
             recordEvent(tenantId, messageId, EventType.FAILED, null, ex.getMessage());
@@ -268,8 +278,7 @@ public class OutboundMessageService {
                                                      provider_event_id, proves_delivery, occurred_at,
                                                      details)
                 values (gen_random_uuid(), ?, ?, ?, ?, ?, now(), ?::jsonb)
-                """, messageId, tenantId, eventType.name(), providerEventId, proves,
-                "{\"note\":\"" + (details == null ? "" : details.replace("\"", "'")) + "\"}");
+                """, messageId, tenantId, eventType.name(), providerEventId, proves, jsonNote(details));
 
         Status current = Status.valueOf(jdbc.queryForObject("""
                 select status from outbound_messages where id = ? and tenant_id = ?
@@ -328,6 +337,20 @@ public class OutboundMessageService {
         }
     }
 
+    /**
+     * The note of a delivery event as jsonb.
+     *
+     * <p><strong>Why this is not string concatenation any more.</strong> The object used to be built by hand,
+     * and a provider's error text contains quotes and line breaks — so the insert failed with "invalid input
+     * syntax for type json" exactly when a handover had failed. The failure that mattered could not be
+     * recorded, and the caller received a database error instead of the reason the message did not go out.
+     * A JSON writer escapes what a person's error message may contain; string building guesses.</p>
+     */
+    private static String jsonNote(String details) {
+        return de.buerokratiecopilot.workflow.WorkflowService.toJson(
+                java.util.Map.of("note", details == null ? "" : details));
+    }
+
     private static String bodyOf(Map<String, Object> message) {
         Object text = message.get("body_text");
         return text == null ? "" : String.valueOf(text);
@@ -355,5 +378,10 @@ public class OutboundMessageService {
         }
         return java.util.regex.Pattern.compile("\"([^\"]+)\"").matcher(text).results()
                 .map(match -> match.group(1)).toList();
+    }
+
+    /** The documents a draft carries, read back from the jsonb array the column holds. */
+    private static List<UUID> documentIds(Object json) {
+        return addresses(json).stream().map(UUID::fromString).toList();
     }
 }
