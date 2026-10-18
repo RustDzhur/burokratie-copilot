@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -138,6 +139,33 @@ public class GeneratedDocumentController {
         answer.put("unconfirmed", result.unconfirmed());
         answer.put("problems", result.problems());
         return answer;
+    }
+
+    /**
+     * The generated letters of this account, newest first.
+     *
+     * <p><strong>Why this exists.</strong> Documents could be generated and the product had no way to list
+     * them: there was no route and no screen, so a letter produced a minute ago was reachable only if its id
+     * was already known. A feature that can create records and not show them is half a feature.</p>
+     */
+    @GetMapping
+    @PreAuthorize("hasAnyAuthority('documents.view','documents.review')")
+    @Operation(summary = "The generated letters of this account, newest first")
+    public Map<String, Object> list(@RequestParam(required = false) String status,
+                                    @RequestParam(required = false) Integer limit) {
+        UUID tenantId = de.buerokratiecopilot.shared.context.RequestContext.tenantId().orElseThrow();
+        int effective = limit == null || limit <= 0 ? 50 : Math.min(limit, 200);
+        var rows = jdbc.queryForList("""
+                select id::text as id, title, output_format as "outputFormat", status,
+                       case_id::text as "caseId", generated_at as "generatedAt",
+                       (rendered_blob_id is not null) as "hasFile"
+                  from generated_documents
+                 where tenant_id = ?
+                   and (?::text is null or status = ?::text)
+                 order by generated_at desc nulls last
+                 limit ?
+                """, tenantId, status, status, effective);
+        return Map.of("documents", rows, "count", rows.size());
     }
 
     @GetMapping("/blocked")

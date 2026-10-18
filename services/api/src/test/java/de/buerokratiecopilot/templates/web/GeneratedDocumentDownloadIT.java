@@ -171,6 +171,30 @@ class GeneratedDocumentDownloadIT {
     }
 
     @Test
+    @DisplayName("the generated letters of the account are listed, and only those")
+    void theGeneratedLettersAreListed() throws Exception {
+        Session owner = register();
+        Session stranger = register();
+        generated(owner, "Anschreiben Eins", "%PDF".getBytes(StandardCharsets.UTF_8));
+
+        mockMvc.perform(get("/api/v1/generated-documents").cookie(owner.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.count").value(1))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.documents[0].title").value("Anschreiben Eins"))
+                // The flag lets the screen offer a download only where a file exists.
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.documents[0].hasFile").value(true));
+
+        // A person could generate records and not see them before this route existed.
+        mockMvc.perform(get("/api/v1/generated-documents").cookie(stranger.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.count").value(0));
+    }
+
+    @Test
     @DisplayName("another account cannot download the generated document")
     void anotherAccountCannotDownloadIt() throws Exception {
         Session first = register();
