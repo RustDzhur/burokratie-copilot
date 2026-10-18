@@ -1792,4 +1792,14 @@ export const enScreens: ScreenMessages = {
     'detail.title': 'Entry details',
     'detail.correlationId': 'Correlation ID',
   },
+  generatedDocuments: {
+    title: 'Generated letters',
+    subtitle: 'Letters produced from templates',
+    'column.title': 'Title',
+    'column.status': 'Status',
+    'column.format': 'Format',
+    'column.generatedAt': 'Generated',
+    'action.download': 'Download',
+    'action.readiness': 'Check before sending',
+  },
 };

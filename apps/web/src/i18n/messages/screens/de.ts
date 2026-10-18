@@ -1802,6 +1802,16 @@ export const deScreens = {
     'detail.title': 'Eintragsdetails',
     'detail.correlationId': 'Vorgangs-ID',
   },
+  generatedDocuments: {
+    title: 'Erzeugte Schreiben',
+    subtitle: 'Briefe, die aus Vorlagen entstanden sind',
+    'column.title': 'Titel',
+    'column.status': 'Status',
+    'column.format': 'Format',
+    'column.generatedAt': 'Erzeugt am',
+    'action.download': 'Herunterladen',
+    'action.readiness': 'Versand prüfen',
+  },
 };
 
 export type ScreenMessages = typeof deScreens;

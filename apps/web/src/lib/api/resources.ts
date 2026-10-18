@@ -194,6 +194,22 @@ import type {
  * <p>Missing requisites, statements nobody stands behind, and the problems in words - the same three the
  * backend reports, so the screen can show a reason rather than a red dot.</p>
  */
+/**
+ * A generated letter, as the list shows it.
+ *
+ * <p>{@code hasFile} is what lets the screen offer a download only where there is one; a letter that was
+ * recorded and never produced must not look downloadable.</p>
+ */
+export interface GeneratedDocumentSummary {
+  readonly id: string;
+  readonly title: string;
+  readonly outputFormat: string;
+  readonly status: string;
+  readonly caseId: string | null;
+  readonly generatedAt: string | null;
+  readonly hasFile: boolean;
+}
+
 export interface GeneratedDocumentReadiness {
   readonly status: string;
   readonly readyToSend: boolean;
@@ -533,6 +549,8 @@ export interface ApiResources {
      * <p>The backend could answer this and the client had no way to ask: the check existed, a route existed,
      * and a screen did not. This is the first half of closing that.</p>
      */
+    /** The generated letters of this account, newest first. */
+    list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<GeneratedDocumentSummary>>;
     readiness: (id: string, signal?: AbortSignal) => Promise<GeneratedDocumentReadiness>;
     /** The produced file, as an address a link can point at. */
     downloadUrl: (id: string) => string;
@@ -1466,6 +1484,21 @@ export function createResources(client: ApiClient): ApiResources {
       },
     },
     generatedDocuments: {
+      list: async (_params, signal) => {
+        const page = await client.list<{
+          id: string;
+          title: string;
+          outputFormat: string;
+          status: string;
+          caseId: string | null;
+          generatedAt: string | null;
+          hasFile: boolean;
+        }>('/generated-documents', {}, withSignal(signal));
+        return {
+          ...page,
+          items: page.items.map((row) => ({ ...row })),
+        };
+      },
       readiness: (id, signal) =>
         client.get<GeneratedDocumentReadiness>(`/generated-documents/${id}/readiness`, withSignal(signal)),
       downloadUrl: (id) => `/api/v1/generated-documents/${id}/download`,

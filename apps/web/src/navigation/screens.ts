@@ -51,7 +51,7 @@ export type ScreenId =
   | 'rules'
   | 'calendar'
   | 'contracts'
-  | 'invoices'
+  | 'invoices' | 'generated-documents'
   | 'payments'
   | 'contacts'
   | 'mail'

@@ -1793,4 +1793,14 @@ export const ruScreens: ScreenMessages = {
     'detail.title': 'Детали записи',
     'detail.correlationId': 'Идентификатор запроса',
   },
+  generatedDocuments: {
+    title: 'Созданные письма',
+    subtitle: 'Письма, созданные из шаблонов',
+    'column.title': 'Заголовок',
+    'column.status': 'Статус',
+    'column.format': 'Формат',
+    'column.generatedAt': 'Создано',
+    'action.download': 'Скачать',
+    'action.readiness': 'Проверить перед отправкой',
+  },
 };

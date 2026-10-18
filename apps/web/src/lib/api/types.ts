@@ -1,3 +1,4 @@
+export type { GeneratedDocumentSummary, GeneratedDocumentReadiness } from './resources';
 /**
  * Data transfer objects shared with the backend.
  *
