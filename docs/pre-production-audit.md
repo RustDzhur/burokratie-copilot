@@ -901,10 +901,34 @@ return types.findById(alternative.typeId())
 2. `DocumentProcessingPipeline` вызывает `deriveAppointments` **безусловно** (строка ~162), вне зависимости от
    статуса, если у документа есть `createdBy`.
 
-**Значит срок не появляется не из-за обрыва конвейера** — причина глубже: `deriveAppointments` либо сам
-пропускает документы в `REVIEW_REQUIRED`, либо `detect` не находит дат в этом состоянии. **Это и есть
-следующий шаг отладки** — проверить условие внутри `DetectedDateService.deriveAppointments`, а не менять
-классификатор вслепую.
+**Цепочка прослежена до конца (проверено чтением, не догадкой):**
+
+```
+closeCall:165            filter(!sameCategory)      → близкий вызов внутри категории НЕ засчитывается
+   ↓ убрать фильтр
+requiresReview = true                              → documentTypeId остаётся null
+   ↓
+deriveAppointments:163   detect(documentId)        → даты читаются
+   ↓
+deriveAppointments:172   createAutomatically(...)  → false, срока нет
+   ↓
+DateClassifier:168       inCalendar() && confidence >= 0.7
+```
+
+**`createAutomatically` от типа документа напрямую не зависит** — но `confidence` даты зависит: дата
+классифицируется **в контексте типа** («Frist» в Mahnung — срок; в другом типе — нет). Без подтверждённого
+типа уверенность не достигает 0.7, и срок не создаётся.
+
+**Правильное исправление (окончательное):** при проверке типа передавать в `deriveAppointments` **предложенный**
+тип (`outcome.suggestedTypeId`, он уже вычислен в `ClassifyStepHandler`) как контекст для классификации дат и
+создавать срок с `confirmed=false`. Тогда:
+
+- тип ждёт человека ✅
+- срок из «Letzte Mahnung» **появляется**, но помечен неподтверждённым ✅
+- `DeadlineProvenanceIT` проходит без ослабления утверждения ✅
+
+**Это три связанные правки в трёх файлах** — `ClassificationService`, `ClassifyStepHandler`,
+`DetectedDateService`. Делать их без прогона двух интеграционных наборов нельзя.
 
 **Что нужно сделать, чтобы закрыть пункт 5:**
 1. убрать фильтр категории в `closeCall` (строка 165);
