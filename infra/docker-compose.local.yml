@@ -1,0 +1,50 @@
+# =============================================================================
+#  Bürokratie-Copilot — локальный запуск прод-стека (не для сервера с доменом)
+# =============================================================================
+#  Зачем: на этой машине нет ни MinIO (образы убраны из Docker Hub), ни ClamAV
+#  (нет сборки под arm64), а домена пока нет — TLS выпущен самоподписанным.
+#
+#  Что меняет:
+#    * убирает зависимость api/worker от minio и clamav;
+#    * переводит хранение файлов на локальный диск (BC_STORAGE_TYPE=local-fs —
+#      это и есть значение по умолчанию в application.yml, MinIO не обязателен);
+#    * отключает антивирус: файл тогда честно помечается «не проверен», а НЕ
+#      «чистый» — так это и задумано в продукте.
+#
+#  Запуск:
+#    docker compose --env-file infra/.env \
+#      -f infra/docker-compose.yml -f infra/docker-compose.prod.yml \
+#      -f infra/docker-compose.local.yml --profile proxy up -d
+#      <- только сервисы: postgres api worker web proxy
+services:
+  api:
+    depends_on: !override
+      postgres:
+        condition: service_healthy
+    environment:
+      BC_STORAGE_TYPE: local-fs
+      BC_MALWARE_SCANNER: none
+      # Bewusste Entscheidung für diesen Stand: es gibt keinen ClamAV-Build für arm64. Die Anwendung
+      # zeichnet jede Datei als „nicht geprüft" auf — niemals als „sauber".
+      BC_ALLOW_UNSCANNED: "true"
+  worker:
+    depends_on: !override
+      postgres:
+        condition: service_healthy
+    environment:
+      BC_STORAGE_TYPE: local-fs
+      BC_MALWARE_SCANNER: none
+  proxy:
+    depends_on: !override
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+
+  # Порт наружу: прод-профиль публикует только прокси, но его TLS-вход сейчас не работает
+  # (nginx не слушает порт — см. docs/pre-production-audit.md §25). Для локального просмотра
+  # публикуем web напрямую. BC_COOKIE_SECURE=false — потому что это HTTP, а не HTTPS:
+  # в настоящем продакшене с доменом он обязан быть true.
+  web:
+    ports:
+      - "127.0.0.1:3000:3000"

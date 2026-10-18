@@ -286,9 +286,9 @@ services:
       - "${BC_BIND_ADDRESS_PROD:-0.0.0.0}:${BC_HTTP_PORT:-80}:80"
       - "${BC_BIND_ADDRESS_PROD:-0.0.0.0}:${BC_HTTPS_PORT:-443}:443"
     volumes:
-      # Read-only: the proxy never modifies its configuration. The entrypoint
-      # renders *.template from /etc/nginx/templates into /etc/nginx/conf.d
-      # (which stays writable inside the image layer despite read_only).
+      # Read-only: the proxy never modifies its configuration on disk. The entrypoint renders *.template from
+      # /etc/nginx/templates into /etc/nginx/conf.d, which has to be mounted as tmpfs below - a read-only root
+      # filesystem is read-only for the image layer too, and the earlier note here claiming otherwise was wrong.
       - ./nginx/templates:/etc/nginx/templates:ro
       # Plain (non-templated) include used by every location block.
       - ./nginx/conf/bc-proxy-params.conf:/etc/nginx/conf.d/bc-proxy-params.conf:ro
@@ -310,6 +310,11 @@ services:
     tmpfs:
       - /var/cache/nginx:mode=1777,size=128m
       - /var/run:mode=1777,size=8m
+      # The entrypoint renders /etc/nginx/templates/*.template into this directory with envsubst. With
+      # `read_only: true` the whole root filesystem is read-only - the image layer is not an exception - so
+      # without this the proxy cannot render its own configuration and restarts for ever:
+      #   "can't create /etc/nginx/conf.d/10-http-common: Read-only file system"
+      - /etc/nginx/conf.d:mode=1777,size=8m
       - /tmp:mode=1777,size=32m
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/healthz || exit 1"]
