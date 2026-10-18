@@ -252,6 +252,7 @@ export const deCore = {
     unauthorized: 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.',
     paymentRequired: 'Dafür reicht Ihr Tarif nicht aus, oder der Zugang ist abgelaufen. Siehe Tarife.',
     forbidden: 'Für diese Aktion fehlt Ihnen die Berechtigung.',
+    emailNotVerified: 'Bitte bestätigen Sie zuerst Ihre E-Mail-Adresse.',
     notFound: 'Der angeforderte Datensatz wurde nicht gefunden.',
     conflict: 'Die Aktion steht im Konflikt mit dem aktuellen Datenstand.',
     validation: 'Die übermittelten Daten sind ungültig.',

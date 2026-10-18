@@ -17,6 +17,8 @@ export type ApiErrorKind =
   | 'aborted'
   | 'unauthorized'
   | 'forbidden'
+  /** The password was right and the address was never confirmed: a different problem, and a different answer. */
+  | 'emailNotVerified'
   | 'paymentRequired'
   | 'notFound'
   | 'conflict'
@@ -152,10 +154,15 @@ export function apiErrorFromEnvelope(
 ): ApiError {
   const record = asRecord(body);
   const details = asRecord(record?.details) ?? asRecord(record?.errors) ?? undefined;
+  const code = asString(record?.code) ?? `HTTP_${status}`;
   return new ApiError({
-    kind: statusToKind(status),
+    // The backend says EMAIL_NOT_VERIFIED with 403, and 403 alone means "forbidden": the sign-in screen then
+    // showed "no access" to somebody whose password was right and whose only mistake was not confirming an
+    // address - because the confirmation mail cannot be sent from a deployment without SMTP. The code is more
+    // precise than the status, so the code decides.
+    kind: code === 'EMAIL_NOT_VERIFIED' ? 'emailNotVerified' : statusToKind(status),
     status,
-    code: asString(record?.code) ?? `HTTP_${status}`,
+    code,
     message: asString(record?.message) ?? asString(record?.error) ?? `HTTP ${status}`,
     correlationId: asString(record?.correlationId) ?? asString(record?.correlationID),
     details,

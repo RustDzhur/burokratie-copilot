@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createApiClient, normalizePage, type Page } from '../client';
-import { ApiError, isApiError, toApiError } from '../errors';
+import { ApiError, apiErrorFromEnvelope, isApiError, toApiError } from '../errors';
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -263,6 +263,25 @@ describe('error normalization', () => {
   it('keeps existing ApiError instances untouched', () => {
     const original = new ApiError({ kind: 'conflict' });
     expect(toApiError(original)).toBe(original);
+  });
+
+  it('reports an unconfirmed address as itself, not as a lack of permission', () => {
+    // The backend answers 403 EMAIL_NOT_VERIFIED when the password was right and the address was never
+    // confirmed. 403 alone means "forbidden", so the sign-in screen told people they had no access - and on a
+    // deployment without SMTP nobody can confirm an address at all.
+    const error = apiErrorFromEnvelope(
+      { code: 'EMAIL_NOT_VERIFIED', message: 'The e-mail address has not been confirmed yet' },
+      403,
+      '/api/v1/auth/login',
+    );
+
+    expect(error.kind).toBe('emailNotVerified');
+    expect(error.status).toBe(403);
+  });
+
+  it('still reports a plain 403 as forbidden', () => {
+    const error = apiErrorFromEnvelope({ code: 'FORBIDDEN', message: 'Nope' }, 403, '/api/v1/x');
+    expect(error.kind).toBe('forbidden');
   });
 });
 

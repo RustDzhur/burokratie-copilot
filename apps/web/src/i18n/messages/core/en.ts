@@ -239,6 +239,7 @@ export const enCore: CoreMessages = {
     unauthorized: 'Your session has expired. Please sign in again.',
     paymentRequired: 'Your plan does not include this, or access has expired. See the plans.',
     forbidden: 'You do not have permission for this action.',
+    emailNotVerified: 'Please confirm your e-mail address first.',
     notFound: 'The requested record was not found.',
     conflict: 'The action conflicts with the current state of the data.',
     validation: 'The submitted data is invalid.',
