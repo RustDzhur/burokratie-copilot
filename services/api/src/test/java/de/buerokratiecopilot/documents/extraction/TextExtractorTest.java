@@ -98,6 +98,30 @@ class TextExtractorTest {
     }
 
     @Test
+    @DisplayName("a password-protected PDF says so instead of failing unreadably")
+    void aProtectedPdfSaysWhatToDo() throws Exception {
+        // A protected invoice is normal to receive and impossible to read. The message has to name the
+        // problem, because the alternative is a document that sits in quarantine for ever with nobody
+        // knowing why.
+        byte[] protectedPdf;
+        try (PDDocument document = new PDDocument()) {
+            document.addPage(new org.apache.pdfbox.pdmodel.PDPage());
+            var policy = new org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy(
+                    "owner", "user", new org.apache.pdfbox.pdmodel.encryption.AccessPermission());
+            policy.setEncryptionKeyLength(128);
+            document.protect(policy);
+            var out = new java.io.ByteArrayOutputStream();
+            document.save(out);
+            protectedPdf = out.toByteArray();
+        }
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> pdf.extract(new java.io.ByteArrayInputStream(protectedPdf), protectedPdf.length))
+                .isInstanceOf(java.io.IOException.class)
+                .hasMessageContaining("passwortgeschützt");
+    }
+
+    @Test
     @DisplayName("a PDF with a text layer is extracted page by page")
     void extractsPdfPageByPage() throws Exception {
         byte[] content = pdfWithText(2, "Erste Seite", "Zweite Seite");

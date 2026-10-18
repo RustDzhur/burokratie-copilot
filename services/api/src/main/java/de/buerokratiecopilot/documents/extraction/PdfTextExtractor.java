@@ -34,7 +34,18 @@ public class PdfTextExtractor implements TextExtractor {
     @Override
     public ExtractedText extract(InputStream content, long sizeBytes) throws IOException {
         byte[] bytes = content.readAllBytes();
-        try (PDDocument document = Loader.loadPDF(bytes)) {
+        PDDocument opened;
+        try {
+            opened = Loader.loadPDF(bytes);
+        }
+        catch (org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException ex) {
+            // A protected invoice is a normal thing to receive and an impossible thing to read. Without this
+            // the failure surfaced as an unreadable stack trace and the document sat in quarantine for ever
+            // with nobody told why; the message now says what to do about it.
+            throw new IOException("Das PDF ist passwortgeschützt und kann nicht gelesen werden. "
+                    + "Bitte laden Sie es ohne Passwort hoch oder entfernen Sie den Schutz.", ex);
+        }
+        try (PDDocument document = opened) {
             int pageCount = document.getNumberOfPages();
             List<ExtractedText.Page> pages = new ArrayList<>(pageCount);
             int encrypted = document.isEncrypted() ? 1 : 0;
