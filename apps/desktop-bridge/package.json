@@ -1,0 +1,14 @@
+{
+  "name": "@buerokratiecopilot/desktop-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The Desktop Bridge: a workstation with a scanner collects work from Bürokratie-Copilot and returns the scans (spec §8.2)",
+  "type": "module",
+  "bin": { "bc-bridge": "./bridge.mjs" },
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "diagnose": "node bridge.mjs diagnose",
+    "once": "node bridge.mjs once",
+    "run": "node bridge.mjs run"
+  }
+}

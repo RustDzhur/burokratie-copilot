@@ -263,6 +263,8 @@ public class DeviceService {
                 select id, job_type, parameters, priority, attempt, max_attempts, expires_at
                 from device_jobs where id = ?
                 """, jobId));
+        job.put("jobId", job.get("id"));
+        job.put("jobType", job.get("job_type"));
         job.put("deviceId", deviceId.toString());
         log.info("Job {} claimed by device {}", jobId, deviceId);
         return job;
@@ -281,6 +283,89 @@ public class DeviceService {
             throw ApiException.conflict("Dieser Auftrag gehört nicht zu diesem Gerät oder ist bereits "
                     + "abgeschlossen");
         }
+    }
+
+    /**
+     * Reports what the device did with a job: the scan it produced, or why it produced none.
+     *
+     * <p><strong>Both outcomes are recorded.</strong> A job that the device could not carry out - no paper,
+     * paper jam, device switched off - has to come back as a finished job with a reason, otherwise it stays
+     * QUEUED for ever and the person in front of the scanner sees a spinner that never ends.</p>
+     *
+     * <p><strong>A rejected upload keeps the job claimable again.</strong> The sheet has already gone through
+     * the device; losing the file because the answer was slow would mean scanning again, and the paper is back
+     * in the pile. The job returns to QUEUED so the device can offer the result once more.</p>
+     */
+    @Transactional
+    public Map<String, Object> reportResult(UUID tenantId, UUID deviceId, UUID jobId, boolean succeeded,
+                                            String errorCode, String errorMessage, UUID documentId) {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                select id, status from device_jobs
+                 where id = ? and device_id = ? and tenant_id = ?
+                """, jobId, deviceId, tenantId);
+        if (rows.isEmpty()) {
+            throw unauthorized("Dieser Auftrag gehört nicht zu diesem Gerät");
+        }
+        String status = String.valueOf(rows.getFirst().get("status"));
+        if (!"CLAIMED".equals(status) && !"QUEUED".equals(status)) {
+            // A finished job is finished: a device that calls twice gets the same answer, not a second run.
+            return Map.of("jobId", jobId.toString(), "status", status, "note", "Der Auftrag ist bereits abgeschlossen");
+        }
+
+        if (succeeded) {
+            jdbc.update("""
+                    update device_jobs
+                       set status = 'COMPLETED', finished_at = now(), updated_at = now(),
+                           document_id = ?, error_code = null, error_message = null
+                     where id = ? and tenant_id = ?
+                    """, documentId, jobId, tenantId);
+            return Map.of("jobId", jobId.toString(), "status", "COMPLETED");
+        }
+
+        boolean retryable = jobBelongsToRetryableFailure(errorCode);
+        jdbc.update("""
+                update device_jobs
+                   set status = ?, finished_at = case when ? then null else now() end,
+                       updated_at = now(), error_code = ?, error_message = ?,
+                       claimed_at = case when ? then null else claimed_at end
+                 where id = ? and tenant_id = ?
+                """, retryable ? "QUEUED" : "FAILED", retryable, errorCode, errorMessage, retryable,
+                jobId, tenantId);
+        return Map.of("jobId", jobId.toString(), "status", retryable ? "QUEUED" : "FAILED",
+                "note", retryable ? "Der Auftrag liegt wieder bereit" : "Der Auftrag ist fehlgeschlagen");
+    }
+
+    /**
+     * Whether the failure is one a second attempt could survive.
+     *
+     * <p>A missing scanner or an empty feeder is worth retrying later; a document the platform rejected is
+     * not, and retrying it would only repeat the error.</p>
+     */
+    private static boolean jobBelongsToRetryableFailure(String errorCode) {
+        if (errorCode == null) {
+            return true;
+        }
+        return switch (errorCode) {
+            case "NO_PAPER", "DEVICE_BUSY", "JAMMED", "OFFLINE", "UPLOAD_FAILED" -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * Records that the agent is alive, and what it is.
+     *
+     * <p>The version and operating system are what a person looks at when a specific workstation misbehaves;
+     * without them every problem is "the scanner does not work" on a fleet of identical machines.</p>
+     */
+    @Transactional
+    public void heartbeat(UUID tenantId, UUID deviceId, String version, String osName) {
+        jdbc.update("""
+                update devices
+                   set last_seen_at = now(), updated_at = now(),
+                       app_version = coalesce(?, app_version),
+                       os_name = coalesce(?, os_name)
+                 where id = ? and tenant_id = ?
+                """, version, osName, deviceId, tenantId);
     }
 
     /** The devices of a tenant, without any secret. */

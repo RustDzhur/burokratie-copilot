@@ -69,6 +69,9 @@ public class SecurityConfiguration {
             "/api/v1/public/**",
             // Authenticated by its own token rather than by a session.
             "/api/v1/documents:ingest",
+            // The Desktop Bridge presents a device key rather than a session (spec §8.2): it is a program on a
+            // workstation, not a browser, and it cannot log in. DeviceService.authenticate checks the key.
+            "/api/v1/device-agent/**",
             "/api/v1/webhooks/**",
             // A phone's calendar app cannot log in: the address carries its own secret (calendar_feed_tokens).
             "/api/v1/calendar/feed/*",
@@ -120,7 +123,10 @@ public class SecurityConfiguration {
                         // does not apply there (spec §7.4).
                         // The machine interface: a bearer token, no session, no CSRF token to send.
                         .ignoringRequestMatchers("/api/v1/public/**", "/api/v1/documents:ingest",
-                                "/api/v1/webhooks/**"))
+                                "/api/v1/webhooks/**",
+                                // The Desktop Bridge presents a device key, not a cookie: there is no browser
+                                // session to protect from cross-site requests (spec §8.2).
+                                "/api/v1/device-agent/**"))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource(properties)))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(AbstractHttpConfigurer::disable)
