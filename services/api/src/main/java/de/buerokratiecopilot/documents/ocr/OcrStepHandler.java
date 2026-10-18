@@ -107,6 +107,18 @@ public class OcrStepHandler implements ProcessingStepHandler {
             return StepResult.failed("The stored file could not be read for OCR: " + ex.getMessage());
         }
 
+        // Only a PDF or an image can be turned into a picture for the engine. A DOCX or XLSX that arrived
+        // here has no text layer because it has no text - and rendering it as a PDF crashed, which turned an
+        // empty spreadsheet into a failed document instead of one that asks a person.
+        String mime = document.getMimeType() == null ? "" : document.getMimeType().toLowerCase();
+        boolean renderable = isImage(mime) || "application/pdf".equals(mime);
+        if (!renderable) {
+            return StepResult.skipped(
+                    "Dieses Format kann nicht als Bild für die Erkennung aufbereitet werden ("
+                            + mime + "); die Datei enthält keinen lesbaren Text",
+                    Document.ProcessingStatus.REVIEW_REQUIRED);
+        }
+
         int recognised = 0;
         int empty = 0;
         int failed = 0;
