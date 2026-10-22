@@ -759,9 +759,6 @@ export interface ApiResources {
     /** Leaves the demo: everything that was created in it is deleted. */
     exit: () => Promise<void>;
   };
-  readonly publicStats: {
-    get: (signal?: AbortSignal) => Promise<{ readonly documents: number; readonly cases: number; readonly tasksDone: number; readonly asOf: string }>;
-  };
   readonly legal: {
     get: (signal?: AbortSignal) => Promise<LegalInfo>;
   };
@@ -2097,9 +2094,6 @@ export function createResources(client: ApiClient): ApiResources {
       exit: async () => {
         await client.post<unknown>('/demo/exit', undefined, { idempotencyKey: true });
       },
-    },
-    publicStats: {
-      get: (signal) => client.get('/public/stats', withSignal(signal)),
     },
     legal: {
       get: (signal) => client.get<LegalInfo>('/public/legal', withSignal(signal)),

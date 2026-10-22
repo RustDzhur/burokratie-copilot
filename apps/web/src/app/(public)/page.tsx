@@ -5,8 +5,7 @@ import { BrandMark } from '@/components/app/brand-mark';
 import { Icon, type IconName } from '@/components/icons';
 import { buttonClass } from '@/components/ui/button-class';
 import { Card } from '@/components/ui/data';
-import { formatDateTime } from '@/i18n/format';
-import { useLocale, useTranslations } from '@/i18n/provider';
+import { useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { useApiResource } from '@/lib/api/hooks';
 import { PlanGrid } from '@/components/app/plan-grid';
@@ -62,11 +61,9 @@ const TRUST_KEYS = ['trust.gdpr', 'trust.audit', 'trust.access', 'trust.hosting'
 export default function LandingPage() {
   const t = useTranslations('landing');
   const tCommon = useTranslations('common');
-  const locale = useLocale();
   const tDemo = useTranslations('demo');
   const [demoOpen, setDemoOpen] = useState(false);
 
-  const { state: totals } = useApiResource((signal) => api.publicStats.get(signal), []);
 
   return (
     <div className={styles.page}>
@@ -95,25 +92,6 @@ export default function LandingPage() {
           </a>
         </div>
 
-        {totals.status === 'ready' ? (
-          <div className={styles.demoStats}>
-            <dl className={styles.statGrid}>
-              {[
-                { key: 'stats.documents', value: totals.data.documents },
-                { key: 'stats.cases', value: totals.data.cases },
-                { key: 'stats.tasks', value: totals.data.tasksDone },
-              ].map((stat) => (
-                <div key={stat.key} className={styles.stat}>
-                  <dt>{t(stat.key as 'stats.documents')}</dt>
-                  <dd>{new Intl.NumberFormat(locale).format(stat.value)}</dd>
-                </div>
-              ))}
-            </dl>
-            <p className={styles.demoNotice}>
-              <small>{t('stats.asOf', { when: formatDateTime(totals.data.asOf, locale) })}</small>
-            </p>
-          </div>
-        ) : null}
       </section>
 
       <section className={styles.section} id="features" aria-labelledby="landing-features-title">
