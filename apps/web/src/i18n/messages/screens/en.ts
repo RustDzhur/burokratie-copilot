@@ -255,6 +255,7 @@ export const enScreens: ScreenMessages = {
     'queue.exportiert': 'Exported',
     'queue.fehler': 'Errors',
     'column.belegStatus': 'Voucher',
+    'column.mandant': 'Client',
     'beleg.moved': 'Voucher moved on',
     'beleg.NEU': 'New',
     'beleg.OFFEN': 'Open',

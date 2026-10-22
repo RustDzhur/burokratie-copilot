@@ -257,6 +257,7 @@ export const deScreens = {
     'queue.exportiert': 'Exportiert',
     'queue.fehler': 'Fehler',
     'column.belegStatus': 'Beleg',
+    'column.mandant': 'Mandant',
     'beleg.moved': 'Beleg weitergegeben',
     'beleg.NEU': 'Neu',
     'beleg.OFFEN': 'Offen',

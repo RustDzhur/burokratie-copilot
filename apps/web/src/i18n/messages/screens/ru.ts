@@ -257,6 +257,7 @@ export const ruScreens: ScreenMessages = {
     'queue.exportiert': 'Экспортировано',
     'queue.fehler': 'Ошибки',
     'column.belegStatus': 'Документ',
+    'column.mandant': 'Мандант',
     'beleg.moved': 'Документ продвинут',
     'beleg.NEU': 'Новый',
     'beleg.OFFEN': 'Открыт',

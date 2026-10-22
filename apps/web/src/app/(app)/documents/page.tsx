@@ -53,10 +53,14 @@ export default function DocumentsPage() {
   const [sorting, setSorting] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
   const tErrors = useTranslations('errors');
-  const parties = useApiResource((signal) => api.parties.list(signal), []);
+  // §7: the person a voucher belongs to is a Mandant, and §5.2 puts that client in mandant_id. Reading the
+  // merged-away parties table would show names the export does not recognise.
+  const mandanten = useApiResource((signal) => api.contacts.list({ size: 500 }, signal), []);
   const catalogue = useApiResource((signal) => api.documents.catalogue(signal), []);
-  const partyName = (id: string | null | undefined): string =>
-    (parties.state.status === 'ready' ? parties.state.data.find((party) => party.id === id)?.displayName : null) ??
+  const mandantName = (id: string | null | undefined): string =>
+    (mandanten.state.status === 'ready'
+      ? mandanten.state.data.items.find((contact) => contact.id === id)?.name
+      : null) ??
     '—';
   const { state: counts, reload: reloadCounts } = useApiResource((signal) => api.documents.categoryCounts(signal), []);
   // §5.1: the six numbers a bookkeeper reads before anything else, in one request.
@@ -136,8 +140,8 @@ export default function DocumentsPage() {
       render: (row) =>
         row.typeNames?.[locale] ?? row.typeNames?.de ?? (row.documentType || t('category.UNSORTED')),
     },
-    ...(parties.state.status === 'ready' && parties.state.data.length > 1
-      ? [{ key: 'party', header: t('column.party'), render: (row: DocumentSummary) => partyName(row.partyId) }]
+    ...(mandanten.state.status === 'ready' && mandanten.state.data.items.length > 1
+      ? [{ key: 'mandant', header: t('column.mandant'), render: (row: DocumentSummary) => (row.mandantId ? mandantName(row.mandantId) : t('beleg.ohneMandant')) }]
       : []),
     {
       key: 'sender',
@@ -308,13 +312,13 @@ export default function DocumentsPage() {
         columns={columns}
         sortableKeys={['title', 'receivedAt']}
         filters={[
-          ...(parties.state.status === 'ready' && parties.state.data.length > 1
+          ...(mandanten.state.status === 'ready' && mandanten.state.data.items.length > 1
             ? [
                 {
                   key: 'party',
                   label: t('filter.party'),
                   options: [
-                    ...parties.state.data.map((party) => ({ value: party.id, label: party.displayName })),
+                    ...mandanten.state.data.items.map((contact) => ({ value: contact.id, label: contact.name })),
                     { value: 'NONE', label: t('party.none') },
                   ],
                 },
