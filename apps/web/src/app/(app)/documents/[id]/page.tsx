@@ -44,11 +44,13 @@ function PartyPicker({
   const t = useTranslations('documentViewer');
   const tErrors = useTranslations('errors');
   const toast = useToast();
-  const parties = useApiResource((signal) => api.parties.list(signal), []);
-  if (parties.state.status !== 'ready' || parties.state.data.length < 2) return null;
+  // §4.3/§8.3: the client of a voucher is a contact, not a party - the two tables were merged and
+  // the screen must read the surviving one, or it would offer clients the export does not know.
+  const contacts = useApiResource((signal) => api.contacts.list({ size: 200 }, signal), []);
+  if (contacts.state.status !== 'ready' || contacts.state.data.items.length < 2) return null;
   const change = async (value: string): Promise<void> => {
     try {
-      await api.documents.setParty(documentId, value === '' ? null : value);
+      await api.documents.assignMandant(documentId, value === '' ? null : value);
       toast.success(t('party.saved'));
       onChanged();
     } catch (error) {
@@ -60,7 +62,7 @@ function PartyPicker({
       label={t('party.label')}
       hint={t('party.hint')}
       placeholder={t('party.none')}
-      options={parties.state.data.map((party) => ({ value: party.id, label: party.displayName }))}
+      options={contacts.state.data.items.map((contact) => ({ value: contact.id, label: contact.name }))}
       value={current ?? ''}
       onChange={(event) => void change(event.target.value)}
     />

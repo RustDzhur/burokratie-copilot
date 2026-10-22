@@ -473,6 +473,8 @@ export interface ApiResources {
     categoryCounts: (signal?: AbortSignal) => Promise<Readonly<Record<string, number>>>;
     catalogue: (signal?: AbortSignal) => Promise<readonly CatalogueEntry[]>;
     setParty: (id: string, partyId: string | null) => Promise<void>;
+    /** The client of a voucher (§5.2); null removes the assignment. */
+    assignMandant: (id: string, mandantId: string | null) => Promise<void>;
     /** The cases the document is linked to, as far as the reader may see them. */
     cases: (id: string, signal?: AbortSignal) => Promise<readonly DocumentCase[]>;
     createTask: (id: string) => Promise<void>;
@@ -1211,6 +1213,9 @@ export function createResources(client: ApiClient): ApiResources {
       cases: (id, signal) => client.get<readonly DocumentCase[]>(`/documents/${id}/cases`, withSignal(signal)),
       setParty: async (id, partyId) => {
         await client.put<unknown>(`/documents/${id}/party`, { partyId }, { idempotencyKey: true });
+      },
+      assignMandant: async (id, mandantId) => {
+        await client.patch<unknown>(`/documents/${id}/mandant`, { mandantId });
       },
       categoryCounts: (signal) => client.get<Record<string, number>>('/documents/categories', withSignal(signal)),
       explanation: (id, language, signal) =>
