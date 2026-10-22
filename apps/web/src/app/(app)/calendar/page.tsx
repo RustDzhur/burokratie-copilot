@@ -6,7 +6,7 @@ import { PageHeader, PageSection, ResourceView } from '@/components/app/resource
 import { CalendarFeedDialog } from '@/components/app/calendar-feed-dialog';
 import { CreateRecordDialog } from '@/components/app/create-record-dialog';
 import { Badge, Card, CardBody, EmptyState, StatusPill, Tabs } from '@/components/ui';
-import { Dialog } from '@/components/ui/overlay';
+import { ConfirmDialog, Dialog } from '@/components/ui/overlay';
 import { Button } from '@/components/ui/button';
 import { InlineAlert, SkeletonTable } from '@/components/ui/feedback';
 import { useToast } from '@/components/ui/toast';
@@ -291,6 +291,7 @@ export default function CalendarPage() {
                     locale={locale}
                     caption={t('view.week')}
                     onOpen={setOpenEvent}
+                    onCompleted={reload}
                   />
                 )}
               </ResourceView>
@@ -423,8 +424,11 @@ function EventList({
   locale,
   caption,
   onOpen,
+  onCompleted,
 }: {
   events: readonly CalendarEvent[];
+  /** Called after a deadline is marked done, so the list reloads instead of showing a stale row. */
+  onCompleted?: () => void;
   typeLabel: (value: string) => string;
   locale: 'de' | 'en' | 'ru';
   caption: string;
@@ -432,6 +436,29 @@ function EventList({
 }) {
   // §5.4 asks for the nearest deadline first, and a missed deadline above everything: the one already gone
   // is the one to look at now, not the one that is still a fortnight away.
+  const [finishing, setFinishing] = useState<CalendarEvent | null>(null);
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
+  // §5.4: a deadline is finished by a person, and the person confirms it. Nothing here closes a deadline on
+  // its own - a date silently marked done is how a real deadline gets missed.
+  const finish = async (event: CalendarEvent) => {
+    if (!event.taskId) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.tasks.complete(event.taskId);
+      toast.success(t('finished.done'));
+      setFinishing(null);
+      onCompleted?.();
+    }
+    catch (error) {
+      toast.error(toApiError(error).message);
+    }
+    finally {
+      setBusy(false);
+    }
+  };
   const queue = [...events].sort((a, b) => a.date.localeCompare(b.date));
   const ordered = [...queue.filter((event) => daysUntil(event.date) < 0),
                    ...queue.filter((event) => daysUntil(event.date) >= 0)];
@@ -494,6 +521,15 @@ function EventList({
                   })()}
                 </td>
                 <td>
+                  {event.taskId && event.origin === 'task-deadline' ? (
+                    <Button variant="ghost" onClick={() => setFinishing(event)}>
+                      {t('finished.action')}
+                    </Button>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+                <td>
                   {event.caseReference ? (
                     <Badge tone="neutral" variant="outline">
                       {event.caseReference}
@@ -506,6 +542,15 @@ function EventList({
             ))}
           </tbody>
         </table>
+      <ConfirmDialog
+        open={finishing !== null}
+        title={t('finished.title')}
+        description={t('finished.description', { title: finishing?.title ?? '' })}
+        confirmLabel={t('finished.confirm')}
+        loading={busy}
+        onConfirm={() => (finishing ? finish(finishing) : undefined)}
+        onCancel={() => setFinishing(null)}
+      />
       </CardBody>
     </Card>
   );
