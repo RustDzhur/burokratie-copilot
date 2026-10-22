@@ -779,6 +779,7 @@ export const deScreens = {
     'type.reminder': 'Wiedervorlage',
     'column.date': 'Datum',
     'column.remaining': 'Verbleibend',
+    'column.document': 'Beleg',
     'remaining.overdue': 'Überfällig ({days} T)',
     'remaining.today': 'Heute fällig',
     'remaining.inDays': 'Noch {days} T',

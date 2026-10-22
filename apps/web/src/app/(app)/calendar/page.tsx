@@ -430,6 +430,11 @@ function EventList({
   caption: string;
   onOpen: (event: CalendarEvent) => void;
 }) {
+  // §5.4 asks for the nearest deadline first, and a missed deadline above everything: the one already gone
+  // is the one to look at now, not the one that is still a fortnight away.
+  const queue = [...events].sort((a, b) => a.date.localeCompare(b.date));
+  const ordered = [...queue.filter((event) => daysUntil(event.date) < 0),
+                   ...queue.filter((event) => daysUntil(event.date) >= 0)];
   const t = useTranslations('calendar');
   return (
     <Card padding="none">
@@ -446,13 +451,21 @@ function EventList({
             </tr>
           </thead>
           <tbody>
-            {events.map((event) => (
+            {ordered.map((event) => (
               <tr key={event.id}>
                 <td>{formatDate(event.date, locale)}</td>
                 <td>
                   <Button variant="ghost" onClick={() => onOpen(event)}>
                     {event.title}
                   </Button>
+                  {event.documentId ? (
+                    <>
+                      {' '}
+                      <Link href={`/documents/${event.documentId}`} className={styles.documentLink}>
+                        {t('column.document')}
+                      </Link>
+                    </>
+                  ) : null}
                 </td>
                 <td>
                   <StatusPill

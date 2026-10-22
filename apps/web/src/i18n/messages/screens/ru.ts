@@ -777,6 +777,7 @@ export const ruScreens: ScreenMessages = {
     'type.reminder': 'Напоминание',
     'column.date': 'Дата',
     'column.remaining': 'Осталось',
+    'column.document': 'Документ',
     'remaining.overdue': 'Просрочено на {days} дн.',
     'remaining.today': 'Срок сегодня',
     'remaining.inDays': 'Осталось {days} дн.',

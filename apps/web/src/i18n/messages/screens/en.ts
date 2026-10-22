@@ -774,6 +774,7 @@ export const enScreens: ScreenMessages = {
     'type.reminder': 'Follow-up',
     'column.date': 'Date',
     'column.remaining': 'Remaining',
+    'column.document': 'Document',
     'remaining.overdue': 'Overdue ({days} d)',
     'remaining.today': 'Due today',
     'remaining.inDays': '{days} d left',
