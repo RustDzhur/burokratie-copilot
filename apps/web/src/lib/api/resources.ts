@@ -174,9 +174,6 @@ import type {
   StoredExplanation,
   RuleSetting,
   RuleSettingVersion,
-  FutureTimeline,
-  ScenarioRequest,
-  ScenarioResult,
   DocumentCase,
   MergeGroup,
   LegalInfo,
@@ -607,8 +604,6 @@ export interface ApiResources {
     rejectRelationship: (id: string) => Promise<void>;
     addIdentifier: (contactId: string, kind: string, value: string) => Promise<void>;
     removeIdentifier: (contactId: string, identifierId: string) => Promise<void>;
-    future: (horizon: 30 | 60 | 90, signal?: AbortSignal) => Promise<FutureTimeline>;
-    scenario: (request: ScenarioRequest) => Promise<ScenarioResult>;
   };
   readonly contacts: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<ContactSummary>>;
@@ -1981,9 +1976,6 @@ export function createResources(client: ApiClient): ApiResources {
       removeIdentifier: async (contactId, identifierId) => {
         await client.delete<unknown>(`/contacts/${contactId}/identifiers/${identifierId}`);
       },
-      future: (horizon, signal) =>
-        client.get<FutureTimeline>('/memory/future', { ...withSignal(signal), query: { horizon: String(horizon) } }),
-      scenario: (request) => client.post<ScenarioResult>('/memory/future/scenario', request),
     },
     ruleSettings: {
       list: (signal) => client.get<readonly RuleSetting[]>('/settings/rules', withSignal(signal)),

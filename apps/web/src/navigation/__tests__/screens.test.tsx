@@ -25,9 +25,9 @@ describe('screen registry', () => {
     // The date vocabulary brings the count to forty-six: it is reached from the settings cabinet and stands
     // in the governance section like the other settings screens. The count is asserted on purpose: a screen
     // added to the registry without appearing here is a screen the product claims and does not have.
-    expect(screens).toHaveLength(46);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(46);
-    expect(new Set(screens.map((screen) => screen.href)).size).toBe(46);
+    expect(screens).toHaveLength(45);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(45);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(45);
   });
 
   it('puts every workspace screen into a sidebar section', () => {

@@ -48,7 +48,6 @@ export type ScreenId =
   | 'tasks'
   | 'radar'
   | 'approvals'
-  | 'future'
   | 'rules'
   | 'calendar'
   | 'contracts'
@@ -167,8 +166,6 @@ export const screens: readonly ScreenDefinition[] = [
   screen('radar', '/radar', 'alert-triangle', null, { minTier: 1, inSidebar: false }),
   // approval centre: what waits for a person's decision, with the material
   screen('approvals', '/approvals', 'check-circle', 'arbeit', { minTier: 1 }),
-  // the future: what is recorded to happen in the next 30, 60 or 90 days, with what is not known
-  screen('future', '/future', 'calendar', null, { inSidebar: false }),
   // §5.2.11 — calendar and deadlines
   screen('calendar', '/calendar', 'clock', 'arbeit'),
   // §5.2.12 — contracts
