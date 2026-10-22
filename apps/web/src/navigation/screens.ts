@@ -8,27 +8,28 @@ import type { IconName } from '@/components/icons';
  * "forgotten" in one place while existing in another.
  */
 
-export type SectionId =
-  'workspace' | 'documents' | 'finance' | 'organisation' | 'automation' | 'governance';
+export type SectionId = 'arbeit' | 'mandanten' | 'verwaltung';
 
 export interface NavSection {
   readonly id: SectionId;
   readonly labelKey:
-    | 'sections.workspace'
-    | 'sections.documents'
-    | 'sections.finance'
-    | 'sections.organisation'
-    | 'sections.automation'
-    | 'sections.governance';
+    | 'sections.arbeit'
+    | 'sections.mandanten'
+    | 'sections.verwaltung';
 }
 
+/**
+ * The Kanzlei edition: three groups, ten items (spec `tz-kanzlei-edition.md` §4, §11.3).
+ *
+ * <p>The menu answers the bookkeeper's three questions in the order they are asked: what came in, whose paperwork
+ * it is, and what has to be kept. Nothing else belongs here - the specification forbids more than twelve items
+ * and a hidden module is a menu that lies about what the product does, so the modules behind the removed items
+ * are deleted rather than tucked away.</p>
+ */
 export const navSections: readonly NavSection[] = [
-  { id: 'workspace', labelKey: 'sections.workspace' },
-  { id: 'documents', labelKey: 'sections.documents' },
-  { id: 'finance', labelKey: 'sections.finance' },
-  { id: 'organisation', labelKey: 'sections.organisation' },
-  { id: 'automation', labelKey: 'sections.automation' },
-  { id: 'governance', labelKey: 'sections.governance' },
+  { id: 'arbeit', labelKey: 'sections.arbeit' },
+  { id: 'mandanten', labelKey: 'sections.mandanten' },
+  { id: 'verwaltung', labelKey: 'sections.verwaltung' },
 ];
 
 export type ScreenId =
@@ -149,86 +150,86 @@ export const screens: readonly ScreenDefinition[] = [
   // §5.2.3 — initial account setup
   screen('onboarding', '/onboarding', 'sparkles', null, { inSidebar: false }),
   // §5.2.4 — dashboard
-  screen('dashboard', '/dashboard', 'grid', 'workspace'),
+  screen('dashboard', '/dashboard', 'grid', null, { inSidebar: false }),
   // §5.2.5 — inbox
-  screen('inbox', '/inbox', 'inbox', 'workspace'),
+  screen('inbox', '/inbox', 'inbox', null, { inSidebar: false }),
   // §5.2.6 — universal document viewer (reached from registry/inbox)
-  screen('documentViewer', '/documents/[id]', 'file-text', 'documents', { inSidebar: false }),
+  screen('documentViewer', '/documents/[id]', 'file-text', null, { inSidebar: false }),
   // §5.2.7 — review centre
-  screen('review', '/review', 'check-square', 'workspace'),
+  screen('review', '/review', 'check-square', null, { inSidebar: false }),
   // §5.2.8 — document registry
-  screen('documents', '/documents', 'folder', 'documents'),
+  screen('documents', '/documents', 'inbox', 'arbeit'),
   // §5.2.9 — cases / Akten / Fälle
-  screen('cases', '/cases', 'briefcase', 'documents'),
+  screen('cases', '/cases', 'briefcase', 'arbeit'),
   // §5.2.10 — tasks and workflows
-  screen('tasks', '/tasks', 'check-circle', 'workspace'),
+  screen('tasks', '/tasks', 'check-circle', null, { inSidebar: false }),
   // Bürokratie-Radar (ТЗ v2.0): signals that several sources point to together
-  screen('radar', '/radar', 'alert-triangle', 'workspace', { minTier: 1 }),
+  screen('radar', '/radar', 'alert-triangle', null, { minTier: 1, inSidebar: false }),
   // approval centre: what waits for a person's decision, with the material
-  screen('approvals', '/approvals', 'shield', 'workspace', { minTier: 1 }),
+  screen('approvals', '/approvals', 'check-circle', 'arbeit', { minTier: 1 }),
   // the future: what is recorded to happen in the next 30, 60 or 90 days, with what is not known
-  screen('future', '/future', 'calendar', 'workspace'),
+  screen('future', '/future', 'calendar', null, { inSidebar: false }),
   // §5.2.11 — calendar and deadlines
-  screen('calendar', '/calendar', 'calendar', 'workspace'),
+  screen('calendar', '/calendar', 'clock', 'arbeit'),
   // §5.2.12 — contracts
-  screen('contracts', '/contracts', 'layout', 'finance', { minTier: 1 }),
+  screen('contracts', '/contracts', 'layout', null, { minTier: 1, inSidebar: false }),
   // §5.2.13 — invoices and expenses
-  screen('invoices', '/invoices', 'receipt', 'finance', { audience: ['company'], minTier: 2 }),
+  screen('invoices', '/invoices', 'receipt', 'arbeit', { audience: ['company'], minTier: 2 }),
   // §5.2.14 — payments and reconciliation
-  screen('payments', '/payments', 'credit-card', 'finance', { minTier: 2, audience: ['company'] }),
+  screen('payments', '/payments', 'credit-card', null, { minTier: 2, audience: ['company'], inSidebar: false }),
   // §5.2.15 — contacts and organisations
-  screen('contacts', '/contacts', 'users', 'organisation', { minTier: 0 }),
+  screen('contacts', '/contacts', 'users', 'mandanten', { minTier: 0 }),
   // §5.2.16 — mail centre
-  screen('mail', '/mail', 'mail', 'organisation', { minTier: 1 }),
+  screen('mail', '/mail', 'mail', null, { minTier: 1, inSidebar: false }),
   // §5.2.17 — template editor
-  screen('templates', '/templates', 'pencil', 'documents', { minTier: 1 }),
+  screen('templates', '/templates', 'mail', 'mandanten', { minTier: 1 }),
   // §5.2.18 — the letters generated from those templates
-  screen('generated-documents', '/generated-documents', 'file-text', 'documents', { minTier: 1 }),
+  screen('generated-documents', '/generated-documents', 'file-text', null, { minTier: 1, inSidebar: false }),
   // §5.2.18a — one generated letter, with what stands in the way of sending it. A detail route, not a
   // destination of its own, so it stays out of the sidebar.
-  screen('generatedDocument', '/generated-documents/[id]', 'file-text', 'documents',
+  screen('generatedDocument', '/generated-documents/[id]', 'file-text', null,
     { inSidebar: false, minTier: 1 }),
   // §5.2.18 — AI assistant
-  screen('assistant', '/assistant', 'sparkles', 'workspace', { minTier: 1 }),
+  screen('assistant', '/assistant', 'sparkles', null, { minTier: 1, inSidebar: false }),
   // §5.2.19 — automations
-  screen('automations', '/automations', 'zap', 'automation', { minTier: 2 }),
+  screen('automations', '/automations', 'zap', null, { minTier: 2, inSidebar: false }),
   // §5.2.20 — integrations
-  screen('integrations', '/integrations', 'plug', 'automation', { minTier: 1 }),
+  screen('integrations', '/integrations', 'plug', null, { minTier: 1, inSidebar: false }),
   // §5.2.21 — scanning and import
-  screen('scan', '/scan', 'printer', 'automation', { minTier: 1 }),
+  screen('scan', '/scan', 'printer', null, { minTier: 1, inSidebar: false }),
   // whom the cabinet belongs to: the person, the household members, the company
-  screen('parties', '/parties', 'users', 'organisation'),
+  screen('parties', '/parties', 'users', null, { inSidebar: false }),
   // §5.2.22 — family cockpit
-  screen('family', '/family', 'shield-heart', 'organisation', { audience: ['family'], minTier: 1 }),
+  screen('family', '/family', 'shield-heart', null, { audience: ['family'], minTier: 1, inSidebar: false }),
   // §5.2.23 — company workspace
-  screen('company', '/company', 'building', 'organisation', { audience: ['company'], minTier: 2 }),
+  screen('company', '/company', 'building', null, { audience: ['company'], minTier: 2, inSidebar: false }),
   // §5.2.24 — employees and roles
-  screen('employees', '/employees', 'user-cog', 'organisation', { audience: ['company'], minTier: 3 }),
+  screen('employees', '/employees', 'user-cog', null, { audience: ['company'], minTier: 3, inSidebar: false }),
   // §5.2.25 — reports and analytics
-  screen('reports', '/reports', 'bar-chart', 'governance', { minTier: 1 }),
+  screen('reports', '/reports', 'bar-chart', 'verwaltung', { minTier: 1 }),
   // §5.2.26 — archive and retention
-  screen('archive', '/archive', 'archive', 'documents'),
+  screen('archive', '/archive', 'archive', 'verwaltung'),
   // §5.2.27 — security settings
-  screen('security', '/security', 'shield', 'governance'),
+  screen('security', '/security', 'shield', null, { inSidebar: false }),
   // §5.2.28 — accessibility settings
-  screen('accessibilitySettings', '/accessibility', 'accessibility', 'governance'),
+  screen('accessibilitySettings', '/accessibility', 'accessibility', null, { inSidebar: false }),
   // thresholds and switches of the Radar and of document recognition, with a version history
-  screen('rules', '/rules', 'shield', 'governance'),
+  screen('rules', '/rules', 'shield', null, { inSidebar: false }),
   // the words that explain a date (Frist, Termin, Zahlungsziel), editable by the workspace
-  screen('dateMarkers', '/settings/date-markers', 'calendar', 'governance', {
+  screen('dateMarkers', '/settings/date-markers', 'calendar', null, {
     requiredPermission: 'settings.view',
   }),
   // §5.2.29 — notification centre
-  screen('notifications', '/notifications', 'bell', 'governance'),
+  screen('notifications', '/notifications', 'bell', null, { inSidebar: false }),
   // §5.2.30 — activity history and audit
-  screen('audit', '/audit', 'clock', 'governance', { minTier: 3 }),
+  screen('audit', '/audit', 'clock', null, { minTier: 3, inSidebar: false }),
   // plan, payment and invoices of the workspace
-  screen('billing', '/billing', 'credit-card', 'governance'),
+  screen('billing', '/billing', 'credit-card', null, { inSidebar: false }),
   // the platform administrator's area (customers, prices, payments, global settings)
-  screen('admin', '/admin', 'shield', 'governance', { adminOnly: true }),
+  screen('admin', '/admin', 'shield', null, { adminOnly: true, inSidebar: false }),
   // the person's own profile and the hub of the account settings, reached from the account menu (not from the sidebar)
   screen('profile', '/profile', 'user', null, { inSidebar: false, requiresAuth: true }),
-  screen('accountSettings', '/settings', 'gear', null, { inSidebar: false, requiresAuth: true }),
+  screen('accountSettings', '/settings', 'gear', 'verwaltung', { requiresAuth: true }),
   // the only page of a workspace whose access has ended
   screen('accessEnded', '/access-ended', 'lock', null, { inSidebar: false }),
 ];

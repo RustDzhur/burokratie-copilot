@@ -9,7 +9,7 @@ import {
 } from '@/test/render';
 import { SessionProvider } from '@/lib/auth/session-context';
 import type { SessionUser } from '@/lib/api/types';
-import { screensVisibleFor, sidebarScreens } from '@/navigation/screens';
+import { navSections, screensVisibleFor, sidebarScreens } from '@/navigation/screens';
 import { catalogues } from '@/i18n/messages';
 import { Sidebar } from '../sidebar';
 
@@ -69,17 +69,20 @@ function serveNavigation(): void {
   );
 }
 
-const privateUser: SessionUser = {
+const companyUser: SessionUser = {
   id: 'u1',
   name: 'Erika Weber',
   email: 'erika@example.de',
   roles: [],
   workspaceId: 'w1',
-  workspaceName: 'Weber',
-  workspaceType: 'private',
+  workspaceName: 'Weber & Partner',
+  workspaceType: 'company',
 };
 
-function renderSidebar(user: SessionUser = privateUser): ReturnType<typeof renderWithProviders> {
+/** A cabinet the Kanzlei edition is not built for: "Belege" needs a company workspace. */
+const privateUser: SessionUser = { ...companyUser, id: 'u2', workspaceType: 'private' };
+
+function renderSidebar(user: SessionUser = companyUser): ReturnType<typeof renderWithProviders> {
   return renderWithProviders(
     <SessionProvider user={user}>
       <Sidebar collapsed={false} onToggleCollapse={() => undefined} />
@@ -92,6 +95,8 @@ const navLinks = (): HTMLElement[] => within(nav()).getAllByRole('link');
 /** Only the entries of the main list, without the brand link and without "Weitere". */
 const mainLinks = (): HTMLElement[] =>
   within(screen.getByTestId('nav-main')).getAllByRole('link');
+const mainHrefs = (): (string | null)[] =>
+  mainLinks().map((link) => link.getAttribute('href'));
 
 async function openEditMode(): Promise<void> {
   const person = userEvent.setup();
@@ -123,29 +128,34 @@ describe('personal sidebar', () => {
       ),
     );
 
-    const expected = screensVisibleFor(sidebarScreens, privateUser);
+    const expected = screensVisibleFor(sidebarScreens, companyUser);
+    expect(expected).toHaveLength(10);
     expect(navLinks()).toHaveLength(expected.length + 1);
     for (const item of expected) {
       expect(
         within(nav()).getByRole('link', { name: catalogues.de.nav[item.titleKey] }),
       ).toBeInTheDocument();
     }
-    // The familiar section headings are untouched, and there is nothing to put away.
-    expect(within(nav()).getByText('Arbeitsbereich')).toBeInTheDocument();
+    // The three Kanzlei groups are still the product's suggestion, and there is nothing to put away.
+    for (const section of navSections) {
+      expect(
+        within(nav()).getByRole('list', { name: catalogues.de.nav[section.labelKey] }),
+      ).toBeInTheDocument();
+    }
     expect(screen.queryByRole('button', { name: /Weitere/ })).toBeNull();
   });
 
   it('applies the stored order without section headings', async () => {
-    stored = { order: ['inbox', 'documents'], hidden: [], updatedAt: '2026-10-18T20:00:00Z' };
+    stored = { order: ['cases', 'documents'], hidden: [], updatedAt: '2026-10-18T20:00:00Z' };
     renderSidebar();
 
     await waitFor(() => {
-      expect(mainLinks()[0]).toHaveAttribute('href', '/inbox');
+      expect(mainLinks()[0]).toHaveAttribute('href', '/cases');
       expect(mainLinks()[1]).toHaveAttribute('href', '/documents');
     });
-    expect(within(nav()).queryByText('Arbeitsbereich')).toBeNull();
+    expect(within(nav()).queryByRole('list', { name: 'Arbeit' })).toBeNull();
     // Nothing fell out of the menu: the unplaced screens follow the stored ones.
-    expect(navLinks()).toHaveLength(screensVisibleFor(sidebarScreens, privateUser).length + 1);
+    expect(navLinks()).toHaveLength(screensVisibleFor(sidebarScreens, companyUser).length + 1);
   });
 
   it('moves a hidden screen into "Weitere" and shows it again at the end', async () => {
@@ -154,7 +164,7 @@ describe('personal sidebar', () => {
     await waitFor(() => expect(mainLinks().length).toBeGreaterThan(0));
 
     await openEditMode();
-    await person.click(within(nav()).getByRole('button', { name: 'Dashboard ausblenden' }));
+    await person.click(within(nav()).getByRole('button', { name: 'Posteingang ausblenden' }));
 
     // In edit mode "Weitere" opens itself, because that is where the restore button lives.
     const toggle = within(nav()).getByRole('button', { name: /Weitere/ });
@@ -163,18 +173,18 @@ describe('personal sidebar', () => {
     expect(region).not.toBeNull();
     expect(
       within(region as HTMLElement).getByRole('link', {
-        name: catalogues.de.nav['items.dashboard'],
+        name: catalogues.de.nav['items.documents'],
       }),
     ).toBeInTheDocument();
-    // The dashboard is no longer part of the main list.
-    expect(mainLinks().map((link) => link.getAttribute('href'))).not.toContain('/dashboard');
+    // The inbox screen is no longer part of the main list.
+    expect(mainHrefs()).not.toContain('/documents');
 
     await person.click(
-      within(region as HTMLElement).getByRole('button', { name: 'Dashboard wieder anzeigen' }),
+      within(region as HTMLElement).getByRole('button', { name: 'Posteingang wieder anzeigen' }),
     );
 
     await waitFor(() => expect(screen.queryByRole('button', { name: /Weitere/ })).toBeNull());
-    expect(mainLinks()[mainLinks().length - 1]).toHaveAttribute('href', '/dashboard');
+    expect(mainHrefs()[mainHrefs().length - 1]).toBe('/documents');
   });
 
   it('persists a change once, after the short pause, with the complete menu', async () => {
@@ -182,18 +192,18 @@ describe('personal sidebar', () => {
     await waitFor(() => expect(mainLinks().length).toBeGreaterThan(0));
 
     await openEditMode();
-    const expected = screensVisibleFor(sidebarScreens, privateUser);
+    const expected = screensVisibleFor(sidebarScreens, companyUser);
     const person = userEvent.setup();
-    await person.click(within(nav()).getByRole('button', { name: 'Dashboard ausblenden' }));
+    await person.click(within(nav()).getByRole('button', { name: 'Posteingang ausblenden' }));
 
     await waitFor(() => expect(findPut()).toBeDefined(), { timeout: 3000 });
     const body = findPut()?.body as { order: string[]; hidden: string[] };
-    expect(body.hidden).toEqual(['dashboard']);
-    expect(body.order).not.toContain('dashboard');
+    expect(body.hidden).toEqual(['documents']);
+    expect(body.order).not.toContain('documents');
     expect(body.order).toHaveLength(expected.length - 1);
     // The order carries every remaining screen, so hiding something alone cannot lose the others.
     expect(new Set(body.order)).toEqual(
-      new Set(expected.map((item) => item.id).filter((id) => id !== 'dashboard')),
+      new Set(expected.map((item) => item.id).filter((id) => id !== 'documents')),
     );
   });
 
@@ -204,13 +214,13 @@ describe('personal sidebar', () => {
 
     await openEditMode();
     await person.click(
-      within(nav()).getByRole('button', { name: 'Dashboard nach unten verschieben' }),
+      within(nav()).getByRole('button', { name: 'Posteingang nach unten verschieben' }),
     );
 
-    expect(mainLinks()[0]).toHaveAttribute('href', '/inbox');
-    expect(mainLinks()[1]).toHaveAttribute('href', '/dashboard');
+    expect(mainHrefs()[0]).toBe('/cases');
+    expect(mainHrefs()[1]).toBe('/documents');
     // The move is announced for screen readers.
-    expect(screen.getByText('Dashboard steht jetzt weiter unten.')).toBeInTheDocument();
+    expect(screen.getByText('Posteingang steht jetzt weiter unten.')).toBeInTheDocument();
   });
 
   it('reorders by dragging one entry onto another', async () => {
@@ -218,34 +228,34 @@ describe('personal sidebar', () => {
     await waitFor(() => expect(mainLinks().length).toBeGreaterThan(0));
 
     await openEditMode();
-    const dashboard = within(nav())
-      .getByRole('link', { name: catalogues.de.nav['items.dashboard'] })
-      .closest('li') as HTMLElement;
     const inbox = within(nav())
-      .getByRole('link', { name: catalogues.de.nav['items.inbox'] })
+      .getByRole('link', { name: catalogues.de.nav['items.documents'] })
+      .closest('li') as HTMLElement;
+    const cases = within(nav())
+      .getByRole('link', { name: catalogues.de.nav['items.cases'] })
       .closest('li') as HTMLElement;
     const transfer = {
       setData: vi.fn(),
-      getData: () => 'dashboard',
+      getData: () => 'documents',
       effectAllowed: 'move',
       dropEffect: 'none',
     };
 
-    fireEvent.dragStart(dashboard, { dataTransfer: transfer });
-    fireEvent.dragOver(inbox, { dataTransfer: transfer, clientY: 10 });
-    fireEvent.drop(inbox, { dataTransfer: transfer });
+    fireEvent.dragStart(inbox, { dataTransfer: transfer });
+    fireEvent.dragOver(cases, { dataTransfer: transfer, clientY: 10 });
+    fireEvent.drop(cases, { dataTransfer: transfer });
 
     await waitFor(() => {
-      expect(mainLinks()[0]).toHaveAttribute('href', '/inbox');
-      expect(mainLinks()[1]).toHaveAttribute('href', '/dashboard');
+      expect(mainHrefs()[0]).toBe('/cases');
+      expect(mainHrefs()[1]).toBe('/documents');
     });
   });
 
   it('resets to the standard menu after an explicit confirmation', async () => {
-    stored = { order: ['inbox', 'dashboard'], hidden: ['audit'], updatedAt: '2026-10-18T20:00:00Z' };
+    stored = { order: ['cases', 'documents'], hidden: ['archive'], updatedAt: '2026-10-18T20:00:00Z' };
     const person = userEvent.setup();
     renderSidebar();
-    await waitFor(() => expect(mainLinks()[0]).toHaveAttribute('href', '/inbox'));
+    await waitFor(() => expect(mainLinks()[0]).toHaveAttribute('href', '/cases'));
 
     await openEditMode();
     await person.click(within(nav()).getByRole('button', { name: 'Auf Standard zurücksetzen' }));
@@ -258,9 +268,11 @@ describe('personal sidebar', () => {
         calls.some((call) => call.method === 'DELETE' && call.url.endsWith('/me/navigation')),
       ).toBe(true),
     );
-    await waitFor(() => expect(within(nav()).getByText('Arbeitsbereich')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(within(nav()).getByRole('list', { name: 'Arbeit' })).toBeInTheDocument(),
+    );
     expect(
-      within(nav()).getByRole('link', { name: catalogues.de.nav['items.audit'] }),
+      within(nav()).getByRole('link', { name: catalogues.de.nav['items.archive'] }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Weitere/ })).toBeNull();
   });
@@ -272,12 +284,12 @@ describe('personal sidebar', () => {
     await waitFor(() => expect(mainLinks().length).toBeGreaterThan(0));
 
     await openEditMode();
-    await person.click(within(nav()).getByRole('button', { name: 'Dashboard ausblenden' }));
+    await person.click(within(nav()).getByRole('button', { name: 'Posteingang ausblenden' }));
 
     await waitFor(() => expect(findPut()).toBeDefined(), { timeout: 3000 });
     await waitFor(() => expect(screen.queryByRole('button', { name: /Weitere/ })).toBeNull());
     expect(
-      within(nav()).getByRole('link', { name: catalogues.de.nav['items.dashboard'] }),
+      within(nav()).getByRole('link', { name: catalogues.de.nav['items.documents'] }),
     ).toBeInTheDocument();
     expect(
       await screen.findByText('Ihre Menüänderung wurde nicht gespeichert.'),
@@ -285,17 +297,37 @@ describe('personal sidebar', () => {
   });
 
   it('never shows a stored screen the person may not open', async () => {
-    stored = { order: ['dateMarkers', 'dashboard'], hidden: [], updatedAt: null };
-    renderSidebar({ ...privateUser, permissions: ['tasks.view'] });
+    // "Belege" needs a company workspace; a stored order that names it must not put it on a private menu.
+    stored = { order: ['invoices', 'cases'], hidden: [], updatedAt: null };
+    renderSidebar(privateUser);
 
-    await waitFor(() => expect(mainLinks()[0]).toHaveAttribute('href', '/dashboard'));
+    await waitFor(() => expect(mainLinks()[0]).toHaveAttribute('href', '/cases'));
+    expect(within(nav()).queryByRole('link', { name: catalogues.de.nav['items.invoices'] })).toBeNull();
+    expect(navLinks()).toHaveLength(screensVisibleFor(sidebarScreens, privateUser).length + 1);
+  });
+
+  it('ignores stored ids of screens that are no longer part of the menu', async () => {
+    // The Kanzlei menu has ten items; integrations and notifications live inside Einstellungen (§4.3).
+    // A stored preference that names them must not bring them back into the sidebar.
+    stored = { order: [], hidden: ['integrations', 'notifications'], updatedAt: null };
+    renderSidebar();
+
+    await waitFor(() =>
+      expect(calls.some((call) => call.method === 'GET' && call.url.endsWith('/me/navigation'))).toBe(
+        true,
+      ),
+    );
+    expect(screen.queryByRole('button', { name: /Weitere/ })).toBeNull();
     expect(
-      within(nav()).queryByRole('link', { name: catalogues.de.nav['items.dateMarkers'] }),
+      within(nav()).queryByRole('link', { name: catalogues.de.nav['items.integrations'] }),
+    ).toBeNull();
+    expect(
+      within(nav()).queryByRole('link', { name: catalogues.de.nav['items.notifications'] }),
     ).toBeNull();
   });
 
   it('remembers whether "Weitere" was left open in this browser', async () => {
-    stored = { order: [], hidden: ['audit'], updatedAt: null };
+    stored = { order: [], hidden: ['archive'], updatedAt: null };
     const person = userEvent.setup();
     const first = renderSidebar();
 
@@ -304,7 +336,9 @@ describe('personal sidebar', () => {
     expect(document.getElementById('nav-weitere')).toBeNull();
 
     await person.click(toggle);
-    expect(within(nav()).getByRole('link', { name: catalogues.de.nav['items.audit'] })).toBeInTheDocument();
+    expect(
+      within(nav()).getByRole('link', { name: catalogues.de.nav['items.archive'] }),
+    ).toBeInTheDocument();
     expect(window.localStorage.getItem('bc.sidebar.weitere')).toBe('open');
     first.unmount();
 

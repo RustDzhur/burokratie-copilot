@@ -37,7 +37,20 @@ describe('screen registry', () => {
         expect(sectionIds.has(screen.section)).toBe(true);
       }
     }
-    expect(sidebarScreens).toHaveLength(35);
+    // Three groups and no more than twelve items - the specification's acceptance criterion (§11.3). A fourth
+    // group or a thirteenth item is a regression, not a feature.
+    expect(sidebarScreens).toHaveLength(10);
+    expect(navSections).toHaveLength(3);
+    for (const section of navSections) {
+      expect(sidebarScreens.some((screen) => screen.section === section.id)).toBe(true);
+    }
+  });
+
+  it('keeps the Kanzlei menu at three groups and at most twelve items', () => {
+    // Guardian against the menu growing back: the specification forbids more, and a hidden module is a menu
+    // that lies about what the product does.
+    expect(navSections.length).toBeLessThanOrEqual(3);
+    expect(sidebarScreens.length).toBeLessThanOrEqual(12);
   });
 
   it('has a German, English and Russian title for every screen', () => {
@@ -69,9 +82,11 @@ describe('screen registry', () => {
   });
 });
 
-describe('plans and the menu', () => {
+describe('plans, permissions and the menu', () => {
+  // The mechanism is tested against the whole registry: most modules are no longer in the Kanzlei menu,
+  // but the filter itself must keep working for the screens that remain registered.
   const names = (user: Parameters<typeof screensVisibleFor>[1]): string[] =>
-    screensVisibleFor(sidebarScreens, user).map((item) => item.id);
+    screensVisibleFor(screens, user).map((item) => item.id);
   const plan = (planTier: number) => ({ planTier });
 
   it('hides what the plan does not include, and what the cabinet does not need', () => {
@@ -103,43 +118,7 @@ describe('plans and the menu', () => {
     expect(names({ workspaceType: 'company' })).toContain('invoices');
   });
 
-  it('shows the date vocabulary only where the server granted settings.view', () => {
-    expect(names({ workspaceType: 'private', permissions: ['settings.view'] })).toContain(
-      'dateMarkers',
-    );
-    expect(names({ workspaceType: 'private', permissions: ['tasks.view'] })).not.toContain(
-      'dateMarkers',
-    );
-    // An unknown permission list hides nothing: the server decides and refuses the call instead.
-    expect(names({ workspaceType: 'private' })).toContain('dateMarkers');
-  });
-});
-
-describe('Sidebar', () => {
-  it('renders a labelled navigation landmark with all sections and screens', () => {
-    renderWithProviders(<Sidebar collapsed={false} onToggleCollapse={() => undefined} />);
-
-    const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
-    // 34 workspace screens (the admin area is hidden from everybody but the platform administrator) plus the
-    // brand link back to the dashboard.
-    expect(within(nav).getAllByRole('link')).toHaveLength(35);
-
-    for (const section of navSections) {
-      expect(within(nav).getByText(catalogues.de.nav[section.labelKey])).toBeInTheDocument();
-    }
-    for (const screen of screensVisibleFor(sidebarScreens, null)) {
-      expect(
-        within(nav).getByRole('link', { name: catalogues.de.nav[screen.titleKey] }),
-      ).toBeInTheDocument();
-    }
-    expect(within(nav).queryByRole('link', { name: catalogues.de.nav['items.admin'] })).toBeNull();
-  });
-
   it('shows each kind of workspace its own screens, and the admin area only to the administrator', () => {
-    const base = { id: 'u', name: 'N', email: 'n@example.de', roles: [], workspaceId: 'w', workspaceName: 'W' } as const;
-    const names = (user: Parameters<typeof screensVisibleFor>[1]): string[] =>
-      screensVisibleFor(sidebarScreens, user).map((item) => item.id);
-
     expect(names({ workspaceType: 'private' })).not.toContain('family');
     expect(names({ workspaceType: 'private' })).not.toContain('company');
     expect(names({ workspaceType: 'family' })).toContain('family');
@@ -153,14 +132,51 @@ describe('Sidebar', () => {
     }
     expect(names({ workspaceType: 'company' })).not.toContain('admin');
     expect(names({ workspaceType: 'company', platformAdmin: true })).toContain('admin');
-    expect(base.id).toBe('u');
+  });
+
+  it('keeps the date vocabulary reachable through Einstellungen, under settings.view', () => {
+    // The Kanzlei menu has ten items; the vocabulary lives inside Einstellungen, not beside it.
+    expect(sidebarScreens.map((item) => item.id)).not.toContain('dateMarkers');
+    expect(getScreen('dateMarkers').href).toBe('/settings/date-markers');
+    // It remains a registered screen, and its permission still decides whether the server would offer it.
+    expect(names({ workspaceType: 'private', permissions: ['tasks.view'] })).not.toContain(
+      'dateMarkers',
+    );
+    expect(names({ workspaceType: 'private', permissions: ['settings.view'] })).toContain(
+      'dateMarkers',
+    );
+  });
+});
+
+describe('Sidebar', () => {
+  it('renders a labelled navigation landmark with all sections and screens', () => {
+    renderWithProviders(<Sidebar collapsed={false} onToggleCollapse={() => undefined} />);
+
+    const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
+    // Ten menu items plus the brand link back to the dashboard. The number is the specification's, not a
+    // snapshot: the menu was cut from thirty-five to ten on purpose.
+    expect(within(nav).getAllByRole('link')).toHaveLength(11);
+
+    for (const section of navSections) {
+      // "Mandanten" is both a group and an item, so the group is identified as the list it labels, not
+      // by its text alone.
+      expect(
+        within(nav).getByRole('list', { name: catalogues.de.nav[section.labelKey] }),
+      ).toBeInTheDocument();
+    }
+    for (const screen of screensVisibleFor(sidebarScreens, null)) {
+      expect(
+        within(nav).getByRole('link', { name: catalogues.de.nav[screen.titleKey] }),
+      ).toBeInTheDocument();
+    }
+    expect(within(nav).queryByRole('link', { name: catalogues.de.nav['items.admin'] })).toBeNull();
   });
 
   it('marks the active screen with aria-current', () => {
     renderWithProviders(<Sidebar collapsed={false} onToggleCollapse={() => undefined} />);
 
     const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
-    const active = within(nav).getByRole('link', { name: 'Vorgänge und Akten' });
+    const active = within(nav).getByRole('link', { name: catalogues.de.nav['items.cases'] });
     expect(active).toHaveAttribute('aria-current', 'page');
   });
 
@@ -168,7 +184,9 @@ describe('Sidebar', () => {
     renderWithProviders(<Sidebar collapsed onToggleCollapse={() => undefined} />);
 
     const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
-    expect(within(nav).getByRole('link', { name: 'Vorgänge und Akten' })).toBeInTheDocument();
+    expect(
+      within(nav).getByRole('link', { name: catalogues.de.nav['items.cases'] }),
+    ).toBeInTheDocument();
   });
 
   it('translates titles when the locale is switched', () => {
@@ -177,10 +195,12 @@ describe('Sidebar', () => {
     });
 
     const nav = screen.getByRole('navigation', { name: 'Основная навигация' });
-    expect(within(nav).getByRole('link', { name: 'Входящие' })).toBeInTheDocument();
+    expect(
+      within(nav).getByRole('link', { name: catalogues.ru.nav['items.documents'] }),
+    ).toBeInTheDocument();
   });
 
-  it('leaves the date vocabulary out of the menu for a person without settings.view', () => {
+  it('keeps the date vocabulary out of the menu, whichever permissions were granted', () => {
     const user = {
       id: 'u',
       name: 'N',
@@ -208,10 +228,11 @@ describe('Sidebar', () => {
         <Sidebar collapsed={false} onToggleCollapse={() => undefined} />
       </SessionProvider>,
     );
+    // Even with the permission the vocabulary stays inside Einstellungen: the Kanzlei menu has ten items.
     expect(
-      within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).getByRole('link', {
+      within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).queryByRole('link', {
         name: catalogues.de.nav['items.dateMarkers'],
       }),
-    ).toHaveAttribute('href', '/settings/date-markers');
+    ).toBeNull();
   });
 });
