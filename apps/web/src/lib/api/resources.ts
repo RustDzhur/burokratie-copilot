@@ -30,10 +30,8 @@ import {
 } from './wire/documents';
 import type { ProcessingFlow } from './processing';
 import { approvalFromWire, workspaceFromWire } from './wire/autopilot';
-import { radarDetailFromWire, radarFindingFromWire, radarSummaryFromWire, type RadarFindingWire } from './wire/radar';
 import {
   CASE_SORT,
-  CONTRACT_SORT,
   INVOICE_SORT,
   TASK_SORT,
   caseDetailFromWire,
@@ -51,7 +49,6 @@ import {
   type TaskWire,
 } from './wire/work';
 import {
-  contractFromWire,
   decimalFromInput,
   directionToWire,
   invoiceFromWire,
@@ -59,7 +56,6 @@ import {
   paymentFromWire,
   paymentStatusesFor,
   type BankTransactionWire,
-  type ContractWire,
   type InvoiceWire,
 } from './wire/finance';
 import {
@@ -81,7 +77,6 @@ import {
   type PreferenceWire,
 } from './wire/people';
 import {
-  assistantAnswerFromWire,
   automationCode,
   automationFromWire,
   automationStartKind,
@@ -96,7 +91,6 @@ import {
   templateCategoryToWire,
   templateCode,
   templateFromWire,
-  type AssistantWire,
   type CalendarEventWire,
   type ContactWire,
   type MailWire,
@@ -108,13 +102,11 @@ import { collectPages, csvBlob, toCsv } from './csv';
 import type {
   AccessibilityPreferences,
   ArchiveEntry,
-  AssistantAnswer,
   AuditEntry,
   AutomationSummary,
   CalendarEvent,
   CaseSummary,
   ContactSummary,
-  ContractSummary,
   DashboardSummary,
   DeviceSummary,
   DocumentDetail,
@@ -152,17 +144,11 @@ import type {
   CaseDeadline,
   ApprovalDecision,
   ContactProfile,
-  ContractMemory,
   InvoiceMemory,
   RelationshipItem,
   TimelineEntry,
   ApprovalRequestItem,
   CaseWorkspace,
-  PlanStepAction,
-  RadarAction,
-  RadarFinding,
-  RadarFindingDetail,
-  RadarSummary,
   CaseDetail,
   CatalogueEntry,
   DateMarker,
@@ -409,12 +395,6 @@ export interface CreateTaskPayload {
   readonly completionCriteria?: string;
 }
 
-export interface AssistantQueryPayload {
-  readonly question: string;
-  readonly mode: 'question' | 'summarize' | 'draft';
-  readonly documentIds?: readonly string[];
-}
-
 /**
  * The person's own menu: the order of the main list and the screens they put away into "Weitere".
  *
@@ -512,10 +492,6 @@ export interface ApiResources {
     addCriterion: (id: string, payload: { readonly kind: string; readonly description: string }) => Promise<void>;
     meetCriterion: (id: string, criterionId: string, note: string) => Promise<void>;
     waiveCriterion: (id: string, criterionId: string, reason: string) => Promise<void>;
-    /** Asks the language model for a plan; `kind` says whether it was saved (only a valid plan is). */
-    proposePlan: (id: string) => Promise<{ readonly kind: 'SAVED' | 'REJECTED' | 'UNAVAILABLE'; readonly reason: string | null }>;
-    advancePlan: (id: string) => Promise<{ readonly ranAutomatically: number }>;
-    planStep: (id: string, key: string, action: PlanStepAction) => Promise<void>;
     create: (payload: {
       readonly title: string;
       readonly caseType?: string;
@@ -545,16 +521,6 @@ export interface ApiResources {
       create: (label: string, locale: string) => Promise<{ readonly id: string; readonly label: string; readonly token: string }>;
       revoke: (id: string) => Promise<void>;
     };
-  };
-  readonly contracts: {
-    list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<ContractSummary>>;
-    expiring: (signal?: AbortSignal) => Promise<Page<ContractSummary>>;
-    create: (payload: {
-      readonly partner: string;
-      readonly contractType: string;
-      readonly startDate?: string;
-      readonly endDate?: string;
-    }) => Promise<ContractSummary>;
   };
   readonly invoices: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<InvoiceSummary>>;
@@ -603,7 +569,6 @@ export interface ApiResources {
     contractTimeline: (contractId: string, signal?: AbortSignal) => Promise<readonly TimelineEntry[]>;
     contractRelationships: (contractId: string, signal?: AbortSignal) => Promise<readonly RelationshipItem[]>;
     documentRelationships: (documentId: string, signal?: AbortSignal) => Promise<readonly RelationshipItem[]>;
-    contract: (contractId: string, signal?: AbortSignal) => Promise<ContractMemory>;
     invoice: (invoiceId: string, signal?: AbortSignal) => Promise<InvoiceMemory>;
     confirmRelationship: (id: string) => Promise<void>;
     rejectRelationship: (id: string) => Promise<void>;
@@ -655,9 +620,6 @@ export interface ApiResources {
       readonly handoff: boolean;
       readonly reason: string;
     }>;
-  };
-  readonly assistant: {
-    ask: (payload: AssistantQueryPayload, signal?: AbortSignal) => Promise<AssistantAnswer>;
   };
   readonly automations: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<AutomationSummary>>;
@@ -743,14 +705,6 @@ export interface ApiResources {
   readonly approvals: {
     center: (signal?: AbortSignal) => Promise<readonly ApprovalRequestItem[]>;
     decide: (id: string, decision: ApprovalDecision) => Promise<void>;
-  };
-  readonly radar: {
-    list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<RadarFinding>>;
-    summary: (signal?: AbortSignal) => Promise<RadarSummary>;
-    detail: (id: string, signal?: AbortSignal) => Promise<RadarFindingDetail>;
-    act: (id: string, action: RadarAction) => Promise<RadarFindingDetail>;
-    /** Asks the language model for a plain-words explanation; `kind` says what came of it. */
-    explain: (id: string) => Promise<{ readonly kind: 'EXPLAINED' | 'REJECTED' | 'UNAVAILABLE' | 'DISABLED' | 'NO_EVIDENCE'; readonly explanation: string | null }>;
   };
   readonly demo: {
     /** Opens a demo cabinet for the chosen purpose; the browser is signed in to it. */
@@ -1302,11 +1256,8 @@ export function createResources(client: ApiClient): ApiResources {
         }));
       },
       workspace: async (id, signal) => {
-        const [workspace, plan] = await Promise.all([
-          client.get<Parameters<typeof workspaceFromWire>[0]>(`/cases/${id}/workspace`, withSignal(signal)),
-          client.get<Parameters<typeof workspaceFromWire>[1]>(`/cases/${id}/plan`, withSignal(signal)),
-        ]);
-        return workspaceFromWire(workspace, plan);
+        const workspace = await client.get<Parameters<typeof workspaceFromWire>[0]>(`/cases/${id}/workspace`, withSignal(signal));
+        return workspaceFromWire(workspace, null);
       },
       setGoal: async (id, goal, nextAction) => {
         await client.put<unknown>(`/cases/${id}/goal`, { goal, nextAction });
@@ -1319,35 +1270,6 @@ export function createResources(client: ApiClient): ApiResources {
       },
       waiveCriterion: async (id, criterionId, reason) => {
         await client.post<unknown>(`/cases/${id}/criteria/${criterionId}/waive`, { reason }, { idempotencyKey: true });
-      },
-      proposePlan: async (id) => {
-        const answer = await client.post<{ kind: 'SAVED' | 'REJECTED' | 'UNAVAILABLE'; reason?: string | null }>(
-          `/cases/${id}/plan/propose`,
-          undefined,
-          { idempotencyKey: true },
-        );
-        return { kind: answer.kind, reason: answer.reason ?? null };
-      },
-      advancePlan: async (id) => {
-        const answer = await client.post<{ ranAutomatically?: number }>(`/cases/${id}/plan/advance`, undefined, { idempotencyKey: true });
-        return { ranAutomatically: answer.ranAutomatically ?? 0 };
-      },
-      planStep: async (id, key, action) => {
-        const key2 = { idempotencyKey: true } as const;
-        switch (action.kind) {
-          case 'start':
-            await client.post<unknown>(`/cases/${id}/plan/steps/${key}/start`, undefined, key2);
-            break;
-          case 'complete':
-            await client.post<unknown>(`/cases/${id}/plan/steps/${key}/complete`, { evidenceType: 'NOTE', note: action.note }, key2);
-            break;
-          case 'fail':
-            await client.post<unknown>(`/cases/${id}/plan/steps/${key}/fail`, { reason: action.reason }, key2);
-            break;
-          case 'skip':
-            await client.post<unknown>(`/cases/${id}/plan/steps/${key}/skip`, { reason: action.reason }, key2);
-            break;
-        }
       },
       get: async (id, signal) =>
         caseDetailFromWire(await client.get<CaseDetailWire>(`/cases/${id}`, withSignal(signal))),
@@ -1476,46 +1398,6 @@ export function createResources(client: ApiClient): ApiResources {
         revoke: async (id) => {
           await client.request<unknown>(`/calendar/feeds/${id}`, { method: 'DELETE', parse: 'none' });
         },
-      },
-    },
-    contracts: {
-      list: async (params, signal) => {
-        const { sort, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
-        const page = await client.list<ContractWire>(
-          '/contracts',
-          { ...rest, sort: sortFor(CONTRACT_SORT, sort) },
-          withSignal(signal),
-        );
-        return { ...page, items: page.items.map(contractFromWire) };
-      },
-      expiring: async (signal) => {
-        // The backend answers "what ends in this window"; the screen's window is the next 90 days.
-        const from = new Date();
-        const to = new Date(from.getTime() + 90 * 24 * 60 * 60 * 1000);
-        const ending = await client.get<readonly ContractWire[]>('/contracts/ending', {
-          query: { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) },
-          ...withSignal(signal),
-        });
-        return normalizePage(ending.map(contractFromWire));
-      },
-      create: async (payload) => {
-        const created = await client.post<ContractWire>(
-          '/contracts',
-          {
-            title: payload.partner,
-            contractType: payload.contractType,
-            startDate: payload.startDate,
-            endDate: payload.endDate,
-          },
-          { idempotencyKey: true },
-        );
-        // The screen asks for the partner; the backend keeps it as a party of the contract.
-        await client.post<unknown>(
-          `/contracts/${created.id}/parties`,
-          { partyRole: 'COUNTERPARTY', partyName: payload.partner, primary: true },
-          { idempotencyKey: true },
-        );
-        return contractFromWire({ ...created, partnerName: payload.partner });
       },
     },
     invoices: {
@@ -1688,12 +1570,6 @@ export function createResources(client: ApiClient): ApiResources {
     },
     guide: {
       ask: (payload) => client.post('/ai/guide', payload, { timeoutMs: 45_000 }),
-    },
-    assistant: {
-      ask: async (payload, signal) =>
-        assistantAnswerFromWire(
-          await client.post<AssistantWire>('/ai/assistant/query', payload, withSignal(signal)),
-        ),
     },
     automations: {
       list: async (params, signal) => {
@@ -1936,23 +1812,6 @@ export function createResources(client: ApiClient): ApiResources {
         (await client.get<any[]>(`/memory/contracts/${contractId}/relationships`, withSignal(signal))).map(relationshipItem),
       documentRelationships: async (documentId, signal) =>
         (await client.get<any[]>(`/memory/documents/${documentId}/relationships`, withSignal(signal))).map(relationshipItem),
-      contract: async (contractId, signal) => {
-        const [detail, obligations] = await Promise.all([
-          client.get<any>(`/contracts/${contractId}`, withSignal(signal)),
-          client.get<any[]>(`/contracts/${contractId}/obligations`, withSignal(signal)),
-        ]);
-        const c = detail.contract;
-        return {
-          id: c.id,
-          title: c.title,
-          status: c.status,
-          partnerName: c.partnerName ?? null,
-          startDate: c.startDate ?? null,
-          endDate: c.endDate ?? null,
-          cost: c.costAmount === null || c.costAmount === undefined ? null : `${c.costAmount} ${c.costCurrency ?? ''} ${c.costInterval ?? ''}`.trim(),
-          obligations: obligations.map((o: any) => ({ id: o.id, title: o.title, dueDate: o.dueDate ?? null, status: o.status })),
-        };
-      },
       invoice: async (invoiceId, signal) => {
         const i = await client.get<any>(`/invoices/${invoiceId}`, withSignal(signal));
         return {
@@ -2012,77 +1871,6 @@ export function createResources(client: ApiClient): ApiResources {
           { idempotencyKey: true },
         );
       },
-    },
-    radar: {
-      list: async (params, signal) => {
-        const { page = 0, size = 25, status, severity, type, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
-        const wire = await client.get<{ readonly items: readonly RadarFindingWire[]; readonly total: number }>(
-          '/radar/findings',
-          {
-            query: {
-              ...rest,
-              page,
-              size,
-              status: typeof status === 'string' && status ? status : undefined,
-              severity: typeof severity === 'string' && severity ? severity : undefined,
-              type: typeof type === 'string' && type ? type : undefined,
-            },
-            ...withSignal(signal),
-          },
-        );
-        const pageSize = Number(size) || 25;
-        return {
-          items: wire.items.map((item) => radarFindingFromWire(item)),
-          page: Number(page),
-          size: pageSize,
-          totalItems: wire.total,
-          totalPages: Math.max(1, Math.ceil(wire.total / pageSize)),
-        };
-      },
-      summary: async (signal) =>
-        radarSummaryFromWire(await client.get<Parameters<typeof radarSummaryFromWire>[0]>('/radar/summary', withSignal(signal))),
-      detail: async (id, signal) =>
-        radarDetailFromWire(await client.get<RadarFindingWire>(`/radar/findings/${id}`, withSignal(signal))),
-      act: async (id, action) => {
-        const key = { idempotencyKey: true } as const;
-        let wire: RadarFindingWire;
-        switch (action.kind) {
-          case 'review':
-            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/review`, undefined, key);
-            break;
-          case 'confirm':
-            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/confirm`, { reason: action.reason }, key);
-            break;
-          case 'dismiss':
-            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/dismiss`, { reason: action.reason }, key);
-            break;
-          case 'resolve':
-            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/resolve`, { reason: action.reason }, key);
-            break;
-          case 'snooze':
-            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/snooze`, { until: action.until, reason: action.reason }, key);
-            break;
-          case 'reopen':
-            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/reopen`, { reason: action.reason }, key);
-            break;
-          case 'assign':
-            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/assign`, { userId: action.userId }, key);
-            break;
-          case 'create-case':
-            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/create-case`, undefined, key);
-            break;
-          case 're-evaluate':
-            wire = await client.post<RadarFindingWire>(`/radar/findings/${id}/re-evaluate`, undefined, key);
-            break;
-        }
-        return radarDetailFromWire(wire);
-      },
-      explain: (id) =>
-        client.post<{ kind: 'EXPLAINED' | 'REJECTED' | 'UNAVAILABLE' | 'DISABLED' | 'NO_EVIDENCE'; explanation: string | null }>(
-          `/radar/findings/${id}/explain`,
-          undefined,
-          { idempotencyKey: true },
-        ),
     },
     demo: {
       start: (persona) => client.post('/public/demo/start', { persona }),

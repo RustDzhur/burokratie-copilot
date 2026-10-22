@@ -6,7 +6,6 @@ import { useState } from 'react';
 import { ProcessingPanel } from '@/components/app/processing-panel';
 import { PageHeader, PageSection, ResourceView } from '@/components/app/resource-view';
 import { DocumentExplanation } from '@/components/app/document-explanation';
-import { DocumentInsights } from '@/components/app/document-insights';
 import { DocumentTypeChanger } from '@/components/app/document-type-changer';
 import { Badge, Card, CardBody, CardHeader, EmptyState, StatusPill, Tabs } from '@/components/ui';
 import { Button } from '@/components/ui/button';
@@ -408,7 +407,6 @@ export default function DocumentViewerPage() {
               currentName={document.typeNames?.[locale] ?? document.typeNames?.de ?? null}
               onChanged={reload}
             />
-            <DocumentInsights documentId={document.id} />
 
             <PageSection title={t('tab.metadata')}>
               <Card>

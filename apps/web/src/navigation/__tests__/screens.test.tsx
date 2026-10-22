@@ -21,13 +21,12 @@ vi.mock('next/navigation', () => ({
 
 describe('screen registry', () => {
   it('covers all 30 screens required by the specification, and the people screen of the cabinets', () => {
-    // §5.2.2 (registration and sign-in) is four routes; the generated letters are the forty-fourth screen.
-    // The date vocabulary brings the count to forty-six: it is reached from the settings cabinet and stands
-    // in the governance section like the other settings screens. The count is asserted on purpose: a screen
-    // added to the registry without appearing here is a screen the product claims and does not have.
-    expect(screens).toHaveLength(44);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(44);
-    expect(new Set(screens.map((screen) => screen.href)).size).toBe(44);
+    // The registry holds the screens the backend still serves: the removed contracts, radar and assistant
+    // modules are gone, and the generated letters remain one screen. The count is asserted on purpose: a
+    // screen added to the registry without appearing here is a screen the product claims and does not have.
+    expect(screens).toHaveLength(41);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(41);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(41);
   });
 
   it('puts every workspace screen into a sidebar section', () => {
@@ -92,12 +91,12 @@ describe('plans, permissions and the menu', () => {
   it('hides what the plan does not include, and what the cabinet does not need', () => {
     const free = names({ workspaceType: 'company', subscription: plan(0) });
     expect(free).toContain('documents');
-    expect(free).not.toContain('contracts');
+    expect(free).not.toContain('automations');
     expect(free).not.toContain('invoices');
 
     const business = names({ workspaceType: 'company', subscription: plan(2) });
     expect(business).toContain('invoices');
-    expect(business).toContain('contracts');
+    expect(business).toContain('automations');
     expect(business).not.toContain('employees');
     expect(business).not.toContain('audit');
 

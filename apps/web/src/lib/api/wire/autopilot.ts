@@ -67,7 +67,7 @@ interface StepWire {
 
 export function workspaceFromWire(
   workspace: { readonly goal?: string | null; readonly next_action?: string | null; readonly criteria?: readonly CriterionWire[] },
-  plan: { readonly run?: { readonly status?: string } | null; readonly steps?: readonly StepWire[] },
+  plan: { readonly run?: { readonly status?: string } | null; readonly steps?: readonly StepWire[] } | null,
 ): CaseWorkspace {
   return {
     goal: workspace.goal ?? null,
@@ -81,8 +81,8 @@ export function workspaceFromWire(
       waivedReason: row.waived_reason ?? null,
     })),
     plan: {
-      status: plan.run?.status ?? null,
-      steps: (plan.steps ?? []).map((step) => ({
+      status: plan?.run?.status ?? null,
+      steps: (plan?.steps ?? []).map((step) => ({
         key: step.step_key,
         action: step.input?.action ?? '',
         title: step.input?.title ?? step.step_key,

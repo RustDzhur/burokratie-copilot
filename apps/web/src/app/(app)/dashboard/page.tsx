@@ -14,7 +14,6 @@ import { useFormatters, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { useApiResource } from '@/lib/api/hooks';
 import type { DashboardSummary } from '@/lib/api/types';
-import { RadarDashboardBlock } from '@/components/app/radar-dashboard-block';
 import { DashboardBusinessBlock } from '@/components/app/dashboard-business-block';
 import styles from './dashboard.module.css';
 
@@ -153,7 +152,6 @@ export default function DashboardPage() {
       >
         {(data) => (
           <>
-            <RadarDashboardBlock />
             <DashboardBusinessBlock business={data.business} />
             <PageSection title={t('sections.attention')}>
               <ul className={styles.cardGrid} data-tour="attention">

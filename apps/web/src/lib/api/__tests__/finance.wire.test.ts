@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createApiClient } from '../client';
 import { createResources } from '../resources';
-import { contractFromWire, decimalFromInput, invoiceFromWire, noticeDeadline, paymentFromWire } from '../wire/finance';
+import { decimalFromInput, invoiceFromWire, noticeDeadline, paymentFromWire } from '../wire/finance';
 
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -38,18 +38,6 @@ describe('finance ↔ backend', () => {
     expect(noticeDeadline('2027-01-31', 2, 'WEEKS')).toBe('2027-01-17');
     expect(noticeDeadline('2027-01-31', 3, 'FORTNIGHTS')).toBeNull();
     expect(noticeDeadline(null, 3, 'MONTHS')).toBeNull();
-  });
-
-  it('maps a contract to partner, status and notice', () => {
-    expect(contractFromWire({ id: 'c1', title: 'Vertrag 1', contractType: 'RENT', status: 'EXPIRING', endDate: '2027-01-01', noticePeriodValue: 3, noticePeriodUnit: 'MONTHS', costAmount: 900, costCurrency: 'EUR', partnerName: 'Vermieter GmbH' })).toMatchObject({ partner: 'Vermieter GmbH', status: 'expiring', noticeDeadline: '2026-10-01', value: 900 });
-  });
-
-  it('creates a contract and then records its partner as a party', async () => {
-    const { api, calls } = resourcesWith((url) => json(url.endsWith('/parties') ? {} : { id: 'c1', title: 'Miete', status: 'DRAFT' }, 201));
-    const created = await api.contracts.create({ partner: 'Vermieter GmbH', contractType: 'RENT' });
-    expect(calls.map((call) => new URL(call.url, 'http://x').pathname)).toEqual(['/api/v1/contracts', '/api/v1/contracts/c1/parties']);
-    expect(JSON.parse(String(calls[1]?.init.body))).toMatchObject({ partyRole: 'COUNTERPARTY', partyName: 'Vermieter GmbH', primary: true });
-    expect(created.partner).toBe('Vermieter GmbH');
   });
 
   it('lists invoices with backend filters and records them with the backend field names', async () => {

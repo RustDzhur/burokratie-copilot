@@ -842,13 +842,6 @@ export interface CaseWorkspace {
   readonly plan: { readonly status: string | null; readonly steps: readonly PlanStep[] };
 }
 
-export type PlanStepAction =
-  | { readonly kind: 'start' }
-  | { readonly kind: 'complete'; readonly note?: string }
-  | { readonly kind: 'fail'; readonly reason: string }
-  | { readonly kind: 'skip'; readonly reason: string };
-
-
 /* -------------------------------------------------------------------------- */
 /* Business memory: contact profile                                            */
 /* -------------------------------------------------------------------------- */

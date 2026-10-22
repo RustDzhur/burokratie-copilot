@@ -46,17 +46,14 @@ export type ScreenId =
   | 'documents'
   | 'cases'
   | 'tasks'
-  | 'radar'
   | 'approvals'
   | 'rules'
   | 'calendar'
-  | 'contracts'
   | 'invoices' | 'generated-documents' | 'generatedDocument'
   | 'payments'
   | 'contacts'
   | 'mail'
   | 'templates'
-  | 'assistant'
   | 'automations'
   | 'integrations'
   | 'scan'
@@ -161,14 +158,10 @@ export const screens: readonly ScreenDefinition[] = [
   screen('cases', '/cases', 'briefcase', 'arbeit'),
   // §5.2.10 — tasks and workflows
   screen('tasks', '/tasks', 'check-circle', null, { inSidebar: false }),
-  // Bürokratie-Radar (ТЗ v2.0): signals that several sources point to together
-  screen('radar', '/radar', 'alert-triangle', null, { minTier: 1, inSidebar: false }),
   // approval centre: what waits for a person's decision, with the material
   screen('approvals', '/approvals', 'check-circle', 'arbeit', { minTier: 1 }),
   // §5.2.11 — calendar and deadlines
   screen('calendar', '/calendar', 'clock', 'arbeit'),
-  // §5.2.12 — contracts
-  screen('contracts', '/contracts', 'layout', null, { minTier: 1, inSidebar: false }),
   // §5.2.13 — invoices and expenses
   screen('invoices', '/invoices', 'receipt', 'arbeit', { audience: ['company'], minTier: 2 }),
   // §5.2.14 — payments and reconciliation
@@ -185,8 +178,6 @@ export const screens: readonly ScreenDefinition[] = [
   // destination of its own, so it stays out of the sidebar.
   screen('generatedDocument', '/generated-documents/[id]', 'file-text', null,
     { inSidebar: false, minTier: 1 }),
-  // §5.2.18 — AI assistant
-  screen('assistant', '/assistant', 'sparkles', null, { minTier: 1, inSidebar: false }),
   // §5.2.19 — automations
   screen('automations', '/automations', 'zap', null, { minTier: 2, inSidebar: false }),
   // §5.2.20 — integrations

@@ -11,12 +11,12 @@ import { useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { toApiError } from '@/lib/api/errors';
 import { useApiResource } from '@/lib/api/hooks';
-import type { CaseWorkspace as Workspace, CompletionCriterion, PlanStep } from '@/lib/api/types';
+import type { CaseWorkspace as Workspace, CompletionCriterion } from '@/lib/api/types';
 
 const KINDS = ['CUSTOM', 'DECISION', 'REPLY_RECEIVED', 'PAYMENT_CONFIRMED'] as const;
 
 /**
- * What the case is for and how "finished" is checked: the goal, the completion criteria and the plan. A case counts as finished
+ * What the case is for and how "finished" is checked: the goal and the completion criteria. A case counts as finished
  * when its criteria are met or a person closes it deliberately - reading a document or creating a reminder does not finish it.
  */
 export function CaseWorkspace({ caseId }: { readonly caseId: string }) {
@@ -137,86 +137,6 @@ export function CaseWorkspace({ caseId }: { readonly caseId: string }) {
           </Button>
         </CardBody>
       </Card>
-
-      <h3>{t('plan')}</h3>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <Button
-          variant="secondary"
-          loading={busy}
-          onClick={() =>
-            void run(async () => {
-              const answer = await api.cases.proposePlan(caseId);
-              if (answer.kind === 'SAVED') toast.success(t('proposeSAVED'));
-              else toast.info(t(`propose${answer.kind}` as 'proposeREJECTED'));
-            })
-          }
-        >
-          {t('propose')}
-        </Button>
-        {workspace.plan.steps.length > 0 ? (
-          <Button
-            variant="secondary"
-            loading={busy}
-            onClick={() =>
-              void run(async () => {
-                const answer = await api.cases.advancePlan(caseId);
-                toast.info(t('advanced', { count: answer.ranAutomatically }));
-              })
-            }
-          >
-            {t('advance')}
-          </Button>
-        ) : null}
-      </div>
-      {workspace.plan.steps.length === 0 ? <p>{t('noPlan')}</p> : null}
-      <ol style={{ display: 'grid', gap: '0.75rem', paddingLeft: '1.25rem' }}>
-        {workspace.plan.steps.map((step: PlanStep) => (
-          <li key={step.key} data-testid="step">
-            <strong>{step.title}</strong>{' '}
-            <Badge tone={step.status === 'SUCCEEDED' ? 'success' : step.status === 'FAILED' ? 'danger' : 'neutral'}>
-              {t(`stepStatus.${step.status}` as 'stepStatus.PENDING')}
-            </Badge>{' '}
-            <small>
-              {t('level', { level: step.level })} · {step.auto ? t('step.auto') : t('step.manual')}
-            </small>
-            {step.blockedBy.length > 0 ? <div>{t('step.blockedBy', { steps: step.blockedBy.join(', ') })}</div> : null}
-            {step.errorMessage ? <div>{step.errorMessage}</div> : null}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem' }}>
-              {(step.status === 'PENDING' || step.status === 'FAILED') && step.ready ? (
-                <Button variant="secondary" loading={busy} onClick={() => void run(() => api.cases.planStep(caseId, step.key, { kind: 'start' }))}>
-                  {t('step.start')}
-                </Button>
-              ) : null}
-              {step.status === 'RUNNING' ? (
-                <>
-                  <Button
-                    variant="secondary"
-                    loading={busy}
-                    onClick={() => void run(() => api.cases.planStep(caseId, step.key, { kind: 'complete', note: (notes[step.key] ?? '').trim() || undefined }))}
-                  >
-                    {t('step.complete')}
-                  </Button>
-                  <Button variant="secondary" loading={busy} onClick={() => needNote(step.key, (note) => api.cases.planStep(caseId, step.key, { kind: 'fail', reason: note }))}>
-                    {t('step.fail')}
-                  </Button>
-                </>
-              ) : null}
-              {step.status === 'PENDING' || step.status === 'FAILED' ? (
-                <Button variant="secondary" loading={busy} onClick={() => needNote(step.key, (note) => api.cases.planStep(caseId, step.key, { kind: 'skip', reason: note }))}>
-                  {t('step.skip')}
-                </Button>
-              ) : null}
-              {step.status === 'RUNNING' || step.status === 'PENDING' || step.status === 'FAILED' ? (
-                <Input
-                  label={step.evidenceRequired ? t('evidence') : t('reason')}
-                  value={notes[step.key] ?? ''}
-                  onChange={(event) => setNotes((current) => ({ ...current, [step.key]: event.target.value }))}
-                />
-              ) : null}
-            </div>
-          </li>
-        ))}
-      </ol>
     </PageSection>
   );
 }
