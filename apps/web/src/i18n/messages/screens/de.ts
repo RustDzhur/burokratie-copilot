@@ -309,9 +309,9 @@ export const deScreens = {
     'column.retentionUntil': 'Aufbewahrung bis',
     'column.owner': 'Verantwortlich',
     'column.status': 'Status',
-    'empty.title': 'Das Register ist leer',
+    'empty.title': 'Kein neuer Eingang. Gut so.',
     'empty.description':
-      'Erfasste Dokumente werden hier mit Metadaten und Aufbewahrungsfrist geführt.',
+      'Sobald ein Beleg ankommt, steht er hier - mit Typ, Betrag und Frist.',
     'empty.action': 'Dokument hinzufügen',
     'retention.legalHold': 'Sperre (Legal Hold)',
     'retention.none': 'Keine Frist hinterlegt',

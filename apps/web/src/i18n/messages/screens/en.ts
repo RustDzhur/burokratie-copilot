@@ -307,8 +307,9 @@ export const enScreens: ScreenMessages = {
     'column.retentionUntil': 'Retain until',
     'column.owner': 'Responsible',
     'column.status': 'Status',
-    'empty.title': 'The registry is empty',
-    'empty.description': 'Captured documents are listed here with metadata and retention period.',
+    'empty.title': 'No new mail. Good.',
+    'empty.description':
+      'As soon as a voucher arrives it appears here - with type, amount and deadline.',
     'empty.action': 'Add a document',
     'retention.legalHold': 'Legal hold',
     'retention.none': 'No retention period stored',

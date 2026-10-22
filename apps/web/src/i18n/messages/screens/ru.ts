@@ -309,9 +309,9 @@ export const ruScreens: ScreenMessages = {
     'column.retentionUntil': 'Хранить до',
     'column.owner': 'Ответственный',
     'column.status': 'Статус',
-    'empty.title': 'Реестр пуст',
+    'empty.title': 'Новых поступлений нет. Так и должно быть.',
     'empty.description':
-      'Зарегистрированные документы отображаются здесь с метаданными и сроком хранения.',
+      'Как только придёт документ, он появится здесь — с типом, суммой и сроком.',
     'empty.action': 'Добавить документ',
     'retention.legalHold': 'Запрет на удаление (Legal Hold)',
     'retention.none': 'Срок хранения не указан',
