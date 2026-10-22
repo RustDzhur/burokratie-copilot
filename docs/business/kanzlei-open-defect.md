@@ -49,3 +49,21 @@
 
 После удаления бэкенд-пакета **всегда** прогонять фронтенд-тесты: `contract.test.ts` — единственное, что ловит
 расхождение UI и API.
+
+
+## Что уже проверено на практике (раунды 44–46)
+
+Попытки удалить группы клиента «в лоб» упираются в цепочку зависимостей. Точный порядок, проверенный на ошибках:
+
+1. **`api.cases.workspace`** тянет `/cases/${id}/plan` — план дел (autopilot). Удалять надо **внутри** метода
+   `workspace`: оставить запрос `/workspace`, передать `workspaceFromWire(workspace, null)`.
+2. **`workspaceFromWire` / `approvalFromWire`** импортируются из `./wire/autopilot` и нужны **оставшимся**
+   группам (`cases`, `approvals`). Удалять сам файл `wire/autopilot.ts` нельзя — только методы плана.
+3. **`document-insights.tsx`** и **`radar-dashboard-block.tsx`** подключены к `/dashboard` и `/documents/[id]`;
+   удалять вместе с импортами в этих страницах, иначе tsc падает на «Cannot find module».
+4. **`finance.wire.test.ts`**: импорт `contractFromWire` живёт в одной строке с `invoiceFromWire`,
+   `decimalFromInput`, `noticeDeadline`, `paymentFromWire`. Удалять импорт целиком нельзя — выпадут нужные
+   функции. Удалять только имя и два теста договоров.
+
+**Вывод:** это одна связная правка на 6–8 файлов; дробить её на мелкие шаги дороже, чем сделать за один заход
+с полным прогоном `tsc && vitest && next build`.
