@@ -88,7 +88,7 @@ public class TelegramInformer {
                 from documents d
                 left join document_types t on t.id = d.document_type_id
                 left join document_classifications c on c.document_id = d.id and c.is_current
-                left join parties p on p.id = d.party_id
+                left join contacts p on p.id = d.mandant_id
                 left join document_type_scenarios s on s.document_type_code = t.code and s.tenant_id is null
                 left join tasks k on k.source_document_id = d.id and k.source = 'DOCUMENT' and k.deleted_at is null
                 left join cases cs on cs.id = k.case_id

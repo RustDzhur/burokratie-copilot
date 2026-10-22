@@ -58,17 +58,10 @@ public class AddresseeResolver {
         List<Candidate> candidates = candidates(tenantId);
         UUID chosen = choose(candidates, String.valueOf(rows.get(0).get("text")));
         if (chosen != null) {
-            // The matcher still works in parties; the merge map (V73) turns its answer into the contact the
-            // export and the screen read. Writing the old column here would be the silent divergence §5.2
-            // forbids: the queue would show a client the export does not know.
-            jdbc.update("""
-                    update documents d
-                       set mandant_id = m.contact_id
-                      from parties_contact_map m
-                     where m.party_id = ?
-                       and d.id = ?
-                       and d.mandant_id is null
-                    """, chosen, documentId);
+            // The candidate is already a contact, so the answer goes straight into the field the screen shows
+            // and the export checks. Writing anything else here would be the silent divergence §5.2 forbids.
+            jdbc.update("update documents set mandant_id = ? where id = ? and mandant_id is null",
+                    chosen, documentId);
         }
     }
 
@@ -80,14 +73,14 @@ public class AddresseeResolver {
         }
         List<Map<String, Object>> rows = jdbc.queryForList("""
                 select id, coalesce(extracted_text, '') as text from documents
-                where tenant_id = ? and party_id is null and deleted_at is null
+                where tenant_id = ? and mandant_id is null and deleted_at is null
                 order by received_at desc limit 500
                 """, tenantId);
         int set = 0;
         for (Map<String, Object> row : rows) {
             UUID chosen = choose(candidates, String.valueOf(row.get("text")));
             if (chosen != null) {
-                set += jdbc.update("update documents set party_id = ? where id = ? and party_id is null", chosen,
+                set += jdbc.update("update documents set mandant_id = ? where id = ? and mandant_id is null", chosen,
                         row.get("id"));
             }
         }
@@ -97,9 +90,15 @@ public class AddresseeResolver {
     }
 
     private List<Candidate> candidates(UUID tenantId) {
+        // §4.3: the client of a voucher is a contact. The matcher used to read parties, which no longer exists
+        // once the module is deleted, so it reads the table the office actually maintains.
         return jdbc.query("""
-                select id, display_name, aliases, birth_date, identifiers, address from parties
-                where tenant_id = ? and deleted_at is null
+                select id, display_name, null::text as aliases, null::date as birth_date,
+                       null::text as identifiers,
+                       concat_ws(' ', nullif(organization_name, ''), nullif(first_name, ''),
+                                 nullif(last_name, '')) as address
+                  from contacts
+                 where tenant_id = ? and deleted_at is null
                 """, (rs, i) -> new Candidate((UUID) rs.getObject(1), rs.getString(2), lines(rs.getString(3)),
                 rs.getObject(4, LocalDate.class), lines(rs.getString(5)), rs.getString(6)), tenantId);
     }
