@@ -170,4 +170,34 @@ class DeadlineReminderIT {
                 .as("a run for one account must not touch another account's deadlines")
                 .isZero();
     }
+
+    @Test
+    @DisplayName("each configured lead day reminds on its own, and the first does not silence the others")
+    void everyLeadDayRemindsOnItsOwn() throws Exception {
+        Tenant owner = register();
+        UUID inSeven = taskWithDeadline(owner, 7);
+        UUID inThree = taskWithDeadline(owner, 3);
+        UUID inOne = taskWithDeadline(owner, 1);
+
+        // A window of seven covers all three dates, so one run warns about each - and each gets its own
+        // notification, not one shared by the deadline.
+        assertThat(watchdog.remindDeadlines(7, owner.tenantId())).isEqualTo(3);
+        assertThat(remindersFor(inSeven)).isEqualTo(1);
+        assertThat(remindersFor(inThree)).isEqualTo(1);
+        assertThat(remindersFor(inOne)).isEqualTo(1);
+
+        // The watchdog runs every minute. Running with the same lead again must add nothing.
+        assertThat(watchdog.remindDeadlines(7, owner.tenantId())).isZero();
+        assertThat(remindersFor(inThree)).isEqualTo(1);
+
+        // The whole point of several lead days: three days out is a NEW reminder for the same deadline, even
+        // though the seven-day window already said something about it.
+        // A window of three covers the deadlines at three days and at one - the seven-day one is outside it.
+        assertThat(watchdog.remindDeadlines(3, owner.tenantId()))
+                .as("the three-day window has its own reminder")
+                .isEqualTo(2);
+        assertThat(remindersFor(inThree))
+                .as("the same deadline is now reminded twice, once per lead day")
+                .isEqualTo(2);
+    }
 }

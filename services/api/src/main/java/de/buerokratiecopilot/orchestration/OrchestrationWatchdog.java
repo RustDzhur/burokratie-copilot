@@ -45,20 +45,27 @@ public class OrchestrationWatchdog {
     private final OwnerNotifier notifier;
     private final boolean enabled;
     private final int backfillDays;
-    private final int deadlineLeadDays;
+    /**
+     * The days before a deadline on which the office is reminded: seven, three and one by default (§5.4).
+     *
+     * <p>A single lead time is a single warning. A bookkeeper who is told once, three days out, and then busy for
+     * two days, meets the deadline unprepared; told again at three days and again at one, the same date is still
+     * in sight when it matters.</p>
+     */
+    private final java.util.List<Integer> deadlineLeadDays;
 
     public OrchestrationWatchdog(JdbcTemplate jdbc, DocumentProcessingPipeline pipeline,
                                  CaseOrchestrator orchestrator, OwnerNotifier notifier,
                                  @Value("${burokratie.orchestration.watchdog-enabled:true}") boolean enabled,
                                  @Value("${burokratie.orchestration.backfill-days:14}") int backfillDays,
-                                 @Value("${burokratie.orchestration.deadline-lead-days:3}") int deadlineLeadDays) {
+                                 @Value("${burokratie.orchestration.deadline-lead-days:7,3,1}") String deadlineLeadDays) {
         this.jdbc = jdbc;
         this.pipeline = pipeline;
         this.orchestrator = orchestrator;
         this.notifier = notifier;
         this.enabled = enabled;
         this.backfillDays = backfillDays;
-        this.deadlineLeadDays = deadlineLeadDays;
+        this.deadlineLeadDays = parseLeadDays(deadlineLeadDays);
     }
 
     @Scheduled(fixedDelayString = "${burokratie.orchestration.watchdog-poll-ms:60000}",
@@ -73,7 +80,11 @@ public class OrchestrationWatchdog {
         // Deadlines derived from documents had nobody telling anyone: remind_at was only ever set for tasks
         // the orchestrator created with a lead time that was still in the future, so a deadline that arrived
         // late, or one a person entered, sat in the calendar and never produced a notification.
-        guarded("deadline reminders", () -> remindDeadlines(deadlineLeadDays));
+        guarded("deadline reminders", () -> {
+            for (int lead : deadlineLeadDays) {
+                remindDeadlines(lead);
+            }
+        });
         guarded("unassigned tasks", this::reportUnassigned);
     }
 
@@ -242,6 +253,38 @@ public class OrchestrationWatchdog {
                        LocalDate dueDate, List<UUID> assignees) {
     }
 
+    /**
+     * Reads the configured lead days, tolerating both the old single value ("3") and the list ("7,3,1").
+     *
+     * <p>An empty or unreadable value falls back to three days rather than to nothing: a deployment that cannot
+     * parse its own configuration should still warn about a deadline.</p>
+     */
+    private static java.util.List<Integer> parseLeadDays(String csv) {
+        java.util.List<Integer> leads = new java.util.ArrayList<>();
+        if (csv != null) {
+            for (String part : csv.split(",")) {
+                String trimmed = part.trim();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                try {
+                    int value = Integer.parseInt(trimmed);
+                    if (value >= 0 && !leads.contains(value)) {
+                        leads.add(value);
+                    }
+                }
+                catch (NumberFormatException ignored) {
+                    // A broken entry must not cost the other warnings, so it is skipped, not thrown.
+                }
+            }
+        }
+        if (leads.isEmpty()) {
+            leads.add(3);
+        }
+        leads.sort(java.util.Comparator.reverseOrder());
+        return java.util.List.copyOf(leads);
+    }
+
     public int remindDeadlines(int leadDays) {
         return remindDeadlines(leadDays, null);
     }
@@ -271,7 +314,7 @@ public class OrchestrationWatchdog {
                    and d.due_date between current_date and current_date + make_interval(days => ?)
                    and (cast(? as uuid) is null or t.tenant_id = cast(? as uuid))
                    and not exists (select 1 from notifications n
-                                    where n.dedup_key = 'deadline-reminder-' || d.id)
+                                    where n.dedup_key = 'deadline-reminder-' || d.id || '-' || ?)
                  order by d.due_date
                 """, (rs, i) -> new DeadlineRef(
                         rs.getObject("deadline_id", UUID.class),
@@ -281,7 +324,7 @@ public class OrchestrationWatchdog {
                         rs.getObject("source_document_id", UUID.class),
                         rs.getDate("due_date") == null ? null : rs.getDate("due_date").toLocalDate(),
                         java.util.Arrays.asList((UUID[]) rs.getArray("assignees").getArray())),
-                leadDays, onlyTenant, onlyTenant);
+                leadDays, onlyTenant, onlyTenant, leadDays);
 
         for (DeadlineRef deadline : due) {
             RequestContext.runAs(deadline.tenantId(), () -> {
@@ -292,7 +335,9 @@ public class OrchestrationWatchdog {
                         "dueDate", String.valueOf(deadline.dueDate()));
                 // The dedup key is what makes this once per deadline; the query already excludes the ones
                 // that were reminded.
-                String dedupKey = "deadline-reminder-" + deadline.deadlineId();
+                // One reminder per deadline and per lead day: without the lead in the key the first warning
+                // would silence the other two, which is the whole point of having three.
+                String dedupKey = "deadline-reminder-" + deadline.deadlineId() + "-" + leadDays;
                 if (deadline.assignees().isEmpty()) {
                     notifier.tell(deadline.tenantId(), Notification.Category.DEADLINE,
                             Notification.Severity.WARNING, "task.deadline_approaching",
