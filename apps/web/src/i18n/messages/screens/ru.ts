@@ -1932,6 +1932,9 @@ export const ruScreens: ScreenMessages = {
     'taskReminder.body': 'Скоро срок задачи «{task}».',
     'taskUnassigned.title': 'Задача без ответственного',
     'taskUnassigned.body': 'У задачи «{task}» больше суток нет ответственного.',
+    'mandantOverdue.title': 'Запрос без ответа',
+    'mandantOverdue.body':
+      'Мандант «{mandant}» не ответил на запрос «{subject}» в течение семи дней.',
   },
   notifications: {
     subtitle: 'Все сообщения с каналами, категориями и частотой.',
@@ -2163,5 +2166,58 @@ export const ruScreens: ScreenMessages = {
     'deadline.EXTERNAL_ORGANIZATION': 'Срок ведомства',
     'deadline.ASSUMED_LEGAL': 'Предполагаемый срок',
     'deadline.CONFIRMED_LEGAL': 'Подтверждённый срок',
+    'card.requests.title': 'Запросы Belege',
+    'card.requests.description':
+      'Что канцелярия запросила у этого манданта и пришёл ли ответ.',
+    'card.requests.empty': 'У этого манданта ещё ничего не запрашивали.',
+    'card.requests.loading': 'Запросы загружаются …',
+    'card.requests.loadError': 'Не удалось загрузить запросы.',
+    'card.requests.subject': 'Запрос',
+    'card.requests.status': 'Состояние',
+    'card.requests.date': 'Дата',
+    'card.requests.action': 'Запросить снова',
+    'card.requests.repeat': 'Запросить снова',
+    'card.requests.state.DRAFT': 'Черновик',
+    'card.requests.state.SENT': 'Отправлено',
+    'card.requests.state.ANSWERED': 'Получен ответ',
+    'card.requests.state.OVERDUE': 'Просрочено',
+    'card.requests.state.CANCELLED': 'Отозвано',
+  },
+  anfrage: {
+    title: 'Запросить Belege',
+    description:
+      'Мандант получит письмо с недостающими данными. Текст можно изменить перед отправкой.',
+    action: 'Манданту',
+    noMandant: 'Сначала назначьте Beleg манданту.',
+    stateLabel: 'Запрос',
+    recipient: 'Получатель',
+    missing: 'Чего не хватает?',
+    missingHint:
+      'При изменении выбора текст создаётся заново. Если ничего не выбрано, запрашиваются все данные.',
+    'missing.AMOUNT': 'Сумма',
+    'missing.DATE': 'Дата',
+    'missing.NUMBER': 'Номер Beleg',
+    'missing.ATTACHMENT': 'Вложение',
+    subject: 'Тема',
+    body: 'Текст',
+    loading: 'Текст готовится …',
+    cancel: 'Отмена',
+    send: 'Отправить',
+    sent: 'Запрос отправлен.',
+    mailNotConfigured:
+      'Отправка почты ещё не настроена. Запрос сохранён как черновик; настройте исходящую почту и отправьте его после этого.',
+    noEmail:
+      'У этого манданта не указан адрес электронной почты. Добавьте его сначала в карточке манданта.',
+    errorTitle: 'Запрос не отправлен',
+    sendError: 'Не удалось отправить запрос. Попробуйте ещё раз.',
+    loadError:
+      'Не удалось подготовить текст. Закройте окно и попробуйте ещё раз.',
+    draftHint:
+      'При отправке запрос сначала сохраняется как черновик. Только после этого письмо уходит.',
+    'status.DRAFT': 'Черновик',
+    'status.SENT': 'Отправлено',
+    'status.ANSWERED': 'Получен ответ',
+    'status.OVERDUE': 'Просрочено',
+    'status.CANCELLED': 'Отозвано',
   },
 };

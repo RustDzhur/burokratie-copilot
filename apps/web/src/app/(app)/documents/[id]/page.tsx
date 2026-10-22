@@ -8,7 +8,8 @@ import { PageHeader, PageSection, ResourceView } from '@/components/app/resource
 import { DocumentExplanation } from '@/components/app/document-explanation';
 import { DocumentTypeChanger } from '@/components/app/document-type-changer';
 import { MandantReroute } from '@/components/app/mandant-reroute';
-import { Badge, Card, CardBody, CardHeader, EmptyState, StatusPill, Tabs } from '@/components/ui';
+import { MandantRequestDialog } from '@/components/app/mandant-request-dialog';
+import { Badge, Card, CardBody, CardHeader, EmptyState, StatusPill, Tabs, type StatusTone } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { buttonClass } from '@/components/ui/button-class';
 import { InlineAlert, SkeletonText } from '@/components/ui/feedback';
@@ -20,10 +21,19 @@ import { useFormatters, useLocale, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { toApiError } from '@/lib/api/errors';
 import { useApiResource } from '@/lib/api/hooks';
-import type { DocumentDetail } from '@/lib/api/types';
+import type { DocumentDetail, MandantRequestStatus } from '@/lib/api/types';
 import { useStatusLabels } from '@/lib/format/status';
 import { downloadBlob } from '@/lib/download';
 import styles from './viewer.module.css';
+
+/** The state of a request in the same colour language as the rest of the office screens. */
+const REQUEST_TONE: Readonly<Record<MandantRequestStatus, StatusTone>> = {
+  DRAFT: 'neutral',
+  SENT: 'info',
+  ANSWERED: 'success',
+  OVERDUE: 'warning',
+  CANCELLED: 'neutral',
+};
 
 /**
  * Universal document viewer (§5.2.6).
@@ -73,6 +83,7 @@ export default function DocumentViewerPage() {
   const params = useParams<{ id: string }>();
   const id = typeof params.id === 'string' ? params.id : '';
   const t = useTranslations('documentViewer');
+  const ta = useTranslations('anfrage');
   const tCommon = useTranslations('common');
   const tErrors = useTranslations('errors');
   const tStates = useTranslations('states');
@@ -84,11 +95,20 @@ export default function DocumentViewerPage() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [processingKey, setProcessingKey] = useState(0);
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
 
   const { state, reload, isRefreshing } = useApiResource<DocumentDetail>(
     (signal) => api.documents.get(id, signal),
     [id],
   );
+
+  // §5.7: the voucher card shows whether this Beleg was already requested from the client.
+  const requests = useApiResource(
+    (signal) => api.mandantRequests.list({ documentId: id }, signal),
+    [id],
+    { keepPreviousData: true },
+  );
+  const latestRequest = requests.state.status === 'ready' ? requests.state.data[0] : undefined;
 
   const download = async (fileName?: string): Promise<void> => {
     setBusy(true);
@@ -179,6 +199,15 @@ export default function DocumentViewerPage() {
             </Button>
             <Button
               variant="secondary"
+              iconLeft="mail"
+              disabled={state.status !== 'ready' || !state.data.mandantId}
+              title={state.status === 'ready' && !state.data.mandantId ? ta('noMandant') : undefined}
+              onClick={() => setRequestDialogOpen(true)}
+            >
+              {ta('action')}
+            </Button>
+            <Button
+              variant="secondary"
               iconLeft="sparkles"
               loading={busy}
               onClick={() => void aiRead()}
@@ -235,6 +264,18 @@ export default function DocumentViewerPage() {
             <PartyPicker documentId={id} current={document.mandantId ?? null} onChanged={reload} />
 
             <MandantReroute documentId={id} onRouted={reload} />
+
+            {latestRequest ? (
+              <div className={styles.anfrageState}>
+                <span className={styles.anfrageLabel}>{ta('stateLabel')}</span>
+                <Badge tone={REQUEST_TONE[latestRequest.status]} variant="outline">
+                  {ta(`status.${latestRequest.status}` as 'status.DRAFT')}
+                </Badge>
+                <span className={styles.anfrageLabel}>
+                  {formatDateTime(latestRequest.sentAt ?? latestRequest.createdAt, locale)}
+                </span>
+              </div>
+            ) : null}
 
             <div className={styles.summaryRow}>
               <StatusPill label={statusLabel(document.status)} status={document.status} />
@@ -481,6 +522,16 @@ export default function DocumentViewerPage() {
           </>
         )}
       </ResourceView>
+
+      {state.status === 'ready' && state.data.mandantId ? (
+        <MandantRequestDialog
+          open={requestDialogOpen}
+          onClose={() => setRequestDialogOpen(false)}
+          mandantId={state.data.mandantId}
+          documentId={id}
+          onSent={() => requests.reload()}
+        />
+      ) : null}
     </>
   );
 }

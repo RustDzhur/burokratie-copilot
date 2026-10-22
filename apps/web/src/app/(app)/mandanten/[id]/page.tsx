@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { MandantRequestDialog } from '@/components/app/mandant-request-dialog';
 import { PageHeader, PageSection, ResourceView } from '@/components/app/resource-view';
-import { Badge, Card, CardBody, DataTable, type Column } from '@/components/ui';
+import { Badge, Card, CardBody, DataTable, type Column, type StatusTone } from '@/components/ui';
+import { Button } from '@/components/ui/button';
 import { buttonClass } from '@/components/ui/button-class';
 import { SkeletonText } from '@/components/ui/feedback';
 import { formatDate, formatNumber } from '@/i18n/format';
@@ -16,6 +18,8 @@ import type {
   MandantDeadline,
   MandantDocument,
   MandantHealth,
+  MandantRequest,
+  MandantRequestStatus,
 } from '@/lib/api/types';
 import styles from '../mandanten.module.css';
 
@@ -32,6 +36,15 @@ const BELEG_TONE: Readonly<Record<BelegStatusValue, 'neutral' | 'warning' | 'suc
   ZU_PRUEFEN: 'warning',
   EXPORTIERT: 'success',
   FEHLER: 'danger',
+};
+
+/** Where a request to this client stands (§5.7). The server decides, the badge only paints it. */
+const REQUEST_TONE: Readonly<Record<MandantRequestStatus, StatusTone>> = {
+  DRAFT: 'neutral',
+  SENT: 'info',
+  ANSWERED: 'success',
+  OVERDUE: 'warning',
+  CANCELLED: 'neutral',
 };
 
 /**
@@ -55,6 +68,14 @@ export default function MandantPage() {
     (signal) => api.mandanten.get(id, signal),
     [id],
   );
+
+  // §5.7: the history of what the office asked this client for, newest first.
+  const requests = useApiResource(
+    (signal) => api.mandantRequests.list({ mandantId: id }, signal),
+    [id],
+    { keepPreviousData: true },
+  );
+  const [repeatRequest, setRepeatRequest] = useState<MandantRequest | null>(null);
 
   const documentColumns: readonly Column<MandantDocument>[] = useMemo(
     () => [
@@ -113,6 +134,50 @@ export default function MandantPage() {
           ) : (
             '—'
           ),
+      },
+    ],
+    [t, locale],
+  );
+
+  const requestColumns: readonly Column<MandantRequest>[] = useMemo(
+    () => [
+      {
+        key: 'subject',
+        header: t('card.requests.subject'),
+        render: (row) =>
+          row.documentId ? (
+            <Link href={`/documents/${row.documentId}`}>{row.subject}</Link>
+          ) : (
+            <span>{row.subject}</span>
+          ),
+      },
+      {
+        key: 'status',
+        header: t('card.requests.status'),
+        render: (row) => (
+          <Badge tone={REQUEST_TONE[row.status]}>
+            {t(`card.requests.state.${row.status}` as 'card.requests.state.DRAFT')}
+          </Badge>
+        ),
+      },
+      {
+        key: 'date',
+        header: t('card.requests.date'),
+        render: (row) => formatDate(row.sentAt ?? row.createdAt, locale),
+      },
+      {
+        key: 'action',
+        header: t('card.requests.action'),
+        render: (row) => (
+          <Button
+            size="sm"
+            variant="secondary"
+            iconLeft="send"
+            onClick={() => setRepeatRequest(row)}
+          >
+            {t('card.requests.repeat')}
+          </Button>
+        ),
       },
     ],
     [t, locale],
@@ -234,9 +299,38 @@ export default function MandantPage() {
                 />
               )}
             </PageSection>
+
+            <PageSection
+              title={t('card.requests.title')}
+              description={t('card.requests.description')}
+            >
+              {requests.state.status === 'loading' ? (
+                <p className={styles.hint}>{t('card.requests.loading')}</p>
+              ) : requests.state.status === 'error' ? (
+                <p className={styles.hint}>{t('card.requests.loadError')}</p>
+              ) : requests.state.data.length === 0 ? (
+                <p className={styles.hint}>{t('card.requests.empty')}</p>
+              ) : (
+                <DataTable
+                  caption={t('card.requests.title')}
+                  columns={requestColumns}
+                  rows={requests.state.data}
+                  rowKey={(row) => row.id}
+                  dense
+                />
+              )}
+            </PageSection>
           </>
         )}
       </ResourceView>
+
+      <MandantRequestDialog
+        open={repeatRequest !== null}
+        onClose={() => setRepeatRequest(null)}
+        mandantId={id}
+        documentId={repeatRequest?.documentId ?? null}
+        onSent={() => requests.reload()}
+      />
     </>
   );
 }

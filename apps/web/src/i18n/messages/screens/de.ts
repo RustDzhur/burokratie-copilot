@@ -1942,6 +1942,9 @@ export const deScreens = {
     'taskReminder.body': 'Die Aufgabe „{task}“ wird bald fällig.',
     'taskUnassigned.title': 'Aufgabe ohne Zuständigkeit',
     'taskUnassigned.body': 'Die Aufgabe „{task}“ hat seit über einem Tag keine zuständige Person.',
+    'mandantOverdue.title': 'Anfrage ohne Antwort',
+    'mandantOverdue.body':
+      'Der Mandant „{mandant}“ hat auf die Anfrage „{subject}“ nach sieben Tagen nicht geantwortet.',
   },
   notifications: {
     subtitle: 'Alle Meldungen mit Kanälen, Kategorien und Frequenz.',
@@ -2173,6 +2176,59 @@ export const deScreens = {
     'deadline.EXTERNAL_ORGANIZATION': 'Behördliche Frist',
     'deadline.ASSUMED_LEGAL': 'Angenommene Frist',
     'deadline.CONFIRMED_LEGAL': 'Bestätigte Frist',
+    'card.requests.title': 'Anfragen',
+    'card.requests.description':
+      'Was die Kanzlei diesem Mandanten geschrieben hat und ob eine Antwort vorliegt.',
+    'card.requests.empty': 'An diesen Mandanten wurde noch nichts angefordert.',
+    'card.requests.loading': 'Anfragen werden geladen …',
+    'card.requests.loadError': 'Die Anfragen konnten nicht geladen werden.',
+    'card.requests.subject': 'Anfrage',
+    'card.requests.status': 'Status',
+    'card.requests.date': 'Datum',
+    'card.requests.action': 'Erneut anfordern',
+    'card.requests.repeat': 'Erneut anfordern',
+    'card.requests.state.DRAFT': 'Entwurf',
+    'card.requests.state.SENT': 'Gesendet',
+    'card.requests.state.ANSWERED': 'Beantwortet',
+    'card.requests.state.OVERDUE': 'Überfällig',
+    'card.requests.state.CANCELLED': 'Zurückgezogen',
+  },
+  anfrage: {
+    title: 'Belege anfordern',
+    description:
+      'Der Mandant bekommt eine E-Mail mit den fehlenden Angaben. Der Text lässt sich vor dem Senden ändern.',
+    action: 'An Mandant',
+    noMandant: 'Bitte ordnen Sie dem Beleg zuerst einen Mandanten zu.',
+    stateLabel: 'Anfrage',
+    recipient: 'Empfänger',
+    missing: 'Was fehlt?',
+    missingHint:
+      'Die Auswahl erzeugt den Text neu. Nichts ausgewählt heißt: um die vollständigen Angaben bitten.',
+    'missing.AMOUNT': 'Betrag',
+    'missing.DATE': 'Datum',
+    'missing.NUMBER': 'Belegnummer',
+    'missing.ATTACHMENT': 'Anlage',
+    subject: 'Betreff',
+    body: 'Text',
+    loading: 'Der Text wird vorbereitet …',
+    cancel: 'Abbrechen',
+    send: 'Senden',
+    sent: 'Die Anfrage ist versendet.',
+    mailNotConfigured:
+      'Der E-Mail-Versand ist noch nicht eingerichtet. Die Anfrage liegt als Entwurf vor; richten Sie den Postausgang ein und senden Sie sie danach.',
+    noEmail:
+      'Für diesen Mandanten ist keine E-Mail-Adresse hinterlegt. Ergänzen Sie sie zuerst in der Mandantenkarte.',
+    errorTitle: 'Die Anfrage wurde nicht versendet',
+    sendError: 'Die Anfrage konnte nicht versendet werden. Bitte versuchen Sie es erneut.',
+    loadError:
+      'Der Text konnte nicht vorbereitet werden. Bitte schließen Sie das Fenster und versuchen Sie es erneut.',
+    draftHint:
+      'Beim Senden wird die Anfrage zuerst als Entwurf gespeichert. Erst danach geht die E-Mail hinaus.',
+    'status.DRAFT': 'Entwurf',
+    'status.SENT': 'Gesendet',
+    'status.ANSWERED': 'Beantwortet',
+    'status.OVERDUE': 'Überfällig',
+    'status.CANCELLED': 'Zurückgezogen',
   },
 };
 

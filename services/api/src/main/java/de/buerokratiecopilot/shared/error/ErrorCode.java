@@ -25,6 +25,14 @@ public enum ErrorCode {
     NOT_FOUND(HttpStatus.NOT_FOUND, "error.not_found"),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "error.method_not_allowed"),
     CONFLICT(HttpStatus.CONFLICT, "error.conflict"),
+    /**
+     * Mail is a deliberate, optional part of a deployment; a letter that cannot leave the house is not
+     * an internal error. The conflict says what is missing in the office's language and leaves the draft
+     * exactly where it was, so the person can configure mail and send it afterwards.
+     */
+    MAIL_NOT_CONFIGURED(HttpStatus.CONFLICT, "error.mail_not_configured"),
+    /** The client has no address to write to: a business fact, not a server failure. */
+    MANDANT_EMAIL_MISSING(HttpStatus.CONFLICT, "error.mandant_email_missing"),
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "error.duplicate_resource"),
     INVALID_STATE_TRANSITION(HttpStatus.CONFLICT, "error.invalid_state_transition"),
     OPTIMISTIC_LOCK(HttpStatus.CONFLICT, "error.optimistic_lock"),

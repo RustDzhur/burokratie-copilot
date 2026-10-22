@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { expectNoA11yViolations, renderWithProviders, screen, within } from '@/test/render';
 import { formatDate } from '@/i18n/format';
-import type { MandantDetail } from '@/lib/api/types';
+import type { MandantDetail, MandantRequest } from '@/lib/api/types';
 import MandantPage from '../[id]/page';
 
 /**
@@ -65,13 +65,19 @@ const detail: MandantDetail = {
   ],
 };
 
-function serve(): void {
+function serve(requests: readonly MandantRequest[] = []): void {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('/auth/csrf')) {
         return new Response(JSON.stringify({ token: 'test' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/mandant-requests')) {
+        return new Response(JSON.stringify(requests), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
@@ -83,6 +89,26 @@ function serve(): void {
     }),
   );
 }
+
+const request: MandantRequest = {
+  id: 'request-1',
+  mandantId: 'm-1',
+  mandantName: 'Kartenhaus GmbH',
+  mandantEmail: 'kartenhaus@example.de',
+  documentId: 'doc-1',
+  documentFilename: 'rechnung-2026-02.pdf',
+  subject: 'Anfrage: fehlende Belege – Kartenhaus GmbH',
+  body: 'Sehr geehrte Damen und Herren,',
+  status: 'SENT',
+  createdAt: '2026-02-04T09:00:00Z',
+  sentAt: '2026-02-04T09:01:00Z',
+  lastReminderAt: null,
+  reminderCount: 0,
+  answeredAt: null,
+  closedAt: null,
+  note: null,
+  createdBy: 'u-1',
+};
 
 describe('Mandant card', () => {
   afterEach(() => {
@@ -136,5 +162,17 @@ describe('Mandant card', () => {
       'href',
       '/mandanten',
     );
+  });
+
+  it('lists the requests to the client with their state and offers to ask again', async () => {
+    serve([request]);
+    renderWithProviders(<MandantPage />);
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Anfragen' }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText('Anfrage: fehlende Belege – Kartenhaus GmbH')).toBeInTheDocument();
+    expect(screen.getByText('Gesendet')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Erneut anfordern' })).toBeInTheDocument();
   });
 });

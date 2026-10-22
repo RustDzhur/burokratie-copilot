@@ -353,6 +353,56 @@ export interface MandantDetail extends MandantSummary {
   readonly openDeadlines: readonly MandantDeadline[];
 }
 
+/**
+ * Where a request to a client stands (Kanzlei edition, §5.7).
+ *
+ * <p>`DRAFT` was written but never handed over; `SENT` is out and unanswered; `OVERDUE` is the same after
+ * seven days; `ANSWERED` and `CANCELLED` are the two closed states. The server decides the state, the
+ * screen only names it.</p>
+ */
+export type MandantRequestStatus = 'DRAFT' | 'SENT' | 'ANSWERED' | 'OVERDUE' | 'CANCELLED';
+
+/** What the office asked a client for, with the text that actually left the house. */
+export interface MandantRequest {
+  readonly id: string;
+  readonly mandantId: string;
+  readonly mandantName: string;
+  readonly mandantEmail: string | null;
+  readonly documentId: string | null;
+  readonly documentFilename: string | null;
+  readonly subject: string;
+  readonly body: string;
+  readonly status: MandantRequestStatus;
+  readonly createdAt: IsoDateTime;
+  readonly sentAt: IsoDateTime | null;
+  readonly lastReminderAt: IsoDateTime | null;
+  readonly reminderCount: number;
+  readonly answeredAt: IsoDateTime | null;
+  readonly closedAt: IsoDateTime | null;
+  readonly note: string | null;
+  readonly createdBy: string | null;
+}
+
+/** The prefilled letter the dialog shows before anything is stored. */
+export interface MandantRequestPreview {
+  readonly subject: string;
+  readonly body: string;
+  readonly mandantName: string;
+  readonly mandantEmail: string | null;
+}
+
+/** What is missing on the voucher. The stable keys are translated by the backend into German phrases. */
+export type MandantRequestMissing = 'AMOUNT' | 'DATE' | 'NUMBER' | 'ATTACHMENT';
+
+export interface MandantRequestDraftPayload {
+  readonly mandantId: string;
+  readonly documentId?: string | null;
+  readonly missing?: readonly MandantRequestMissing[];
+  readonly subject?: string;
+  readonly body?: string;
+  readonly note?: string | null;
+}
+
 export type MailStatus = 'new' | 'processed' | 'needs_reply';
 export type MailFolder = 'inbox' | 'sent' | 'drafts' | 'archive';
 

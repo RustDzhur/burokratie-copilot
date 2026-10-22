@@ -14,6 +14,20 @@
   color: var(--color-text-muted);
 }
 
+/* The state of the request to the client (§5.7), next to the voucher's own metadata. */
+.anfrageState {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.anfrageLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
 .preview {
   width: 100%;
   height: min(70dvh, 800px);

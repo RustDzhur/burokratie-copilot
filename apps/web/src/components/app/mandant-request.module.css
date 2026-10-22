@@ -1,0 +1,40 @@
+.recipient {
+  margin: 0 0 var(--space-4, 1rem);
+  color: var(--color-text-muted, #5b6472);
+}
+
+.recipient span {
+  display: block;
+  font-size: var(--font-size-xs, 0.75rem);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.recipient strong {
+  color: var(--color-text, #1c2330);
+  font-weight: 600;
+}
+
+.missing {
+  margin: 0 0 var(--space-4, 1rem);
+  padding: var(--space-3, 0.75rem);
+  border: 1px solid var(--color-border, #d7dce4);
+  border-radius: var(--radius-md, 8px);
+}
+
+.missing legend {
+  padding: 0 var(--space-2, 0.5rem);
+  font-weight: 600;
+}
+
+.missingOptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-2, 0.5rem);
+}
+
+.hint {
+  margin: var(--space-2, 0.5rem) 0;
+  color: var(--color-text-muted, #5b6472);
+  font-size: var(--font-size-sm, 0.875rem);
+}

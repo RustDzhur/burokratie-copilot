@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline;
 import java.time.LocalDate;
 
+import de.buerokratiecopilot.mandantrequests.MandantRequestService;
 import de.buerokratiecopilot.notifications.domain.Notification;
 import de.buerokratiecopilot.shared.context.RequestContext;
 
@@ -43,6 +44,7 @@ public class OrchestrationWatchdog {
     private final DocumentProcessingPipeline pipeline;
     private final CaseOrchestrator orchestrator;
     private final OwnerNotifier notifier;
+    private final MandantRequestService mandantRequests;
     private final boolean enabled;
     private final int backfillDays;
     /**
@@ -56,6 +58,7 @@ public class OrchestrationWatchdog {
 
     public OrchestrationWatchdog(JdbcTemplate jdbc, DocumentProcessingPipeline pipeline,
                                  CaseOrchestrator orchestrator, OwnerNotifier notifier,
+                                 MandantRequestService mandantRequests,
                                  @Value("${burokratie.orchestration.watchdog-enabled:true}") boolean enabled,
                                  @Value("${burokratie.orchestration.backfill-days:14}") int backfillDays,
                                  @Value("${burokratie.orchestration.deadline-lead-days:7,3,1}") String deadlineLeadDays) {
@@ -63,6 +66,7 @@ public class OrchestrationWatchdog {
         this.pipeline = pipeline;
         this.orchestrator = orchestrator;
         this.notifier = notifier;
+        this.mandantRequests = mandantRequests;
         this.enabled = enabled;
         this.backfillDays = backfillDays;
         this.deadlineLeadDays = parseLeadDays(deadlineLeadDays);
@@ -85,6 +89,9 @@ public class OrchestrationWatchdog {
                 remindDeadlines(lead);
             }
         });
+        // A client who was asked for vouchers and never answered is not a task and not a deadline; without
+        // this sweep the request sat in SENT forever and nobody in the office knew (§5.7).
+        guarded("mandant request reminders", this::remindMandantRequests);
         guarded("unassigned tasks", this::reportUnassigned);
     }
 
@@ -353,6 +360,21 @@ public class OrchestrationWatchdog {
             });
         }
         return due.size();
+    }
+
+    /**
+     * The seven-day reminder for requests to clients (§5.7).
+     *
+     * <p>Public so a test can run one cycle without waiting for the scheduler, exactly like the other
+     * checks of this class.</p>
+     */
+    public int remindMandantRequests() {
+        return mandantRequests.remindOverdue(null);
+    }
+
+    /** The same cycle for one account, for tests and for the operator of a single customer. */
+    public int remindMandantRequests(UUID onlyTenant) {
+        return mandantRequests.remindOverdue(onlyTenant);
     }
 
     public int reportUnassigned() {

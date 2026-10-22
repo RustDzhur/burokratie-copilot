@@ -84,6 +84,14 @@ export function useNotificationText(): (notification: NotificationSummary) => {
           return { title: t('taskReminder.title'), body: t('taskReminder.body', { task }) };
         case 'task.unassigned':
           return { title: t('taskUnassigned.title'), body: t('taskUnassigned.body', { task }) };
+        case 'mandant.request_overdue':
+          return {
+            title: t('mandantOverdue.title'),
+            body: t('mandantOverdue.body', {
+              mandant: text('mandantName') ?? '',
+              subject: text('requestSubject') ?? '',
+            }),
+          };
         default:
           return fallback;
       }
