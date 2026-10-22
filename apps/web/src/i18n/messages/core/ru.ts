@@ -184,6 +184,7 @@ export const ruCore: CoreMessages = {
     'items.future': 'Будущее',
     'items.rules': 'Правила и чувствительность',
     'items.dateMarkers': 'Обозначения дат',
+    'items.kontoMapping': 'Соответствие счетов',
     'items.calendar': 'Сроки',
     'items.contracts': 'Договоры',
     'items.generatedDocument': 'Созданное письмо',

@@ -90,6 +90,12 @@ describe('DATEV exports page', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Anhang 1 des Lastenhefts/)).toBeInTheDocument();
 
+    // The link to the screen that makes the export produce lines at all.
+    expect(screen.getByRole('link', { name: 'Konten-Zuordnung öffnen' })).toHaveAttribute(
+      'href',
+      '/settings/konto-mapping',
+    );
+
     expect(screen.getByLabelText('Zeitraum von')).toBeInTheDocument();
     expect(screen.getByLabelText('Zeitraum bis')).toBeInTheDocument();
     expect(screen.getByLabelText('Mandant (optional)')).toBeInTheDocument();

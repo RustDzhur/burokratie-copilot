@@ -191,6 +191,7 @@ export const deCore = {
     'items.future': 'Zukunft',
     'items.rules': 'Regeln und Empfindlichkeit',
     'items.dateMarkers': 'Datumsbegriffe',
+    'items.kontoMapping': 'Konten-Zuordnung',
     'items.calendar': 'Fristen',
     'items.contracts': 'Verträge',
     'items.generatedDocument': 'Erzeugtes Schreiben',

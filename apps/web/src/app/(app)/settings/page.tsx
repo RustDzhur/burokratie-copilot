@@ -15,7 +15,8 @@ interface Entry {
     | 'notifications'
     | 'billing'
     | 'rules'
-    | 'dateMarkers';
+    | 'dateMarkers'
+    | 'kontoMapping';
   readonly href: string;
   readonly icon: IconName;
   /** A backend permission needed to use the screen; an unknown permission list hides nothing. */
@@ -33,6 +34,12 @@ const ENTRIES: readonly Entry[] = [
     key: 'dateMarkers',
     href: '/settings/date-markers',
     icon: 'calendar',
+    permission: 'settings.view',
+  },
+  {
+    key: 'kontoMapping',
+    href: '/settings/konto-mapping',
+    icon: 'table',
     permission: 'settings.view',
   },
 ];

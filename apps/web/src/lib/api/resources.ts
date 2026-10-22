@@ -156,6 +156,11 @@ import type {
   DateMarker,
   DateMarkerKind,
   DateMarkerList,
+  KontoMapping,
+  KontoMappingImportReport,
+  KontoMappingInput,
+  KontoMappingList,
+  KontoMappingQuery,
   DeletionKind,
   MailMessageDetail,
   TelegramStatus,
@@ -364,6 +369,68 @@ export interface DateMarkerPatch {
   readonly phrase?: string;
   readonly label?: string;
 }
+
+/**
+ * One account mapping exactly as `GET /settings/konto-mapping` serves it.
+ *
+ * <p>The API writes only values that exist, so a cleared dimension is absent rather than `null`; the
+ * converter normalises that. The accounts and the id are the only values every backend version has.</p>
+ */
+interface KontoMappingWire {
+  readonly id: string;
+  readonly mandantId?: string | null;
+  readonly mandantName?: string | null;
+  readonly supplier?: string | null;
+  readonly category?: string | null;
+  readonly sollkonto: string;
+  readonly habenkonto: string;
+  readonly steuerschluessel?: string | null;
+  readonly createdAt?: string | null;
+}
+
+interface KontoMappingListWire {
+  readonly items?: readonly KontoMappingWire[];
+  readonly count?: number;
+  /** The categories of the document taxonomy, so the dialog does not repeat the list. */
+  readonly categories?: readonly string[];
+}
+
+interface KontoMappingImportWire {
+  readonly created?: number;
+  readonly updated?: number;
+  readonly skipped?: readonly { readonly line?: number; readonly reason?: string }[];
+}
+
+function kontoMappingFromWire(wire: KontoMappingWire): KontoMapping {
+  return {
+    id: wire.id,
+    mandantId: wire.mandantId ?? null,
+    mandantName: wire.mandantName ?? null,
+    supplier: wire.supplier ?? null,
+    category: wire.category ?? null,
+    sollkonto: wire.sollkonto,
+    habenkonto: wire.habenkonto,
+    steuerschluessel: wire.steuerschluessel ?? null,
+    createdAt: wire.createdAt ?? null,
+  };
+}
+
+/**
+ * The categories the mapping dialog offers when the backend does not send its own.
+ *
+ * <p>The taxonomy's values are in migration V3 (`document_types_category_chk`); this copy exists only so an
+ * older server still gets a usable dialog. The server's list always wins.</p>
+ */
+const FALLBACK_KONTO_CATEGORIES: readonly string[] = [
+  'FINANCE',
+  'CONTRACTS',
+  'GOVERNMENT',
+  'HOUSING',
+  'EMPLOYMENT',
+  'FAMILY_EDUCATION_HEALTH',
+  'LEGAL',
+  'OTHER',
+];
 
 export interface RegisterPayload {
   /** The person ticked the box for the terms and the privacy notice; the server records which version. */
@@ -823,6 +890,18 @@ export interface ApiResources {
       update: (id: string, patch: DateMarkerPatch) => Promise<DateMarker>;
       remove: (id: string) => Promise<void>;
       reset: () => Promise<{ readonly deleted: number }>;
+    };
+    /**
+     * The account mapping of the DATEV export (§5.6). Without a row here the export skips every voucher with
+     * "Kein Konto-Mapping", so this is the screen that makes the export produce lines at all.
+     */
+    readonly kontoMapping: {
+      list: (query?: KontoMappingQuery, signal?: AbortSignal) => Promise<KontoMappingList>;
+      create: (payload: KontoMappingInput) => Promise<KontoMapping>;
+      update: (id: string, payload: KontoMappingInput) => Promise<KontoMapping>;
+      remove: (id: string) => Promise<void>;
+      /** The CSV the Kanzlei exchanges; the report names every line the import did not write. */
+      importCsv: (file: File) => Promise<KontoMappingImportReport>;
     };
   };
 }
@@ -2192,6 +2271,63 @@ export function createResources(client: ApiClient): ApiResources {
         // The colon is the contract, not a typo: the endpoint is `…/date-markers:reset`, a command on the
         // collection rather than a member of it.
         reset: () => client.post<{ readonly deleted: number }>('/settings/date-markers:reset'),
+      },
+      kontoMapping: {
+        list: async (query, signal) => {
+          const wire = await client.get<KontoMappingListWire>('/settings/konto-mapping', {
+            query: {
+              mandantId: query?.mandantId,
+              supplier: query?.supplier,
+              category: query?.category,
+            },
+            ...withSignal(signal),
+          });
+          const items = (wire.items ?? []).map(kontoMappingFromWire);
+          return {
+            items,
+            count: wire.count ?? items.length,
+            // An older server has no categories; the dialog must still offer the taxonomy's values.
+            categories:
+              wire.categories && wire.categories.length > 0
+                ? wire.categories
+                : FALLBACK_KONTO_CATEGORIES,
+          };
+        },
+        create: async (payload) =>
+          kontoMappingFromWire(
+            await client.post<KontoMappingWire>('/settings/konto-mapping', payload, {
+              idempotencyKey: true,
+            }),
+          ),
+        update: async (id, payload) =>
+          kontoMappingFromWire(
+            await client.patch<KontoMappingWire>(
+              `/settings/konto-mapping/${encodeURIComponent(id)}`,
+              payload,
+            ),
+          ),
+        remove: async (id) => {
+          await client.delete<void>(`/settings/konto-mapping/${encodeURIComponent(id)}`);
+        },
+        importCsv: async (file) => {
+          // A multipart body, not JSON: the request goes through the same CSRF-aware client, which reads a
+          // FormData body as it is instead of serialising it.
+          const form = new FormData();
+          form.append('file', file, file.name);
+          const wire = await client.post<KontoMappingImportWire>(
+            '/settings/konto-mapping/import',
+            form,
+            { idempotencyKey: true },
+          );
+          return {
+            created: wire.created ?? 0,
+            updated: wire.updated ?? 0,
+            skipped: (wire.skipped ?? []).map((row) => ({
+              line: row.line ?? 0,
+              reason: row.reason ?? '',
+            })),
+          };
+        },
       },
     },
   };

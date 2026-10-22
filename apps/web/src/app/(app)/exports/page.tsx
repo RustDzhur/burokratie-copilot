@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { PageHeader, PageSection, ResourceView } from '@/components/app/resource-view';
 import { Badge, Card, CardBody, CardHeader, DataTable, EmptyState, type Column } from '@/components/ui';
@@ -208,6 +209,12 @@ export default function DatevExportsPage() {
 
       <InlineAlert tone="warning" title={t('provisional.title')}>
         {t('provisional.text')}
+      </InlineAlert>
+
+      {/* The export can only book what has accounts. A person who sees "Kein Konto-Mapping" on this screen
+          needs the one screen that fixes it, not a manual. */}
+      <InlineAlert tone="info" title={t('mappingHint.title')}>
+        {t('mappingHint.text')} <Link href="/settings/konto-mapping">{t('mappingHint.action')}</Link>
       </InlineAlert>
 
       <PageSection title={t('form.title')} description={t('form.description')}>

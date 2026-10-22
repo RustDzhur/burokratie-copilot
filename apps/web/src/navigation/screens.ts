@@ -66,6 +66,7 @@ export type ScreenId =
   | 'security'
   | 'accessibilitySettings'
   | 'dateMarkers'
+  | 'kontoMapping'
   | 'notifications'
   | 'audit'
   | 'billing'
@@ -208,6 +209,10 @@ export const screens: readonly ScreenDefinition[] = [
   screen('rules', '/rules', 'shield', null, { inSidebar: false }),
   // the words that explain a date (Frist, Termin, Zahlungsziel), editable by the workspace
   screen('dateMarkers', '/settings/date-markers', 'calendar', null, {
+    requiredPermission: 'settings.view',
+  }),
+  // the accounts the DATEV export books a voucher to (§5.6); without a row the export stays empty
+  screen('kontoMapping', '/settings/konto-mapping', 'table', null, {
     requiredPermission: 'settings.view',
   }),
   // §5.2.29 — notification centre

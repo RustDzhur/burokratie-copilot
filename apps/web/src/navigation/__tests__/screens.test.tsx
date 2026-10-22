@@ -24,9 +24,9 @@ describe('screen registry', () => {
     // The registry holds the screens the backend still serves: the removed contracts, radar and assistant
     // modules are gone, and the generated letters remain one screen. The count is asserted on purpose: a
     // screen added to the registry without appearing here is a screen the product claims and does not have.
-    expect(screens).toHaveLength(42);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(42);
-    expect(new Set(screens.map((screen) => screen.href)).size).toBe(42);
+    expect(screens).toHaveLength(43);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(43);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(43);
   });
 
   it('puts every workspace screen into a sidebar section', () => {
@@ -144,6 +144,19 @@ describe('plans, permissions and the menu', () => {
     );
     expect(names({ workspaceType: 'private', permissions: ['settings.view'] })).toContain(
       'dateMarkers',
+    );
+  });
+
+  it('keeps the account mapping reachable through Einstellungen, under settings.view', () => {
+    // Without a row in the mapping the DATEV export writes no bookings, so the screen must be reachable even
+    // though it is not one of the eleven menu items.
+    expect(sidebarScreens.map((item) => item.id)).not.toContain('kontoMapping');
+    expect(getScreen('kontoMapping').href).toBe('/settings/konto-mapping');
+    expect(names({ workspaceType: 'private', permissions: ['tasks.view'] })).not.toContain(
+      'kontoMapping',
+    );
+    expect(names({ workspaceType: 'private', permissions: ['settings.view'] })).toContain(
+      'kontoMapping',
     );
   });
 });

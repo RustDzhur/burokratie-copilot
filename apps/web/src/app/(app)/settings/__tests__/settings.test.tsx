@@ -21,6 +21,7 @@ describe('AccountSettingsPage', () => {
       'Tarif und Abrechnung': '/billing',
       Regeln: '/rules',
       Datumsbegriffe: '/settings/date-markers',
+      'Konten-Zuordnung': '/settings/konto-mapping',
     };
     for (const [name, href] of Object.entries(expected)) {
       expect(screen.getByRole('link', { name }), name).toHaveAttribute('href', href);
@@ -44,6 +45,7 @@ describe('AccountSettingsPage', () => {
       </SessionProvider>,
     );
     expect(screen.queryByRole('link', { name: 'Datumsbegriffe' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Konten-Zuordnung' })).toBeNull();
     unmount();
 
     renderWithProviders(
@@ -54,6 +56,10 @@ describe('AccountSettingsPage', () => {
     expect(screen.getByRole('link', { name: 'Datumsbegriffe' })).toHaveAttribute(
       'href',
       '/settings/date-markers',
+    );
+    expect(screen.getByRole('link', { name: 'Konten-Zuordnung' })).toHaveAttribute(
+      'href',
+      '/settings/konto-mapping',
     );
   });
 });

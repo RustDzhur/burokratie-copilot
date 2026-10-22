@@ -1056,6 +1056,67 @@ export interface DateMarkerList {
   readonly count: number;
 }
 
+/**
+ * One row of the account mapping the DATEV export reads (Kanzlei edition, §5.6).
+ *
+ * <p>A row may name a client, a supplier, a category, or a combination — the export picks the most specific
+ * matching row. The server writes only values that exist, so a cleared dimension arrives as `undefined`; the
+ * screen normalises it to `null`. Without at least one row the export skips every voucher with
+ * "Kein Konto-Mapping", which is why the screen says so.</p>
+ */
+export interface KontoMapping {
+  readonly id: string;
+  readonly mandantId: string | null;
+  readonly mandantName: string | null;
+  readonly supplier: string | null;
+  readonly category: string | null;
+  readonly sollkonto: string;
+  readonly habenkonto: string;
+  readonly steuerschluessel: string | null;
+  readonly createdAt: IsoDateTime | null;
+}
+
+/** Everything `GET /settings/konto-mapping` answers: the rows and the categories the dialog may offer. */
+export interface KontoMappingList {
+  readonly items: readonly KontoMapping[];
+  readonly count: number;
+  readonly categories: readonly string[];
+}
+
+/**
+ * The full state of one row, for create and for update. A patch replaces the row, so a field left out or set
+ * to `null` clears that dimension; the two accounts are mandatory.
+ */
+export interface KontoMappingInput {
+  readonly mandantId: string | null;
+  readonly supplier: string | null;
+  readonly category: string | null;
+  readonly sollkonto: string;
+  readonly habenkonto: string;
+  readonly steuerschluessel: string | null;
+}
+
+/** One CSV line the import did not write, with the sentence the screen shows. */
+export interface KontoMappingSkippedRow {
+  /** 1-based physical line of the file; the header is line 1. */
+  readonly line: number;
+  readonly reason: string;
+}
+
+/** What a CSV import did: rows written, rows changed, and every line it left alone. */
+export interface KontoMappingImportReport {
+  readonly created: number;
+  readonly updated: number;
+  readonly skipped: readonly KontoMappingSkippedRow[];
+}
+
+/** The filters of the mapping list; every field is optional. */
+export interface KontoMappingQuery {
+  readonly mandantId?: string;
+  readonly supplier?: string;
+  readonly category?: string;
+}
+
 /** A case a document is linked to; `linkOrigin` says whether a person or a rule made the link. */
 export interface DocumentCase {
   readonly id: string;
