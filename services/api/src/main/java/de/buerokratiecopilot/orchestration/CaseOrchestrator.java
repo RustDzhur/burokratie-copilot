@@ -25,8 +25,6 @@ import de.buerokratiecopilot.calendar.CalendarEventService;
 import de.buerokratiecopilot.cases.CaseService;
 import de.buerokratiecopilot.cases.domain.Case;
 import de.buerokratiecopilot.cases.domain.CaseEvent;
-import de.buerokratiecopilot.contracts.ContractService;
-import de.buerokratiecopilot.contracts.domain.Contract;
 import de.buerokratiecopilot.deadlines.TaskDeadlineRepository;
 import de.buerokratiecopilot.deadlines.domain.TaskDeadline;
 import de.buerokratiecopilot.notifications.NotificationService;
@@ -72,7 +70,6 @@ public class CaseOrchestrator {
     private final CaseService cases;
     private final TaskService tasks;
     private final TaskDeadlineRepository deadlines;
-    private final ContractService contracts;
     private final CalendarEventService calendar;
     private final NotificationService notifications;
     private final AuditService audit;
@@ -81,7 +78,7 @@ public class CaseOrchestrator {
     private final de.buerokratiecopilot.shared.settings.SettingsService settings;
 
     public CaseOrchestrator(JdbcTemplate jdbc, CaseService cases, TaskService tasks,
-                            TaskDeadlineRepository deadlines, ContractService contracts,
+                            TaskDeadlineRepository deadlines,
                             CalendarEventService calendar, NotificationService notifications,
                             AuditService audit, EntityManager entityManager, OwnerNotifier owners,
                             de.buerokratiecopilot.shared.settings.SettingsService settings) {
@@ -89,7 +86,6 @@ public class CaseOrchestrator {
         this.cases = cases;
         this.tasks = tasks;
         this.deadlines = deadlines;
-        this.contracts = contracts;
         this.calendar = calendar;
         this.notifications = notifications;
         this.audit = audit;
@@ -395,13 +391,10 @@ public class CaseOrchestrator {
             deadlines.save(internal);
         }
 
-        // ---- the contract card
-        entityManager.flush();
+        // ---- the contract card: §4.3 removed the contracts module. A rental or employment agreement no longer
+        // produces a card and no longer schedules its own end in the calendar; the dates the document itself
+        // carries (Fristen) are the ones that remain, and they are the ones with legal consequence.
         UUID contractId = null;
-        if (scenario.createsContract()) {
-            contractId = createContract(tenantId, actor, caseId, documentId, filename, typeName, typeCode,
-                    values, reference, amount);
-        }
 
         // ---- tell the person responsible, or those who must distribute the work
         if (!force) {
@@ -439,56 +432,6 @@ public class CaseOrchestrator {
     // contract
     // ------------------------------------------------------------------------------------------
 
-    private UUID createContract(UUID tenantId, UUID actor, UUID caseId, UUID documentId, String filename,
-                                String typeName, String typeCode, Map<String, Extracted> values,
-                                String reference, BigDecimal cost) {
-        List<Map<String, Object>> present = jdbc.queryForList(
-                "select id from contracts where source_document_id = ? and deleted_at is null", documentId);
-        if (!present.isEmpty()) {
-            return (UUID) present.get(0).get("id");
-        }
-        LocalDate start = dateOf(values, "Beginn");
-        Integer termMonths = months(values, "Laufzeit");
-        Integer noticeMonths = months(values, "Kuendigungsfrist");
-        LocalDate end = start != null && termMonths != null ? start.plusMonths(termMonths) : null;
-        String renewal = text(values, "Verlaengerungsklausel");
-        Boolean autoRenewal = renewal == null ? null
-                : renewal.toLowerCase(Locale.GERMAN).contains("verlängert sich")
-                        || renewal.toLowerCase(Locale.GERMAN).contains("automatisch");
-        String contractType = switch (typeCode) {
-            case "mietvertrag" -> "RENT";
-            case "arbeitsvertrag" -> "EMPLOYMENT";
-            default -> "OTHER";
-        };
-        String base = filename.contains(".") ? filename.substring(0, filename.lastIndexOf('.')) : filename;
-        try {
-            Contract contract = contracts.create(new ContractService.CreateRequest(tenantId,
-                    typeName + " – " + base, reference, contractType, caseId, null, start, end, null,
-                    autoRenewal, null, noticeMonths, noticeMonths == null ? null : "MONTHS", cost,
-                    cost == null ? null : "EUR", null, documentId, List.of(typeCode)), actor);
-            String why = "Automatisch aus dem Dokument „" + filename + "“ gelesen (Beginn "
-                    + start + (termMonths == null ? "" : ", Laufzeit " + termMonths + " Monate")
-                    + (noticeMonths == null ? "" : ", Kündigungsfrist " + noticeMonths + " Monate")
-                    + "). Die Angaben sind ungeprüft; bitte in der Vertragskarte bestätigen.";
-            if (end != null) {
-                calendarEvent(tenantId, actor, caseId, "Vertragsende: " + base, end, why, documentId);
-                if (noticeMonths != null) {
-                    calendarEvent(tenantId, actor, caseId, "Kündigungsfrist endet: " + base,
-                            end.minusMonths(noticeMonths),
-                            "Bis zu diesem Tag müsste eine Kündigung eingehen, damit der Vertrag nicht weiterläuft. "
-                                    + why, documentId);
-                }
-            }
-            if (start != null && start.isAfter(LocalDate.now(BERLIN))) {
-                calendarEvent(tenantId, actor, caseId, "Vertragsbeginn: " + base, start, why, documentId);
-            }
-            return contract.getId();
-        }
-        catch (RuntimeException ex) {
-            log.warn("Contract card for document {} could not be created: {}", documentId, ex.getMessage());
-            return null;
-        }
-    }
 
     private void calendarEvent(UUID tenantId, UUID actor, UUID caseId, String title, LocalDate date, String note,
                                UUID documentId) {
