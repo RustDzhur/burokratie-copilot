@@ -119,6 +119,7 @@ import type {
   DeviceSummary,
   DocumentDetail,
   DocumentHistoryEntry,
+  BelegCounts,
   DocumentSummary,
   AdminOverview,
   AdminService,
@@ -456,6 +457,8 @@ export interface ApiResources {
   };
   readonly documents: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<DocumentSummary>>;
+    /** The six numbers above the Posteingang (§5.1); one request, so the screen cannot show two truths. */
+    belegCounts: (signal?: AbortSignal) => Promise<BelegCounts>;
     export: (params?: ListParams) => Promise<Blob>;
     get: (id: string, signal?: AbortSignal) => Promise<DocumentDetail>;
     history: (id: string, signal?: AbortSignal) => Promise<Page<DocumentHistoryEntry>>;
@@ -1111,6 +1114,8 @@ export function createResources(client: ApiClient): ApiResources {
       summary: (signal) => client.get<DashboardSummary>('/dashboard/summary', withSignal(signal)),
     },
     documents: {
+      belegCounts: (signal) =>
+        client.get<BelegCounts>('/documents/beleg-counts', withSignal(signal)),
       list: async (params, signal) => {
         // Screen filters are translated to the pipeline's vocabulary; one screen status covers several stages.
         const { status, channel, sort, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;

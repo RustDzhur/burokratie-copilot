@@ -1132,3 +1132,22 @@ export interface MergeGroup {
   readonly filenames: readonly string[];
   readonly suggestedTitle: string;
 }
+
+/**
+ * How many vouchers stand where in the office queue (§5.1).
+ *
+ * <p>Named after the bookkeeper's states, not the pipeline's: the screen shows these six numbers and nothing
+ * else, because a counter nobody acts on is decoration.</p>
+ */
+export interface BelegCounts {
+  readonly neu: number;
+  readonly offen: number;
+  readonly zuPruefen: number;
+  readonly exportiert: number;
+  readonly fehler: number;
+  /**
+   * Vouchers without a client. Null when the counter cannot be answered - the screen then says "not known"
+   * instead of zero, because zero would claim every voucher has a client.
+   */
+  readonly ohneMandant: number | null;
+}
