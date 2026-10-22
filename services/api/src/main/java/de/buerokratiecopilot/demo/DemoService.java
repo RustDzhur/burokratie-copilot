@@ -246,10 +246,10 @@ public class DemoService {
                 persona.name(), tenantId);
         if (persona == Persona.FAMILY) {
             jdbc.update("""
-                    insert into parties (tenant_id, kind, display_name, relation, is_primary) values
-                      (?, 'PERSON', 'Erika Mustermann', 'SELF', true),
-                      (?, 'PERSON', 'Max Mustermann', 'PARTNER', false),
-                      (?, 'PERSON', 'Lena Mustermann', 'CHILD', false)
+                    insert into contacts (tenant_id, contact_type, display_name, first_name, last_name) values
+                      (?, 'PERSON', 'Erika Mustermann', 'Erika', 'Mustermann'),
+                      (?, 'PERSON', 'Max Mustermann', 'Max', 'Mustermann'),
+                      (?, 'PERSON', 'Lena Mustermann', 'Lena', 'Mustermann')
                     """, tenantId, tenantId, tenantId);
         }
         for (DemoSamples.Sample sample : samples.forPersona(persona)) {
