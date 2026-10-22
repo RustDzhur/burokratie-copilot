@@ -109,6 +109,37 @@
 
 **До этого момента** UI назначения живёт в старом поле, и это осознанный долг, а не забывчивость.
 
+## 3.2. Инвентарь читателей `parties` (шаг 1 из §4.3: «выписать все ссылки»)
+
+Собрано `rg`, а не по памяти. Удалять модуль можно только когда этот список пуст.
+
+**Бэкенд (10 файлов):**
+`parties/AddresseeResolver.java`, `parties/PartyService.java`, `parties/PartyController.java`,
+`documents/DocumentRepository.java`, `documents/web/DocumentController.java` (поле `partyId` в `DocumentResponse`),
+`documents/DocumentService.java`, `documents/domain/Document.java` (поле и сеттер),
+`orchestration/DocumentProcessedHandler.java`, `orchestration/CaseOrchestrator.java`,
+`telegram/TelegramInformer.java`.
+
+**Тесты (8 файлов):** `parties/AddresseeResolverTest.java`, `demo/DemoCabinetIT.java`,
+`advisor/AdvisorServiceIT.java`, `invoices/outgoing/InvoicePdfRendererTest.java`,
+`invoices/outgoing/InvoiceNumberingIT.java`, `contracts/ContractModelIT.java`, `shared/persistence/SchemaIT.java`,
+`web/UiContractIT.java`.
+
+**Фронтенд (6 файлов):** `app/(app)/parties/page.tsx`, `app/(app)/documents/[id]/page.tsx` (уже переведён на
+contacts), `app/(app)/documents/page.tsx` (колонка «Kontakt»), `lib/api/wire/documents.ts`, `lib/api/resources.ts`
+(группа `api.parties`, `setParty`), `lib/api/types.ts` (`partyId`).
+
+**Порядок удаления (не разрывать):**
+1. Убрать колонку «Kontakt» из списка документов или перевести её на `mandant_id`.
+2. Убрать `partyId` из `DocumentResponse` и сущности, удалить `setParty` и `PartyService.assign`.
+3. Перевести `DocumentProcessedHandler` / `CaseOrchestrator` (они ищут сторону письма) на контакты.
+4. Удалить страницу `/parties`, `api.parties`, тесты.
+5. Flyway `V74__drop_parties.sql`: `drop table parties;`, `drop column documents.party_id;`.
+6. `rg` по `parties|party_id|partyId` → 0, кроме `parties_contact_map` (она остаётся как след слияния).
+
+**Почему это отдельный этап, а не «удалить пакет»:** `parties` — не листовой модуль, его читают демо-данные,
+советник, оркестратор и счета. Удаление пакета первым сломает их молча.
+
 ## 4. Порядок продолжения
 
 1. **Э0 Demo-Kanzlei** — по ТЗ это то, с чем идут на встречу и продают.
