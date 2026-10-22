@@ -52,7 +52,6 @@ public class ImapMailIngester {
 
     private static final Logger log = LoggerFactory.getLogger(ImapMailIngester.class);
 
-    private final de.buerokratiecopilot.autopilot.ReplyLinkService replies;
     private final JdbcTemplate jdbc;
     private final MailAccountService accounts;
     private final MailOAuthTokenService oauthTokens;
@@ -62,9 +61,7 @@ public class ImapMailIngester {
 
     public ImapMailIngester(JdbcTemplate jdbc, MailAccountService accounts, MailOAuthTokenService oauthTokens,
                             ImapConnectionFactory connections, DocumentService documentService,
-                            org.springframework.transaction.PlatformTransactionManager transactionManager,
-                            de.buerokratiecopilot.autopilot.ReplyLinkService replies) {
-        this.replies = replies;
+                            org.springframework.transaction.PlatformTransactionManager transactionManager) {
         this.jdbc = jdbc;
         this.accounts = accounts;
         this.oauthTokens = oauthTokens;
@@ -194,13 +191,8 @@ public class ImapMailIngester {
                 }
                 stored++;
                 documents += storeAttachments(tenantId, messageId, message);
-                // Does this letter answer one of ours? A failure here never loses the letter.
-                try {
-                    RequestContext.runAs(tenantId, () -> replies.link(tenantId, messageId));
-                }
-                catch (RuntimeException ex) {
-                    log.warn("Reply linking of message {} failed: {}", messageId, ex.getMessage());
-                }
+                // §4.3 removed the autopilot module, and with it reply linking: a letter that answers one of ours
+                // is now simply a letter. The mail still arrives, which is the part that must never fail.
             }
 
             inbox.close(false);
