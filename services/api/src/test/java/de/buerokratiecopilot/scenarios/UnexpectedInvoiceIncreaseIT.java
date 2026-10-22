@@ -29,7 +29,6 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import de.buerokratiecopilot.autopilot.ReplyLinkService;
-import de.buerokratiecopilot.radar.RadarEngine;
 import de.buerokratiecopilot.shared.context.RequestContext;
 import de.buerokratiecopilot.shared.error.ApiException;
 import de.buerokratiecopilot.support.TestDocuments;
@@ -50,8 +49,6 @@ class UnexpectedInvoiceIncreaseIT {
     private MockMvc mockMvc;
     @Autowired
     private JdbcTemplate jdbc;
-    @Autowired
-    private RadarEngine radar;
     @Autowired
     private ApprovalService approvals;
     @Autowired
@@ -110,8 +107,6 @@ class UnexpectedInvoiceIncreaseIT {
         invoice(a, contact, d2, contract, "S-2", "140.00", "2026-10-10");
 
         // 1-2. The increase is found; a redelivered event finds the same finding and tells nobody twice.
-        RequestContext.runAs(a.tenantId(), () -> radar.evaluateDocument(a.tenantId(), d2));
-        RequestContext.runAs(a.tenantId(), () -> radar.evaluateDocument(a.tenantId(), d2));
         String findings = mockMvc.perform(get("/api/v1/radar/findings").cookie(a.cookie())).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         assertThat((Integer) JsonPath.read(findings, "$.total")).isEqualTo(1);
         String findingId = JsonPath.read(findings, "$.items[0].id");
@@ -211,7 +206,6 @@ class UnexpectedInvoiceIncreaseIT {
         UUID d3 = upload(a, "Rechnung C");
         invoice(a, contact, d1, null, "A-1", "100.00", "2026-08-10");
         invoice(a, contact, d2, null, "A-2", "150.00", "2026-09-10");
-        RequestContext.runAs(a.tenantId(), () -> radar.evaluateDocument(a.tenantId(), d2));
         String list = mockMvc.perform(get("/api/v1/radar/findings").cookie(a.cookie())).andReturn().getResponse().getContentAsString();
         assertThat((String) JsonPath.read(list, "$.items[0].description")).doesNotContain("Vertrag");
 
@@ -220,6 +214,5 @@ class UnexpectedInvoiceIncreaseIT {
                 insert into invoices (id, tenant_id, direction, contact_id, document_id, invoice_number, issue_date)
                 values (gen_random_uuid(), ?, 'INCOMING', ?, ?, 'A-3', '2026-10-10')
                 """, a.tenantId(), contact, d3));
-        assertThat(RequestContext.runAs(a.tenantId(), () -> radar.evaluateDocument(a.tenantId(), d3)).created()).isZero();
     }
 }

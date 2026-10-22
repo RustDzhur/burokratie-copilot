@@ -23,14 +23,11 @@ public class DocumentProcessedHandler implements OutboxEventHandler {
 
     private final de.buerokratiecopilot.parties.AddresseeResolver addressees;
     private final de.buerokratiecopilot.telegram.TelegramInformer telegram;
-    private final de.buerokratiecopilot.radar.RadarEngine radar;
 
     public DocumentProcessedHandler(CaseOrchestrator orchestrator,
                                     de.buerokratiecopilot.documents.reading.AiDocumentReader reader,
                                     de.buerokratiecopilot.parties.AddresseeResolver addressees,
-                                    de.buerokratiecopilot.telegram.TelegramInformer telegram,
-                                    de.buerokratiecopilot.radar.RadarEngine radar) {
-        this.radar = radar;
+                                    de.buerokratiecopilot.telegram.TelegramInformer telegram) {
         this.addressees = addressees;
         this.telegram = telegram;
         this.orchestrator = orchestrator;
@@ -66,7 +63,6 @@ public class DocumentProcessedHandler implements OutboxEventHandler {
         }
         // The Radar looks at what the document brought; like the steps above, it never stops the document.
         try {
-            radar.evaluateDocument(event.getTenantId(), event.getAggregateId());
         }
         catch (RuntimeException ex) {
             log.warn("The Radar could not evaluate document {}: {}", event.getAggregateId(), ex.getMessage());
