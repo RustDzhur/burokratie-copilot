@@ -1151,3 +1151,41 @@ export interface BelegCounts {
    */
   readonly ohneMandant: number | null;
 }
+
+/**
+ * One voucher that was deliberately left out of a DATEV package, with the office's reason.
+ *
+ * <p>The reason comes from the server in words ("Ohne Mandant", "Kein Konto-Mapping") because it is the
+ * sentence the package itself stores. The screen translates the two known reasons and shows anything else
+ * unchanged, so a new reason never disappears.</p>
+ */
+export interface DatevSkippedDocument {
+  readonly documentId: string;
+  readonly reason: string;
+}
+
+/** What the creation of a DATEV package answered. */
+export interface DatevExportResult {
+  readonly id: string;
+  readonly belegCount: number;
+  readonly totalAmount: number;
+  readonly filename: string;
+  readonly skipped: readonly DatevSkippedDocument[];
+}
+
+/** One package in the export history. */
+export interface DatevExportBatch {
+  readonly id: string;
+  readonly createdAt: IsoDateTime;
+  readonly createdBy: string | null;
+  readonly createdByName: string | null;
+  readonly periodFrom: IsoDate;
+  readonly periodTo: IsoDate;
+  readonly mandantId: string | null;
+  readonly mandantName: string | null;
+  readonly belegCount: number;
+  readonly totalAmount: number;
+  readonly status: 'CREATED' | 'FAILED';
+  readonly filename: string;
+  readonly skippedCount: number;
+}

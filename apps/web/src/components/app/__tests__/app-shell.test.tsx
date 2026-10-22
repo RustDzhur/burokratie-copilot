@@ -60,9 +60,9 @@ describe('AppShell', () => {
     );
 
     const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
-    // The Kanzlei menu is ten items plus the brand link back to the dashboard - the specification's
-    // number (§11.3: at most twelve items in three groups), not a snapshot of a longer menu.
-    expect(within(nav).getAllByRole('link')).toHaveLength(11);
+    // The Kanzlei menu is eleven items plus the brand link back to the dashboard - still within the
+    // specification's limit (§11.3: at most twelve items in three groups), not a snapshot of a longer menu.
+    expect(within(nav).getAllByRole('link')).toHaveLength(12);
     // No fabricated user data: the account button falls back to the sign-in label.
     expect(screen.getAllByRole('button', { name: /Anmelden|Benutzermenü/ }).length).toBeGreaterThan(
       0,

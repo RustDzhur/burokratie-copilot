@@ -61,6 +61,7 @@ export type ScreenId =
   | 'company'
   | 'employees'
   | 'reports'
+  | 'exports'
   | 'archive'
   | 'security'
   | 'accessibilitySettings'
@@ -193,6 +194,10 @@ export const screens: readonly ScreenDefinition[] = [
   screen('employees', '/employees', 'user-cog', null, { audience: ['company'], minTier: 3, inSidebar: false }),
   // §5.2.25 — reports and analytics
   screen('reports', '/reports', 'bar-chart', 'verwaltung', { minTier: 1 }),
+  // §5.6 — DATEV export packages. Not in the original §5.2 list; the Kanzlei specification makes it a P0
+  // destination of its own. The menu item is visible to everyone the server would allow to export; an
+  // unknown permission list hides nothing.
+  screen('exports', '/exports', 'download', 'verwaltung', { requiredPermission: 'documents.export' }),
   // §5.2.26 — archive and retention
   screen('archive', '/archive', 'archive', 'verwaltung'),
   // §5.2.27 — security settings

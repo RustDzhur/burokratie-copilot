@@ -202,6 +202,7 @@ export const ruCore: CoreMessages = {
     'items.company': 'Рабочее пространство компании',
     'items.employees': 'Сотрудники и роли',
     'items.reports': 'Отчёты',
+    'items.exports': 'Экспорт',
     'items.archive': 'Архив',
     'items.security': 'Настройки безопасности',
     'items.accessibilitySettings': 'Доступность',

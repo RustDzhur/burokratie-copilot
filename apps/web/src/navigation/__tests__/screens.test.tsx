@@ -24,9 +24,9 @@ describe('screen registry', () => {
     // The registry holds the screens the backend still serves: the removed contracts, radar and assistant
     // modules are gone, and the generated letters remain one screen. The count is asserted on purpose: a
     // screen added to the registry without appearing here is a screen the product claims and does not have.
-    expect(screens).toHaveLength(41);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(41);
-    expect(new Set(screens.map((screen) => screen.href)).size).toBe(41);
+    expect(screens).toHaveLength(42);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(42);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(42);
   });
 
   it('puts every workspace screen into a sidebar section', () => {
@@ -38,7 +38,7 @@ describe('screen registry', () => {
     }
     // Three groups and no more than twelve items - the specification's acceptance criterion (§11.3). A fourth
     // group or a thirteenth item is a regression, not a feature.
-    expect(sidebarScreens).toHaveLength(10);
+    expect(sidebarScreens).toHaveLength(11);
     expect(navSections).toHaveLength(3);
     for (const section of navSections) {
       expect(sidebarScreens.some((screen) => screen.section === section.id)).toBe(true);
@@ -135,7 +135,7 @@ describe('plans, permissions and the menu', () => {
   });
 
   it('keeps the date vocabulary reachable through Einstellungen, under settings.view', () => {
-    // The Kanzlei menu has ten items; the vocabulary lives inside Einstellungen, not beside it.
+    // The Kanzlei menu has eleven items; the vocabulary lives inside Einstellungen, not beside it.
     expect(sidebarScreens.map((item) => item.id)).not.toContain('dateMarkers');
     expect(getScreen('dateMarkers').href).toBe('/settings/date-markers');
     // It remains a registered screen, and its permission still decides whether the server would offer it.
@@ -153,9 +153,9 @@ describe('Sidebar', () => {
     renderWithProviders(<Sidebar collapsed={false} onToggleCollapse={() => undefined} />);
 
     const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
-    // Ten menu items plus the brand link back to the dashboard. The number is the specification's, not a
+    // Eleven menu items plus the brand link back to the dashboard. The number is the specification's, not a
     // snapshot: the menu was cut from thirty-five to ten on purpose.
-    expect(within(nav).getAllByRole('link')).toHaveLength(11);
+    expect(within(nav).getAllByRole('link')).toHaveLength(12);
 
     for (const section of navSections) {
       // "Mandanten" is both a group and an item, so the group is identified as the list it labels, not
@@ -228,7 +228,7 @@ describe('Sidebar', () => {
         <Sidebar collapsed={false} onToggleCollapse={() => undefined} />
       </SessionProvider>,
     );
-    // Even with the permission the vocabulary stays inside Einstellungen: the Kanzlei menu has ten items.
+    // Even with the permission the vocabulary stays inside Einstellungen, not in the Kanzlei menu.
     expect(
       within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).queryByRole('link', {
         name: catalogues.de.nav['items.dateMarkers'],

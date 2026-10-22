@@ -107,6 +107,8 @@ import type {
   CalendarEvent,
   CaseSummary,
   ContactSummary,
+  DatevExportBatch,
+  DatevExportResult,
   DashboardSummary,
   DeviceSummary,
   DocumentDetail,
@@ -582,6 +584,26 @@ export interface ApiResources {
       readonly contactType: ContactSummary['contactType'];
       readonly email?: string;
     }) => Promise<ContactSummary>;
+  };
+  /**
+   * DATEV export packages (§5.6).
+   *
+   * <p>The CSV profile is provisional and not agreed with a Kanzlei. The client never renders the file as the
+   * final DATEV format and the screen carries a permanent warning; only the download hands the bytes over.</p>
+   */
+  readonly exports: {
+    readonly datev: {
+      /** The packages of this account, newest first. */
+      list: (signal?: AbortSignal) => Promise<readonly DatevExportBatch[]>;
+      /** Creates a package; the answer names what went in and what was skipped, with reasons. */
+      create: (payload: {
+        readonly periodFrom: string;
+        readonly periodTo: string;
+        readonly mandantId: string | null;
+      }) => Promise<DatevExportResult>;
+      /** The CSV bytes; the caller downloads them under the package's own filename. */
+      download: (id: string) => Promise<Blob>;
+    };
   };
   readonly mail: {
     get: (id: string, signal?: AbortSignal) => Promise<MailMessageDetail>;
@@ -1486,6 +1508,16 @@ export function createResources(client: ApiClient): ApiResources {
             { idempotencyKey: true },
           ),
         ),
+    },
+    exports: {
+      datev: {
+        list: (signal) =>
+          client.get<readonly DatevExportBatch[]>('/exports/datev', withSignal(signal)),
+        create: (payload) =>
+          client.post<DatevExportResult>('/exports/datev', payload, { idempotencyKey: true }),
+        download: (id) =>
+          client.get<Blob>(`/exports/datev/${encodeURIComponent(id)}/download`, { parse: 'blob' }),
+      },
     },
     mail: {
       get: (id, signal) => client.get<MailMessageDetail>(`/mail/messages/${id}`, withSignal(signal)),

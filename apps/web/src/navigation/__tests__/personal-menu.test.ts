@@ -36,6 +36,7 @@ describe('personal menu layout', () => {
       'contacts',
       'templates',
       'reports',
+      'exports',
       'archive',
       'accountSettings',
     ]);

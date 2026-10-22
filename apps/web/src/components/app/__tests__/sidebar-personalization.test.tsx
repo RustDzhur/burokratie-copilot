@@ -129,7 +129,7 @@ describe('personal sidebar', () => {
     );
 
     const expected = screensVisibleFor(sidebarScreens, companyUser);
-    expect(expected).toHaveLength(10);
+    expect(expected).toHaveLength(11);
     expect(navLinks()).toHaveLength(expected.length + 1);
     for (const item of expected) {
       expect(

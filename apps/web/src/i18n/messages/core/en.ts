@@ -200,6 +200,7 @@ export const enCore: CoreMessages = {
     'items.company': 'Company workspace',
     'items.employees': 'Employees and roles',
     'items.reports': 'Reports',
+    'items.exports': 'Exports',
     'items.archive': 'Archive',
     'items.security': 'Security settings',
     'items.accessibilitySettings': 'Accessibility',

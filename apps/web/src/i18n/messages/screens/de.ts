@@ -1930,6 +1930,53 @@ export const deScreens = {
     'readiness.back': 'Zurück zur Übersicht',
     'action.readiness': 'Versand prüfen',
   },
+  exports: {
+    subtitle: 'Geprüfte Belege als CSV-Paket für die Buchhaltung.',
+    'provisional.title': 'Vorläufiges Format – nicht mit der Kanzlei abgestimmt',
+    'provisional.text':
+      'Aufbau, Reihenfolge und Kodierung dieser CSV sind ein Arbeitsformat. Sie werden mit der ersten Kanzlei abgestimmt und in Anhang 1 des Lastenhefts festgehalten. Bis dahin ist die Datei kein freigegebenes DATEV-Importformat.',
+    'provisional.warning':
+      'Das Format ist vorläufig. Vor dem produktiven Import mit der Kanzlei abstimmen.',
+    'form.title': 'Neues DATEV-Paket',
+    'form.description':
+      'Alle Belege der Prüfliste „Zu prüfen“ im Zeitraum. Belege ohne Mandant oder ohne Konto-Zuordnung werden nicht exportiert und hier genannt.',
+    'form.periodFrom': 'Zeitraum von',
+    'form.periodTo': 'Zeitraum bis',
+    'form.mandant': 'Mandant (optional)',
+    'form.allMandants': 'Alle Mandanten',
+    'form.submit': 'DATEV-Export erstellen',
+    'form.requiredPeriod': 'Bitte Anfang und Ende des Zeitraums angeben.',
+    'form.invalidPeriod': 'Der Zeitraum beginnt nach seinem Ende.',
+    'form.created':
+      '{count, plural, =0 {Kein Beleg exportiert} one {# Beleg exportiert} other {# Belege exportiert}}.',
+    'result.title': 'Ergebnis',
+    'result.exported': 'Im Paket',
+    'result.total': 'Summe',
+    'result.skipped': 'Nicht exportiert',
+    'result.skippedCount':
+      '{count, plural, =0 {Keine Belege übersprungen} one {# Beleg übersprungen} other {# Belege übersprungen}}',
+    'result.skippedEmpty': 'Alle geprüften Belege des Zeitraums sind im Paket.',
+    'result.document': 'Beleg',
+    'result.reason': 'Grund',
+    'result.download': 'CSV herunterladen',
+    'result.reasonNoMandant': 'Ohne Mandant',
+    'result.reasonNoMapping': 'Kein Konto-Mapping',
+    'history.title': 'Pakete',
+    'history.description': 'Alle bisher erzeugten DATEV-Pakete dieses Kontos, neueste zuerst.',
+    'history.empty': 'Noch keine DATEV-Pakete.',
+    'history.createdAt': 'Erstellt',
+    'history.period': 'Zeitraum',
+    'history.mandant': 'Mandant',
+    'history.allMandants': 'Alle Mandanten',
+    'history.belege': 'Belege',
+    'history.amount': 'Summe',
+    'history.status': 'Status',
+    'history.skippedCount': 'Übersprungen',
+    'history.file': 'Datei',
+    'history.download': 'Herunterladen',
+    'history.statusCreated': 'Erstellt',
+    'history.statusFailed': 'Fehlgeschlagen',
+  },
 };
 
 export type ScreenMessages = typeof deScreens;

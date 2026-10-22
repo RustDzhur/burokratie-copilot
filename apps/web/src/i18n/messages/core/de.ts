@@ -209,6 +209,7 @@ export const deCore = {
     'items.company': 'Unternehmens-Arbeitsbereich',
     'items.employees': 'Mitarbeitende und Rollen',
     'items.reports': 'Berichte',
+    'items.exports': 'Exporte',
     'items.archive': 'Archiv',
     'items.security': 'Sicherheitseinstellungen',
     'items.accessibilitySettings': 'Barrierefreiheit',
