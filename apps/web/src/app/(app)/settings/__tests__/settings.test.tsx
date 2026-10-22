@@ -22,6 +22,7 @@ describe('AccountSettingsPage', () => {
       Regeln: '/rules',
       Datumsbegriffe: '/settings/date-markers',
       'Konten-Zuordnung': '/settings/konto-mapping',
+      'Mandanten-Zuordnung': '/settings/mandant-rules',
     };
     for (const [name, href] of Object.entries(expected)) {
       expect(screen.getByRole('link', { name }), name).toHaveAttribute('href', href);
@@ -46,6 +47,7 @@ describe('AccountSettingsPage', () => {
     );
     expect(screen.queryByRole('link', { name: 'Datumsbegriffe' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Konten-Zuordnung' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Mandanten-Zuordnung' })).toBeNull();
     unmount();
 
     renderWithProviders(
@@ -60,6 +62,10 @@ describe('AccountSettingsPage', () => {
     expect(screen.getByRole('link', { name: 'Konten-Zuordnung' })).toHaveAttribute(
       'href',
       '/settings/konto-mapping',
+    );
+    expect(screen.getByRole('link', { name: 'Mandanten-Zuordnung' })).toHaveAttribute(
+      'href',
+      '/settings/mandant-rules',
     );
   });
 });

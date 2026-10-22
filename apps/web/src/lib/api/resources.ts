@@ -161,6 +161,14 @@ import type {
   KontoMappingInput,
   KontoMappingList,
   KontoMappingQuery,
+  MandantRule,
+  MandantRuleList,
+  MandantRuleSource,
+  MandantRoutingCandidate,
+  MandantRoutingResult,
+  MandantRoutingSignal,
+  MandantRoutingStatus,
+  MandantSignalType,
   DeletionKind,
   MailMessageDetail,
   TelegramStatus,
@@ -416,6 +424,79 @@ function kontoMappingFromWire(wire: KontoMappingWire): KontoMapping {
 }
 
 /**
+ * One learned routing rule as the backend serves it.
+ *
+ * <p>A never-used rule has no {@code letzteNutzung} at all - Spring writes only values that exist - so the
+ * converter normalises an absent field to {@code null} and the screen renders "never used" instead of a
+ * date that is not there.</p>
+ */
+interface MandantRuleWire {
+  readonly id: string;
+  readonly signalTyp?: string;
+  readonly muster?: string;
+  readonly mandantId?: string | null;
+  readonly mandantName?: string | null;
+  readonly quelle?: string;
+  readonly treffer?: number;
+  readonly letzteNutzung?: string | null;
+  readonly createdAt?: string | null;
+}
+
+interface MandantRuleListWire {
+  readonly items?: readonly MandantRuleWire[];
+  readonly count?: number;
+}
+
+function mandantRuleFromWire(wire: MandantRuleWire): MandantRule {
+  return {
+    id: wire.id,
+    signalTyp: wire.signalTyp as MandantSignalType,
+    muster: wire.muster ?? '',
+    mandantId: wire.mandantId ?? null,
+    mandantName: wire.mandantName ?? null,
+    quelle: (wire.quelle === 'AUTO' ? 'AUTO' : 'MANUELL') satisfies MandantRuleSource,
+    treffer: wire.treffer ?? 0,
+    letzteNutzung: wire.letzteNutzung ?? null,
+    createdAt: wire.createdAt ?? null,
+  };
+}
+
+/** The answer of a routing run; every absent optional field means "nothing to show", not "zero". */
+interface MandantRoutingWire {
+  readonly documentId?: string;
+  readonly status?: string;
+  readonly mandantId?: string | null;
+  readonly mandantName?: string | null;
+  readonly confidence?: number | null;
+  readonly signals?: readonly { readonly type?: string; readonly value?: string; readonly strength?: number }[];
+  readonly candidates?: readonly {
+    readonly mandantId?: string;
+    readonly mandantName?: string | null;
+    readonly confidence?: number;
+  }[];
+}
+
+function mandantRoutingFromWire(wire: MandantRoutingWire): MandantRoutingResult {
+  return {
+    documentId: wire.documentId ?? '',
+    status: (wire.status ?? 'NO_SIGNALS') as MandantRoutingStatus,
+    mandantId: wire.mandantId ?? null,
+    mandantName: wire.mandantName ?? null,
+    confidence: wire.confidence ?? null,
+    signals: (wire.signals ?? []).map((signal) => ({
+      type: signal.type as MandantSignalType,
+      value: signal.value ?? '',
+      strength: signal.strength ?? 0,
+    })) satisfies readonly MandantRoutingSignal[],
+    candidates: (wire.candidates ?? []).map((candidate) => ({
+      mandantId: candidate.mandantId ?? '',
+      mandantName: candidate.mandantName ?? null,
+      confidence: candidate.confidence ?? 0,
+    })) satisfies readonly MandantRoutingCandidate[],
+  };
+}
+
+/**
  * The categories the mapping dialog offers when the backend does not send its own.
  *
  * <p>The taxonomy's values are in migration V3 (`document_types_category_chk`); this copy exists only so an
@@ -521,6 +602,11 @@ export interface ApiResources {
     catalogue: (signal?: AbortSignal) => Promise<readonly CatalogueEntry[]>;
     /** The client of a voucher (§5.2); null removes the assignment. */
     assignMandant: (id: string, mandantId: string | null) => Promise<void>;
+    /**
+     * Recomputes the client from the signals the voucher carries (§5.2). The same calculation the processing
+     * pipeline runs; an existing assignment is never overwritten.
+     */
+    rerouteMandant: (id: string) => Promise<MandantRoutingResult>;
     /** The cases the document is linked to, as far as the reader may see them. */
     cases: (id: string, signal?: AbortSignal) => Promise<readonly DocumentCase[]>;
     createTask: (id: string) => Promise<void>;
@@ -903,6 +989,14 @@ export interface ApiResources {
       /** The CSV the Kanzlei exchanges; the report names every line the import did not write. */
       importCsv: (file: File) => Promise<KontoMappingImportReport>;
     };
+    /**
+     * The rules the platform learned for assigning vouchers to clients (§5.2). They are the reason a
+     * voucher landed in a client's bookkeeping without a click, so they must be visible and removable.
+     */
+    readonly mandantRules: {
+      list: (signal?: AbortSignal) => Promise<MandantRuleList>;
+      remove: (id: string) => Promise<void>;
+    };
   };
 }
 
@@ -1260,6 +1354,12 @@ export function createResources(client: ApiClient): ApiResources {
       assignMandant: async (id, mandantId) => {
         await client.patch<unknown>(`/documents/${id}/mandant`, { mandantId });
       },
+      rerouteMandant: async (id) =>
+        mandantRoutingFromWire(
+          await client.post<MandantRoutingWire>(`/documents/${id}/mandant-reroute`, undefined, {
+            idempotencyKey: true,
+          }),
+        ),
       categoryCounts: (signal) => client.get<Record<string, number>>('/documents/categories', withSignal(signal)),
       explanation: (id, language, signal) =>
         orNull(client.get<StoredExplanation>(`/documents/${id}/explanation`, { ...withSignal(signal), query: { language } })),
@@ -2327,6 +2427,16 @@ export function createResources(client: ApiClient): ApiResources {
               reason: row.reason ?? '',
             })),
           };
+        },
+      },
+      mandantRules: {
+        list: async (signal) => {
+          const wire = await client.get<MandantRuleListWire>('/settings/mandant-rules', withSignal(signal));
+          const items = (wire.items ?? []).map(mandantRuleFromWire);
+          return { items, count: wire.count ?? items.length };
+        },
+        remove: async (id) => {
+          await client.delete<void>(`/settings/mandant-rules/${encodeURIComponent(id)}`);
         },
       },
     },

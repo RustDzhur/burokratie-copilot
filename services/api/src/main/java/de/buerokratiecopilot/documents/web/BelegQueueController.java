@@ -2,6 +2,7 @@ package de.buerokratiecopilot.documents.web;
 
 import de.buerokratiecopilot.documents.DocumentService;
 import de.buerokratiecopilot.documents.domain.BelegStatus;
+import de.buerokratiecopilot.documents.zuordnung.MandantRoutingService;
 import de.buerokratiecopilot.shared.context.RequestContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,10 +28,12 @@ class BelegQueueController {
 
     private final JdbcTemplate jdbc;
     private final DocumentService documents;
+    private final MandantRoutingService routing;
 
-    BelegQueueController(JdbcTemplate jdbc, DocumentService documents) {
+    BelegQueueController(JdbcTemplate jdbc, DocumentService documents, MandantRoutingService routing) {
         this.jdbc = jdbc;
         this.documents = documents;
+        this.routing = routing;
     }
 
     /** The client a voucher belongs to; null removes an assignment made by mistake. */
@@ -43,10 +46,29 @@ class BelegQueueController {
     java.util.Map<String, Object> assignMandant(
             @org.springframework.web.bind.annotation.PathVariable java.util.UUID id,
             @org.springframework.web.bind.annotation.RequestBody MandantRequest request) {
-        var saved = documents.assignMandant(id, request.mandantId());
+        // A person's choice goes through the routing service: it audits the change like before and, in the same
+        // transaction, remembers the signals as a rule (§5.2). Taking the client away teaches nothing.
+        var saved = request.mandantId() == null
+                ? documents.assignMandant(id, null)
+                : routing.assignManually(id, request.mandantId());
         return java.util.Map.of(
                 "id", saved.getId().toString(),
                 "mandantId", saved.getMandantId() == null ? "" : saved.getMandantId().toString());
+    }
+
+    /**
+     * Recomputes the client of one voucher for the "Mandant neu bestimmen" button (§5.2).
+     *
+     * <p>This is the same calculation the processing pipeline runs, not a second opinion: a screen that decides
+     * differently from the automatic path would make the assignment impossible to trust. An existing client is
+     * never overwritten - the answer then says {@code ALREADY_ASSIGNED}.</p>
+     */
+    @org.springframework.web.bind.annotation.PostMapping("/{id}/mandant-reroute")
+    @PreAuthorize("hasAuthority('documents.edit')")
+    @Operation(summary = "Recompute the client of a voucher from its signals")
+    java.util.Map<String, Object> rerouteMandant(
+            @org.springframework.web.bind.annotation.PathVariable java.util.UUID id) {
+        return routing.route(id).asMap();
     }
 
     /** What the office asks when it moves a voucher: accept it, send it to a person, or finish it. */

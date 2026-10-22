@@ -16,7 +16,8 @@ interface Entry {
     | 'billing'
     | 'rules'
     | 'dateMarkers'
-    | 'kontoMapping';
+    | 'kontoMapping'
+    | 'mandantRules';
   readonly href: string;
   readonly icon: IconName;
   /** A backend permission needed to use the screen; an unknown permission list hides nothing. */
@@ -40,6 +41,12 @@ const ENTRIES: readonly Entry[] = [
     key: 'kontoMapping',
     href: '/settings/konto-mapping',
     icon: 'table',
+    permission: 'settings.view',
+  },
+  {
+    key: 'mandantRules',
+    href: '/settings/mandant-rules',
+    icon: 'users',
     permission: 'settings.view',
   },
 ];

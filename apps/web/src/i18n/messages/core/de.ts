@@ -192,6 +192,7 @@ export const deCore = {
     'items.rules': 'Regeln und Empfindlichkeit',
     'items.dateMarkers': 'Datumsbegriffe',
     'items.kontoMapping': 'Konten-Zuordnung',
+    'items.mandantRules': 'Mandanten-Zuordnung',
     'items.calendar': 'Fristen',
     'items.contracts': 'Verträge',
     'items.generatedDocument': 'Erzeugtes Schreiben',

@@ -589,6 +589,18 @@ public class DocumentService {
      */
     @org.springframework.transaction.annotation.Transactional
     public Document assignMandant(java.util.UUID id, java.util.UUID mandantId) {
+        return assignMandant(id, mandantId, null);
+    }
+
+    /**
+     * The same assignment with a note on where it came from - {@code AUTO} for the routing service (§5.2).
+     *
+     * <p>The audit trail must answer "did a person decide this, or did the platform?" - a wrong automatic
+     * assignment is reviewed differently from a wrong click. The note is written into the description rather
+     * than into a second event, so the assignment and its reason are one entry and cannot drift apart.</p>
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public Document assignMandant(java.util.UUID id, java.util.UUID mandantId, String origin) {
         Document document = require(id);
         java.util.UUID previous = document.getMandantId();
         if (java.util.Objects.equals(previous, mandantId)) {
@@ -596,13 +608,14 @@ public class DocumentService {
         }
         document.setMandantId(mandantId);
         Document saved = documents.save(document);
+        String note = origin == null || origin.isBlank() ? "" : " [" + origin.strip() + "]";
         auditService.record(AuditService.AuditEntry
                 .builder(AuditEvent.Category.DOCUMENT, "DOCUMENT_MANDANT_ASSIGNED")
                 .tenant(document.getTenantId())
                 .entity("documents", document.getId(), document.getOriginalFilename())
                 .description(previous == null
-                        ? "Mandant zugeordnet: " + mandantId
-                        : "Mandant geändert: " + previous + " → " + mandantId)
+                        ? "Mandant zugeordnet: " + mandantId + note
+                        : "Mandant geändert: " + previous + " → " + mandantId + note)
                 .build());
         return saved;
     }

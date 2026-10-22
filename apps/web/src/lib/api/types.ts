@@ -63,6 +63,77 @@ export interface DocumentSummary {
   readonly partyId?: string | null;
 }
 
+/** The signals the platform can read about a voucher's client (§5.2). */
+export type MandantSignalType =
+  | 'ABSENDER_EMAIL'
+  | 'IBAN'
+  | 'USTID'
+  | 'STEUERNUMMER'
+  | 'FIRMENNAME'
+  | 'SCHLUESSELWORT';
+
+/** Whether a remembered rule came from a person's correction or from an automatic decision. */
+export type MandantRuleSource = 'AUTO' | 'MANUELL';
+
+/** One learned rule as `GET /settings/mandant-rules` serves it. */
+export interface MandantRule {
+  readonly id: string;
+  readonly signalTyp: MandantSignalType;
+  /** The normalised signal the matcher compares. */
+  readonly muster: string;
+  readonly mandantId: string | null;
+  readonly mandantName: string | null;
+  readonly quelle: MandantRuleSource;
+  /** How often an automatic assignment used this rule. */
+  readonly treffer: number;
+  readonly letzteNutzung: IsoDateTime | null;
+  readonly createdAt: IsoDateTime | null;
+}
+
+/** Everything `GET /settings/mandant-rules` answers. */
+export interface MandantRuleList {
+  readonly items: readonly MandantRule[];
+  readonly count: number;
+}
+
+/**
+ * Why a routing run did or did not assign a client (§5.2).
+ *
+ * `AMBIGUOUS` and `BELOW_THRESHOLD` are answers, not failures: the voucher stays "Ohne Mandant" and a
+ * person decides. The screen must say which of the two it was.
+ */
+export type MandantRoutingStatus =
+  | 'ASSIGNED'
+  | 'ALREADY_ASSIGNED'
+  | 'AMBIGUOUS'
+  | 'BELOW_THRESHOLD'
+  | 'NO_SIGNALS';
+
+/** One signal the routing used, with the weight it carried. */
+export interface MandantRoutingSignal {
+  readonly type: MandantSignalType;
+  readonly value: string;
+  readonly strength: number;
+}
+
+/** One client that matched, with the confidence reached after combining its signals. */
+export interface MandantRoutingCandidate {
+  readonly mandantId: string;
+  readonly mandantName: string | null;
+  readonly confidence: number;
+}
+
+/** The answer of `POST /documents/{id}/mandant-reroute`. */
+export interface MandantRoutingResult {
+  readonly documentId: string;
+  readonly status: MandantRoutingStatus;
+  readonly mandantId: string | null;
+  readonly mandantName: string | null;
+  readonly confidence: number | null;
+  readonly signals: readonly MandantRoutingSignal[];
+  readonly candidates: readonly MandantRoutingCandidate[];
+}
+
 export interface PartySummary {
   readonly id: string;
   readonly kind: 'PERSON' | 'ORGANIZATION';

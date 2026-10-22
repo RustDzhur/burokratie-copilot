@@ -67,6 +67,7 @@ export type ScreenId =
   | 'accessibilitySettings'
   | 'dateMarkers'
   | 'kontoMapping'
+  | 'mandantRules'
   | 'notifications'
   | 'audit'
   | 'billing'
@@ -213,6 +214,11 @@ export const screens: readonly ScreenDefinition[] = [
   }),
   // the accounts the DATEV export books a voucher to (§5.6); without a row the export stays empty
   screen('kontoMapping', '/settings/konto-mapping', 'table', null, {
+    requiredPermission: 'settings.view',
+  }),
+  // the rules the platform learned for assigning vouchers to clients (§5.2); a wrong rule keeps producing
+  // wrong assignments, so it has to be visible and removable
+  screen('mandantRules', '/settings/mandant-rules', 'users', null, {
     requiredPermission: 'settings.view',
   }),
   // §5.2.29 — notification centre

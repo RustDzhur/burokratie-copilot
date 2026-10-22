@@ -183,6 +183,7 @@ export const enCore: CoreMessages = {
     'items.rules': 'Rules and sensitivity',
     'items.dateMarkers': 'Date terms',
     'items.kontoMapping': 'Account mapping',
+    'items.mandantRules': 'Client routing',
     'items.calendar': 'Deadlines',
     'items.contracts': 'Contracts',
     'items.generatedDocument': 'Generated letter',

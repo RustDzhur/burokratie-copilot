@@ -7,6 +7,7 @@ import { ProcessingPanel } from '@/components/app/processing-panel';
 import { PageHeader, PageSection, ResourceView } from '@/components/app/resource-view';
 import { DocumentExplanation } from '@/components/app/document-explanation';
 import { DocumentTypeChanger } from '@/components/app/document-type-changer';
+import { MandantReroute } from '@/components/app/mandant-reroute';
 import { Badge, Card, CardBody, CardHeader, EmptyState, StatusPill, Tabs } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { buttonClass } from '@/components/ui/button-class';
@@ -231,7 +232,9 @@ export default function DocumentViewerPage() {
 
             <ProcessingPanel documentId={id} reloadKey={processingKey} />
 
-            <PartyPicker documentId={id} current={document.partyId ?? null} onChanged={reload} />
+            <PartyPicker documentId={id} current={document.mandantId ?? null} onChanged={reload} />
+
+            <MandantReroute documentId={id} onRouted={reload} />
 
             <div className={styles.summaryRow}>
               <StatusPill label={statusLabel(document.status)} status={document.status} />

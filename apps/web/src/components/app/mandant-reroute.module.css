@@ -1,0 +1,12 @@
+.wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.result {
+  flex: 1 1 320px;
+  min-width: 0;
+}

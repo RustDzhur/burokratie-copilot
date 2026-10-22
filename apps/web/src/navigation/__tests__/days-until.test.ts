@@ -10,9 +10,13 @@ import { describe, expect, it } from 'vitest';
 import { daysUntil } from '@/app/(app)/calendar/days-until';
 
 function isoOffset(days: number): string {
+  // The helper used to call toISOString(), which switches to UTC and therefore produced the previous day
+  // between midnight and 02:00 Berlin time. daysUntil() counts local calendar days, so the fixture must too.
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${month}-${day}`;
 }
 
 describe('deadline urgency', () => {

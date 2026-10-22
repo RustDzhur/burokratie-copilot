@@ -22,13 +22,16 @@ public class DocumentProcessedHandler implements OutboxEventHandler {
     private final de.buerokratiecopilot.documents.reading.AiDocumentReader reader;
 
     private final de.buerokratiecopilot.parties.AddresseeResolver addressees;
+    private final de.buerokratiecopilot.documents.zuordnung.MandantRoutingService routing;
     private final de.buerokratiecopilot.telegram.TelegramInformer telegram;
 
     public DocumentProcessedHandler(CaseOrchestrator orchestrator,
                                     de.buerokratiecopilot.documents.reading.AiDocumentReader reader,
                                     de.buerokratiecopilot.parties.AddresseeResolver addressees,
+                                    de.buerokratiecopilot.documents.zuordnung.MandantRoutingService routing,
                                     de.buerokratiecopilot.telegram.TelegramInformer telegram) {
         this.addressees = addressees;
+        this.routing = routing;
         this.telegram = telegram;
         this.orchestrator = orchestrator;
         this.reader = reader;
@@ -56,6 +59,17 @@ public class DocumentProcessedHandler implements OutboxEventHandler {
         }
         catch (RuntimeException ex) {
             log.warn("Addressee of document {} could not be determined: {}", event.getAggregateId(), ex.getMessage());
+        }
+        // §5.2: whose bookkeeping is this? The routing runs after the address block, because a letter that clearly
+        // names its addressee has already been resolved above and a decision is never overwritten here. What the
+        // routing adds is the signals the address block does not read: IBAN, VAT id, sender e-mail and remembered
+        // rules. It assigns only above the threshold and only when no second client matches equally well; a
+        // failure never stops the document from being organised.
+        try {
+            routing.route(event.getAggregateId());
+        }
+        catch (RuntimeException ex) {
+            log.warn("Client of document {} could not be determined: {}", event.getAggregateId(), ex.getMessage());
         }
         CaseOrchestrator.Outcome outcome = orchestrator.orchestrate(event.getAggregateId());
         if (outcome != null && !"ALREADY_HANDLED".equals(outcome.result())) {
