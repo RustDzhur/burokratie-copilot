@@ -38,7 +38,7 @@ export interface DocumentSummary {
   readonly documentType: string;
   readonly status: DocumentStatus;
   /** Where the voucher stands in the office queue (§8.1); null for documents not in the queue. */
-  readonly belegStatus?: 'NEU' | 'OFFEN' | 'ZU_PRUEFEN' | 'EXPORTIERT' | 'FEHLER' | null;
+  readonly belegStatus?: BelegStatusValue | null;
   readonly channel: DocumentChannel;
   readonly senderName?: string | null;
   /** What the platform read about the sender from the letter (address, telephone, e-mail, website, VAT id). */
@@ -1141,6 +1141,9 @@ export interface MergeGroup {
  * <p>Named after the bookkeeper's states, not the pipeline's: the screen shows these six numbers and nothing
  * else, because a counter nobody acts on is decoration.</p>
  */
+/** The five states of a voucher in the office queue (§8.1). */
+export type BelegStatusValue = 'NEU' | 'OFFEN' | 'ZU_PRUEFEN' | 'EXPORTIERT' | 'FEHLER';
+
 export interface BelegCounts {
   readonly neu: number;
   readonly offen: number;

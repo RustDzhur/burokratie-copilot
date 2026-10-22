@@ -120,6 +120,7 @@ import type {
   DocumentDetail,
   DocumentHistoryEntry,
   BelegCounts,
+  BelegStatusValue,
   DocumentSummary,
   AdminOverview,
   AdminService,
@@ -459,6 +460,8 @@ export interface ApiResources {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<DocumentSummary>>;
     /** The six numbers above the Posteingang (§5.1); one request, so the screen cannot show two truths. */
     belegCounts: (signal?: AbortSignal) => Promise<BelegCounts>;
+    /** Moves a voucher through the office queue (§8.1); the server refuses a transition that is a lie. */
+    setBelegStatus: (id: string, status: BelegStatusValue) => Promise<void>;
     export: (params?: ListParams) => Promise<Blob>;
     get: (id: string, signal?: AbortSignal) => Promise<DocumentDetail>;
     history: (id: string, signal?: AbortSignal) => Promise<Page<DocumentHistoryEntry>>;
@@ -1116,6 +1119,9 @@ export function createResources(client: ApiClient): ApiResources {
     documents: {
       belegCounts: (signal) =>
         client.get<BelegCounts>('/documents/beleg-counts', withSignal(signal)),
+      setBelegStatus: async (id, status) => {
+        await client.patch<unknown>(`/documents/${id}/beleg-status`, { status });
+      },
       list: async (params, signal) => {
         // Screen filters are translated to the pipeline's vocabulary; one screen status covers several stages.
         const { status, channel, sort, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ExportButton } from '@/components/app/export-button';
 import { ListPage } from '@/components/app/list-page';
 import { MergeDialog } from '@/components/app/merge-dialog';
-import { StatusPill } from '@/components/ui';
+import { Badge, StatusPill } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { toApiError } from '@/lib/api/errors';
@@ -13,7 +13,7 @@ import { formatDate } from '@/i18n/format';
 import { useLocale, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { useApiResource } from '@/lib/api/hooks';
-import type { DocumentSummary } from '@/lib/api/types';
+import type { DocumentSummary, BelegStatusValue } from '@/lib/api/types';
 import { useSession } from '@/lib/auth/session-context';
 import { useStatusLabels } from '@/lib/format/status';
 
@@ -104,6 +104,24 @@ export default function DocumentsPage() {
     }
   };
 
+  const [moving, setMoving] = useState<string | null>(null);
+  // Moving a voucher is one click and one request; a failure must say so instead of leaving the row unchanged
+  // and unexplained.
+  const moveBeleg = async (id: string, status: BelegStatusValue) => {
+    setMoving(id);
+    try {
+      await api.documents.setBelegStatus(id, status);
+      toast.success(t('beleg.moved'));
+      setListVersion((value) => value + 1);
+      reloadQueue();
+    }
+    catch (error) {
+      toast.error(toApiError(error).message);
+    }
+    finally {
+      setMoving(null);
+    }
+  };
   const columns: readonly Column<DocumentSummary>[] = [
     {
       key: 'title',
@@ -140,6 +158,45 @@ export default function DocumentsPage() {
       key: 'status',
       header: t('column.status'),
       render: (row) => <StatusPill label={statusLabel(row.status)} status={row.status} />,
+    },
+    {
+      key: 'belegStatus',
+      header: t('column.belegStatus'),
+      render: (row) => {
+        const status = row.belegStatus ?? null;
+        if (!status) {
+          return '—';
+        }
+        // §5.1: the voucher's place in the office's work, with the one action that moves it forward.
+        const next: BelegStatusValue | null =
+          status === 'NEU' ? 'OFFEN' : status === 'OFFEN' ? 'ZU_PRUEFEN' : null;
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Badge
+              tone={
+                status === 'FEHLER'
+                  ? 'danger'
+                  : status === 'ZU_PRUEFEN'
+                    ? 'warning'
+                    : status === 'EXPORTIERT'
+                      ? 'success'
+                      : 'neutral'
+              }
+            >
+              {t(`beleg.${status}` as 'beleg.NEU')}
+            </Badge>
+            {next ? (
+              <Button
+                variant="ghost"
+                disabled={moving === row.id}
+                onClick={() => void moveBeleg(row.id, next)}
+              >
+                {t(`beleg.next.${status}` as 'beleg.next.NEU')}
+              </Button>
+            ) : null}
+          </span>
+        );
+      },
     },
     {
       key: 'receivedAt',
