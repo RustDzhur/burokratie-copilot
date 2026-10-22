@@ -91,7 +91,6 @@ public class DocumentController {
             String documentTypeCode,
             String category,
             java.util.Map<String, String> documentTypeNames,
-            UUID partyId,
             String sender,
             java.util.Map<String, Object> senderDetails,
             UUID senderContactId,
@@ -119,7 +118,7 @@ public class DocumentController {
                     type == null ? null : type.getCode(), type == null ? null : type.getCategory(),
                     type == null ? null : java.util.Map.of("de", type.nameIn("de"), "en", type.nameIn("en"),
                             "ru", type.nameIn("ru")),
-                    document.getPartyId(), document.getSender(), document.getSenderDetails(),
+                    document.getSender(), document.getSenderDetails(),
                     document.getSenderContactId(), document.getSenderSource(), document.getCreatedBy(), null);
         }
 
@@ -128,7 +127,7 @@ public class DocumentController {
             return new DocumentResponse(id, originalFilename, mimeType, sizeBytes, contentHash, version, processingStatus,
                     reviewStatus, belegStatus, mandantId, confidentiality, source, documentNumber, documentDate, documentTypeId,
                     duplicateOfDocumentId,
-                    legalHold, receivedAt, updatedAt, documentTypeCode, category, documentTypeNames, partyId, sender,
+                    legalHold, receivedAt, updatedAt, documentTypeCode, category, documentTypeNames, sender,
                     senderDetails, senderContactId, senderSource, uploadedBy, uploadedBy == null ? null : names.get(uploadedBy));
         }
     }
@@ -175,7 +174,7 @@ public class DocumentController {
         java.util.Map<java.util.UUID, de.buerokratiecopilot.documents.domain.DocumentType> byId =
                 new java.util.HashMap<>();
         documentTypes.findAll().forEach(documentType -> byId.put(documentType.getId(), documentType));
-        Page<Document> documents = documentService.list(q, status, source, category, type, party, pageable);
+        Page<Document> documents = documentService.list(q, status, source, category, type, pageable);
         java.util.Map<UUID, String> names = uploaders.namesOf(documents.getContent().stream().map(Document::getCreatedBy).toList());
         Page<DocumentResponse> page = documents
                 .map(document -> DocumentResponse.from(document,

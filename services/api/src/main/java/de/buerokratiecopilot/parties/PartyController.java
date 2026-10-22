@@ -63,10 +63,4 @@ public class PartyController {
         return ResponseEntity.noContent().build();
     }
 
-    @PutMapping("/documents/{documentId}/party")
-    @PreAuthorize("hasAuthority('documents.edit')")
-    public ResponseEntity<Void> assign(@PathVariable UUID documentId, @RequestBody AssignRequest request) {
-        parties.assign(documentId, request.partyId());
-        return ResponseEntity.noContent().build();
-    }
 }

@@ -141,24 +141,6 @@ public class PartyService {
 
     /** A person's decision about whom a document is addressed to (or null to clear it). */
     @Transactional
-    public void assign(UUID documentId, UUID partyId) {
-        UUID tenantId = tenant();
-        if (partyId != null) {
-            Integer found = jdbc.queryForObject(
-                    "select count(*) from parties where id = ? and tenant_id = ? and deleted_at is null",
-                    Integer.class, partyId, tenantId);
-            if (found == null || found == 0) {
-                throw ApiException.notFound("Party");
-            }
-        }
-        int changed = jdbc.update(
-                "update documents set party_id = ? where id = ? and tenant_id = ? and deleted_at is null",
-                partyId, documentId, tenantId);
-        if (changed == 0) {
-            throw ApiException.notFound("Document");
-        }
-        record("DOCUMENT_ADDRESSEE_SET", documentId, partyId == null ? "-" : partyId.toString());
-    }
 
     private boolean isOrganization(UUID tenantId) {
         String type = jdbc.queryForObject("select account_type from tenants where id = ?", String.class, tenantId);

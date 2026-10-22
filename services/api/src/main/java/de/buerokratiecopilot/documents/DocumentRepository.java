@@ -44,7 +44,6 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
                    or (:category = 'UNSORTED' and d.documentTypeId is null)
                    or (:category <> 'UNSORTED' and d.documentTypeId in
                         (select t.id from DocumentType t where t.category = :category)))
-              and (:partyId = '' or (:partyId = 'NONE' and d.partyId is null) or cast(d.partyId as string) = :partyId)
               and (:typeCode = ''
                    or d.documentTypeId in (select t.id from DocumentType t where t.code = :typeCode))
               and (:query = ''
@@ -58,7 +57,6 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
                           @Param("sources") java.util.Collection<Document.Source> sources,
                           @Param("category") String category,
                           @Param("typeCode") String typeCode,
-                          @Param("partyId") String partyId,
                           Pageable pageable);
 
     /** How many documents lie in each category; documents without a confirmed type are counted as UNSORTED. */

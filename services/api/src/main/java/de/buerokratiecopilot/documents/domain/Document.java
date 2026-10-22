@@ -157,9 +157,6 @@ public class Document {
     private UUID duplicateOfDocumentId;
 
     /** Whom the document is addressed to (a member of the household, the person, the company); null when unknown. */
-    @Column(name = "party_id")
-    private UUID partyId;
-
     @Column(name = "received_at", nullable = false)
     private Instant receivedAt = Instant.now();
 
@@ -394,14 +391,6 @@ public class Document {
 
     public void setRetentionPolicyId(UUID retentionPolicyId) {
         this.retentionPolicyId = retentionPolicyId;
-    }
-
-    public UUID getPartyId() {
-        return partyId;
-    }
-
-    public void setPartyId(UUID partyId) {
-        this.partyId = partyId;
     }
 
     public UUID getDuplicateOfDocumentId() {
