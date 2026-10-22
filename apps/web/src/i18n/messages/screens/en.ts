@@ -261,6 +261,7 @@ export const enScreens: ScreenMessages = {
     'beleg.ZU_PRUEFEN': 'To check',
     'beleg.EXPORTIERT': 'Exported',
     'beleg.FEHLER': 'Error',
+    'beleg.ohneMandant': 'No client',
     'beleg.next.NEU': 'Accept',
     'beleg.next.OFFEN': 'To check',
     'category.ALL': 'All',

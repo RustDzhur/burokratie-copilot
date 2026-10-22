@@ -25,6 +25,7 @@ export interface DocumentWire {
   readonly contentHash?: string | null;
   readonly processingStatus: string;
   readonly belegStatus?: string | null;
+  readonly mandantId?: string | null;
   readonly reviewStatus?: string | null;
   readonly source: string;
   readonly documentTypeId?: string | null;
@@ -181,6 +182,7 @@ export function documentFromWire(wire: DocumentWire): DocumentSummary {
     partyId: wire.partyId ?? null,
     status: STATUS_FROM_WIRE[wire.processingStatus] ?? 'received',
     belegStatus: (wire.belegStatus as DocumentSummary['belegStatus']) ?? null,
+    mandantId: wire.mandantId ?? null,
     channel: CHANNEL_FROM_WIRE[wire.source] ?? 'upload',
     senderName: wire.sender ?? null,
     sender: wire.sender || wire.senderContactId

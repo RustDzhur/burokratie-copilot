@@ -263,6 +263,7 @@ export const ruScreens: ScreenMessages = {
     'beleg.ZU_PRUEFEN': 'На проверку',
     'beleg.EXPORTIERT': 'Экспортирован',
     'beleg.FEHLER': 'Ошибка',
+    'beleg.ohneMandant': 'Без манданта',
     'beleg.next.NEU': 'Принять',
     'beleg.next.OFFEN': 'На проверку',
     'category.ALL': 'Все',

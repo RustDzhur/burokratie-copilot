@@ -263,6 +263,7 @@ export const deScreens = {
     'beleg.ZU_PRUEFEN': 'Zu prüfen',
     'beleg.EXPORTIERT': 'Exportiert',
     'beleg.FEHLER': 'Fehler',
+    'beleg.ohneMandant': 'Ohne Mandant',
     'beleg.next.NEU': 'Annehmen',
     'beleg.next.OFFEN': 'Zur Prüfung',
     'category.ALL': 'Alle',

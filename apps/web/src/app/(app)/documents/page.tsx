@@ -172,6 +172,12 @@ export default function DocumentsPage() {
           status === 'NEU' ? 'OFFEN' : status === 'OFFEN' ? 'ZU_PRUEFEN' : null;
         return (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+            {row.mandantId ? null : (
+              // §5.2: an unrouted voucher is visible, not hidden behind a blank cell.
+              <Badge tone="warning" variant="outline">
+                {t('beleg.ohneMandant')}
+              </Badge>
+            )}
             <Badge
               tone={
                 status === 'FEHLER'

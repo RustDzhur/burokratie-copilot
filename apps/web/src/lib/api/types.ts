@@ -39,6 +39,8 @@ export interface DocumentSummary {
   readonly status: DocumentStatus;
   /** Where the voucher stands in the office queue (§8.1); null for documents not in the queue. */
   readonly belegStatus?: BelegStatusValue | null;
+  /** Null means 'Ohne Mandant' - a visible state, never a guess (§5.2). */
+  readonly mandantId?: string | null;
   readonly channel: DocumentChannel;
   readonly senderName?: string | null;
   /** What the platform read about the sender from the letter (address, telephone, e-mail, website, VAT id). */
