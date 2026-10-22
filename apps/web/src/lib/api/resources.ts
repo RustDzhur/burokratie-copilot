@@ -170,8 +170,6 @@ import type {
   DateMarkerList,
   DeletionKind,
   MailMessageDetail,
-  PartyInput,
-  PartySummary,
   TelegramStatus,
   StoredExplanation,
   RuleSetting,
@@ -777,12 +775,6 @@ export interface ApiResources {
   };
   readonly deletion: {
     remove: (kind: DeletionKind, ids: readonly string[]) => Promise<{ deleted: number; refused: string[] }>;
-  };
-  readonly parties: {
-    list: (signal?: AbortSignal) => Promise<readonly PartySummary[]>;
-    create: (input: PartyInput) => Promise<void>;
-    update: (id: string, input: PartyInput) => Promise<void>;
-    remove: (id: string) => Promise<void>;
   };
   readonly members: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<MemberSummary>>;
@@ -2124,18 +2116,6 @@ export function createResources(client: ApiClient): ApiResources {
     deletion: {
       remove: (kind, ids) =>
         client.post<{ deleted: number; refused: string[] }>('/bulk-delete', { kind, ids }, { idempotencyKey: true }),
-    },
-    parties: {
-      list: (signal) => client.get<readonly PartySummary[]>('/parties', withSignal(signal)),
-      create: async (input) => {
-        await client.post<unknown>('/parties', input, { idempotencyKey: true });
-      },
-      update: async (id, input) => {
-        await client.put<unknown>(`/parties/${id}`, input, { idempotencyKey: true });
-      },
-      remove: async (id) => {
-        await client.delete<unknown>(`/parties/${id}`, { idempotencyKey: true });
-      },
     },
     members: {
       list: async (params, signal) => {

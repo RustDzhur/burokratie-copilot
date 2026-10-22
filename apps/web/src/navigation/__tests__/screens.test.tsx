@@ -25,9 +25,9 @@ describe('screen registry', () => {
     // The date vocabulary brings the count to forty-six: it is reached from the settings cabinet and stands
     // in the governance section like the other settings screens. The count is asserted on purpose: a screen
     // added to the registry without appearing here is a screen the product claims and does not have.
-    expect(screens).toHaveLength(45);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(45);
-    expect(new Set(screens.map((screen) => screen.href)).size).toBe(45);
+    expect(screens).toHaveLength(44);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(44);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(44);
   });
 
   it('puts every workspace screen into a sidebar section', () => {
@@ -128,7 +128,8 @@ describe('plans, permissions and the menu', () => {
     expect(names({ workspaceType: 'private' })).not.toContain('invoices');
     expect(names({ workspaceType: 'company' })).toContain('invoices');
     for (const kind of ['private', 'family', 'company'] as const) {
-      expect(names({ workspaceType: kind })).toContain('parties');
+      // parties was merged into contacts and removed (§4.3): no cabinet sees the screen any more.
+      expect(names({ workspaceType: kind })).not.toContain('parties');
     }
     expect(names({ workspaceType: 'company' })).not.toContain('admin');
     expect(names({ workspaceType: 'company', platformAdmin: true })).toContain('admin');

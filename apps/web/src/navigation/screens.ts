@@ -60,7 +60,6 @@ export type ScreenId =
   | 'automations'
   | 'integrations'
   | 'scan'
-  | 'parties'
   | 'family'
   | 'company'
   | 'employees'
@@ -195,7 +194,6 @@ export const screens: readonly ScreenDefinition[] = [
   // §5.2.21 — scanning and import
   screen('scan', '/scan', 'printer', null, { minTier: 1, inSidebar: false }),
   // whom the cabinet belongs to: the person, the household members, the company
-  screen('parties', '/parties', 'users', null, { inSidebar: false }),
   // §5.2.22 — family cockpit
   screen('family', '/family', 'shield-heart', null, { audience: ['family'], minTier: 1, inSidebar: false }),
   // §5.2.23 — company workspace
