@@ -84,6 +84,8 @@ import {
   calendarEventFromWire,
   contactFromWire,
   contactKindToWire,
+  mandantDetailFromWire,
+  mandantFromWire,
   mailFolderToWire,
   mailFromWire,
   mailStatusToWire,
@@ -93,6 +95,8 @@ import {
   templateFromWire,
   type CalendarEventWire,
   type ContactWire,
+  type MandantDetailWire,
+  type MandantWire,
   type MailWire,
   type TemplateWire,
   type WorkflowWire,
@@ -168,6 +172,8 @@ import type {
   MandantRoutingResult,
   MandantRoutingSignal,
   MandantRoutingStatus,
+  MandantDetail,
+  MandantSummary,
   MandantSignalType,
   DeletionKind,
   MailMessageDetail,
@@ -737,6 +743,24 @@ export interface ApiResources {
       readonly contactType: ContactSummary['contactType'];
       readonly email?: string;
     }) => Promise<ContactSummary>;
+  };
+  /**
+   * The clients of the Kanzlei and their state (§5.5).
+   *
+   * <p>Same records as `/contacts`, seen through the office's vocabulary: every row carries the counters of
+   * the client's vouchers, its open deadlines and the health the server derived from them. The screen must not
+   * recompute that - a second aggregation would be a second truth.</p>
+   */
+  readonly mandanten: {
+    list: (
+      params?: {
+        readonly q?: string;
+        /** Keeps only the clients whose health is not `OK`. */
+        readonly onlyProblems?: boolean;
+      },
+      signal?: AbortSignal,
+    ) => Promise<readonly MandantSummary[]>;
+    get: (id: string, signal?: AbortSignal) => Promise<MandantDetail>;
   };
   /**
    * DATEV export packages (§5.6).
@@ -1685,6 +1709,25 @@ export function createResources(client: ApiClient): ApiResources {
             '/contacts',
             { name: payload.name, kind: contactKindToWire(payload.contactType), email: payload.email },
             { idempotencyKey: true },
+          ),
+        ),
+    },
+    mandanten: {
+      list: async (params, signal) => {
+        const rows = await client.get<readonly MandantWire[]>('/mandanten', {
+          query: {
+            ...(params?.q ? { q: params.q } : {}),
+            ...(params?.onlyProblems ? { onlyProblems: 'true' } : {}),
+          },
+          ...withSignal(signal),
+        });
+        return rows.map(mandantFromWire);
+      },
+      get: async (id, signal) =>
+        mandantDetailFromWire(
+          await client.get<MandantDetailWire>(
+            `/mandanten/${encodeURIComponent(id)}`,
+            withSignal(signal),
           ),
         ),
     },

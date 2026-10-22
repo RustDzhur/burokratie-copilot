@@ -11,8 +11,8 @@ import {
 } from '../personal-menu';
 
 /**
- * The Kanzlei menu: ten items in three groups. The personal menu can only rearrange and hide these
- * ten; a module that is not in the menu (§4.3: removed, not tucked away) cannot be brought back by a
+ * The Kanzlei menu: eleven items in three groups. The personal menu can only rearrange and hide these
+ * eleven; a module that is not in the menu (§4.3: removed, not tucked away) cannot be brought back by a
  * stored preference either.
  */
 const available: readonly ScreenDefinition[] = screensVisibleFor(sidebarScreens, null);
@@ -33,7 +33,7 @@ describe('personal menu layout', () => {
       'approvals',
       'calendar',
       'invoices',
-      'contacts',
+      'mandanten',
       'templates',
       'reports',
       'exports',

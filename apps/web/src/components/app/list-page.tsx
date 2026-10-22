@@ -38,6 +38,13 @@ export interface ListPageProps<T> {
   /** Accessible table caption; defaults to the screen title. */
   readonly caption?: string;
   readonly filters?: readonly ListFilterDefinition[];
+  /**
+   * Filter values the screen opens with, e.g. handed over by a link (`/documents?party=…`).
+   *
+   * <p>Only the initial state: once the person changes a filter, their choice wins. A caller that changes
+   * the value later remounts the list through its `key`, which is why this is not a controlled prop.</p>
+   */
+  readonly initialFilters?: Record<string, string>;
   readonly searchable?: boolean;
   readonly sortableKeys?: readonly string[];
   readonly pageSize?: number;
@@ -81,6 +88,7 @@ export function ListPage<T>({
   columns,
   caption,
   filters = [],
+  initialFilters,
   searchable = true,
   sortableKeys,
   pageSize = 20,
@@ -102,7 +110,7 @@ export function ListPage<T>({
 
   const [page, setPage] = useState(0);
   const [query, setQuery] = useState('');
-  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  const [filterValues, setFilterValues] = useState<Record<string, string>>(initialFilters ?? {});
   const [sort, setSort] = useState<{ key: string; direction: 'asc' | 'desc' } | undefined>();
   const [dialogOpen, setDialogOpen] = useState(false);
 

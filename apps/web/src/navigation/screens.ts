@@ -19,7 +19,7 @@ export interface NavSection {
 }
 
 /**
- * The Kanzlei edition: three groups, ten items (spec `tz-kanzlei-edition.md` §4, §11.3).
+ * The Kanzlei edition: three groups, eleven items (spec `tz-kanzlei-edition.md` §4, §11.3).
  *
  * <p>The menu answers the bookkeeper's three questions in the order they are asked: what came in, whose paperwork
  * it is, and what has to be kept. Nothing else belongs here - the specification forbids more than twelve items
@@ -52,6 +52,7 @@ export type ScreenId =
   | 'invoices' | 'generated-documents' | 'generatedDocument'
   | 'payments'
   | 'contacts'
+  | 'mandanten'
   | 'mail'
   | 'templates'
   | 'automations'
@@ -169,8 +170,13 @@ export const screens: readonly ScreenDefinition[] = [
   screen('invoices', '/invoices', 'receipt', 'arbeit', { audience: ['company'], minTier: 2 }),
   // §5.2.14 — payments and reconciliation
   screen('payments', '/payments', 'credit-card', null, { minTier: 2, audience: ['company'], inSidebar: false }),
-  // §5.2.15 — contacts and organisations
-  screen('contacts', '/contacts', 'users', 'mandanten', { minTier: 0 }),
+  // §5.5 — the clients of the Kanzlei with the state of each one. §7 renames Contact to Mandant, so this is
+  // the menu entry.
+  screen('mandanten', '/mandanten', 'users', 'mandanten', { minTier: 0 }),
+  // §5.2.15 — the contact records behind the clients. After §7 the menu calls the same records "Mandanten",
+  // so `/contacts` stays a working route (a client card, a document and the search all link to it) but is no
+  // longer a destination of its own in the menu.
+  screen('contacts', '/contacts', 'users', 'mandanten', { inSidebar: false, requiresAuth: true }),
   // §5.2.16 — mail centre
   screen('mail', '/mail', 'mail', null, { minTier: 1, inSidebar: false }),
   // §5.2.17 — template editor

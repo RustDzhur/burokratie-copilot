@@ -193,6 +193,7 @@ export const ruCore: CoreMessages = {
     'items.invoices': 'Документы (Belege)',
     'items.payments': 'Платежи и сверка',
     'items.contacts': 'Манданты',
+    'items.mandanten': 'Манданты',
     'items.mail': 'Почтовый центр',
     'items.templates': 'Письма',
     'items.assistant': 'ИИ-ассистент',

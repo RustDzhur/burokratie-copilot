@@ -304,6 +304,55 @@ export interface ContactSummary {
   readonly updatedAt: IsoDateTime;
 }
 
+/**
+ * Where a client stands (Kanzlei edition, §5.5): `RISK` means somebody is exposed (a voucher failed, a
+ * deadline has passed), `ACTION` means work is waiting, `OK` means neither. The server decides; the screen
+ * only paints it.
+ */
+export type MandantHealth = 'OK' | 'ACTION' | 'RISK';
+
+/** One row of the client list: the counters the office reads without opening the client. */
+export interface MandantSummary {
+  readonly id: string;
+  readonly displayName: string;
+  readonly contactType: ContactType;
+  readonly email: string | null;
+  readonly city: string | null;
+  readonly documentsTotal: number;
+  /** Vouchers in `NEU` or `OFFEN` - still to be booked. */
+  readonly offen: number;
+  readonly zuPruefen: number;
+  readonly exportiert: number;
+  readonly fehler: number;
+  /** Active deadlines whose due date is today or later; an overdue one moves the client to `RISK`. */
+  readonly deadlinesOpen: number;
+  readonly lastActivityAt: IsoDate | null;
+  readonly health: MandantHealth;
+}
+
+/** A voucher on the client card. */
+export interface MandantDocument {
+  readonly id: string;
+  readonly filename: string;
+  readonly belegStatus: BelegStatusValue;
+  readonly date: IsoDate;
+}
+
+/** A deadline that is still ahead. */
+export interface MandantDeadline {
+  readonly id: string;
+  readonly deadlineType: string;
+  readonly dueDate: IsoDate;
+  readonly requiresVerification: boolean;
+  readonly documentId: string | null;
+}
+
+/** The client card: the list row plus the newest vouchers and the open deadlines. */
+export interface MandantDetail extends MandantSummary {
+  readonly lastDocuments: readonly MandantDocument[];
+  readonly openDeadlines: readonly MandantDeadline[];
+}
+
 export type MailStatus = 'new' | 'processed' | 'needs_reply';
 export type MailFolder = 'inbox' | 'sent' | 'drafts' | 'archive';
 

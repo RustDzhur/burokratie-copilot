@@ -191,6 +191,7 @@ export const enCore: CoreMessages = {
     'items.invoices': 'Vouchers',
     'items.payments': 'Payments and reconciliation',
     'items.contacts': 'Clients',
+    'items.mandanten': 'Clients',
     'items.mail': 'Mail centre',
     'items.templates': 'Letters',
     'items.assistant': 'AI assistant',

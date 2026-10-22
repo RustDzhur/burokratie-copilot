@@ -200,6 +200,7 @@ export const deCore = {
     'items.invoices': 'Belege',
     'items.payments': 'Zahlungen und Abgleich',
     'items.contacts': 'Mandanten',
+    'items.mandanten': 'Mandanten',
     'items.mail': 'Postzentrum',
     'items.templates': 'Briefe',
     'items.assistant': 'KI-Assistent',

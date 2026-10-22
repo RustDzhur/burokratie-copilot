@@ -9,6 +9,8 @@ import type {
   CalendarEvent,
   ContactSummary,
   ContactType,
+  MandantDetail,
+  MandantSummary,
   MailFolder,
   MailMessageSummary,
   MailStatus,
@@ -36,16 +38,44 @@ const CONTACT_TYPE_FROM_WIRE: Readonly<Record<string, ContactType>> = {
 export const contactKindToWire = (type: ContactType): string =>
   ({ person: 'PERSON', organisation: 'ORGANISATION', authority: 'AUTHORITY' })[type];
 
+/** The wire says `PERSON`/`ORGANISATION`/`AUTHORITY`; the product says person, organisation, authority. */
+export const contactTypeFromWire = (kind: string): ContactType =>
+  CONTACT_TYPE_FROM_WIRE[kind] ?? 'person';
+
 export function contactFromWire(wire: ContactWire): ContactSummary {
   return {
     id: wire.id,
     name: wire.display_name,
-    contactType: CONTACT_TYPE_FROM_WIRE[wire.kind] ?? 'person',
+    contactType: contactTypeFromWire(wire.kind),
     email: wire.email ?? null,
     phone: wire.phone ?? null,
     city: wire.city ?? null,
     updatedAt: wire.updated_at,
   };
+}
+
+/* -------------------------------- mandanten ------------------------------- */
+
+/**
+ * A client as the backend writes it (Kanzlei edition, §5.5).
+ *
+ * <p>The only difference from {@link MandantSummary} is the client type: the wire keeps the enum of the
+ * mapping table (`ORGANISATION`), the product uses the lower-case values of every other contact screen.</p>
+ */
+export interface MandantWire extends Omit<MandantSummary, 'contactType'> {
+  readonly contactType: string;
+}
+
+export interface MandantDetailWire extends Omit<MandantDetail, 'contactType'> {
+  readonly contactType: string;
+}
+
+export function mandantFromWire(wire: MandantWire): MandantSummary {
+  return { ...wire, contactType: contactTypeFromWire(wire.contactType) };
+}
+
+export function mandantDetailFromWire(wire: MandantDetailWire): MandantDetail {
+  return { ...wire, contactType: contactTypeFromWire(wire.contactType) };
 }
 
 /* -------------------------------- calendar -------------------------------- */

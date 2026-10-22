@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ExportButton } from '@/components/app/export-button';
 import { ListPage } from '@/components/app/list-page';
 import { MergeDialog } from '@/components/app/merge-dialog';
@@ -56,6 +56,13 @@ export default function DocumentsPage() {
   // §7: the person a voucher belongs to is a Mandant, and §5.2 puts that client in mandant_id. Reading the
   // merged-away parties table would show names the export does not recognise.
   const mandanten = useApiResource((signal) => api.contacts.list({ size: 500 }, signal), []);
+  // A link from the client card hands the client over (`?party=…`). Read after mount, not during render, so
+  // the page renders the same on the server and in the browser; the list remounts once the value is known.
+  const [deepLinkParty, setDeepLinkParty] = useState('');
+  useEffect(() => {
+    const party = new URLSearchParams(window.location.search).get('party');
+    if (party) setDeepLinkParty(party);
+  }, []);
   const catalogue = useApiResource((signal) => api.documents.catalogue(signal), []);
   const mandantName = (id: string | null | undefined): string =>
     (mandanten.state.status === 'ready'
@@ -303,9 +310,10 @@ export default function DocumentsPage() {
         })}
       </div>
       <ListPage<DocumentSummary>
-        key={`${category}-${listVersion}`}
+        key={`${category}-${listVersion}-${deepLinkParty}`}
         screenId="documents"
         namespace="documents"
+        initialFilters={deepLinkParty === '' ? undefined : { party: deepLinkParty }}
         load={(params, signal) =>
           api.documents.list(category === 'ALL' ? params : { ...params, category }, signal)
         }
