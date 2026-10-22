@@ -33,6 +33,22 @@ class BelegQueueController {
         this.documents = documents;
     }
 
+    /** The client a voucher belongs to; null removes an assignment made by mistake. */
+    record MandantRequest(java.util.UUID mandantId) {
+    }
+
+    @org.springframework.web.bind.annotation.PatchMapping("/{id}/mandant")
+    @PreAuthorize("hasAuthority('documents.edit')")
+    @Operation(summary = "Assign a voucher to a client, or take it away")
+    java.util.Map<String, Object> assignMandant(
+            @org.springframework.web.bind.annotation.PathVariable java.util.UUID id,
+            @org.springframework.web.bind.annotation.RequestBody MandantRequest request) {
+        var saved = documents.assignMandant(id, request.mandantId());
+        return java.util.Map.of(
+                "id", saved.getId().toString(),
+                "mandantId", saved.getMandantId() == null ? "" : saved.getMandantId().toString());
+    }
+
     /** What the office asks when it moves a voucher: accept it, send it to a person, or finish it. */
     record BelegStatusRequest(BelegStatus status) {
     }

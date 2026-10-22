@@ -586,4 +586,32 @@ public class DocumentService {
                 .build());
         return saved;
     }
+
+    /**
+     * Assigns a voucher to a client, or takes it away when {@code mandantId} is null (§5.2).
+     *
+     * <p>The specification requires two things here and both are cheap to get wrong. A re-assignment is allowed -
+     * the first guess of a tired person is not a life sentence - and it is audited with both ends, because
+     * "who moved this voucher from client A to client B" is the question asked when the books do not match.
+     * And an assignment made by a person is final in a way an automatic one is not: it is not silent.</p>
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public Document assignMandant(java.util.UUID id, java.util.UUID mandantId) {
+        Document document = require(id);
+        java.util.UUID previous = document.getMandantId();
+        if (java.util.Objects.equals(previous, mandantId)) {
+            return document;
+        }
+        document.setMandantId(mandantId);
+        Document saved = documents.save(document);
+        auditService.record(AuditService.AuditEntry
+                .builder(AuditEvent.Category.DOCUMENT, "DOCUMENT_MANDANT_ASSIGNED")
+                .tenant(document.getTenantId())
+                .entity("documents", document.getId(), document.getOriginalFilename())
+                .description(previous == null
+                        ? "Mandant zugeordnet: " + mandantId
+                        : "Mandant geändert: " + previous + " → " + mandantId)
+                .build());
+        return saved;
+    }
 }
