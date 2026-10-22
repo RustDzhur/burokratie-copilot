@@ -88,13 +88,8 @@ public class DashboardService {
                       and status in ('RECEIVED', 'IN_REVIEW')
                     """, tenant));
         }
-        if (viewer.may().test("contracts.view")) {
-            counts.put("contractRenewals", count("""
-                    select count(*) from contracts where tenant_id = ? and deleted_at is null
-                      and status in ('ACTIVE', 'EXPIRING')
-                      and end_date between current_date and current_date + ?
-                    """, tenant, RENEWAL_HORIZON_DAYS));
-        }
+        // §4.3 removed the contracts module; a dashboard counter for an object the product does not
+        // keep would be a number nobody can act on.
         if (viewer.may().test("tasks.approve") || viewer.may().test("finance.approve")
                 || viewer.may().test("documents.approve")) {
             counts.put("pendingApprovals", count("""

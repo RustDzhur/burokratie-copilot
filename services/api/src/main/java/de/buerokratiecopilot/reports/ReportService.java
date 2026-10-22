@@ -187,13 +187,6 @@ public class ReportService {
                 "EUR", true, null, period, filtersOf(null),
                 "invoices.gross_amount, invoices.direction, invoices.issue_date"));
 
-        metrics.add(new Metric("ACTIVE_CONTRACTS", "Laufende Verträge",
-                count("""
-                        select count(*) from contracts
-                        where tenant_id = ? and deleted_at is null
-                          and (end_date is null or end_date >= ?)
-                        """, tenantId, period.from()),
-                "Verträge", true, null, period, filtersOf(null), "contracts.end_date, contracts.status"));
 
         metrics.add(new Metric("AWAITING_REPLY", "Warten auf Antwort",
                 count("""

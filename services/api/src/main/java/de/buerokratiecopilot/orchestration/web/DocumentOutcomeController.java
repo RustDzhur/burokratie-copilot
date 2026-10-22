@@ -199,11 +199,6 @@ public class DocumentOutcomeController {
             outcome.put("dueAt", task.get("due_at"));
             outcome.put("caseId", task.get("case_id"));
             outcome.put("assignmentPending", task.get("assignment_pending"));
-            List<Map<String, Object>> contracts = jdbc.queryForList(
-                    "select id from contracts where source_document_id = ? and deleted_at is null", id);
-            if (!contracts.isEmpty()) {
-                outcome.put("contractId", contracts.get(0).get("id"));
-            }
             List<Map<String, Object>> scenario = jdbc.queryForList("""
                     select s.requires_human_review from document_type_scenarios s
                     join document_types dt on dt.code = s.document_type_code

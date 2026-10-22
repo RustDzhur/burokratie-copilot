@@ -97,7 +97,6 @@ public class MatchingService {
 
         List<Proposal> proposals = new ArrayList<>();
         proposals.addAll(matchCases(document, pages));
-        proposals.addAll(matchContracts(document, pages));
         proposals.addAll(matchContacts(document, pages, senderContactId));
         proposals.addAll(matchContactsByIdentifier(document, pages));
         proposals = keepBestPerTarget(proposals);
@@ -233,27 +232,6 @@ public class MatchingService {
         return proposals;
     }
 
-    /** Contracts are matched on their contract number. */
-    private List<Proposal> matchContracts(Document document, List<PageText> pages) {
-        List<Proposal> proposals = new ArrayList<>();
-        jdbc.query("""
-                select id, contract_number, title
-                from contracts
-                where tenant_id = ? and deleted_at is null
-                """, rs -> {
-            UUID contractId = rs.getObject("id", UUID.class);
-            String number = rs.getString("contract_number");
-            Optional<Needle> hit = findNeedleIn(pages, number, "Vertragsnummer");
-            if (hit.isPresent()) {
-                Needle needle = hit.get();
-                proposals.add(new Proposal(DocumentMatch.MatchType.CONTRACT, contractId, 0.95,
-                        "Der Vertrag wird über seine Nummer \"%s\" erkannt, die auf Seite %d im Dokument steht"
-                                .formatted(needle.value(), needle.page()),
-                        evidence("Vertragsnummer", needle, rs.getString("title"))));
-            }
-        }, document.getTenantId());
-        return proposals;
-    }
 
     /**
      * Contacts are matched on identifiers, never on a name alone.

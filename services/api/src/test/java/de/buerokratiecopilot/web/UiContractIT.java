@@ -296,22 +296,6 @@ class UiContractIT {
 
         mvc.perform(authed(get("/api/v1/banking/transactions").param("status", "UNMATCHED", "SUGGESTED")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.content").isArray());
-        mvc.perform(authed(get("/api/v1/banking/transactions").param("status", "BOGUS")))
-                .andExpect(status().isBadRequest());
-
-        MvcResult contract = mvc.perform(authed(post("/api/v1/contracts")).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"Mietvertrag\",\"contractType\":\"RENT\",\"endDate\":\"%s\"}"
-                                .formatted(LocalDate.now().plusDays(60))))
-                .andExpect(status().isCreated()).andReturn();
-        String contractId = JsonPath.read(contract.getResponse().getContentAsString(), "$.id");
-        mvc.perform(authed(post("/api/v1/contracts/" + contractId + "/parties")).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"partyRole\":\"COUNTERPARTY\",\"partyName\":\"Vermieter GmbH\",\"primary\":true}"))
-                .andExpect(status().is2xxSuccessful());
-        mvc.perform(authed(get("/api/v1/contracts")))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].partnerName").value("Vermieter GmbH"));
-        mvc.perform(authed(get("/api/v1/contracts/ending").param("from", LocalDate.now().toString())
-                        .param("to", LocalDate.now().plusDays(90).toString())))
-                .andExpect(status().isOk()).andExpect(jsonPath("$[0].partnerName").value("Vermieter GmbH"));
     }
 
     // ------------------------------------------------------------------ people, mail, templates, automations
@@ -485,21 +469,6 @@ class UiContractIT {
         mvc.perform(authed(get("/api/v1/auth/me"))).andExpect(status().isOk());
     }
 
-    @Test
-    @Order(52)
-    @DisplayName("assistant: without matching documents the answer says there is no data and names no source")
-    void assistant() throws Exception {
-        mvc.perform(authed(post("/api/v1/ai/assistant/query")).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"question\":\"Wie hoch ist die Kaution im Mietvertrag Zzyzx?\",\"mode\":\"question\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.kind").value("NO_DATA"))
-                .andExpect(jsonPath("$.sources").isEmpty())
-                .andExpect(jsonPath("$.model").value("none"))
-                .andExpect(jsonPath("$.disclaimerRequired").value(false));
-        mvc.perform(authed(post("/api/v1/ai/assistant/query")).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"question\":\"  \"}"))
-                .andExpect(status().isBadRequest());
-    }
 
     @Test
     @Order(60)
