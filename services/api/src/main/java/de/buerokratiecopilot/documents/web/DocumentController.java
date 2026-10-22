@@ -75,6 +75,8 @@ public class DocumentController {
             int version,
             String processingStatus,
             String reviewStatus,
+            /** Where the voucher stands in the office queue (§8.1), not in the pipeline. */
+            String belegStatus,
             String confidentiality,
             String source,
             String documentNumber,
@@ -105,7 +107,8 @@ public class DocumentController {
             return new DocumentResponse(document.getId(), document.getOriginalFilename(),
                     document.getMimeType(), document.getSizeBytes(), document.getContentHash(),
                     document.getCurrentVersion(), document.getProcessingStatus().name(),
-                    document.getReviewStatus().name(), document.getConfidentiality().name(),
+                    document.getReviewStatus().name(), document.getBelegStatus().name(),
+                    document.getConfidentiality().name(),
                     document.getSource().name(), document.getDocumentNumber(),
                     document.getDocumentDate(), document.getDocumentTypeId(),
                     document.getDuplicateOfDocumentId(), document.isLegalHold(),
@@ -120,7 +123,8 @@ public class DocumentController {
         /** The same answer with the name of the person who uploaded the document. */
         DocumentResponse withUploader(java.util.Map<UUID, String> names) {
             return new DocumentResponse(id, originalFilename, mimeType, sizeBytes, contentHash, version, processingStatus,
-                    reviewStatus, confidentiality, source, documentNumber, documentDate, documentTypeId, duplicateOfDocumentId,
+                    reviewStatus, belegStatus, confidentiality, source, documentNumber, documentDate, documentTypeId,
+                    duplicateOfDocumentId,
                     legalHold, receivedAt, updatedAt, documentTypeCode, category, documentTypeNames, partyId, sender,
                     senderDetails, senderContactId, senderSource, uploadedBy, uploadedBy == null ? null : names.get(uploadedBy));
         }

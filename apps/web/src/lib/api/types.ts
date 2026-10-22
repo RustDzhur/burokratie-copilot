@@ -37,6 +37,8 @@ export interface DocumentSummary {
   readonly title: string;
   readonly documentType: string;
   readonly status: DocumentStatus;
+  /** Where the voucher stands in the office queue (§8.1); null for documents not in the queue. */
+  readonly belegStatus?: 'NEU' | 'OFFEN' | 'ZU_PRUEFEN' | 'EXPORTIERT' | 'FEHLER' | null;
   readonly channel: DocumentChannel;
   readonly senderName?: string | null;
   /** What the platform read about the sender from the letter (address, telephone, e-mail, website, VAT id). */
