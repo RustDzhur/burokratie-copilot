@@ -126,6 +126,18 @@ public class Document {
     @Column(name = "processing_status", nullable = false, length = 30)
     private ProcessingStatus processingStatus = ProcessingStatus.RECEIVED;
 
+    /**
+     * Where this voucher stands in the office's work (§8.1), which is not the same question as
+     * {@link #processingStatus}: a file can be fully extracted and still untouched in the queue.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "beleg_status", nullable = false, length = 20)
+    private BelegStatus belegStatus = BelegStatus.NEU;
+
+    /** Null means "Ohne Mandant": shown in the queue, refused by the export, never guessed (§5.2). */
+    @Column(name = "mandant_id")
+    private UUID mandantId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "review_status", nullable = false, length = 30)
     private ReviewStatus reviewStatus = ReviewStatus.NOT_REQUIRED;
@@ -326,6 +338,22 @@ public class Document {
 
     public void setExtractedText(String extractedText) {
         this.extractedText = extractedText;
+    }
+
+    public BelegStatus getBelegStatus() {
+        return belegStatus;
+    }
+
+    public void setBelegStatus(BelegStatus belegStatus) {
+        this.belegStatus = belegStatus;
+    }
+
+    public UUID getMandantId() {
+        return mandantId;
+    }
+
+    public void setMandantId(UUID mandantId) {
+        this.mandantId = mandantId;
     }
 
     public ProcessingStatus getProcessingStatus() {

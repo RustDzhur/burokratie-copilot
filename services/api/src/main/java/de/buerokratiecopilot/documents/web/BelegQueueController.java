@@ -1,5 +1,6 @@
 package de.buerokratiecopilot.documents.web;
 
+import de.buerokratiecopilot.documents.DocumentService;
 import de.buerokratiecopilot.documents.domain.BelegStatus;
 import de.buerokratiecopilot.shared.context.RequestContext;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,9 +26,25 @@ import org.springframework.web.bind.annotation.RestController;
 class BelegQueueController {
 
     private final JdbcTemplate jdbc;
+    private final DocumentService documents;
 
-    BelegQueueController(JdbcTemplate jdbc) {
+    BelegQueueController(JdbcTemplate jdbc, DocumentService documents) {
         this.jdbc = jdbc;
+        this.documents = documents;
+    }
+
+    /** What the office asks when it moves a voucher: accept it, send it to a person, or finish it. */
+    record BelegStatusRequest(BelegStatus status) {
+    }
+
+    @org.springframework.web.bind.annotation.PatchMapping("/{id}/beleg-status")
+    @PreAuthorize("hasAuthority('documents.edit')")
+    @Operation(summary = "Move a voucher through the office queue")
+    java.util.Map<String, Object> changeStatus(
+            @org.springframework.web.bind.annotation.PathVariable java.util.UUID id,
+            @org.springframework.web.bind.annotation.RequestBody BelegStatusRequest request) {
+        var saved = documents.changeBelegStatus(id, request.status());
+        return java.util.Map.of("id", saved.getId().toString(), "belegStatus", saved.getBelegStatus().name());
     }
 
     @GetMapping("/beleg-counts")

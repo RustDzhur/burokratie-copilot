@@ -16,6 +16,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import de.buerokratiecopilot.audit.AuditService;
 import de.buerokratiecopilot.audit.domain.AuditEvent;
+import de.buerokratiecopilot.documents.domain.BelegStatus;
+import de.buerokratiecopilot.documents.domain.BelegStatusMachine;
 import de.buerokratiecopilot.documents.domain.Document;
 import de.buerokratiecopilot.documents.domain.DocumentBlob;
 import de.buerokratiecopilot.documents.domain.DocumentSource;
@@ -545,5 +547,34 @@ public class DocumentService {
             return "message/rfc822";
         }
         return "application/octet-stream";
+    }
+
+    /**
+     * Moves a voucher through the office queue (§8.1).
+     *
+     * <p>The transition is validated, not forced: the specification's statuses are a promise about what has been
+     * done, and a screen that lets NEU jump to EXPORTIERT turns the promise into decoration. Every change is
+     * audited with both ends, because "who moved this voucher and when" is the question asked after a mistake.</p>
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public Document changeBelegStatus(java.util.UUID id, BelegStatus target) {
+        Document document = require(id);
+        BelegStatus current = document.getBelegStatus();
+        if (!BelegStatusMachine.canMove(current, target)) {
+            throw new ApiException(ErrorCode.CONFLICT,
+                    "Ein Beleg kann nicht von " + current + " nach " + target + " wechseln.");
+        }
+        if (current == target) {
+            return document;
+        }
+        document.setBelegStatus(target);
+        Document saved = documents.save(document);
+        auditService.record(AuditService.AuditEntry
+                .builder(AuditEvent.Category.DOCUMENT, "BELEG_STATUS_CHANGED")
+                .tenant(document.getTenantId())
+                .entity("documents", document.getId(), document.getOriginalFilename())
+                .description("Beleg-Status: " + current + " → " + target)
+                .build());
+        return saved;
     }
 }
