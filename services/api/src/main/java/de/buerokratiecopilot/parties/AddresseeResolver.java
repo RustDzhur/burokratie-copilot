@@ -46,17 +46,29 @@ public class AddresseeResolver {
     /** Sets the addressee of one document when it has none and the text says clearly who it is. */
     public void resolve(UUID documentId) {
         List<Map<String, Object>> rows = jdbc.queryForList("""
-                select tenant_id, party_id, coalesce(extracted_text, '') as text, original_filename
+                select tenant_id, mandant_id, coalesce(extracted_text, '') as text, original_filename
                 from documents where id = ? and deleted_at is null
                 """, documentId);
-        if (rows.isEmpty() || rows.get(0).get("party_id") != null) {
+        // §5.2: a document that already has a client keeps it. The platform does not overwrite a decision, and
+        // an automatic match is not a decision until a person has seen it.
+        if (rows.isEmpty() || rows.get(0).get("mandant_id") != null) {
             return;
         }
         UUID tenantId = (UUID) rows.get(0).get("tenant_id");
         List<Candidate> candidates = candidates(tenantId);
         UUID chosen = choose(candidates, String.valueOf(rows.get(0).get("text")));
         if (chosen != null) {
-            jdbc.update("update documents set party_id = ? where id = ? and party_id is null", chosen, documentId);
+            // The matcher still works in parties; the merge map (V73) turns its answer into the contact the
+            // export and the screen read. Writing the old column here would be the silent divergence §5.2
+            // forbids: the queue would show a client the export does not know.
+            jdbc.update("""
+                    update documents d
+                       set mandant_id = m.contact_id
+                      from parties_contact_map m
+                     where m.party_id = ?
+                       and d.id = ?
+                       and d.mandant_id is null
+                    """, chosen, documentId);
         }
     }
 
