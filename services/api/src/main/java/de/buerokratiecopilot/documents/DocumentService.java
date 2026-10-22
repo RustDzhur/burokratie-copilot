@@ -560,6 +560,15 @@ public class DocumentService {
     public Document changeBelegStatus(java.util.UUID id, BelegStatus target) {
         Document document = require(id);
         BelegStatus current = document.getBelegStatus();
+        // §5.2 and §11.7: the one rule the whole client routing exists for. A voucher whose client is not known
+        // does not leave the office in a DATEV batch - it waits in the queue as "Ohne Mandant" until a person
+        // says whose it is. The alternative is sending client A's paperwork to client B's bookkeeping, which is
+        // the silent mistake this specification forbids more strongly than any other.
+        if (target == BelegStatus.EXPORTIERT && document.getMandantId() == null) {
+            throw new ApiException(ErrorCode.CONFLICT,
+                    "Der Beleg hat keinen Mandanten und kann nicht exportiert werden. "
+                            + "Bitte zuerst den Mandanten zuordnen.");
+        }
         if (!BelegStatusMachine.canMove(current, target)) {
             throw new ApiException(ErrorCode.CONFLICT,
                     "Ein Beleg kann nicht von " + current + " nach " + target + " wechseln.");
