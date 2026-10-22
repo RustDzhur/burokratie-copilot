@@ -121,7 +121,6 @@ public class RetrievalService {
 
         passages.addAll(searchPageText(tenantId, query, documentTypeIds, limit));
         passages.addAll(searchExtractedFields(tenantId, query, documentTypeIds, limit));
-        passages.addAll(searchContractClauses(tenantId, query, limit));
 
         List<Passage> ranked = passages.stream()
                 .filter(passage -> passage.relevance() >= RELEVANCE_FLOOR)
@@ -183,31 +182,6 @@ public class RetrievalService {
                 query, tenantId, limit);
     }
 
-    /**
-     * Clauses of contracts that were read from a document. A clause is cited as that document, at the page it was read
-     * from, with its type as the field key; a contract entered by hand has no document to cite and is left out.
-     */
-    private List<Passage> searchContractClauses(UUID tenantId, String query, int limit) {
-        return jdbc.query("""
-                select c.source_document_id as document_id, d.original_filename, cl.source_page, cl.clause_text,
-                       cl.source_snippet, cl.clause_type,
-                       ts_rank(to_tsvector('german', coalesce(cl.title, '') || ' ' || cl.clause_text), q.tsq) as relevance
-                from contract_clauses cl
-                join contracts c on c.id = cl.contract_id and c.deleted_at is null
-                join documents d on d.id = c.source_document_id and d.deleted_at is null
-                cross join (select plainto_tsquery('german', ?) as tsq) q
-                where cl.tenant_id = ?
-                  and to_tsvector('german', coalesce(cl.title, '') || ' ' || cl.clause_text) @@ q.tsq
-                order by relevance desc
-                limit ?
-                """, (rs, row) -> new Passage(rs.getObject("document_id", UUID.class),
-                rs.getString("original_filename"),
-                rs.getObject("source_page") == null ? null : rs.getInt("source_page"),
-                excerpt(rs.getString("source_snippet") == null ? rs.getString("clause_text")
-                        : rs.getString("source_snippet")),
-                rs.getDouble("relevance"), Source.CONTRACT_CLAUSE, rs.getString("clause_type")),
-                query, tenantId, limit);
-    }
 
     /** A bounded piece of a passage; a citation quotes a sentence, not a document. */
     static String excerpt(String text) {

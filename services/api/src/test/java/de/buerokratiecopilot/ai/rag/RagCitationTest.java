@@ -189,32 +189,6 @@ class RagCitationTest {
         assertThat(answer.rejected()).isEmpty();
     }
 
-    @Test
-    @DisplayName("a contract clause read from a document can be cited with its page and type, and is not offered to another tenant")
-    void contractClauseCanBeCited() {
-        UUID tenantId = tenant();
-        UUID otherTenant = tenant();
-        UUID documentId = document(tenantId, "vertrag.pdf", "Vertrag über Internet.", "Kündigungsfrist drei Monate zum Laufzeitende.");
-        RequestContext.runAs(tenantId, () -> {
-            UUID contract = jdbc.queryForObject("""
-                    insert into contracts (tenant_id, title, contract_type, source_document_id)
-                    values (?, 'Internet', 'SERVICE', ?) returning id
-                    """, UUID.class, tenantId, documentId);
-            jdbc.update("""
-                    insert into contract_clauses (contract_id, tenant_id, clause_key, clause_type, clause_text, source_page)
-                    values (?, ?, 'notice', 'NOTICE_PERIOD', 'Die Kündigungsfrist beträgt drei Monate zum Laufzeitende.', 2)
-                    """, contract, tenantId);
-        });
-
-        RagService.Answer answer = ask(tenantId, "Kündigungsfrist Laufzeitende",
-                List.of(new Citation(documentId, 2, "NOTICE_PERIOD", "Die Kündigungsfrist beträgt drei Monate")));
-        assertThat(answer.sources()).anySatisfy(passage -> assertThat(passage.source())
-                .isEqualTo(RetrievalService.Source.CONTRACT_CLAUSE));
-        assertThat(answer.rejected()).isEmpty();
-
-        var foreign = RequestContext.runAs(otherTenant, () -> retrieval.search(otherTenant, "Kündigungsfrist", List.of(), 10));
-        assertThat(foreign.passages()).isEmpty();
-    }
 
     @Test
     @DisplayName("the retrieval result carries what was searched and what was found")

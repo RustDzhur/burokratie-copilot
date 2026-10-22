@@ -22,7 +22,7 @@ import de.buerokratiecopilot.shared.error.ErrorCode;
  * Requests of a data subject about a contact (HD-GDPR-01): find what is held, hand out a copy, correct, delete within limits.
  *
  * <p>"Within limits" is meant literally. Erasing a contact removes the person from the contact record and from its
- * identifiers, but the business records that mention the contact (contracts, invoices, cases, documents, correspondence)
+ * identifiers, but the business records that mention the contact (invoices, cases, documents, correspondence)
  * are not deleted by this: whether and how long they must be kept is the controller's decision, and the platform does not
  * invent a period. They are listed in the answer under {@code retained}, each with its count, so the person who handles the
  * request can decide on them one by one. A document under legal hold stops the erasure altogether.</p>
@@ -90,7 +90,6 @@ public class DataSubjectService {
                 where m.tenant_id = ? and m.match_type = 'CONTACT' and m.target_id = ? and m.status <> 'REJECTED'
                   and d.deleted_at is null and d.legal_hold
                 """, tenantId, contactId));
-        counts.put("contracts", count("select count(*) from contracts where tenant_id = ? and counterparty_contact_id = ? and deleted_at is null", tenantId, contactId));
         counts.put("invoices", count("select count(*) from invoices where tenant_id = ? and contact_id = ? and deleted_at is null", tenantId, contactId));
         counts.put("cases", count("select count(*) from cases where tenant_id = ? and counterparty_contact_id = ? and deleted_at is null", tenantId, contactId));
         counts.put("mailMessages", count("""
@@ -122,10 +121,6 @@ public class DataSubjectService {
                 select d.id, d.original_filename, d.received_at, d.document_date from document_matches m join documents d on d.id = m.document_id
                 where m.tenant_id = ? and m.match_type = 'CONTACT' and m.target_id = ? and m.status <> 'REJECTED' and d.deleted_at is null
                 order by d.received_at
-                """, tenantId, contactId));
-        bundle.put("contracts", jdbc.queryForList("""
-                select id, title, contract_type, status, start_date, end_date, cost_amount, cost_currency
-                from contracts where tenant_id = ? and counterparty_contact_id = ? and deleted_at is null order by created_at
                 """, tenantId, contactId));
         bundle.put("invoices", jdbc.queryForList("""
                 select id, invoice_number, direction, issue_date, due_date, gross_amount, currency, payment_status
@@ -185,7 +180,7 @@ public class DataSubjectService {
                 where id = ? and tenant_id = ?
                 """, contactId, tenantId);
         Map<String, Object> retained = new LinkedHashMap<>();
-        for (String kind : List.of("documents", "contracts", "invoices", "cases", "mailMessages")) {
+        for (String kind : List.of("documents", "invoices", "cases", "mailMessages")) {
             int n = ((Number) counts.get(kind)).intValue();
             if (n > 0) {
                 retained.put(kind, n);

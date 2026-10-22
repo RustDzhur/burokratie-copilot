@@ -307,9 +307,7 @@ class DocumentUploadIT {
     void plansGateTheAreas() throws Exception {
         Session session = signIn("gate");
         usePlan(session, "FREE");
-        mockMvc.perform(get("/api/v1/contracts").cookie(session.cookie())).andExpect(status().isPaymentRequired());
         usePlan(session, "PERSONAL");
-        mockMvc.perform(get("/api/v1/contracts").cookie(session.cookie())).andExpect(status().isOk());
         // A company on a Personal plan still does not get the invoices of Business.
         mockMvc.perform(get("/api/v1/invoices").cookie(session.cookie())).andExpect(status().isPaymentRequired());
         usePlan(session, "BUSINESS");
