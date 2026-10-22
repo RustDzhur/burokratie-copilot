@@ -18,6 +18,7 @@ import {
   startOfMonth,
   toIsoDate,
 } from '@/i18n/format';
+import { daysUntil } from './days-until';
 import { useLocale, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { toApiError } from '@/lib/api/errors';
@@ -27,6 +28,13 @@ import { useGroupedLabels } from '@/lib/format/status';
 import styles from './calendar.module.css';
 
 const TYPE_VALUES = ['deadline', 'appointment', 'reminder'] as const;
+
+/**
+ * Whole days from today to a date, negative when the date has passed.
+ *
+ * <p>Counted in calendar days, not in hours: a deadline "tomorrow" is one day away at nine in the morning and
+ * one day away at eleven at night, and a screen that says "0 days" at 23:59 is a screen nobody trusts.</p>
+ */
 const WEEKDAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] as const;
 
 /**
@@ -433,6 +441,7 @@ function EventList({
               <th scope="col">{t('column.date')}</th>
               <th scope="col">{t('column.title')}</th>
               <th scope="col">{t('column.type')}</th>
+              <th scope="col">{t('column.remaining')}</th>
               <th scope="col">{t('column.case')}</th>
             </tr>
           </thead>
@@ -450,6 +459,26 @@ function EventList({
                     label={typeLabel(event.type)}
                     tone={event.type === 'deadline' ? 'warning' : 'info'}
                   />
+                </td>
+                <td>
+                  {(() => {
+                    // §5.4: more than fourteen days is calm, seven to fourteen is worth noticing, less than
+                    // seven is the one that costs money and liability. A past deadline is not "calm" either.
+                    const days = daysUntil(event.date);
+                    const tone = days < 0 ? 'danger' : days < 7 ? 'danger' : days <= 14 ? 'warning' : 'neutral';
+                    return (
+                      <StatusPill
+                        label={
+                          days < 0
+                            ? t('remaining.overdue', { days: Math.abs(days) })
+                            : days === 0
+                              ? t('remaining.today')
+                              : t('remaining.inDays', { days })
+                        }
+                        tone={tone}
+                      />
+                    );
+                  })()}
                 </td>
                 <td>
                   {event.caseReference ? (
