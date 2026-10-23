@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -28,6 +29,13 @@ import de.buerokratiecopilot.shared.error.ApiException;
 @SpringBootTest
 @ActiveProfiles("test")
 class IntegrationAdapterCatalogueIT {
+
+    /**
+     * Provider names the database CHECK still allows because an applied migration is history, but the
+     * banking integrations behind them were removed with that module (Kanzlei edition, §4.3). The
+     * catalogue must not offer them; the schema keeps accepting the names for old rows.
+     */
+    private static final Set<String> RETIRED_PROVIDERS = Set.of("BANK_FINTS", "BANK_AGGREGATOR");
 
     @Autowired
     private IntegrationAdapterCatalogue catalogue;
@@ -83,7 +91,9 @@ class IntegrationAdapterCatalogueIT {
         List<String> described = IntegrationAdapterCatalogue.all().stream()
                 .map(IntegrationAdapterCatalogue.Adapter::provider).toList();
 
-        assertThat(described).containsAll(providersTheSchemaAllows());
+        assertThat(described).containsAll(providersTheSchemaAllows().stream()
+                .filter(provider -> !RETIRED_PROVIDERS.contains(provider))
+                .toList());
     }
 
     @Test
@@ -120,7 +130,7 @@ class IntegrationAdapterCatalogueIT {
         assertThat(IntegrationAdapterCatalogue.implemented()).extracting(
                         IntegrationAdapterCatalogue.Adapter::provider)
                 .as("these are the ones this repository actually contains")
-                .contains("IMAP", "SMTP", "OCR_TESSERACT", "AI_OPENAI", "BANK_FINTS",
+                .contains("IMAP", "SMTP", "OCR_TESSERACT", "AI_OPENAI",
                         "E_INVOICING_PROVIDER", "SCANNER_BRIDGE", "WEBHOOK");
     }
 
@@ -158,7 +168,7 @@ class IntegrationAdapterCatalogueIT {
         assertThat(IntegrationAdapterCatalogue.notImplemented()).extracting(
                         IntegrationAdapterCatalogue.Adapter::provider)
                 .as("no accounting hand-over and no signature exist here")
-                .contains("BANK_AGGREGATOR", "ACCOUNTING_DATEV", "E_SIGNATURE_DOCUSIGN", "CRM_HUBSPOT");
+                .contains("ACCOUNTING_DATEV", "E_SIGNATURE_DOCUSIGN", "CRM_HUBSPOT");
     }
 
     @Test
@@ -168,17 +178,17 @@ class IntegrationAdapterCatalogueIT {
         UUID userId = person(tenantId);
 
         Map<String, Object> result = RequestContext.runAs(tenantId, () -> catalogue.declareUnsupported(
-                tenantId, null, "BANK_AGGREGATOR", userId));
+                tenantId, null, "ACCOUNTING_DATEV", userId));
 
         assertThat(result).containsEntry("status", "NOT_SUPPORTED");
         assertThat(jdbc.queryForObject("""
-                select status from integrations where tenant_id = ? and provider = 'BANK_AGGREGATOR'
+                select status from integrations where tenant_id = ? and provider = 'ACCOUNTING_DATEV'
                 """, String.class, tenantId))
                 .as("'not configured' would send somebody looking for a setting that does not exist")
                 .isEqualTo("NOT_SUPPORTED");
         assertThat(jdbc.queryForObject("""
-                select owner_action_hint from integrations where tenant_id = ? and provider = 'BANK_AGGREGATOR'
-                """, String.class, tenantId)).contains("Aggregator");
+                select owner_action_hint from integrations where tenant_id = ? and provider = 'ACCOUNTING_DATEV'
+                """, String.class, tenantId)).contains("Beraternummer");
     }
 
     @Test
@@ -248,7 +258,7 @@ class IntegrationAdapterCatalogueIT {
     void theCatalogueIsCounted() {
         Map<String, Object> catalogueView = catalogue.catalogue();
 
-        assertThat(catalogueView).containsKeys("EMAIL", "AI", "BANKING", "implementedCount",
+        assertThat(catalogueView).containsKeys("EMAIL", "AI", "E_INVOICING", "implementedCount",
                 "notImplementedCount");
         assertThat((Integer) catalogueView.get("implementedCount"))
                 .isEqualTo(IntegrationAdapterCatalogue.implemented().size());

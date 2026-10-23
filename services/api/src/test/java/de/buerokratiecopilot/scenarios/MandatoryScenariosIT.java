@@ -133,7 +133,7 @@ class MandatoryScenariosIT {
     // ---------------------------------------------------------------- §28.3, steps 1 to 11
 
     @Test
-    @DisplayName("§28.3 (1-11): from an invoice upload to a confirmed payment, with the history")
+    @DisplayName("§28.3 (1-11): from an invoice upload to an approved invoice, with the history")
     void theInvoiceChainRunsEndToEnd() {
         Account account = account();
 
@@ -164,8 +164,8 @@ class MandatoryScenariosIT {
         // 7. An approval is required for the amount.
         ApprovalService.Request request = RequestContext.runAs(account.tenantId(),
                 () -> approvals.request(account.tenantId(), "invoice", invoiceId, "INVOICE_APPROVAL",
-                        "Rechnung RE-2026-77", "Betrag und Lieferant geprüft", new BigDecimal("119.00"),
-                        "OUTGOING", null, account.adminUserId()));
+                        "Rechnung RE-2026-77", "Betrag und Lieferant geprüft", null,
+                        account.adminUserId()));
         assertThat(request.status()).isEqualTo("PENDING");
 
         // 8. The authorised person approves it — and the requester could not have.

@@ -17,7 +17,7 @@ import de.buerokratiecopilot.shared.error.ErrorCode;
  * Deletes what a person no longer wants in a list. The rows are marked as deleted, not erased, so the history stays
  * complete and an administrator can restore a mistake; only a person's own notifications are removed for good.
  *
- * <p>What is deliberately not here: invoices and payments. German commercial and tax law (GoBD, §147 AO) requires
+ * <p>What is deliberately not here: invoices. German commercial and tax law (GoBD, §147 AO) requires
  * them to be kept, and a button that destroys them would be a way to break that duty.</p>
  */
 @Service

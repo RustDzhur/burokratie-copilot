@@ -141,7 +141,7 @@ class IntegrationControllerIT {
         MvcResult created = mockMvc.perform(post("/api/v1/integrations/unsupported").with(csrf())
                         .cookie(session.cookie())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"provider\":\"BANK_AGGREGATOR\"}"))
+                        .content("{\"provider\":\"ACCOUNTING_DATEV\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("NOT_SUPPORTED"))
                 .andReturn();
@@ -308,7 +308,7 @@ class IntegrationControllerIT {
         mockMvc.perform(post("/api/v1/integrations/unsupported").with(csrf())
                         .cookie(first.cookie())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"provider\":\"BANK_AGGREGATOR\"}"))
+                        .content("{\"provider\":\"ACCOUNTING_DATEV\"}"))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(get("/api/v1/integrations").cookie(second.cookie()))

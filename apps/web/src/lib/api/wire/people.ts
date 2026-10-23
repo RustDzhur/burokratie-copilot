@@ -286,7 +286,6 @@ const INTEGRATION_STATUS_FROM_WIRE: Readonly<Record<string, IntegrationStatus>> 
 };
 
 const INTEGRATION_CATEGORY_FROM_WIRE: Readonly<Record<string, IntegrationSummary['category']>> = {
-  BANKING: 'bank',
   EMAIL: 'mail',
   STORAGE: 'storage',
   CALENDAR: 'calendar',

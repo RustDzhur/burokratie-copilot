@@ -16,13 +16,12 @@ import org.springframework.stereotype.Component;
  * The fingerprint of what an approval is for (task CA-04).
  *
  * <p>The platform computes it from the stored material, so a client cannot choose it. It covers exactly the fields that make
- * the action what it is: for a payment the amount, currency, receiving account, name, reference, invoice and date; for a
- * letter the subject, the text, the addressees and the attachments.</p>
+ * the action what it is: for a letter the subject, the text, the addressees and the attachments.</p>
  */
 @Component
 public class ApprovalBinding {
 
-    /** The fingerprint and the version of the material (letters carry a draft version; a payment has one). */
+    /** The fingerprint and the version of the material (letters carry a draft version). */
     public record Fingerprint(String hash, int version) {
     }
 
@@ -34,31 +33,14 @@ public class ApprovalBinding {
 
     /** The subject types a fingerprint can be computed for. */
     public static boolean isBindable(String subjectType) {
-        return "PAYMENT".equals(subjectType) || "OUTBOUND_MESSAGE".equals(subjectType);
+        return "OUTBOUND_MESSAGE".equals(subjectType);
     }
 
     public Optional<Fingerprint> of(UUID tenantId, String subjectType, UUID subjectId) {
-        if ("PAYMENT".equals(subjectType)) {
-            return payment(tenantId, subjectId);
-        }
         if ("OUTBOUND_MESSAGE".equals(subjectType)) {
             return message(tenantId, subjectId);
         }
         return Optional.empty();
-    }
-
-    private Optional<Fingerprint> payment(UUID tenantId, UUID paymentId) {
-        List<Map<String, Object>> rows = jdbc.queryForList("""
-                select amount::text as amount, currency, counterparty_name, counterparty_iban, reference, invoice_id::text as invoice_id,
-                       payment_date::text as payment_date
-                from payments where id = ? and tenant_id = ?
-                """, paymentId, tenantId);
-        if (rows.isEmpty()) {
-            return Optional.empty();
-        }
-        Map<String, Object> row = rows.get(0);
-        return Optional.of(new Fingerprint(sha256("PAYMENT", row.get("amount"), row.get("currency"), row.get("counterparty_name"),
-                row.get("counterparty_iban"), row.get("reference"), row.get("invoice_id"), row.get("payment_date")), 1));
     }
 
     private Optional<Fingerprint> message(UUID tenantId, UUID messageId) {

@@ -50,8 +50,8 @@ class SchemaIT {
             "workflow_definitions", "workflow_versions", "workflow_runs", "workflow_run_steps",
             "workflow_events", "approvals", "approval_events",
             // finance
-            "invoices", "invoice_lines", "credit_notes", "payments", "payment_matches",
-            "financial_accounts", "suppliers", "customers", "purchase_orders", "payment_approvals",
+            "invoices", "invoice_lines", "credit_notes",
+            "financial_accounts", "suppliers", "customers", "purchase_orders",
             // mail and communication
             "mail_accounts", "mail_messages", "mail_attachments", "outbound_messages",
             "message_delivery_events", "document_templates", "template_versions",
@@ -215,14 +215,6 @@ class SchemaIT {
                     """))
                     .isInstanceOf(SQLException.class)
                     .hasMessageContaining("cases_closed_consistency_chk");
-
-            // A payment cannot be executed without a confirming user (§14.4, §32).
-            assertThatThrownBy(() -> statement.execute("""
-                    INSERT INTO payments (tenant_id, direction, amount, status, executed_at)
-                    VALUES ('11111111-1111-1111-1111-111111111111', 'OUTGOING', 100, 'EXECUTED', now())
-                    """))
-                    .isInstanceOf(SQLException.class)
-                    .hasMessageContaining("payments_executed_chk");
 
             // A promised delivery cannot be claimed without evidence (§15.3).
             assertThatThrownBy(() -> statement.execute("""

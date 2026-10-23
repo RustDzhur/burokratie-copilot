@@ -3,7 +3,6 @@ package de.buerokratiecopilot.workflow;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -24,13 +23,14 @@ import de.buerokratiecopilot.shared.error.ApiException;
 import de.buerokratiecopilot.workflow.approval.ApprovalService;
 
 /**
- * Verifies approvals, authority and escalation (spec §32, F-003) and the preset processes (§16.2, F-005).
+ * Verifies approvals and escalation (spec §32, F-003) and the preset processes (§16.2, F-005).
  *
  * <p>The acceptance criterion is that a level-4 action is impossible without the confirmation of an
- * authorised person. What makes that true is checked here: nobody approves their own request, a person
- * without the authority the rule names cannot decide, and where the rule demands more than one signature
- * the decision stays open until different people have given them — counting approvals instead of people
- * would let one person click twice.</p>
+ * authorised person. What makes that true is checked here: nobody approves their own request, a request
+ * needs one decision, and an overdue request escalates instead of waiting forever.</p>
+ *
+ * <p>The amount-based authority matrix was part of the payment module and was removed with it (§4.3);
+ * every request now needs one deciding person, checked against the membership the platform already knows.</p>
  */
 @SpringBootTest
 @ExtendWith(TenantContextExtension.class)
@@ -52,132 +52,51 @@ class ApprovalAndPresetsIT {
     @Autowired
     private JdbcTemplate jdbc;
 
-    /** A tenant with a person, a role and, when asked for, the authority a rule demands. */
+    /** A tenant with a requester, an approver and a third person. */
     private record Tenant(UUID tenantId, UUID requester, UUID approver, UUID outsider) {
     }
 
-    private Tenant tenant(int levels, boolean withAuthority) {
+    private Tenant tenant() {
         UUID tenantId = jdbc.queryForObject("""
                 insert into tenants (id, slug, name, account_type)
                 values (gen_random_uuid(), ?, 'Freigabe Test', 'COMPANY') returning id
                 """, UUID.class, "ap-" + UUID.randomUUID().toString().substring(0, 12));
         RequestContext.setTenantId(tenantId);
 
-        UUID roleId = null;
-        String permissionCode = null;
-        if (withAuthority) {
-            roleId = jdbc.queryForObject("""
-                    insert into roles (id, tenant_id, code, name)
-                    values (gen_random_uuid(), ?, ?, '{"de":"Freigeber"}'::jsonb) returning id
-                    """, UUID.class, tenantId, "approver-" + UUID.randomUUID().toString().substring(0, 8));
-            // The seeded permission, not one invented per run. A test that created a permission each time
-            // left the catalogue with hundreds of junk rows, which is the same class of shared-state
-            // pollution as a leftover global setting: it does not break anything today and it makes an
-            // honest audit of the catalogue impossible tomorrow.
-            permissionCode = "finance.approve";
-            UUID permissionId = jdbc.queryForObject("""
-                    select id from permissions where code = ?
-                    """, UUID.class, permissionCode);
-            jdbc.update("insert into role_permissions (role_id, permission_id) values (?, ?) "
-                    + "on conflict do nothing", roleId, permissionId);
-        }
-
-        UUID requester = person(tenantId, null);
-        UUID approver = person(tenantId, roleId);
-        UUID outsider = person(tenantId, null);
-
-        jdbc.update("""
-                insert into payment_approval_rules (id, tenant_id, code, name, direction, required_permission,
-                                                    approval_levels, require_second_person, min_amount,
-                                                    max_amount, currency, is_active, version)
-                values (gen_random_uuid(), ?, ?, '{"de":"Ab 1000"}'::jsonb, 'OUTGOING', ?, ?, ?, 1000, null,
-                        'EUR', true, 1)
-                """, tenantId, "rule-" + UUID.randomUUID().toString().substring(0, 8), permissionCode,
-                levels, levels > 1);
+        UUID requester = person(tenantId);
+        UUID approver = person(tenantId);
+        UUID outsider = person(tenantId);
 
         return new Tenant(tenantId, requester, approver, outsider);
     }
 
-    private UUID person(UUID tenantId, UUID roleId) {
+    private UUID person(UUID tenantId) {
         UUID userId = jdbc.queryForObject("""
                 insert into users (id, email, status, display_name, locale, time_zone,
                                    failed_login_attempts, must_change_password)
                 values (gen_random_uuid(), ?, 'ACTIVE', 'Person', 'de', 'Europe/Berlin', 0, false)
                 returning id
                 """, UUID.class, "ap-" + UUID.randomUUID().toString().substring(0, 10) + "@example.de");
-        UUID membershipId = jdbc.queryForObject("""
+        jdbc.queryForObject("""
                 insert into memberships (id, tenant_id, user_id, status, is_owner)
                 values (gen_random_uuid(), ?, ?, 'ACTIVE', false) returning id
                 """, UUID.class, tenantId, userId);
-        if (roleId != null) {
-            jdbc.update("""
-                    insert into membership_roles (membership_id, role_id, granted_at)
-                    values (?, ?, now())
-                    """, membershipId, roleId);
-        }
         return userId;
     }
 
-    private ApprovalService.Request request(Tenant tenant, BigDecimal amount, Instant expiresAt) {
+    private ApprovalService.Request request(Tenant tenant, Instant expiresAt) {
         return RequestContext.runAs(tenant.tenantId(), () -> approvals.request(tenant.tenantId(),
-                "invoice", UUID.randomUUID(), "PAYMENT_APPROVAL", "Rechnung prüfen", "Betrag prüfen", amount,
-                "OUTGOING", expiresAt, tenant.requester()));
+                "invoice", UUID.randomUUID(), "INVOICE_APPROVAL", "Rechnung prüfen", "Betrag prüfen",
+                expiresAt, tenant.requester()));
     }
 
     // ---------------------------------------------------------------- F-003: authority
 
     @Test
-    @DisplayName("the rule that applies is the one the customer configured")
-    void theRuleIsTheCustomersData() {
-        Tenant tenant = tenant(1, true);
-
-        ApprovalService.Rule rule = RequestContext.runAs(tenant.tenantId(),
-                () -> approvals.ruleFor(tenant.tenantId(), new BigDecimal("1500.00"), "OUTGOING"));
-
-        assertThat(rule.levels()).isEqualTo(1);
-        assertThat(rule.requiredPermission()).isNotNull();
-        assertThat(rule.secondPerson()).isFalse();
-    }
-
-    @Test
-    @DisplayName("an amount below every rule needs no configured authority")
-    void belowEveryRuleTheDefaultApplies() {
-        Tenant tenant = tenant(1, true);
-
-        ApprovalService.Rule rule = RequestContext.runAs(tenant.tenantId(),
-                () -> approvals.ruleFor(tenant.tenantId(), new BigDecimal("10.00"), "OUTGOING"));
-
-        // No rule matches, so nobody has said what this needs. The platform does not decide that it is
-        // allowed: the request goes to a person and the matrix stays silent.
-        assertThat(rule.requiredPermission()).isNull();
-        assertThat(rule.levels()).isEqualTo(1);
-    }
-
-    @Test
-    @DisplayName("a level-4 action is impossible without the confirmation of an authorised person")
-    void levelFourNeedsAnAuthorisedConfirmation() {
-        Tenant tenant = tenant(4, true);
-        ApprovalService.Request request = request(tenant, new BigDecimal("5000.00"), null);
-
-        assertThat(request.levelsRequired()).isEqualTo(4);
-        assertThat(RequestContext.runAs(tenant.tenantId(),
-                () -> approvals.mayDecide(tenant.tenantId(), request.approvalId(), tenant.requester())))
-                .as("the requester is not an approver of their own request")
-                .isFalse();
-        assertThat(RequestContext.runAs(tenant.tenantId(),
-                () -> approvals.mayDecide(tenant.tenantId(), request.approvalId(), tenant.outsider())))
-                .as("a person without the authority the rule names may not confirm")
-                .isFalse();
-        assertThat(RequestContext.runAs(tenant.tenantId(),
-                () -> approvals.mayDecide(tenant.tenantId(), request.approvalId(), tenant.approver())))
-                .isTrue();
-    }
-
-    @Test
     @DisplayName("nobody approves their own request")
     void nobodyApprovesTheirOwnRequest() {
-        Tenant tenant = tenant(1, true);
-        ApprovalService.Request request = request(tenant, new BigDecimal("5000.00"), null);
+        Tenant tenant = tenant();
+        ApprovalService.Request request = request(tenant, null);
 
         assertThatThrownBy(() -> RequestContext.runAs(tenant.tenantId(),
                 () -> approvals.decide(tenant.tenantId(), request.approvalId(), tenant.requester(), true,
@@ -187,53 +106,16 @@ class ApprovalAndPresetsIT {
     }
 
     @Test
-    @DisplayName("a person without the required authority cannot decide")
-    void withoutAuthorityNobodyDecides() {
-        Tenant tenant = tenant(1, true);
-        ApprovalService.Request request = request(tenant, new BigDecimal("5000.00"), null);
-
-        assertThatThrownBy(() -> RequestContext.runAs(tenant.tenantId(),
-                () -> approvals.decide(tenant.tenantId(), request.approvalId(), tenant.outsider(), true,
-                        null)))
-                .isInstanceOf(ApiException.class)
-                .hasMessageContaining("befugt");
-    }
-
-    @Test
-    @DisplayName("a request that needs several confirmations stays open until different people agree")
-    void severalConfirmationsNeedDifferentPeople() {
-        Tenant tenant = tenant(2, true);
-        ApprovalService.Request request = request(tenant, new BigDecimal("5000.00"), null);
-
-        ApprovalService.Decision first = RequestContext.runAs(tenant.tenantId(),
-                () -> approvals.decide(tenant.tenantId(), request.approvalId(), tenant.approver(), true,
-                        "Erste Freigabe"));
-
-        assertThat(first.status()).isEqualTo("PENDING");
-        assertThat(first.levelsGiven()).isEqualTo(1);
-        assertThat(RequestContext.runAs(tenant.tenantId(),
-                () -> approvals.pending(tenant.tenantId()))).hasSize(1);
-        // Counting approvals instead of people would let the same person click twice.
-        assertThatThrownBy(() -> RequestContext.runAs(tenant.tenantId(),
-                () -> approvals.decide(tenant.tenantId(), request.approvalId(), tenant.approver(), true,
-                        "Nochmal")))
-                .isInstanceOf(ApiException.class)
-                .hasMessageContaining("bereits");
-    }
-
-    @Test
-    @DisplayName("a single rejection ends the request, whatever else was still needed")
+    @DisplayName("a single rejection ends the request")
     void oneRejectionEndsIt() {
-        Tenant tenant = tenant(3, true);
-        ApprovalService.Request request = request(tenant, new BigDecimal("5000.00"), null);
+        Tenant tenant = tenant();
+        ApprovalService.Request request = request(tenant, null);
 
         ApprovalService.Decision decision = RequestContext.runAs(tenant.tenantId(),
                 () -> approvals.decide(tenant.tenantId(), request.approvalId(), tenant.approver(), false,
                         "Betrag stimmt nicht"));
 
-        assertThat(decision.status())
-                .as("collecting agreement after somebody said no is collecting it for nothing")
-                .isEqualTo("REJECTED");
+        assertThat(decision.status()).isEqualTo("REJECTED");
         assertThat(RequestContext.runAs(tenant.tenantId(),
                 () -> approvals.pending(tenant.tenantId()))).isEmpty();
     }
@@ -241,9 +123,8 @@ class ApprovalAndPresetsIT {
     @Test
     @DisplayName("an overdue request escalates instead of blocking a process quietly")
     void overdueRequestsEscalate() {
-        Tenant tenant = tenant(1, true);
-        ApprovalService.Request request = request(tenant, new BigDecimal("5000.00"),
-                Instant.now().minus(1, ChronoUnit.HOURS));
+        Tenant tenant = tenant();
+        ApprovalService.Request request = request(tenant, Instant.now().minus(1, ChronoUnit.HOURS));
 
         List<UUID> escalated = RequestContext.runAs(tenant.tenantId(),
                 () -> approvals.escalateOverdue(tenant.tenantId()));
@@ -261,8 +142,8 @@ class ApprovalAndPresetsIT {
     @Test
     @DisplayName("every decision is in the journal")
     void everyDecisionIsJournaled() {
-        Tenant tenant = tenant(1, true);
-        ApprovalService.Request request = request(tenant, new BigDecimal("5000.00"), null);
+        Tenant tenant = tenant();
+        ApprovalService.Request request = request(tenant, null);
         RequestContext.runAs(tenant.tenantId(), () -> approvals.decide(tenant.tenantId(),
                 request.approvalId(), tenant.approver(), true, "Geprüft und in Ordnung"));
 
@@ -278,8 +159,8 @@ class ApprovalAndPresetsIT {
     @Test
     @DisplayName("an approved request is not decided a second time")
     void aDecidedRequestIsClosed() {
-        Tenant tenant = tenant(1, true);
-        ApprovalService.Request request = request(tenant, new BigDecimal("5000.00"), null);
+        Tenant tenant = tenant();
+        ApprovalService.Request request = request(tenant, null);
         RequestContext.runAs(tenant.tenantId(), () -> approvals.decide(tenant.tenantId(),
                 request.approvalId(), tenant.approver(), true, null));
 
@@ -293,9 +174,9 @@ class ApprovalAndPresetsIT {
     @Test
     @DisplayName("an approval of another tenant is not reachable")
     void anotherTenantsApprovalIsNotReachable() {
-        Tenant owner = tenant(1, true);
-        Tenant stranger = tenant(1, true);
-        ApprovalService.Request request = request(owner, new BigDecimal("5000.00"), null);
+        Tenant owner = tenant();
+        Tenant stranger = tenant();
+        ApprovalService.Request request = request(owner, null);
 
         assertThatThrownBy(() -> RequestContext.runAs(stranger.tenantId(),
                 () -> approvals.decide(stranger.tenantId(), request.approvalId(), stranger.approver(), true,
@@ -333,7 +214,7 @@ class ApprovalAndPresetsIT {
                 values (gen_random_uuid(), ?, 'Vorlagen', 'COMPANY') returning id
                 """, UUID.class, "pre-" + UUID.randomUUID().toString().substring(0, 12));
         RequestContext.setTenantId(tenantId);
-        UUID installer = person(tenantId, null);
+        UUID installer = person(tenantId);
 
         Map<String, Object> first = RequestContext.runAs(tenantId,
                 () -> presets.install(tenantId, installer));
@@ -360,7 +241,7 @@ class ApprovalAndPresetsIT {
                 values (gen_random_uuid(), ?, 'Durchlauf', 'COMPANY') returning id
                 """, UUID.class, "pre-" + UUID.randomUUID().toString().substring(0, 12));
         RequestContext.setTenantId(tenantId);
-        UUID installer = person(tenantId, null);
+        UUID installer = person(tenantId);
         RequestContext.runAs(tenantId, () -> presets.install(tenantId, installer));
 
         UUID definitionId = RequestContext.runAs(tenantId, () -> workflows.list(tenantId)).stream()
@@ -388,7 +269,7 @@ class ApprovalAndPresetsIT {
                 values (gen_random_uuid(), ?, 'Halt', 'COMPANY') returning id
                 """, UUID.class, "pre-" + UUID.randomUUID().toString().substring(0, 12));
         RequestContext.setTenantId(tenantId);
-        UUID installer = person(tenantId, null);
+        UUID installer = person(tenantId);
         RequestContext.runAs(tenantId, () -> presets.install(tenantId, installer));
 
         UUID definitionId = RequestContext.runAs(tenantId, () -> workflows.list(tenantId)).stream()

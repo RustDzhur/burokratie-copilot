@@ -97,7 +97,7 @@ class IntegrationLifecycleIT {
     @DisplayName("a failed run makes the integration an error and stops further runs")
     void failedRunStopsFurtherRuns() {
         UUID tenantId = tenant();
-        IntegrationService.Connection connection = connect(tenantId, "BANK_AGGREGATOR");
+        IntegrationService.Connection connection = connect(tenantId, "ACCOUNTING_DATEV");
         IntegrationService.SyncRun run = integrations.startSync(tenantId, connection.integrationId(),
                 "FULL", null);
 

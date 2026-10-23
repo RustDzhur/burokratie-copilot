@@ -26,7 +26,6 @@ public class PlanFeatures {
     private static final List<Gate> GATES = List.of(
             new Gate("/api/v1/invoices", 2),
             new Gate("/api/v1/invoice-numbers", 2),
-            new Gate("/api/v1/banking", 2),
             new Gate("/api/v1/e-invoicing", 2),
             new Gate("/api/v1/contracts", 1),
             new Gate("/api/v1/templates", 1),

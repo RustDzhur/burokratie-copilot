@@ -21,13 +21,13 @@ vi.mock('next/navigation', () => ({
 
 describe('screen registry', () => {
   it('covers every screen the backend serves, and no screen for a removed cabinet kind', () => {
-    // The registry holds the screens the backend still serves: the removed contracts, radar, assistant and
-    // family/company/employees modules are gone, and the generated letters remain one screen. The count is
-    // asserted on purpose: a screen added to the registry without appearing here is a screen the product
-    // claims and does not have.
-    expect(screens).toHaveLength(42);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(42);
-    expect(new Set(screens.map((screen) => screen.href)).size).toBe(42);
+    // The registry holds the screens the backend still serves: the removed contracts, radar, assistant,
+    // payments and family/company/employees modules are gone, and the generated letters remain one screen.
+    // The count is asserted on purpose: a screen added to the registry without appearing here is a screen the
+    // product claims and does not have.
+    expect(screens).toHaveLength(41);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(41);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(41);
     const ids = screens.map((screen) => screen.id);
     expect(ids).not.toContain('family');
     expect(ids).not.toContain('company');

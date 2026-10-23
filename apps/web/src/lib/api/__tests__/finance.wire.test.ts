@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createApiClient } from '../client';
 import { createResources } from '../resources';
-import { decimalFromInput, invoiceFromWire, noticeDeadline, paymentFromWire } from '../wire/finance';
+import { decimalFromInput, invoiceFromWire, noticeDeadline } from '../wire/finance';
 
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -29,10 +29,6 @@ describe('finance ↔ backend', () => {
     expect(decimalFromInput(' 12,5 ')).toBe('12.5');
   });
 
-  it('maps bank transactions to payments', () => {
-    expect(paymentFromWire({ id: 't1', booking_date: '2026-10-01', amount: '-50.00', currency: 'EUR', counterparty_name: 'Vodafone', status: 'SUGGESTED', suggested_invoice: 'R-9', purpose: 'Rechnung R-9' })).toMatchObject({ status: 'suggested', amount: -50, suggestion: 'R-9', counterparty: 'Vodafone' });
-  });
-
   it('computes the notice deadline from the term end', () => {
     expect(noticeDeadline('2027-01-01', 3, 'MONTHS')).toBe('2026-10-01');
     expect(noticeDeadline('2027-01-31', 2, 'WEEKS')).toBe('2027-01-17');
@@ -50,12 +46,6 @@ describe('finance ↔ backend', () => {
     const second = resourcesWith(() => json({ id: 'i1', invoiceNumber: 'R-1', direction: 'INCOMING', status: 'RECEIVED', currency: 'EUR' }, 201));
     await second.api.invoices.create({ number: 'R-1', counterparty: 'ACME', amount: '1.234,50', direction: 'incoming' });
     expect(JSON.parse(String(second.calls[0]?.init.body))).toMatchObject({ invoiceNumber: 'R-1', supplierName: 'ACME', direction: 'INCOMING', grossAmount: '1234.50' });
-  });
-
-  it('matches a payment without sending an amount', async () => {
-    const { api, calls } = resourcesWith(() => json({}, 201));
-    await api.payments.match('t1', 'i1');
-    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({ transactionId: 't1', invoiceId: 'i1', matchType: 'MANUAL' });
   });
 
   it('sends an invoice through its own route, idempotently, with the letter as optional input', async () => {

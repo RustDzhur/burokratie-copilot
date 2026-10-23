@@ -22,7 +22,7 @@ import org.hibernate.type.SqlTypes;
  * "approve" has an approval button, not an approval.</p>
  *
  * <p>{@code automationLevel} is kept from the schema: it says how far this particular approval may be
- * automated, and the base configuration never lets a payment execute itself.</p>
+ * automated, and the base configuration never lets an action execute itself.</p>
  */
 @Entity
 @Table(name = "approvals")

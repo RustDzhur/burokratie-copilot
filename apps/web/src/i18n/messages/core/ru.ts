@@ -184,7 +184,6 @@ export const ruCore: CoreMessages = {
     'items.generatedDocument': 'Созданное письмо',
     'items.generated-documents': 'Созданные письма',
     'items.invoices': 'Документы (Belege)',
-    'items.payments': 'Платежи и сверка',
     'items.contacts': 'Манданты',
     'items.mandanten': 'Манданты',
     'items.mail': 'Почтовый центр',

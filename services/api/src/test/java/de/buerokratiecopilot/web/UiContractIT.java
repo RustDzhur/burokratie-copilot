@@ -283,7 +283,7 @@ class UiContractIT {
 
     @Test
     @Order(30)
-    @DisplayName("invoices, bank transactions and contracts answer in the shape the adapters read")
+    @DisplayName("invoices answer in the shape the adapters read")
     void finance() throws Exception {
         MvcResult invoice = mvc.perform(authed(post("/api/v1/invoices")).contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -299,9 +299,6 @@ class UiContractIT {
                 .andExpect(jsonPath("$.content[0].invoiceNumber").value("R-2026-1"))
                 .andExpect(jsonPath("$.content[0].supplierName").value("Stadtwerke Muster"))
                 .andExpect(jsonPath("$.totalElements").isNumber());
-
-        mvc.perform(authed(get("/api/v1/banking/transactions").param("status", "UNMATCHED", "SUGGESTED")))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.content").isArray());
     }
 
     // ------------------------------------------------------------------ people, mail, templates, automations
@@ -482,7 +479,7 @@ class UiContractIT {
     void unauthenticated() throws Exception {
         for (String path : new String[] {"/api/v1/dashboard/summary", "/api/v1/contacts", "/api/v1/settings/security",
                 "/api/v1/calendar/events?from=2026-01-01&to=2026-01-31", "/api/v1/mail/messages", "/api/v1/templates",
-                "/api/v1/banking/transactions", "/api/v1/invoices", "/api/v1/members"}) {
+                "/api/v1/invoices", "/api/v1/members"}) {
             mvc.perform(get(path)).andExpect(status().isUnauthorized());
         }
     }

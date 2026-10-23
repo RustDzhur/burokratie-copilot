@@ -286,19 +286,6 @@ export interface InvoiceSendResult {
   readonly documentFilename: string;
 }
 
-export type PaymentStatus = 'unmatched' | 'matched' | 'suggested' | 'ignored';
-
-export interface PaymentSummary {
-  readonly id: string;
-  readonly bookingDate: IsoDate;
-  readonly counterparty: string;
-  readonly amount: number;
-  readonly currency: string;
-  readonly reference?: string | null;
-  readonly status: PaymentStatus;
-  readonly suggestion?: string | null;
-}
-
 export type ContactType = 'person' | 'organisation' | 'authority';
 
 export interface ContactSummary {
@@ -450,7 +437,7 @@ export type IntegrationStatus = 'connected' | 'disconnected' | 'error' | 'pendin
 export interface IntegrationSummary {
   readonly id: string;
   readonly name: string;
-  readonly category: 'bank' | 'mail' | 'storage' | 'calendar' | 'device' | 'identity';
+  readonly category: 'mail' | 'storage' | 'calendar' | 'device' | 'identity';
   readonly status: IntegrationStatus;
   readonly lastSyncAt?: IsoDateTime | null;
   readonly configurationRequired?: boolean;
@@ -1005,9 +992,9 @@ export interface ApprovalRequestItem {
   /** True when the request is bound to the content (a change of the material invalidates it). */
   readonly bound: boolean;
   readonly case: { readonly id: string; readonly reference: string; readonly title: string } | null;
-  /** The material to decide on: for a payment the amount and recipient, for a letter the subject and the beginning of the text. */
+  /** The material to decide on: for a letter the subject, the addressees and the beginning of the text. */
   readonly material: Readonly<Record<string, unknown>>;
-  readonly warnings: readonly ('BANK_DETAILS_CHANGED' | 'OPEN_RADAR_FINDINGS')[];
+  readonly warnings: readonly 'OPEN_RADAR_FINDINGS'[];
   readonly mayDecide: boolean;
 }
 

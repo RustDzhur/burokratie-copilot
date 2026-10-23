@@ -2,7 +2,6 @@ package de.buerokratiecopilot.workflow.approval;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -53,7 +52,7 @@ class ApprovalCancelIT {
 
         UUID approvalId = RequestContext.runAs(tenantId, () -> approvals.request(tenantId, "invoice",
                 UUID.randomUUID(), "INVOICE_APPROVAL", "Rechnung prüfen", "Betrag geprüft",
-                new BigDecimal("119.00"), "OUTGOING", null, userId)).approvalId();
+                null, userId)).approvalId();
         return new Fixture(tenantId, userId, approvalId);
     }
 
@@ -204,8 +203,8 @@ class ApprovalCancelIT {
     void cancellingOneKeepsTheOthers() {
         Fixture first = fixture();
         UUID second = RequestContext.runAs(first.tenantId(), () -> approvals.request(first.tenantId(),
-                "invoice", UUID.randomUUID(), "INVOICE_APPROVAL", "Zweite", null, new BigDecimal("10.00"),
-                "OUTGOING", null, first.userId())).approvalId();
+                "invoice", UUID.randomUUID(), "INVOICE_APPROVAL", "Zweite", null,
+                null, first.userId())).approvalId();
 
         RequestContext.runAs(first.tenantId(), () -> {
             approvals.cancel(first.tenantId(), first.approvalId(), first.userId(), null);

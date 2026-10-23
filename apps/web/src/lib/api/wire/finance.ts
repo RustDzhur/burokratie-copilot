@@ -1,5 +1,5 @@
 /**
- * Invoices, bank transactions ("payments" on the screen) and contracts.
+ * Invoices and contracts.
  */
 
 import type {
@@ -8,8 +8,6 @@ import type {
   InvoiceDirection,
   InvoiceStatus,
   InvoiceSummary,
-  PaymentStatus,
-  PaymentSummary,
 } from '../types';
 
 /* ------------------------------ invoices ------------------------------ */
@@ -73,47 +71,6 @@ export function decimalFromInput(input: string): string {
   const trimmed = input.trim().replace(/\s/g, '');
   if (trimmed.includes(',')) return trimmed.replace(/\./g, '').replace(',', '.');
   return trimmed;
-}
-
-/* ---------------------- bank transactions as payments ---------------------- */
-
-export interface BankTransactionWire {
-  readonly id: string;
-  readonly booking_date: string;
-  readonly amount: number | string;
-  readonly currency: string;
-  readonly counterparty_name?: string | null;
-  readonly purpose?: string | null;
-  readonly reference?: string | null;
-  readonly status: string;
-  readonly suggested_invoice?: string | null;
-}
-
-const PAYMENT_STATUS_FROM_WIRE: Readonly<Record<string, PaymentStatus>> = {
-  UNMATCHED: 'unmatched',
-  SUGGESTED: 'suggested',
-  MATCHED: 'matched',
-  IGNORED: 'ignored',
-  INTERNAL: 'ignored',
-};
-
-export function paymentStatusesFor(status: string): string[] {
-  return Object.entries(PAYMENT_STATUS_FROM_WIRE)
-    .filter(([, screen]) => screen === status)
-    .map(([wire]) => wire);
-}
-
-export function paymentFromWire(wire: BankTransactionWire): PaymentSummary {
-  return {
-    id: wire.id,
-    bookingDate: wire.booking_date,
-    counterparty: wire.counterparty_name ?? '',
-    amount: Number(wire.amount),
-    currency: wire.currency,
-    reference: wire.reference ?? wire.purpose ?? null,
-    status: PAYMENT_STATUS_FROM_WIRE[wire.status] ?? 'unmatched',
-    suggestion: wire.suggested_invoice ?? null,
-  };
 }
 
 /* ------------------------------ contracts ------------------------------ */

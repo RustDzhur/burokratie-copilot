@@ -172,8 +172,8 @@ class CredentialEncryptionTest {
     @DisplayName("a disabled integration does not hand out its credentials")
     void disabledIntegrationWithholdsCredentials() {
         UUID tenantId = tenant();
-        IntegrationService.Connection connection = integrations.connect(tenantId, null, "BANK_AGGREGATOR",
-                "BANKING", "Bank", "API_KEY", fields(), null, null, null);
+        IntegrationService.Connection connection = integrations.connect(tenantId, null, "ACCOUNTING_DATEV",
+                "ACCOUNTING", "Buchhaltung", "API_KEY", fields(), null, null, null);
 
         integrations.disable(tenantId, connection.integrationId(), "Zugang widerrufen");
 

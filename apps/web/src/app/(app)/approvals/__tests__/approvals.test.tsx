@@ -9,20 +9,20 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const payment = {
+const letter = {
   id: 'a1',
-  title: 'Zahlung über 1190.00 EUR',
-  justification: 'Rechnung geprüft',
-  subject_type: 'PAYMENT',
-  approval_type: 'PAYMENT_APPROVAL',
+  title: 'Widerspruch senden',
+  justification: 'Text geprüft',
+  subject_type: 'OUTBOUND_MESSAGE',
+  approval_type: 'OUTBOUND_MESSAGE',
   required_role: null,
   requested_by_name: 'Erika Mustermann',
   expires_at: '2026-10-20T08:00:00Z',
   created_at: '2026-10-15T08:00:00Z',
   bound: true,
   case: { id: 'c1', reference: 'K-1', title: 'Preiserhöhung' },
-  material: { amount: '1190.00', currency: 'EUR', counterparty_name: 'Stadtwerke', counterparty_iban: 'DE89370400440532013000', reference: 'RE-1' },
-  warnings: ['BANK_DETAILS_CHANGED'],
+  material: { subject: 'Widerspruch gegen die Preiserhöhung', excerpt: 'Sehr geehrte Damen und Herren,', to_addresses: '["empfaenger@example.de"]', attachments: 0 },
+  warnings: ['OPEN_RADAR_FINDINGS'],
   mayDecide: true,
 };
 
@@ -47,21 +47,21 @@ describe('Approvals page', () => {
   });
 
   it('shows the material, the case, the warning and the binding, without accessibility violations', async () => {
-    serve([payment]);
+    serve([letter]);
     const { container } = renderWithProviders(<ApprovalsPage />);
-    expect(await screen.findByText('Zahlung über 1190.00 EUR')).toBeInTheDocument();
-    expect(screen.getByText('1190.00 EUR')).toBeInTheDocument();
-    expect(screen.getByText('DE89370400440532013000')).toBeInTheDocument();
+    expect(await screen.findByText('Widerspruch senden')).toBeInTheDocument();
+    expect(screen.getByText('Widerspruch gegen die Preiserhöhung')).toBeInTheDocument();
+    expect(screen.getByText('empfaenger@example.de')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /K-1/ })).toHaveAttribute('href', '/cases/c1');
-    expect(screen.getByText(/Kontoverbindung weicht von früheren Zahlungen/)).toBeInTheDocument();
+    expect(screen.getByText(/offene Radar-Befunde/)).toBeInTheDocument();
     expect(screen.getByText(/gilt nur für dieses Material/)).toBeInTheDocument();
     await expectNoA11yViolations(container);
   });
 
   it('refuses to reject or to ask for changes without a note, and sends the decision with it', async () => {
-    serve([payment]);
+    serve([letter]);
     renderWithProviders(<ApprovalsPage />);
-    await screen.findByText('Zahlung über 1190.00 EUR');
+    await screen.findByText('Widerspruch senden');
 
     await userEvent.click(screen.getByRole('button', { name: 'Ablehnen' }));
     expect(await screen.findByText('Bitte eine Anmerkung angeben.')).toBeInTheDocument();
@@ -76,9 +76,9 @@ describe('Approvals page', () => {
   });
 
   it('does not offer a decision the person is not entitled to', async () => {
-    serve([{ ...payment, mayDecide: false }]);
+    serve([{ ...letter, mayDecide: false }]);
     renderWithProviders(<ApprovalsPage />);
-    await screen.findByText('Zahlung über 1190.00 EUR');
+    await screen.findByText('Widerspruch senden');
     expect(screen.queryByRole('button', { name: 'Freigeben' })).not.toBeInTheDocument();
     expect(screen.getByText(/Sie können diese Anfrage nicht entscheiden/)).toBeInTheDocument();
   });

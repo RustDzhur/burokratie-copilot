@@ -191,7 +191,6 @@ export const deCore = {
     'items.generatedDocument': 'Erzeugtes Schreiben',
     'items.generated-documents': 'Erzeugte Schreiben',
     'items.invoices': 'Belege',
-    'items.payments': 'Zahlungen und Abgleich',
     'items.contacts': 'Mandanten',
     'items.mandanten': 'Mandanten',
     'items.mail': 'Postzentrum',

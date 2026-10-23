@@ -17,7 +17,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
-import de.buerokratiecopilot.approvals.PaymentApprovalService;
 import de.buerokratiecopilot.devices.DeviceService;
 import de.buerokratiecopilot.invoices.InvoiceService;
 import de.buerokratiecopilot.mail.outbound.OutboundMessageService;
@@ -64,9 +63,6 @@ class TenantIsolationSuiteIT {
 
     @Autowired
     private OutboundMessageService outbound;
-
-    @Autowired
-    private PaymentApprovalService payments;
 
     @Autowired
     private DeviceService devices;
@@ -180,24 +176,6 @@ class TenantIsolationSuiteIT {
     }
 
     @Test
-    @DisplayName("another tenant's payment is not reachable")
-    void paymentIsNotReachableAcrossTenants() {
-        Tenant owner = tenant();
-        Tenant stranger = tenant();
-        UUID paymentId = RequestContext.runAs(owner.tenantId(), () -> payments.prepare(
-                new PaymentApprovalService.PrepareRequest(owner.tenantId(), null, null,
-                        new BigDecimal("119.00"), "EUR", "Lieferant", null, null,
-                        LocalDate.of(2026, 4, 1)), owner.userId()).payment().getId());
-
-        assertThatThrownBy(() -> RequestContext.runAs(stranger.tenantId(),
-                () -> payments.requirePayment(paymentId, stranger.tenantId())))
-                .isInstanceOf(ApiException.class);
-
-        assertThat(RequestContext.runAs(owner.tenantId(),
-                () -> payments.requirePayment(paymentId, owner.tenantId())).getId()).isEqualTo(paymentId);
-    }
-
-    @Test
     @DisplayName("another tenant's device is not reachable")
     void deviceIsNotReachableAcrossTenants() {
         Tenant owner = tenant();
@@ -304,7 +282,7 @@ class TenantIsolationSuiteIT {
      */
     private static final java.util.Set<String> PLATFORM_WIDE_REFERENCE_TABLES = java.util.Set.of(
             "document_type_rules", "roles", "case_types", "deadline_rules", "workflow_definitions",
-            "workflow_versions", "tax_rates", "payment_approval_rules", "document_templates",
+            "workflow_versions", "tax_rates", "document_templates",
             "template_versions", "system_settings", "system_setting_history", "feature_flags",
             "outbox_consumptions");
 

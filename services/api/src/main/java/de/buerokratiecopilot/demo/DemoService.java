@@ -38,7 +38,7 @@ import de.buerokratiecopilot.shared.error.ErrorCode;
  *
  * <p>Every visitor gets a workspace of their own (a tenant created for them) so that two visitors never see or spoil each
  * other's cabinet, and so that "back to how it was" is exact: when the visitor leaves, or after a few hours, the whole workspace
- * is deleted. Nothing in it can leave the platform: mail, integrations and payments are closed ({@link DemoGuard}), and the
+ * is deleted. Nothing in it can leave the platform: mail and integrations are closed ({@link DemoGuard}), and the
  * letters are read by the platform's own rules, with no external AI.</p>
  */
 @Service

@@ -1,8 +1,6 @@
 package de.buerokratiecopilot.workflow.approval.web;
 
-import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +20,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import de.buerokratiecopilot.approvals.PaymentApprovalService;
 import de.buerokratiecopilot.shared.context.CurrentUser;
 import de.buerokratiecopilot.shared.context.RequestContext;
 import de.buerokratiecopilot.shared.error.ApiException;
@@ -31,16 +28,13 @@ import de.buerokratiecopilot.workflow.approval.ApprovalCenterService;
 import de.buerokratiecopilot.workflow.approval.ApprovalService;
 
 /**
- * Approvals and payments (spec §14, §20; §28.3 steps 7 to 9).
+ * Approvals (spec §14, §20; §28.3 steps 7 to 9).
  *
- * <p>{@code ApprovalService} and {@code PaymentApprovalService} were implemented and tested and had no
- * endpoint, so the chain the specification requires — an invoice needs approval, an authorised person
- * gives it, a payment is prepared — could not be walked by any client. This is the way in.</p>
+ * <p>An invoice or a letter that needs a decision gets a request here, and the person a request waits for
+ * decides it. The payment endpoints that used to live next to these went with the payment module (§4.3).</p>
  *
- * <p><strong>The authority is checked by the service, not by the endpoint.</strong> Who may approve what is
- * the customer's configuration in the rule table, and an endpoint annotation cannot express it: the answer
- * depends on the amount and on the role the rule names. The endpoint therefore asks the permission to
- * <em>ask</em>, and the service decides.</p>
+ * <p><strong>The authority is checked by the service, not by the endpoint.</strong> The endpoint asks for
+ * the permission to raise a request, and the service refuses a person who may not decide it.</p>
  *
  * <p><strong>Nobody approves their own request, and the caller cannot say who they are.</strong> The
  * decider is taken from the session; a body that named the approver would let the requester name
@@ -48,7 +42,7 @@ import de.buerokratiecopilot.workflow.approval.ApprovalService;
  */
 @RestController
 @RequestMapping("/api/v1")
-@Tag(name = "Approvals", description = "Decisions that need a person, and the payments they release")
+@Tag(name = "Approvals", description = "Decisions that need a person")
 public class ApprovalController {
 
     private static final String VIEW = "hasAnyAuthority('finance.view','finance.approve')";
@@ -56,30 +50,20 @@ public class ApprovalController {
     private static final String DECIDE = "hasAnyAuthority('finance.approve','finance.edit')";
 
     private final ApprovalService approvals;
-    private final PaymentApprovalService payments;
-
     private final ApprovalCenterService center;
 
-    public ApprovalController(ApprovalService approvals, PaymentApprovalService payments, ApprovalCenterService center) {
+    public ApprovalController(ApprovalService approvals, ApprovalCenterService center) {
         this.center = center;
         this.approvals = approvals;
-        this.payments = payments;
     }
 
     /** What a caller asks an approval for. */
     public record ApprovalRequest(String subjectType, UUID subjectId, String approvalType, String title,
-                                  String justification, BigDecimal amount, String direction,
-                                  Instant expiresAt) {
+                                  String justification, Instant expiresAt) {
     }
 
     /** A decision. Whether it counts is decided by the service, not by this body. */
     public record DecisionRequest(Boolean approved, String note, Boolean changesRequested) {
-    }
-
-    /** A payment to prepare. */
-    public record PaymentRequest(UUID invoiceId, UUID caseId, BigDecimal amount, String currency,
-                                 String counterpartyName, String counterpartyIban, String reference,
-                                 LocalDate paymentDate) {
     }
 
     // ---------------------------------------------------------------- the approvals
@@ -87,8 +71,7 @@ public class ApprovalController {
     /**
      * Raises an approval request.
      *
-     * <p>The authority the amount needs is read from the customer's rules and copied onto the request, so a
-     * later change to the matrix does not move the bar for a decision somebody is already considering.</p>
+     * <p>The person who decides is taken from the session; nobody decides their own request.</p>
      */
     @PostMapping("/approvals")
     @PreAuthorize(ASK)
@@ -101,7 +84,7 @@ public class ApprovalController {
         }
         ApprovalService.Request created = approvals.request(tenantId, request.subjectType(),
                 request.subjectId(), request.approvalType(), request.title(), request.justification(),
-                request.amount(), request.direction(), request.expiresAt(), actor);
+                request.expiresAt(), actor);
         return ResponseEntity.status(HttpStatus.CREATED).body(created.asMap());
     }
 
@@ -187,52 +170,6 @@ public class ApprovalController {
         result.put("escalated", escalated.size());
         result.put("ids", escalated.stream().map(UUID::toString).toList());
         return result;
-    }
-
-    // ---------------------------------------------------------------- the payments
-
-    /**
-     * Prepares a payment from an approved invoice.
-     *
-     * <p>Refused by the service when the invoice has not been approved: a payment prepared from an
-     * unapproved invoice is the step the whole approval exists to gate.</p>
-     */
-    @PostMapping("/payments")
-    @PreAuthorize(ASK)
-    @Operation(summary = "Prepares a payment; an unapproved invoice is refused")
-    public ResponseEntity<Map<String, Object>> preparePayment(@RequestBody PaymentRequest request) {
-        UUID tenantId = tenant();
-        UUID actor = CurrentUser.required();
-        if (request.amount() == null) {
-            throw new ApiException(ErrorCode.INVALID_REQUEST, "Ein Zahlungsbetrag ist erforderlich");
-        }
-        PaymentApprovalService.Prepared prepared = payments.prepare(new PaymentApprovalService.PrepareRequest(
-                tenantId, request.invoiceId(), request.caseId(), request.amount(),
-                request.currency() == null ? "EUR" : request.currency(), request.counterpartyName(),
-                request.counterpartyIban(), request.reference(), request.paymentDate()), actor);
-
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("paymentId", prepared.payment().getId().toString());
-        body.put("status", prepared.payment().getStatus().name());
-        body.put("approvalId", prepared.approval() == null ? null : prepared.approval().getId().toString());
-        body.put("levels", prepared.levels() == null ? 0 : prepared.levels().size());
-        return ResponseEntity.status(HttpStatus.CREATED).body(body);
-    }
-
-    /** One payment, with the approval behind it. */
-    @GetMapping("/payments/{paymentId}")
-    @PreAuthorize(VIEW)
-    @Operation(summary = "A prepared payment")
-    public Map<String, Object> payment(@PathVariable UUID paymentId) {
-        UUID tenantId = tenant();
-        var payment = payments.requirePayment(paymentId, tenantId);
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("paymentId", payment.getId().toString());
-        body.put("status", payment.getStatus().name());
-        body.put("amount", payment.getAmount());
-        body.put("currency", payment.getCurrency());
-        body.put("counterpartyName", payment.getCounterpartyName());
-        return body;
     }
 
     /** The tenant the caller is acting in, which is never taken from a body. */

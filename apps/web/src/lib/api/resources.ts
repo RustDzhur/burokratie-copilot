@@ -53,9 +53,6 @@ import {
   directionToWire,
   invoiceFromWire,
   invoiceStatusesFor,
-  paymentFromWire,
-  paymentStatusesFor,
-  type BankTransactionWire,
   type InvoiceWire,
 } from './wire/finance';
 import {
@@ -142,7 +139,6 @@ import type {
   MemberSummary,
   NotificationPreferences,
   NotificationSummary,
-  PaymentSummary,
   ReportResult,
   ReviewItem,
   SecuritySettings,
@@ -715,10 +711,6 @@ export interface ApiResources {
       id: string,
       payload?: { readonly to?: string; readonly subject?: string; readonly body?: string },
     ) => Promise<InvoiceSendResult>;
-  };
-  readonly payments: {
-    list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<PaymentSummary>>;
-    match: (id: string, invoiceId: string) => Promise<void>;
   };
   readonly ruleSettings: {
     list: (signal?: AbortSignal) => Promise<readonly RuleSetting[]>;
@@ -1708,25 +1700,6 @@ export function createResources(client: ApiClient): ApiResources {
             { idempotencyKey: true },
           ),
         ),
-    },
-    payments: {
-      list: async (params, signal) => {
-        const { status, sort: _ignored, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
-        const page = await client.list<BankTransactionWire>(
-          '/banking/transactions',
-          { ...rest, status: typeof status === 'string' ? paymentStatusesFor(status) : undefined },
-          withSignal(signal),
-        );
-        return { ...page, items: page.items.map(paymentFromWire) };
-      },
-      match: async (id, invoiceId) => {
-        // The amount is left out on purpose: without one the whole transaction is matched.
-        await client.post<unknown>(
-          '/banking/matches',
-          { transactionId: id, invoiceId, matchType: 'MANUAL' },
-          { idempotencyKey: true },
-        );
-      },
     },
     contacts: {
       list: async (params, signal) => {

@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Knows which workspaces are demo cabinets and what a demo cabinet may not do. A demo is open to anybody without a password, so
- * everything that reaches the outside world (mail, integrations, payments), changes the way in (password, tokens) or belongs to
+ * everything that reaches the outside world (mail, integrations), changes the way in (password, tokens) or belongs to
  * the operator stays closed in it.
  */
 @Component

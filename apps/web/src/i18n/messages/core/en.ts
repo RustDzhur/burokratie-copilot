@@ -182,7 +182,6 @@ export const enCore: CoreMessages = {
     'items.generatedDocument': 'Generated letter',
     'items.generated-documents': 'Generated letters',
     'items.invoices': 'Vouchers',
-    'items.payments': 'Payments and reconciliation',
     'items.contacts': 'Clients',
     'items.mandanten': 'Clients',
     'items.mail': 'Mail centre',

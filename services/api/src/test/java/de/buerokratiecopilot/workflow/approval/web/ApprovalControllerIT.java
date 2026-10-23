@@ -27,12 +27,12 @@ import de.buerokratiecopilot.identity.domain.User;
 import de.buerokratiecopilot.shared.context.RequestContext;
 
 /**
- * Approvals and payments over HTTP (spec §14, §20; §28.3 steps 7 to 9).
+ * Approvals over HTTP (spec §14, §20; §28.3 steps 7 to 9).
  *
- * <p>Both services were implemented and tested with no endpoint, so the chain the specification requires
- * could not be walked by any client. What this checks is that the routes exist, and — more importantly —
- * that the rule the whole feature rests on survives the journey through HTTP: <strong>nobody approves their
- * own request</strong>, and the decider is taken from the session rather than from the body.</p>
+ * <p>What this checks is that the routes exist, and — more importantly — that the rule the whole feature
+ * rests on survives the journey through HTTP: <strong>nobody approves their own request</strong>, and the
+ * decider is taken from the session rather than from the body. The payment routes went with the payment
+ * module (§4.3).</p>
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -87,8 +87,7 @@ class ApprovalControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"subjectType":"invoice","subjectId":"%s","approvalType":"INVOICE_APPROVAL",
-                                 "title":"Rechnung prüfen","justification":"Betrag geprüft",
-                                 "amount":119.00,"direction":"OUTGOING"}
+                                 "title":"Rechnung prüfen","justification":"Betrag geprüft"}
                                 """.formatted(UUID.randomUUID())))
                 .andExpect(status().isCreated())
                 .andReturn();
@@ -107,28 +106,6 @@ class ApprovalControllerIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id=='" + approvalId + "')]").exists())
                 .andExpect(jsonPath("$[0].status").value("PENDING"));
-    }
-
-    @Test
-    @DisplayName("the request says how many confirmations it needs, from the configured rules")
-    void theRequestSaysHowManyConfirmations() throws Exception {
-        Session session = register();
-
-        MvcResult created = mockMvc.perform(post("/api/v1/approvals").with(csrf())
-                        .cookie(session.cookie())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"subjectType":"invoice","subjectId":"%s","approvalType":"INVOICE_APPROVAL",
-                                 "title":"Große Rechnung","amount":5000.00,"direction":"OUTGOING"}
-                                """.formatted(UUID.randomUUID())))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.levelsRequired").isNumber())
-                .andReturn();
-
-        // The level comes from the customer's rules and is copied onto the request, so a later change to
-        // the matrix does not move the bar for a decision somebody is already considering.
-        int levels = JsonPath.read(created.getResponse().getContentAsString(), "$.levelsRequired");
-        org.assertj.core.api.Assertions.assertThat(levels).isGreaterThanOrEqualTo(1);
     }
 
     @Test
@@ -195,35 +172,6 @@ class ApprovalControllerIT {
                 .andExpect(jsonPath("$.escalated").isNumber());
     }
 
-    // ---------------------------------------------------------------- payments
-
-    @Test
-    @DisplayName("a payment without an amount is refused before anything is prepared")
-    void aPaymentWithoutAnAmountIsRefused() throws Exception {
-        Session session = register();
-
-        mockMvc.perform(post("/api/v1/payments").with(csrf())
-                        .cookie(session.cookie())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"currency\":\"EUR\"}"))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @DisplayName("a payment from an unapproved invoice is refused, because that is what the approval gates")
-    void aPaymentFromAnUnapprovedInvoiceIsRefused() throws Exception {
-        Session session = register();
-
-        mockMvc.perform(post("/api/v1/payments").with(csrf())
-                        .cookie(session.cookie())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"invoiceId":"%s","amount":119.00,"currency":"EUR",
-                                 "counterpartyName":"Lieferant","paymentDate":"2026-04-01"}
-                                """.formatted(UUID.randomUUID())))
-                .andExpect(status().is4xxClientError());
-    }
-
     // ---------------------------------------------------------------- what is refused
 
     @Test
@@ -234,8 +182,6 @@ class ApprovalControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"subjectType\":\"invoice\",\"subjectId\":\"%s\"}"
                                 .formatted(UUID.randomUUID())))
-                .andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/api/v1/payments/{id}", UUID.randomUUID()))
                 .andExpect(status().isUnauthorized());
     }
 

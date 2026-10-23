@@ -15,7 +15,7 @@ import { toApiError } from '@/lib/api/errors';
 import { useApiResource } from '@/lib/api/hooks';
 import type { ApprovalRequestItem } from '@/lib/api/types';
 
-type MaterialLabel = 'amount' | 'recipient' | 'iban' | 'reference' | 'invoice' | 'date' | 'subject' | 'excerpt' | 'to' | 'attachments';
+type MaterialLabel = 'subject' | 'excerpt' | 'to' | 'attachments';
 
 /** What the backend names the fields of the material, mapped to the labels above. */
 function materialRows(item: ApprovalRequestItem): { readonly label: MaterialLabel; readonly value: string }[] {
@@ -25,12 +25,6 @@ function materialRows(item: ApprovalRequestItem): { readonly label: MaterialLabe
     return value === null || value === undefined || value === '' ? null : String(value);
   };
   const rows: { label: MaterialLabel; value: string | null }[] = [
-    { label: 'amount', value: text('amount') ? `${text('amount')} ${text('currency') ?? ''}`.trim() : null },
-    { label: 'recipient', value: text('counterparty_name') },
-    { label: 'iban', value: text('counterparty_iban') },
-    { label: 'reference', value: text('reference') },
-    { label: 'invoice', value: text('invoice_number') },
-    { label: 'date', value: text('payment_date') },
     { label: 'subject', value: text('subject') },
     { label: 'to', value: text('to_addresses')?.replace(/[[\]"]/g, '') ?? null },
     { label: 'attachments', value: text('attachments') && text('attachments') !== '0' ? text('attachments') : null },
@@ -106,7 +100,7 @@ export default function ApprovalsPage() {
                     </p>
                     {item.warnings.map((warning) => (
                       <InlineAlert key={warning} tone="warning">
-                        {t(`warning.${warning}` as 'warning.BANK_DETAILS_CHANGED')}
+                        {t(`warning.${warning}` as 'warning.OPEN_RADAR_FINDINGS')}
                       </InlineAlert>
                     ))}
                     {item.justification ? (
@@ -117,7 +111,7 @@ export default function ApprovalsPage() {
                     <dl style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '0.25rem 1rem' }}>
                       {materialRows(item).map((row) => (
                         <div key={row.label} style={{ display: 'contents' }}>
-                          <dt>{t(`material.${row.label}` as 'material.amount')}</dt>
+                          <dt>{t(`material.${row.label}` as 'material.subject')}</dt>
                           <dd style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{row.value}</dd>
                         </div>
                       ))}

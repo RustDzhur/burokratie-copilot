@@ -27,7 +27,7 @@ import de.buerokratiecopilot.shared.config.BurokratieProperties;
  * <p><strong>What it knows and what it does not.</strong> It knows {@code ai/product-knowledge.md} (every screen, the
  * plans, the rules about the end of the access) and a few facts about the workspace it is asked from (the kind of
  * workspace, the role, the state of the subscription, how many documents wait for review). It has no tools and cannot
- * read a document, an invoice or a payment: the questions of a person about their own papers go to the document
+ * read a document or an invoice: the questions of a person about their own papers go to the document
  * assistant, and Iris says so. That keeps the product questions answerable without sending any private content to an
  * external model.</p>
  *
@@ -41,7 +41,7 @@ public class ProductGuideService {
     static final String HANDOFF = "[[HANDOFF]]";
     private static final Pattern OPEN = Pattern.compile("\\[\\[open:(/[a-z-]*)\\]\\]");
     private static final Set<String> ROUTES = Set.of("/dashboard", "/inbox", "/review", "/documents", "/cases", "/tasks",
-            "/calendar", "/contracts", "/invoices", "/payments", "/contacts", "/mail", "/templates", "/assistant",
+            "/calendar", "/contracts", "/invoices", "/contacts", "/mail", "/templates", "/assistant",
             "/automations", "/integrations", "/scan", "/reports", "/archive",
             "/security", "/accessibility", "/notifications", "/audit", "/billing");
     private static final int MAX_MESSAGES = 10;
@@ -156,9 +156,9 @@ public class ProductGuideService {
                 something is not there, say you do not know it.
                 - If the person should look at a screen, end your answer with exactly one marker [[open:/path]] using a path from \
                 the knowledge (for example [[open:/integrations]]). Never write any other link.
-                - You cannot see or change the person's documents, invoices, payments or settings. For questions about their own \
+                - You cannot see or change the person's documents, invoices or settings. For questions about their own \
                 papers send them to the KI-Assistent ([[open:/assistant]]).
-                - If the question is about a specific payment or a payment that does not show up, a defect, a legal or tax matter, \
+                - If the question is about a specific invoice or an invoice that does not show up, a defect, a legal or tax matter, \
                 a discount or custom development, or the person asks for a human: reply with exactly %s followed by one short polite \
                 sentence saying that the operator will help, in the person's language.
                 - Stay on topic. Politely decline unrelated requests (other companies, programming help, politics, jokes).

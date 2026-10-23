@@ -50,7 +50,6 @@ export type ScreenId =
   | 'rules'
   | 'calendar'
   | 'invoices' | 'generated-documents' | 'generatedDocument'
-  | 'payments'
   | 'contacts'
   | 'mandanten'
   | 'mail'
@@ -159,8 +158,6 @@ export const screens: readonly ScreenDefinition[] = [
   screen('calendar', '/calendar', 'clock', 'arbeit'),
   // §5.2.13 — invoices and expenses
   screen('invoices', '/invoices', 'receipt', 'arbeit', { minTier: 2 }),
-  // §5.2.14 — payments and reconciliation
-  screen('payments', '/payments', 'credit-card', null, { minTier: 2, inSidebar: false }),
   // §5.5 — the clients of the Kanzlei with the state of each one. §7 renames Contact to Mandant, so this is
   // the menu entry.
   screen('mandanten', '/mandanten', 'users', 'mandanten', { minTier: 0 }),

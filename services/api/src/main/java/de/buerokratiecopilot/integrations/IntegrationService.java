@@ -60,7 +60,7 @@ public class IntegrationService {
     /**
      * Registers or updates an integration and stores its credentials encrypted.
      *
-     * @param provider   the provider key, e.g. {@code IMAP} or {@code BANK_AGGREGATOR}
+     * @param provider   the provider key, e.g. {@code IMAP} or {@code ACCOUNTING_DATEV}
      * @param category   what the integration is for
      * @param fields     the credential fields; each value is encrypted, none is stored as given
      * @param credentialType the shape of the credential, as the schema names it

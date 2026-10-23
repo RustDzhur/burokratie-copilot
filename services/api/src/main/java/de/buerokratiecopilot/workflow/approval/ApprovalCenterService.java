@@ -45,23 +45,7 @@ public class ApprovalCenterService {
             UUID caseId = null;
             String type = String.valueOf(row.get("subject_type"));
             UUID subjectId = (UUID) row.get("subject_id");
-            if ("PAYMENT".equals(type)) {
-                List<Map<String, Object>> p = jdbc.queryForList("""
-                        select p.amount::text as amount, p.currency, p.counterparty_name, p.counterparty_iban, p.reference, p.case_id,
-                               p.payment_date::text as payment_date, i.invoice_number, coalesce(i.bank_details_changed, false) as bank_changed
-                        from payments p left join invoices i on i.id = p.invoice_id where p.id = ? and p.tenant_id = ?
-                        """, subjectId, tenantId);
-                if (!p.isEmpty()) {
-                    material.putAll(p.get(0));
-                    caseId = (UUID) p.get(0).get("case_id");
-                    material.remove("case_id");
-                    if (Boolean.TRUE.equals(p.get(0).get("bank_changed"))) {
-                        warnings.add("BANK_DETAILS_CHANGED");
-                    }
-                    material.remove("bank_changed");
-                }
-            }
-            else if ("OUTBOUND_MESSAGE".equals(type)) {
+            if ("OUTBOUND_MESSAGE".equals(type)) {
                 List<Map<String, Object>> m = jdbc.queryForList("""
                         select coalesce(final_subject, subject) as subject, left(coalesce(final_body_text, body_text), 600) as excerpt,
                                to_addresses::text as to_addresses, jsonb_array_length(attachment_document_ids) as attachments, case_id, channel

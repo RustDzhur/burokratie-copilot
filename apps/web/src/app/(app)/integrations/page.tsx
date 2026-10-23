@@ -17,7 +17,7 @@ import { IntegrationsOverview } from './integrations-overview';
 import { TelegramCard } from './telegram-card';
 
 const STATUS_VALUES = ['connected', 'disconnected', 'error', 'pending'] as const;
-const CATEGORY_VALUES = ['bank', 'mail', 'storage', 'calendar', 'device', 'identity'] as const;
+const CATEGORY_VALUES = ['mail', 'storage', 'calendar', 'device', 'identity'] as const;
 
 /** IMAP servers of the usual providers, so a person only has to pick the provider and type the password. */
 const IMAP_HOSTS: Readonly<Record<string, string>> = {

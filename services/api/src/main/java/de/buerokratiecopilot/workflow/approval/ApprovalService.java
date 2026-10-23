@@ -1,6 +1,5 @@
 package de.buerokratiecopilot.workflow.approval;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,19 +19,10 @@ import de.buerokratiecopilot.shared.error.ErrorCode;
  * Approvals, authority and escalation (spec §32, F-003).
  *
  * <p>The acceptance criterion is that an action of the highest level is impossible without the
- * confirmation of an authorised person. Three rules make that true rather than aspirational.</p>
- *
- * <p><strong>The authority matrix is data.</strong> Who may approve what, up to which amount and how many
- * confirmations are needed lives in {@code payment_approval_rules}, which a customer configures. A matrix
- * written into the code would be this platform deciding who is allowed to spend a company's money — a
- * rule nobody agreed to and that the first customer would need changed.</p>
+ * confirmation of an authorised person. Two rules make that true rather than aspirational.</p>
  *
  * <p><strong>Nobody approves their own request.</strong> A person who could would be a person for whom the
  * approval step does not exist, and the whole point of a second signature is that it is somebody else's.</p>
- *
- * <p><strong>Some levels need more than one.</strong> Where a rule says so, one approval is not enough: the
- * decision stays pending until the required number of different people have agreed. Counting approvals
- * rather than people would let the same person click twice.</p>
  *
  * <p><strong>An overdue request escalates rather than waits forever.</strong> Silence is not agreement,
  * and a request nobody answered must end up somewhere visible instead of blocking a process silently.</p>
@@ -48,11 +38,6 @@ public class ApprovalService {
     public ApprovalService(JdbcTemplate jdbc, ApprovalBinding binding) {
         this.jdbc = jdbc;
         this.binding = binding;
-    }
-
-    /** A rule of the authority matrix, as the customer configured it. */
-    public record Rule(String requiredRole, String requiredPermission, int levels,
-                       boolean secondPerson, BigDecimal minAmount, BigDecimal maxAmount) {
     }
 
     /** An approval request. */
@@ -85,70 +70,33 @@ public class ApprovalService {
     }
 
     /**
-     * Which rule applies to an amount and a direction.
-     *
-     * <p>The most specific rule wins: a rule naming a role beats one that names only a permission, and a
-     * narrower amount range beats a wider one. Without an order, two matching rules would make the
-     * required authority depend on the order rows happen to come back in.</p>
-     */
-    @Transactional(readOnly = true)
-    public Rule ruleFor(UUID tenantId, BigDecimal amount, String direction) {
-        List<Map<String, Object>> rows = jdbc.queryForList("""
-                select required_role, required_permission, approval_levels, require_second_person,
-                       min_amount, max_amount
-                from payment_approval_rules
-                where tenant_id = ? and is_active
-                  and (direction = ? or direction = 'ANY')
-                  and (min_amount is null or min_amount <= ?)
-                  and (max_amount is null or max_amount >= ?)
-                order by (required_role is null), (max_amount is null), max_amount, created_at
-                limit 1
-                """, tenantId, direction, amount, amount);
-
-        if (rows.isEmpty()) {
-            // No rule means nobody has said what this needs, so it goes to a person rather than through.
-            // Defaulting to "no approval needed" would be the platform allowing a payment nobody authorised.
-            return new Rule(null, null, 1, false, null, null);
-        }
-        Map<String, Object> row = rows.getFirst();
-        return new Rule((String) row.get("required_role"), (String) row.get("required_permission"),
-                ((Number) row.get("approval_levels")).intValue(),
-                Boolean.TRUE.equals(row.get("require_second_person")),
-                (BigDecimal) row.get("min_amount"), (BigDecimal) row.get("max_amount"));
-    }
-
-    /**
      * Raises an approval request.
      *
-     * <p>The rule that applies is copied onto the request, so a later change to the matrix does not move
-     * the bar for a decision somebody is already considering.</p>
+     * <p>Every request now needs one person: the amount-based authority matrix was part of the payment
+     * module and went with it. Who may decide is still checked against the memberships and roles the
+     * platform already knows, and nobody may decide their own request.</p>
      */
     @Transactional
     public Request request(UUID tenantId, String subjectType, UUID subjectId, String approvalType,
-                           String title, String justification, BigDecimal amount, String direction,
-                           Instant expiresAt, UUID requestedBy) {
-        Rule rule = ruleFor(tenantId, amount == null ? BigDecimal.ZERO : amount, direction);
-
+                           String title, String justification, Instant expiresAt, UUID requestedBy) {
         UUID approvalId = jdbc.queryForObject("""
                 insert into approvals (id, tenant_id, subject_type, subject_id, approval_type, status,
                                        automation_level, title, justification, requested_by,
                                        required_permission, required_role, expires_at, metadata)
-                values (gen_random_uuid(), ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
+                values (gen_random_uuid(), ?, ?, ?, ?, 'PENDING', 1, ?, ?, ?, null, null, ?, ?::jsonb)
                 returning id
                 """, UUID.class, tenantId, subjectType, subjectId,
-                approvalType == null ? "PAYMENT" : approvalType.toUpperCase(java.util.Locale.ROOT),
-                rule.levels(), title, justification, requestedBy, rule.requiredPermission(),
-                rule.requiredRole(), expiresAt == null ? null : java.sql.Timestamp.from(expiresAt),
-                "{\"levelsRequired\":" + rule.levels() + ",\"secondPerson\":" + rule.secondPerson() + "}");
+                approvalType == null ? "OTHER" : approvalType.toUpperCase(java.util.Locale.ROOT),
+                title, justification, requestedBy,
+                expiresAt == null ? null : java.sql.Timestamp.from(expiresAt),
+                "{\"levelsRequired\":1,\"secondPerson\":false}");
 
         binding.of(tenantId, subjectType, subjectId).ifPresent(fingerprint -> jdbc.update(
                 "update approvals set content_hash = ?, subject_version = ? where id = ? and tenant_id = ?",
                 fingerprint.hash(), fingerprint.version(), approvalId, tenantId));
         journal(tenantId, approvalId, "REQUESTED", requestedBy, justification);
-        LOG.info("Approval {} requested in tenant {} (level {}, role {})", approvalId, tenantId,
-                rule.levels(), rule.requiredRole());
-        return new Request(approvalId, "PENDING", rule.levels(), 0, rule.requiredRole(),
-                rule.requiredPermission());
+        LOG.info("Approval {} requested in tenant {}", approvalId, tenantId);
+        return new Request(approvalId, "PENDING", 1, 0, null, null);
     }
 
     /**
@@ -326,7 +274,7 @@ public class ApprovalService {
     /**
      * Called by whatever executes the approved action: nothing is executed on a confirmation that was given for other content.
      *
-     * <p>If the subject has approvals bound to a fingerprint, one of them must be an approval of the content as it is now.
+     * <p>Only a letter carries a fingerprint now: the payment module and its content binding are gone.
      * Otherwise the approvals given for the earlier content expire, a new request is raised for the current content (unless
      * one is already waiting), a release or confirmation recorded on the subject itself is withdrawn, and the caller is
      * refused. Runs in its own transaction: the expiry and the new request must survive the refusal.</p>
@@ -337,28 +285,19 @@ public class ApprovalService {
         if (now == null) {
             return;
         }
-        // A release recorded on the subject itself (a letter's approved_by, a payment's confirmation).
-        String recorded = "OUTBOUND_MESSAGE".equals(subjectType)
-                ? jdbc.query("select approved_content_hash from outbound_messages where id = ? and tenant_id = ?",
-                        rs -> rs.next() ? rs.getString(1) : null, subjectId, tenantId)
-                : jdbc.query("select approved_content_hash from payments where id = ? and tenant_id = ?",
-                        rs -> rs.next() ? rs.getString(1) : null, subjectId, tenantId);
+        if (!"OUTBOUND_MESSAGE".equals(subjectType)) {
+            return; // a subject without a fingerprint is not bound to content
+        }
+        // A release recorded on the letter itself (approved_by, approved_content_hash).
+        String recorded = jdbc.query("select approved_content_hash from outbound_messages where id = ? and tenant_id = ?",
+                rs -> rs.next() ? rs.getString(1) : null, subjectId, tenantId);
         boolean subjectChanged = recorded != null && !recorded.equals(now.hash());
         if (subjectChanged) {
-            if ("OUTBOUND_MESSAGE".equals(subjectType)) {
-                jdbc.update("""
-                        update outbound_messages set status = 'PENDING_APPROVAL', approved_by = null, approved_at = null,
-                               approved_content_hash = null, updated_at = now()
-                        where id = ? and tenant_id = ? and status in ('APPROVED', 'QUEUED')
-                        """, subjectId, tenantId);
-            }
-            else {
-                jdbc.update("""
-                        update payments set status = 'AWAITING_APPROVAL', confirmed_by = null, confirmed_at = null,
-                               approved_content_hash = null, updated_at = now()
-                        where id = ? and tenant_id = ? and status = 'APPROVED'
-                        """, subjectId, tenantId);
-            }
+            jdbc.update("""
+                    update outbound_messages set status = 'PENDING_APPROVAL', approved_by = null, approved_at = null,
+                           approved_content_hash = null, updated_at = now()
+                    where id = ? and tenant_id = ? and status in ('APPROVED', 'QUEUED')
+                    """, subjectId, tenantId);
         }
 
         Integer bound = jdbc.queryForObject("select count(*) from approvals where tenant_id = ? and subject_type = ? and subject_id = ? and content_hash is not null",
@@ -437,16 +376,15 @@ public class ApprovalService {
     // ------------------------------------------------------------------ internals
 
     /**
-     * Whether a person holds the authority a rule demands.
+     * Whether a person holds the authority an approval demands.
      *
-     * <p>Either the required permission or the required role is enough: a rule naming a permission says
-     * what somebody may do, and a rule naming a role says who they are, and a customer may reasonably
-     * write either.</p>
+     * <p>New requests demand no role or permission: a member may decide, and the endpoint's own permission
+     * still guards who may reach the route. A request raised before the payment module was removed carries
+     * the role and permission the old matrix copied onto it, and those still have to be held.</p>
      */
     private boolean hasAuthority(UUID tenantId, UUID userId, String permission, String role) {
         if (permission == null && role == null) {
-            // No authority was demanded, so membership is the only requirement. Reached when a customer
-            // has configured no rule at all.
+            // No authority was demanded, so membership is the only requirement.
             Integer member = jdbc.queryForObject("""
                     select count(*) from memberships where tenant_id = ? and user_id = ? and status = 'ACTIVE'
                     """, Integer.class, tenantId, userId);
