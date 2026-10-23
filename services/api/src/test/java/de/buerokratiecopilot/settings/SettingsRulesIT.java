@@ -86,10 +86,15 @@ class SettingsRulesIT {
         assertThat(RequestContext.runAs(a.tenantId(), () -> jdbc.queryForObject(
                 "select count(*) from audit_events where tenant_id = ? and action = 'RULE_SETTING_CHANGED'", Integer.class, a.tenantId()))).isEqualTo(2);
 
+        // The radar module was deleted (§4.3), so its switches are no longer offered. They stay settable through
+        // the API for a legacy workspace, but a list that shows them would present controls that change nothing.
         String list = call(a, get("/api/v1/settings/rules"), "").getResponse().getContentAsString();
-        Map<String, Object> row = JsonPath.<List<Map<String, Object>>>read(list, "$[?(@.key=='radar.invoice.amount_change_percent')]").getFirst();
-        assertThat(row).containsEntry("overridden", true).containsEntry("version", 2);
-        assertThat(String.valueOf(row.get("default"))).isEqualTo("10");
+        assertThat(JsonPath.<List<Map<String, Object>>>read(list, "$[?(@.key=='radar.invoice.amount_change_percent')]"))
+                .as("the radar is gone, and so are its switches")
+                .isEmpty();
+        assertThat(JsonPath.<List<Map<String, Object>>>read(list, "$[?(@.key=='classification.review_threshold')]"))
+                .as("a setting that still exists is still listed")
+                .hasSize(1);
     }
 
     @Test

@@ -122,6 +122,11 @@ public class RuleSettingsService {
         List<Map<String, Object>> out = new ArrayList<>();
         for (Map.Entry<String, Spec> entry : EDITABLE.entrySet()) {
             String key = entry.getKey();
+            // §4.3 removed the radar module. Its switches still exist as rows, and offering them would present a
+            // control that changes nothing - the same lie as a menu entry for a module that is gone.
+            if (key.startsWith("radar.")) {
+                continue;
+            }
             List<Map<String, Object>> defaults = jdbc.queryForList(
                     "select category, description::text as description, requires_verification from system_settings where tenant_id is null and setting_key = ?", key);
             if (defaults.isEmpty() || Boolean.TRUE.equals(defaults.getFirst().get("requires_verification"))) {
