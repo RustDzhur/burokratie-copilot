@@ -63,10 +63,6 @@ class DataSubjectRequestIT {
             jdbc.update("insert into contact_identifiers (tenant_id, contact_id, kind, value, normalized_value) values (?, ?, 'EMAIL', 'erika@example.de', 'erika@example.de')",
                     a.tenantId(), id);
             jdbc.update("""
-                    insert into contracts (tenant_id, title, contract_type, status, counterparty_contact_id)
-                    values (?, 'Mietvertrag', 'RENT', 'ACTIVE', ?)
-                    """, a.tenantId(), id);
-            jdbc.update("""
                     insert into invoices (tenant_id, direction, invoice_number, contact_id, gross_amount, currency)
                     values (?, 'INCOMING', 'R-1', ?, 100.00, 'EUR')
                     """, a.tenantId(), id);
@@ -91,13 +87,11 @@ class DataSubjectRequestIT {
         body(a, get("/api/v1/privacy/subjects/search?q=x"), "", 400);
 
         String overview = body(a, get("/api/v1/privacy/subjects/" + id), "", 200);
-        assertThat((Integer) JsonPath.read(overview, "$.contracts")).isEqualTo(1);
         assertThat((Integer) JsonPath.read(overview, "$.invoices")).isEqualTo(1);
         assertThat((Integer) JsonPath.read(overview, "$.identifiers")).isEqualTo(1);
 
         String copy = body(a, get("/api/v1/privacy/subjects/" + id + "/export"), "", 200);
         assertThat((String) JsonPath.read(copy, "$.contact.email")).isEqualTo("erika@example.de");
-        assertThat((List<?>) JsonPath.read(copy, "$.contracts")).hasSize(1);
         assertThat((List<?>) JsonPath.read(copy, "$.invoices")).hasSize(1);
 
         List<String> kinds = RequestContext.runAs(a.tenantId(), () -> jdbc.queryForList(
@@ -136,7 +130,6 @@ class DataSubjectRequestIT {
         body(a, post("/api/v1/privacy/subjects/" + id + "/erasure"), "{}", 400);
         String result = body(a, post("/api/v1/privacy/subjects/" + id + "/erasure"), "{\"reason\":\"Löschverlangen der Person\"}", 200);
 
-        assertThat((Integer) JsonPath.read(result, "$.retained.contracts")).isEqualTo(1);
         assertThat((Integer) JsonPath.read(result, "$.retained.invoices")).isEqualTo(1);
         assertThat((String) JsonPath.read(result, "$.retainedReason")).contains("Verantwortliche");
         assertThat(RequestContext.runAs(a.tenantId(), () -> jdbc.queryForMap(
@@ -146,7 +139,7 @@ class DataSubjectRequestIT {
         assertThat(RequestContext.runAs(a.tenantId(), () -> jdbc.queryForObject(
                 "select count(*) from contact_identifiers where contact_id = ?", Integer.class, id))).isZero();
         assertThat(RequestContext.runAs(a.tenantId(), () -> jdbc.queryForObject(
-                "select count(*) from contracts where counterparty_contact_id = ?", Integer.class, id))).as("business records are not deleted").isEqualTo(1);
+                "select count(*) from invoices where contact_id = ?", Integer.class, id))).as("business records are not deleted").isEqualTo(1);
         assertThat(RequestContext.runAs(a.tenantId(), () -> jdbc.queryForObject(
                 "select count(*) from audit_events where tenant_id = ? and action = 'DATA_SUBJECT_ERASURE'", Integer.class, a.tenantId()))).isEqualTo(1);
         body(a, get("/api/v1/privacy/subjects/" + id), "", 404);

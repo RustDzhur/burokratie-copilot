@@ -57,14 +57,12 @@ class ContactProfileIT {
     }
 
     @Test
-    @DisplayName("the profile lists contracts, invoices and visible cases of the contact; a private case stays hidden from a colleague; another tenant finds nothing")
+    @DisplayName("the profile lists invoices and visible cases of the contact; a private case stays hidden from a colleague; another tenant finds nothing")
     void profile() throws Exception {
         Account a = newTenant();
         Account b = newTenant();
         UUID contact = support.contactIn(a.tenantId(), "Stadtwerke Musterstadt");
         RequestContext.runAs(a.tenantId(), () -> {
-            jdbc.update("insert into contracts (id, tenant_id, title, contract_type, status, counterparty_contact_id) values (gen_random_uuid(), ?, 'Strom', 'ENERGY', 'ACTIVE', ?)",
-                    a.tenantId(), contact);
             jdbc.update("insert into invoices (id, tenant_id, direction, contact_id, invoice_number, gross_amount) values (gen_random_uuid(), ?, 'INCOMING', ?, 'R-1', 96.00)",
                     a.tenantId(), contact);
             jdbc.update("insert into cases (id, tenant_id, reference, title, status, priority, opened_at, owner_user_id, counterparty_contact_id) values (gen_random_uuid(), ?, 'K-1', 'Privat', 'NEW', 'NORMAL', now(), ?, ?)",
@@ -74,7 +72,6 @@ class ContactProfileIT {
         String body = mockMvc.perform(get("/api/v1/memory/entities/" + contact).cookie(a.cookie())).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         assertThat((Object) JsonPath.read(body, "$.contact.display_name")).isEqualTo("Stadtwerke Musterstadt");
-        assertThat((Object) JsonPath.read(body, "$.contracts[0].title")).isEqualTo("Strom");
         assertThat((Object) JsonPath.read(body, "$.invoices[0].invoice_number")).isEqualTo("R-1");
         assertThat((Object) JsonPath.read(body, "$.cases[0].reference")).isEqualTo("K-1");
 

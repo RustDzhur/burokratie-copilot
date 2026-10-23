@@ -29,7 +29,6 @@ public class DeletionService {
         TASK("tasks.edit"),
         CASE("cases.edit"),
         CONTACT("contacts.edit"),
-        CONTRACT("contracts.edit"),
         TEMPLATE("templates.edit"),
         MAIL("mail.view"),
         CALENDAR_EVENT("tasks.edit"),
@@ -89,9 +88,6 @@ public class DeletionService {
             }
             case CONTACT -> changed = jdbc.update(
                     "update contacts set deleted_at = now() where id = ? and tenant_id = ? and deleted_at is null",
-                    id, tenantId);
-            case CONTRACT -> changed = jdbc.update(
-                    "update contracts set deleted_at = now() where id = ? and tenant_id = ? and deleted_at is null",
                     id, tenantId);
             case TEMPLATE -> changed = jdbc.update(
                     "update document_templates set is_active = false where id = ? and tenant_id = ? and is_active",

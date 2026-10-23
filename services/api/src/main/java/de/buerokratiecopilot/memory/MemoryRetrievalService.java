@@ -15,13 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 import de.buerokratiecopilot.ai.rag.RetrievalService;
 
 /**
- * Search over the whole business memory: the text of documents, the facts read from them (with their verification), the
- * relationships a person confirmed and the obligations of contracts.
+ * Search over the whole business memory: the text of documents, the facts read from them (with their verification) and the
+ * relationships a person confirmed.
  *
  * <p>The selection itself respects the rights of the reader: what a person may not read is never fetched, so no answer
- * built on the result can quote it. Facts and text need {@code documents.view}, contract obligations
- * {@code contracts.view}, contact relationships {@code contacts.view}; a relationship to a case shows only for someone who
- * may see that case.</p>
+ * built on the result can quote it. Facts and text need {@code documents.view}, contact relationships
+ * {@code contacts.view}; a relationship to a case shows only for someone who may see that case.</p>
  */
 @Service
 public class MemoryRetrievalService {
@@ -30,7 +29,7 @@ public class MemoryRetrievalService {
     static final double CONFIRMED_FACT_WEIGHT = 1.5;
 
     public enum Kind {
-        PAGE_TEXT, FACT, RELATIONSHIP, OBLIGATION
+        PAGE_TEXT, FACT, RELATIONSHIP
     }
 
     /** One thing found, with everything needed to cite it. */
@@ -112,10 +111,6 @@ public class MemoryRetrievalService {
         if (held.contains("contacts.view")) {
             hits.addAll(contactRelationships(tenantId, query, size, tsq));
         }
-        if (held.contains("contracts.view")) {
-            hits.addAll(contractRelationships(tenantId, query, size, tsq));
-            hits.addAll(obligations(tenantId, query, size, tsq));
-        }
         if (held.contains("cases.view")) {
             hits.addAll(caseRelationships(tenantId, userId, query, size, tsq));
         }
@@ -187,24 +182,6 @@ public class MemoryRetrievalService {
                 query, tenantId, limit);
     }
 
-    private List<Hit> contractRelationships(UUID tenantId, String query, int limit, String tsq) {
-        return jdbc.query(sql("""
-                select m.document_id, d.original_filename, k.id as target_id, k.title,
-                       ts_rank(to_tsvector('german', k.title || ' ' || coalesce(k.contract_number, '')), q.tsq) as relevance
-                from document_matches m join documents d on d.id = m.document_id
-                join contracts k on k.id = m.target_id and k.tenant_id = m.tenant_id
-                cross join (select {TSQ} as tsq) q
-                where m.tenant_id = ? and m.match_type = 'CONTRACT' and m.status = 'CONFIRMED'
-                  and d.deleted_at is null and k.deleted_at is null
-                  and to_tsvector('german', k.title || ' ' || coalesce(k.contract_number, '')) @@ q.tsq
-                order by relevance desc limit ?
-                """, tsq), (rs, row) -> new Hit(Kind.RELATIONSHIP, rs.getObject("document_id", UUID.class),
-                rs.getString("original_filename"), null,
-                "Dokument gehört zum Vertrag " + rs.getString("title") + " (bestätigt)", rs.getDouble("relevance"),
-                "USER_CONFIRMED", "CONTRACT", rs.getObject("target_id", UUID.class), null, null, null, null),
-                query, tenantId, limit);
-    }
-
     private List<Hit> caseRelationships(UUID tenantId, UUID userId, String query, int limit, String tsq) {
         boolean all = ReaderRights.seesEveryCase();
         return jdbc.query(sql("""
@@ -225,22 +202,6 @@ public class MemoryRetrievalService {
                 "Dokument gehört zum Vorgang " + rs.getString("title") + " (bestätigt)", rs.getDouble("relevance"),
                 "USER_CONFIRMED", "CASE", rs.getObject("target_id", UUID.class), null, null, null, null),
                 query, tenantId, all, userId, userId, userId, limit);
-    }
-
-    private List<Hit> obligations(UUID tenantId, String query, int limit, String tsq) {
-        return jdbc.query(sql("""
-                select o.id, o.title, o.due_date, o.status, k.id as contract_id, k.title as contract_title,
-                       ts_rank(to_tsvector('german', o.title || ' ' || k.title), q.tsq) as relevance
-                from contract_obligations o join contracts k on k.id = o.contract_id
-                cross join (select {TSQ} as tsq) q
-                where o.tenant_id = ? and k.deleted_at is null
-                  and to_tsvector('german', o.title || ' ' || k.title) @@ q.tsq
-                order by relevance desc limit ?
-                """, tsq), (rs, row) -> new Hit(Kind.OBLIGATION, null, rs.getString("contract_title"), null,
-                "Pflicht: " + rs.getString("title") + (rs.getDate("due_date") == null ? "" : ", fällig " + rs.getDate("due_date"))
-                        + " (" + rs.getString("status") + ")", rs.getDouble("relevance"), null, "CONTRACT",
-                rs.getObject("contract_id", UUID.class), null, null, null, null),
-                query, tenantId, limit);
     }
 
     /** Facts about the same thing, with the same key, that disagree. Only facts that have a subject can be compared. */

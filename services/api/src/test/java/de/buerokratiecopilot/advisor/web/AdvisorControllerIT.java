@@ -52,22 +52,27 @@ class AdvisorControllerIT {
     }
 
     private Session register(String kind) throws Exception {
-        // An advisor account is one of type EXTERNAL_REPRESENTATIVE: the service refuses to manage clients
-        // from any other kind, which is itself worth knowing and is what this test discovered.
-        String accountType = kind.contains("Berater") ? "EXTERNAL_REPRESENTATIVE" : "COMPANY";
+        // Registration creates a Kanzlei account, whatever the body says: that is the one kind of cabinet the
+        // product still offers. The advisor service, which predates that decision, still requires the
+        // EXTERNAL_REPRESENTATIVE account type for the party that manages clients, so the fixture sets it
+        // directly - the HTTP surface this test covers is the arrangement itself, not the account type.
         String email = "adv-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de";
         MvcResult registration = mockMvc.perform(post("/api/v1/auth/register").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"%s","password":"EinSicheresPasswort-2026!",
-                                 "displayName":"%s","accountType":"%s"}
-                                """.formatted(email, kind, accountType)))
+                                 "displayName":"%s"}
+                                """.formatted(email, kind)))
                 .andExpect(status().isCreated())
                 .andReturn();
         UUID tenantId = UUID.fromString(JsonPath.read(
                 registration.getResponse().getContentAsString(), "$.tenantId"));
         UUID userId = UUID.fromString(JsonPath.read(
                 registration.getResponse().getContentAsString(), "$.userId"));
+        if (kind.contains("Berater")) {
+            jdbc.update("update tenants set account_type = 'EXTERNAL_REPRESENTATIVE', updated_at = now() where id = ?",
+                    tenantId);
+        }
 
         RequestContext.runAs(tenantId, () -> {
             User user = users.findById(userId).orElseThrow();

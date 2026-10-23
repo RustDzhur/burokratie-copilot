@@ -16,7 +16,7 @@ import de.buerokratiecopilot.shared.util.JsonColumns;
 
 /**
  * The profile of a contact (task BM-UI-01): who they are, what they are recognised by, and everything the memory holds about
- * them - documents, contracts, invoices, cases, open findings. Each part shows only to a reader who may see that kind of
+ * them - documents, invoices, cases, open findings. Each part shows only to a reader who may see that kind of
  * thing, and the cases only those the reader may open.
  */
 @Service
@@ -52,11 +52,6 @@ public class ContactProfileService {
                 where m.tenant_id = ? and m.match_type = 'CONTACT' and m.target_id = ? and m.status <> 'REJECTED' and d.deleted_at is null
                 order by d.received_at desc nulls last limit 50
                 """, tenantId, contactId)) : List.of());
-
-        profile.put("contracts", held.contains("contracts.view") ? jdbc.queryForList("""
-                select id, title, contract_type, status, end_date, notice_deadline_date, cost_amount, cost_currency, cost_interval
-                from contracts where tenant_id = ? and counterparty_contact_id = ? and deleted_at is null order by created_at desc limit 50
-                """, tenantId, contactId) : List.of());
 
         profile.put("invoices", held.contains("finance.view") ? jdbc.queryForList("""
                 select id, invoice_number, direction, gross_amount, currency, status, payment_status, issue_date, due_date

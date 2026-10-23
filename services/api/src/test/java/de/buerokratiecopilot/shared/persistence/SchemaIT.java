@@ -49,8 +49,7 @@ class SchemaIT {
             "tasks", "task_assignees", "task_comments", "task_checklist_items", "task_events",
             "workflow_definitions", "workflow_versions", "workflow_runs", "workflow_run_steps",
             "workflow_events", "approvals", "approval_events",
-            // contracts and finance
-            "contracts", "contract_parties", "contract_clauses", "contract_events",
+            // finance
             "invoices", "invoice_lines", "credit_notes", "payments", "payment_matches",
             "financial_accounts", "suppliers", "customers", "purchase_orders", "payment_approvals",
             // mail and communication
@@ -109,7 +108,7 @@ class SchemaIT {
 
         // Spot-check the tables that are always queried per tenant.
         assertThat(indexed).contains(
-                "documents", "cases", "tasks", "invoices", "contracts", "mail_messages",
+                "documents", "cases", "tasks", "invoices", "mail_messages",
                 "audit_events", "notifications");
     }
 
@@ -235,15 +234,6 @@ class SchemaIT {
                     """))
                     .isInstanceOf(SQLException.class)
                     .hasMessageContaining("message_delivery_events_proof_chk");
-
-            // A contract cannot end before it starts (§13).
-            assertThatThrownBy(() -> statement.execute("""
-                    INSERT INTO contracts (tenant_id, title, contract_type, start_date, end_date)
-                    VALUES ('11111111-1111-1111-1111-111111111111', 'Bad period', 'RENT',
-                            DATE '2026-06-01', DATE '2026-01-01')
-                    """))
-                    .isInstanceOf(SQLException.class)
-                    .hasMessageContaining("contracts_period_chk");
 
             // Content integrity: a malformed hash must never be stored (§6.2, §22).
             assertThatThrownBy(() -> statement.execute("""

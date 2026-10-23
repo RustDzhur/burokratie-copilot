@@ -16,13 +16,13 @@ import de.buerokratiecopilot.shared.error.ApiException;
  * Facts of the business memory: the values read from documents, with their origin, their verification and their history.
  *
  * <p>A fact is a row of {@code document_extractions} (decision D-04). The history is kept by the database
- * ({@code fact_revisions}); this service reads it and attaches a fact to the contact, contract, case or invoice it is about.</p>
+ * ({@code fact_revisions}); this service reads it and attaches a fact to the contact, case or invoice it is about.</p>
  */
 @Service
 public class FactService {
 
     private static final Map<String, String> SUBJECT_TABLES = Map.of(
-            "CONTACT", "contacts", "CONTRACT", "contracts", "CASE", "cases", "INVOICE", "invoices");
+            "CONTACT", "contacts", "CASE", "cases", "INVOICE", "invoices");
 
     private final JdbcTemplate jdbc;
     private final AuditService audit;
@@ -64,7 +64,7 @@ public class FactService {
                 """, tenantId, factId);
     }
 
-    /** The facts about a contact, contract, case or invoice, over all documents. */
+    /** The facts about a contact, case or invoice, over all documents. */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> factsOfSubject(UUID tenantId, String subjectType, UUID subjectId) {
         requireKnownType(subjectType);

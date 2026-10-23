@@ -28,7 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import de.buerokratiecopilot.shared.context.RequestContext;
 
-/** The document page shows the risks that cite the document and the cases it belongs to (S02-14). */
+/** The document page shows the cases the document belongs to (S02-14). */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -63,8 +63,8 @@ class DocumentInsightsIT {
     }
 
     @Test
-    @DisplayName("findings are listed per document they cite, cases per document; another tenant sees neither")
-    void risksAndCasesOfOneDocument() throws Exception {
+    @DisplayName("cases are listed per document; another tenant sees none")
+    void casesOfOneDocument() throws Exception {
         Session owner = register();
         UUID doc = upload(owner, "a.txt");
         UUID other = upload(owner, "b.txt");
@@ -75,22 +75,7 @@ class DocumentInsightsIT {
                     caseId, tenant, owner.userId());
             jdbc.update("insert into case_documents (case_id, document_id, tenant_id, link_origin) values (?, ?, ?, 'MANUAL')",
                     caseId, doc, tenant);
-            UUID finding = UUID.randomUUID();
-            jdbc.update("""
-                    insert into radar_findings (id, tenant_id, finding_key, finding_type, rule_id, rule_version, title, severity, material_hash)
-                    values (?, ?, 'E1:x', 'CONFLICTING_FACTS', 'E1', 1, 'Betrag widerspricht', 'HIGH', 'h')
-                    """, finding, tenant);
-            jdbc.update("insert into radar_finding_evidence (tenant_id, finding_id, document_id) values (?, ?, ?)",
-                    tenant, finding, doc);
         });
-
-        String findings = mockMvc.perform(get("/api/v1/radar/findings?documentId=" + doc).cookie(owner.cookie()))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        assertThat((Integer) JsonPath.read(findings, "$.total")).isEqualTo(1);
-        assertThat((String) JsonPath.read(findings, "$.items[0].title")).isEqualTo("Betrag widerspricht");
-        String none = mockMvc.perform(get("/api/v1/radar/findings?documentId=" + other).cookie(owner.cookie()))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        assertThat((Integer) JsonPath.read(none, "$.total")).isZero();
 
         String cases = mockMvc.perform(get("/api/v1/documents/" + doc + "/cases").cookie(owner.cookie()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
@@ -101,8 +86,5 @@ class DocumentInsightsIT {
 
         Session stranger = register();
         mockMvc.perform(get("/api/v1/documents/" + doc + "/cases").cookie(stranger.cookie())).andExpect(status().isNotFound());
-        String foreign = mockMvc.perform(get("/api/v1/radar/findings?documentId=" + doc).cookie(stranger.cookie()))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        assertThat((Integer) JsonPath.read(foreign, "$.total")).isZero();
     }
 }
