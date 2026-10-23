@@ -1,8 +1,5 @@
 package de.buerokratiecopilot.identity.auth;
 
-import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -10,115 +7,122 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import de.buerokratiecopilot.notifications.NotificationService;
-import de.buerokratiecopilot.notifications.NotificationChannelAdapter.Channel;
-import de.buerokratiecopilot.notifications.domain.Notification;
-import de.buerokratiecopilot.notifications.domain.NotificationPreference;
+import de.buerokratiecopilot.audit.AuditService;
+import de.buerokratiecopilot.audit.domain.AuditEvent;
 import de.buerokratiecopilot.shared.error.ApiException;
 import de.buerokratiecopilot.shared.error.ErrorCode;
 
 /**
- * The first-run setup after registration (spec §5.2.3): name the workspace, choose where documents come from
- * and what to be told about. There is one kind of cabinet, so the wizard no longer asks what the account is
- * for and never changes its type.
+ * The first-run wizard of the Kanzlei edition (§6.1): three steps, five minutes.
  *
- * <p>Only a person who may edit the account's settings renames the workspace. A member who was invited into
- * somebody else's workspace walks through the same wizard, and finishing it must not rename the owner's
- * workspace: for them the wizard only records that it was done and applies the notification choices, which
- * are their own.</p>
+ * <ol>
+ *   <li><strong>Wer sind Sie?</strong> - the name of the office, and nothing else.</li>
+ *   <li><strong>Ihre Mandanten</strong> - create clients, by hand or from a CSV file.</li>
+ *   <li><strong>Erste Dokumente</strong> - drop the first documents in, or look at the demo cabinet.</li>
+ * </ol>
+ *
+ * <p>Only step 1 needs the server: it renames the cabinet. Steps 2 and 3 use the ordinary APIs
+ * ({@code /contacts}, {@code /contacts/import}, {@code /documents}), because the wizard is a sequence of
+ * the product's real actions and not a second implementation of them. What is left here is the cabinet's
+ * name and the fact that the wizard was finished.</p>
+ *
+ * <p><strong>Finishing is a property of the cabinet, not of a person.</strong> A colleague invited after
+ * the office was set up must not be sent through the wizard again, so the answer lives in
+ * {@code tenants.setup_completed_at}. The old flow kept one preference row per person, which made a
+ * second person repeat what the first one had already done.</p>
  */
 @Service
 public class AccountSetupService {
 
-    static final String ONBOARDING_KEY = "onboarding";
-
-    private static final List<String> SOURCES = List.of("upload", "email", "scanner");
-
     private final JdbcTemplate jdbc;
-    private final ObjectMapper json;
-    private final NotificationService notifications;
+    private final AuditService audit;
 
-    public AccountSetupService(JdbcTemplate jdbc, ObjectMapper json, NotificationService notifications) {
+    public AccountSetupService(JdbcTemplate jdbc, AuditService audit) {
         this.jdbc = jdbc;
-        this.json = json;
-        this.notifications = notifications;
+        this.audit = audit;
     }
 
-    public record Setup(String workspaceName, List<String> sources, List<String> notifications) {
+    /**
+     * What the wizard needs to know: the name it may keep, how many clients already exist, whether the
+     * cabinet is set up, and whether this person is allowed to change the name.
+     */
+    public record State(String cabinetName, int mandantCount, boolean completed, boolean canEditCabinet) {
     }
 
+    /** The name of the office, as the wizard and the account settings show it. */
     @Transactional(readOnly = true)
-    public boolean isCompleted(UUID userId) {
-        Integer count = jdbc.queryForObject(
-                "select count(*) from user_preferences where user_id = ? and pref_key = ?", Integer.class,
-                userId, ONBOARDING_KEY);
-        return count != null && count > 0;
+    public State state(UUID tenantId, boolean mayEditCabinet) {
+        Integer mandants = jdbc.queryForObject("""
+                select count(*) from contacts where tenant_id = ? and deleted_at is null
+                """, Integer.class, tenantId);
+        return new State(cabinetName(tenantId), mandants == null ? 0 : mandants, isCompleted(tenantId),
+                mayEditCabinet);
     }
 
+    /** Whether the cabinet has been through the wizard. */
+    @Transactional(readOnly = true)
+    public boolean isCompleted(UUID tenantId) {
+        Boolean completed = jdbc.queryForObject("""
+                select setup_completed_at is not null from tenants where id = ?
+                """, Boolean.class, tenantId);
+        return Boolean.TRUE.equals(completed);
+    }
+
+    /**
+     * Step 1: the one mandatory text field of the wizard.
+     *
+     * <p>The name is the cabinet's name, so it is written to the tenant and to the default workspace -
+     * the tenant is what {@code /auth/me} and the letterheads read, and a workspace that kept the old name
+     * would show a second truth in the workspace switcher.</p>
+     */
     @Transactional
-    public void complete(UUID tenantId, UUID userId, boolean mayEditAccount, Setup setup) {
-        List<String> sources = setup.sources() == null ? List.of() : setup.sources();
-        for (String source : sources) {
-            if (!SOURCES.contains(source)) {
-                throw new ApiException(ErrorCode.INVALID_REQUEST, "Unbekannte Quelle: " + source);
-            }
+    public State renameCabinet(UUID tenantId, UUID userId, String requestedName) {
+        String name = requestedName == null ? "" : requestedName.strip();
+        if (name.isEmpty()) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "Die Kanzlei braucht einen Namen");
         }
-        List<String> chosen = setup.notifications() == null ? List.of() : setup.notifications();
-
-        if (mayEditAccount) {
-            String name = setup.workspaceName() == null ? "" : setup.workspaceName().strip();
-            if (!name.isEmpty()) {
-                if (name.length() > 200) {
-                    throw new ApiException(ErrorCode.INVALID_REQUEST, "Der Name ist zu lang");
-                }
-                jdbc.update("update tenants set name = ?, updated_at = now() where id = ?", name, tenantId);
-                jdbc.update("update workspaces set name = ? where tenant_id = ? and is_default", name, tenantId);
-            }
+        if (name.length() > 200) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "Der Name ist zu lang (höchstens 200 Zeichen)");
         }
+        String previous = cabinetName(tenantId);
+        jdbc.update("update tenants set name = ?, updated_at = now() where id = ?", name, tenantId);
+        jdbc.update("update workspaces set name = ? where tenant_id = ? and is_default", name, tenantId);
 
-        applyNotificationChoices(tenantId, userId, chosen);
-
-        Map<String, Object> record = new LinkedHashMap<>();
-        record.put("completedAt", Instant.now().toString());
-        record.put("sources", sources);
-        record.put("notifications", chosen);
-        try {
-            jdbc.update("""
-                    insert into user_preferences (user_id, pref_key, pref_value, updated_at)
-                    values (?, ?, ?::jsonb, now())
-                    on conflict (user_id, pref_key)
-                    do update set pref_value = excluded.pref_value, updated_at = now()
-                    """, userId, ONBOARDING_KEY, json.writeValueAsString(record));
+        if (!name.equals(previous)) {
+            audit.record(AuditService.AuditEntry.builder(AuditEvent.Category.SETTINGS, "CABINET_RENAMED")
+                    .tenant(tenantId)
+                    .actor(AuditEvent.ActorType.USER, userId, null)
+                    .entity("tenants", tenantId, name)
+                    .description("Cabinet renamed")
+                    .changes(Map.of("from", previous, "to", name))
+                    .build());
         }
-        catch (JsonProcessingException ex) {
-            throw new IllegalStateException("A map of strings cannot fail to serialise", ex);
+        return state(tenantId, true);
+    }
+
+    /**
+     * Step 3 done: the cabinet is set up.
+     *
+     * <p>Idempotent, because the client calls it when the person leaves the wizard, and a second call (a
+     * retried request, a double click) must not move the timestamp or write a second audit entry.</p>
+     */
+    @Transactional
+    public void complete(UUID tenantId, UUID userId) {
+        int updated = jdbc.update("""
+                update tenants set setup_completed_at = now(), updated_at = now()
+                where id = ? and setup_completed_at is null
+                """, tenantId);
+        if (updated > 0) {
+            audit.record(AuditService.AuditEntry.builder(AuditEvent.Category.ADMIN, "CABINET_SETUP_COMPLETED")
+                    .tenant(tenantId)
+                    .actor(AuditEvent.ActorType.USER, userId, null)
+                    .entity("tenants", tenantId, cabinetName(tenantId))
+                    .description("First-run wizard finished")
+                    .build());
         }
     }
 
-    /** "Deadlines" and "review" switch those categories on; "weekly" turns the task summary into a digest. */
-    private void applyNotificationChoices(UUID tenantId, UUID userId, List<String> chosen) {
-        for (String choice : chosen) {
-            switch (choice) {
-                case "deadlines" -> {
-                    enable(tenantId, userId, Notification.Category.DEADLINE);
-                    enable(tenantId, userId, Notification.Category.MISSED_DEADLINE);
-                }
-                case "review" -> enable(tenantId, userId, Notification.Category.DOCUMENT_REVIEW);
-                case "weekly" -> notifications.setPreference(tenantId, userId, Notification.Category.TASK,
-                        Channel.EMAIL, true, NotificationPreference.Frequency.WEEKLY_DIGEST);
-                default -> throw new ApiException(ErrorCode.INVALID_REQUEST,
-                        "Unbekannte Benachrichtigung: " + choice);
-            }
-        }
-    }
-
-    private void enable(UUID tenantId, UUID userId, Notification.Category category) {
-        for (Channel channel : List.of(Channel.IN_APP, Channel.EMAIL)) {
-            notifications.setPreference(tenantId, userId, category, channel, true,
-                    NotificationPreference.Frequency.IMMEDIATE);
-        }
+    private String cabinetName(UUID tenantId) {
+        return jdbc.queryForObject("select name from tenants where id = ?", String.class, tenantId);
     }
 }

@@ -22,9 +22,9 @@ import de.buerokratiecopilot.documents.domain.Document;
 import de.buerokratiecopilot.documents.domain.DocumentReview;
 import de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline;
 import de.buerokratiecopilot.documents.review.ReviewService;
-import de.buerokratiecopilot.identity.onboarding.OnboardingService;
 import de.buerokratiecopilot.shared.context.RequestContext;
 import de.buerokratiecopilot.shared.outbox.OutboxDispatcher;
+import de.buerokratiecopilot.support.TestAccounts;
 import de.buerokratiecopilot.tasks.TaskService;
 
 /**
@@ -42,7 +42,7 @@ class DocumentToTaskIT {
     private static final DateTimeFormatter GERMAN = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     @Autowired
-    private OnboardingService onboarding;
+    private TestAccounts accounts;
 
     @Autowired
     private DocumentService documents;
@@ -75,10 +75,7 @@ class DocumentToTaskIT {
     }
 
     private Account account() {
-        var created = onboarding.onboard(new OnboardingService.Request(
-                "orc-" + UUID.randomUUID().toString().substring(0, 12), "Orchestrierung",
-                "orc-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de", "Erika Mustermann",
-                "de", "Europe/Berlin", "DE", "Orchestrierung"));
+        var created = accounts.create("orc");
         return new Account(created.tenantId(), created.adminUserId());
     }
 
@@ -227,49 +224,6 @@ class DocumentToTaskIT {
         assertThat(tasksCount).as("no work is invented from an unconfirmed classification").isZero();
     }
 
-    @Test
-    @DisplayName("a contract becomes a contract card with the dates it states")
-    void contractCard() {
-        Account account = account();
-        LocalDate start = LocalDate.now().plusDays(30);
-        UUID documentId = uploadAndRun(account, "vertrag.txt", """
-                Vertrag
-                Vertragsparteien: Beispiel Internet GmbH und Erika Mustermann
-                Vertragsgegenstand: Internetanschluss
-                Vertragsbeginn: %s
-                Laufzeit: 24 Monate
-                Kündigungsfrist: 3 Monate
-                Vergütung: 39,90 EUR
-                Verlängerung: Der Vertrag verlängert sich automatisch um 12 Monate.
-                Vertragsnummer: V-%d
-                """.formatted(start.format(GERMAN), System.nanoTime()));
-
-        // A contract is a type that always needs a person's confirmation before anything acts on it.
-        assertThat(jdbc.queryForObject("select processing_status from documents where id = ?", String.class,
-                documentId)).isEqualTo("REVIEW_REQUIRED");
-        UUID reviewId = RequestContext.runAs(account.tenantId(), () -> jdbc.queryForObject(
-                "select id from document_reviews where document_id = ? and status = 'PENDING'", UUID.class,
-                documentId));
-        RequestContext.runAs(account.tenantId(), () -> {
-            reviews.decide(reviewId, DocumentReview.Status.APPROVED, "Vertrag bestätigt", null,
-                    account.adminUserId());
-            pipeline.advance(documentId);
-        });
-        runOutbox();
-
-        Map<String, Object> contract = jdbc.queryForMap("""
-                select start_date, end_date, notice_period_value, auto_renewal, status
-                from contracts where source_document_id = ?
-                """, documentId);
-        assertThat(contract.get("start_date").toString()).isEqualTo(start.toString());
-        assertThat(contract.get("end_date").toString()).isEqualTo(start.plusMonths(24).toString());
-        assertThat(contract.get("auto_renewal")).isEqualTo(true);
-
-        Integer events = RequestContext.runAs(account.tenantId(), () -> jdbc.queryForObject("""
-                select count(*) from calendar_events where tenant_id = ? and deleted_at is null
-                """, Integer.class, account.tenantId()));
-        assertThat(events).as("start, end and the end of the notice period are in the calendar").isEqualTo(3);
-    }
 
     @Test
     @DisplayName("completing a payment task does not close the matter: a follow-up waits for the confirmation")

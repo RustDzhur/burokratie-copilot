@@ -123,28 +123,36 @@ class UiContractIT {
 
     @Test
     @Order(2)
-    @DisplayName("/auth/me describes the person for the client, and onboarding flips its flag")
-    void meAndOnboarding() throws Exception {
+    @DisplayName("/auth/me describes the person for the client, and the first-run wizard flips its flag")
+    void meAndSetup() throws Exception {
         mvc.perform(authed(get("/api/v1/auth/me")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(email))
                 .andExpect(jsonPath("$.workspaceName").exists())
                 .andExpect(jsonPath("$.roles[0]").value("OWNER"))
-                .andExpect(jsonPath("$.onboardingCompleted").value(false));
+                .andExpect(jsonPath("$.setupCompleted").value(false));
 
-        mvc.perform(authed(post("/api/v1/auth/onboarding")).contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"workspaceName":"Muster Hausverwaltung",
-                                 "sources":["upload","email"],"notifications":["deadlines","review","weekly"]}
-                                """))
-                .andExpect(status().isNoContent());
+        // Step 1 of §6.1: the name of the office, written where /auth/me and the letterheads read it.
+        mvc.perform(authed(put("/api/v1/setup/cabinet")).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Muster Hausverwaltung\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cabinetName").value("Muster Hausverwaltung"))
+                .andExpect(jsonPath("$.completed").value(false));
 
         mvc.perform(authed(get("/api/v1/auth/me")))
-                .andExpect(jsonPath("$.onboardingCompleted").value(true))
+                .andExpect(jsonPath("$.workspaceName").value("Muster Hausverwaltung"))
+                .andExpect(jsonPath("$.setupCompleted").value(false));
+
+        // Step 3 done: the cabinet is set up. The call is idempotent, so a retry is not a second change.
+        mvc.perform(authed(post("/api/v1/setup/complete"))).andExpect(status().isNoContent());
+        mvc.perform(authed(post("/api/v1/setup/complete"))).andExpect(status().isNoContent());
+
+        mvc.perform(authed(get("/api/v1/auth/me")))
+                .andExpect(jsonPath("$.setupCompleted").value(true))
                 .andExpect(jsonPath("$.workspaceName").value("Muster Hausverwaltung"));
 
-        mvc.perform(authed(post("/api/v1/auth/onboarding")).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"workspaceName\":\"x\",\"sources\":[\"banana\"]}"))
+        mvc.perform(authed(put("/api/v1/setup/cabinet")).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"   \"}"))
                 .andExpect(status().isBadRequest());
     }
 

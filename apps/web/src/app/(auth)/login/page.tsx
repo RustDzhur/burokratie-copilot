@@ -63,8 +63,8 @@ function LoginForm() {
       router.push(
         user.mfaEnrolmentRequired
           ? '/security'
-          : user.onboardingCompleted === false
-            ? '/onboarding'
+          : user.setupCompleted === false
+            ? '/setup'
             : (next ?? '/dashboard'),
       );
     } catch (caught) {

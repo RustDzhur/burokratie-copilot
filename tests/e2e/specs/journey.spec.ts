@@ -15,7 +15,7 @@ test.describe('first journey', () => {
 
     await signIn(page, email);
     // A first sign-in goes through the setup wizard.
-    await page.waitForURL(/\/(onboarding|dashboard)/);
+    await page.waitForURL(/\/(setup|dashboard)/);
     await page.goto('/dashboard');
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
     await expect(page.getByText('Erika Mustermann').first()).toBeVisible();
@@ -48,7 +48,7 @@ test.describe('first journey', () => {
     await register(page, email);
     await confirmEmail(email);
     await signIn(page, email);
-    await page.waitForURL(/\/(onboarding|tasks)/);
+    await page.waitForURL(/\/(setup|tasks)/);
   });
 
   test('every screen of the navigation opens without an error state', async ({ page }) => {
@@ -56,7 +56,7 @@ test.describe('first journey', () => {
     await register(page, email);
     await confirmEmail(email);
     await signIn(page, email);
-    await page.waitForURL(/\/(onboarding|dashboard)/);
+    await page.waitForURL(/\/(setup|dashboard)/);
 
     // A hand-maintained list drifts: a screen was added and this list did not know about it, so the sweep
     // that says 'every screen' was silently checking one screen fewer - and the one it missed was broken.
@@ -77,7 +77,7 @@ test('dashboard cards: a card link only covers its own card (hover does not flic
   await register(page, email);
   await confirmEmail(email);
   await signIn(page, email);
-  await page.waitForURL(/\/(onboarding|dashboard)/);
+  await page.waitForURL(/\/(setup|dashboard)/);
   await page.goto('/dashboard');
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   const cards = page.locator('a[class*="cardLink"]');

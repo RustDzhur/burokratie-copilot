@@ -104,7 +104,7 @@ public class AuthController {
 
     public record MeResponse(UUID userId, UUID tenantId, List<String> permissions, String email,
                              String displayName, String locale, String timeZone, String workspaceName,
-                             List<String> roles, boolean onboardingCompleted,
+                             List<String> roles, boolean setupCompleted,
                              boolean mfaEnrolmentRequired, java.util.Map<String, Object> subscription,
                              Long avatarVersion) {
     }
@@ -219,7 +219,7 @@ public class AuthController {
         AuthService.SessionProfile profile = authService.describeSession(userId, tenantId);
         return ResponseEntity.ok(new MeResponse(userId, tenantId, permissions, profile.email(),
                 profile.displayName(), profile.locale(), profile.timeZone(), profile.workspaceName(),
-                profile.roles(), accountSetup.isCompleted(userId),
+                profile.roles(), tenantId == null || accountSetup.isCompleted(tenantId),
                 enrolmentRequired(authentication, userId, tenantId), subscriptionOf(tenantId),
                 profileService.avatarVersion(userId)));
     }
@@ -241,25 +241,6 @@ public class AuthController {
         catch (de.buerokratiecopilot.shared.error.ApiException ex) {
             return null;
         }
-    }
-
-    public record OnboardingRequest(String workspaceName, List<String> sources, List<String> notifications) {
-    }
-
-    @PostMapping("/onboarding")
-    @Operation(summary = "Finishes the first-run setup; only an account editor changes the account itself")
-    public ResponseEntity<Void> completeOnboarding(@RequestBody OnboardingRequest request,
-                                                   Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        boolean mayEdit = authentication.getAuthorities().stream()
-                .anyMatch(granted -> "settings.edit".equals(granted.getAuthority()));
-        accountSetup.complete(de.buerokratiecopilot.shared.context.RequestContext.tenantId().orElseThrow(),
-                UUID.fromString(authentication.getName()), mayEdit,
-                new de.buerokratiecopilot.identity.auth.AccountSetupService.Setup(request.workspaceName(),
-                        request.sources(), request.notifications()));
-        return ResponseEntity.noContent().build();
     }
 
     /** True while the account requires a second factor and this session has none (and so may only enrol one). */

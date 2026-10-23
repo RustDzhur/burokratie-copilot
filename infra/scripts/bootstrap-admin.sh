@@ -19,8 +19,8 @@
 #       available to anyone who can reach the API, it is rate-limited only by the
 #       application's own protections, and it does not verify that the caller is
 #       the system owner. Until the planned bootstrap-admin flow exists
-#       (docs/implementation-plan.md A-018/A-024: `POST /api/v1/onboarding` plus
-#       an idempotent token-protected bootstrap, status TODO), an operator must
+#       (docs/implementation-plan.md A-018/A-024: an idempotent token-protected
+#       bootstrap, status TODO), an operator must
 #       either close registration at the edge (see docs/deployment.md) or accept
 #       that the first-come-first-served registration owns the account.
 #    2. E-mail verification is required afterwards. Registration returns
@@ -150,14 +150,8 @@ if OPENAPI_BODY="$(curl -fsS --max-time 10 "$OPENAPI_URL" 2>/dev/null)"; then
     if printf '%s' "$OPENAPI_BODY" | grep -q "$REGISTER_PATH"; then
         IDENTIFIED="register"
         DETAIL="POST $REGISTER_URL is documented in $OPENAPI_URL"
-        if printf '%s' "$OPENAPI_BODY" | grep -q '/api/v1/onboarding'; then
-            warn "an /api/v1/onboarding path is ALSO documented — prefer it if it is the controlled bootstrap flow (A-018)"
-        fi
-    elif printf '%s' "$OPENAPI_BODY" | grep -q '/api/v1/onboarding'; then
-        IDENTIFIED="onboarding"
-        DETAIL="POST ${API_BASE%/}/api/v1/onboarding is documented in $OPENAPI_URL, but this script has no verified payload contract for it — see the message below"
     else
-        DETAIL="the OpenAPI document at $OPENAPI_URL documents neither $REGISTER_PATH nor /api/v1/onboarding"
+        DETAIL="the OpenAPI document at $OPENAPI_URL does not document $REGISTER_PATH"
     fi
 else
     DETAIL="the OpenAPI document is not reachable at $OPENAPI_URL (the api may be down, or /api-docs is not exposed)"
@@ -212,24 +206,6 @@ $PROG: NOT AVAILABLE (exit 3)
     2. if the backend is up but exposes a different path, verify it against
        ${API_BASE%/}/api-docs and report the mismatch — the script's contract
        may need updating.
-
-EOF
-    exit 3
-fi
-
-if [ "$IDENTIFIED" = "onboarding" ]; then
-    cat >&2 <<EOF
-
-$PROG: NOT AVAILABLE (exit 3)
-
-  The backend exposes POST /api/v1/onboarding, but this script only implements the
-  verified contract of POST $REGISTER_PATH. Sending a guessed payload to an
-  unverified endpoint could create a half-configured account, so nothing was sent.
-
-  Probe result: $DETAIL
-
-  Action: read the endpoint's request schema in the OpenAPI document, then either
-  extend this script with the confirmed contract or use the documented flow.
 
 EOF
     exit 3

@@ -90,7 +90,7 @@ test.describe('invoices', () => {
     await confirmEmail(email);
     await enableInvoiceArea(email);
     await signIn(page, email);
-    await page.waitForURL(/\/(onboarding|dashboard)/);
+    await page.waitForURL(/\/(setup|dashboard)/);
 
     // The API is protected by double-submit CSRF: the token lives in a cookie and has to be echoed in the
     // header on every unsafe request. The application's own client does that; a raw request must do it too,

@@ -195,6 +195,8 @@ import type {
   WorkspaceList,
   TaskDetail,
   ExplanationOutcome,
+  SetupState,
+  ContactImportReport,
 } from './types';
 
 /**
@@ -264,7 +266,7 @@ interface MeResponse {
   readonly displayName: string | null;
   readonly workspaceName: string | null;
   readonly roles: readonly string[];
-  readonly onboardingCompleted?: boolean;
+  readonly setupCompleted?: boolean;
   readonly mfaEnrolmentRequired?: boolean;
   readonly permissions?: readonly string[];
   readonly subscription?: SubscriptionWire | null;
@@ -325,7 +327,7 @@ export function sessionUserFromMe(me: MeResponse): SessionUser {
     workspaceId: me.tenantId ?? '',
     workspaceName: me.workspaceName ?? '',
     avatarUrl: me.avatarVersion ? `/api/v1/profile/avatar?v=${me.avatarVersion}` : null,
-    onboardingCompleted: me.onboardingCompleted ?? true,
+    setupCompleted: me.setupCompleted ?? true,
     mfaEnrolmentRequired: me.mfaEnrolmentRequired ?? false,
     platformAdmin: (me.permissions ?? []).includes('platform.admin'),
     permissions: me.permissions ?? [],
@@ -519,12 +521,6 @@ export interface RegisterPayload {
   readonly password: string;
 }
 
-export interface OnboardingPayload {
-  readonly workspaceName: string;
-  readonly sources: readonly string[];
-  readonly notifications: readonly string[];
-}
-
 export interface ConfirmFieldsPayload {
   /** The type the person chose or took over; sent as the reviewer's decision, never implied. */
   readonly typeCode?: string | null;
@@ -575,7 +571,18 @@ export interface ApiResources {
     requestPasswordReset: (payload: { email: string }) => Promise<void>;
     confirmPasswordReset: (payload: { token: string; password: string }) => Promise<void>;
     session: (signal?: AbortSignal) => Promise<SessionUser>;
-    completeOnboarding: (payload: OnboardingPayload) => Promise<SessionUser>;
+  };
+  /**
+   * The first-run wizard of §6.1. Only step 1 and the finish need the server; clients and documents go
+   * through {@code contacts}/{@code contacts.importCsv} and {@code documents.upload}, the same calls the
+   * screens behind the wizard use.
+   */
+  readonly setup: {
+    state: (signal?: AbortSignal) => Promise<SetupState>;
+    /** Step 1: the name of the office, the one mandatory text field. */
+    renameCabinet: (name: string) => Promise<SetupState>;
+    /** Step 3 done: the cabinet counts as set up; idempotent. */
+    complete: () => Promise<void>;
   };
   readonly dashboard: {
     summary: (signal?: AbortSignal) => Promise<DashboardSummary>;
@@ -737,7 +744,13 @@ export interface ApiResources {
       readonly name: string;
       readonly contactType: ContactSummary['contactType'];
       readonly email?: string;
+      readonly city?: string;
     }) => Promise<ContactSummary>;
+    /**
+     * Creates clients from a simple CSV file (`name;email;city`). The answer names every line that was not
+     * created and why, because a silently skipped client is one the office believes it has.
+     */
+    importCsv: (content: string) => Promise<ContactImportReport>;
   };
   /**
    * The clients of the Kanzlei and their state (§5.5).
@@ -1290,9 +1303,12 @@ export function createResources(client: ApiClient): ApiResources {
         client.post<void>('/auth/password-reset/confirm', payload, { idempotencyKey: true }),
       session: async (signal) =>
         sessionUserFromMe(await client.get<MeResponse>('/auth/me', withSignal(signal))),
-      completeOnboarding: async (payload) => {
-        await client.post<unknown>('/auth/onboarding', payload, { idempotencyKey: true });
-        return sessionUserFromMe(await client.get<MeResponse>('/auth/me'));
+    },
+    setup: {
+      state: (signal) => client.get<SetupState>('/setup', withSignal(signal)),
+      renameCabinet: (name) => client.put<SetupState>('/setup/cabinet', { name }),
+      complete: async () => {
+        await client.post<unknown>('/setup/complete', undefined, { idempotencyKey: true });
       },
     },
     dashboard: {
@@ -1729,10 +1745,17 @@ export function createResources(client: ApiClient): ApiResources {
         contactFromWire(
           await client.post<ContactWire>(
             '/contacts',
-            { name: payload.name, kind: contactKindToWire(payload.contactType), email: payload.email },
+            {
+              name: payload.name,
+              kind: contactKindToWire(payload.contactType),
+              email: payload.email,
+              city: payload.city,
+            },
             { idempotencyKey: true },
           ),
         ),
+      importCsv: (content) =>
+        client.post<ContactImportReport>('/contacts/import', { content }, { idempotencyKey: true }),
     },
     mandanten: {
       list: async (params, signal) => {

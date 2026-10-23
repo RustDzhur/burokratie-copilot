@@ -17,12 +17,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
-import de.buerokratiecopilot.identity.onboarding.OnboardingService;
 import de.buerokratiecopilot.ingest.IngestService;
 import de.buerokratiecopilot.invoices.InvoiceService;
 import de.buerokratiecopilot.retention.RetentionService;
 import de.buerokratiecopilot.shared.context.RequestContext;
 import de.buerokratiecopilot.shared.error.ApiException;
+import de.buerokratiecopilot.support.TestAccounts;
 import de.buerokratiecopilot.workflow.WorkflowEngine;
 import de.buerokratiecopilot.workflow.PresetProcesses;
 import de.buerokratiecopilot.workflow.WorkflowService;
@@ -48,7 +48,7 @@ import de.buerokratiecopilot.workflow.approval.ApprovalService;
 class MandatoryScenariosIT {
 
     @Autowired
-    private OnboardingService onboarding;
+    private TestAccounts accounts;
 
     @Autowired
     private IngestService ingest;
@@ -79,10 +79,7 @@ class MandatoryScenariosIT {
     }
 
     private Account account() {
-        var created = onboarding.onboard(new OnboardingService.Request(
-                "sc-" + UUID.randomUUID().toString().substring(0, 12), "Szenario",
-                "admin-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de", "Administrator",
-                "de", "Europe/Berlin", "DE", "Szenario GmbH"));
+        var created = accounts.create("sc");
 
         UUID approverId = jdbc.queryForObject("""
                 insert into users (id, email, status, display_name, locale, time_zone,

@@ -20,9 +20,9 @@ import de.buerokratiecopilot.deadlines.domain.TaskDeadline;
 import de.buerokratiecopilot.deadlines.web.DeadlineController.DeadlineResponse;
 import de.buerokratiecopilot.documents.DocumentService;
 import de.buerokratiecopilot.documents.domain.Document;
-import de.buerokratiecopilot.identity.onboarding.OnboardingService;
 import de.buerokratiecopilot.shared.context.RequestContext;
 import de.buerokratiecopilot.shared.outbox.OutboxDispatcher;
+import de.buerokratiecopilot.support.TestAccounts;
 import de.buerokratiecopilot.support.TestDocuments;
 
 /**
@@ -36,7 +36,7 @@ class DeadlineProvenanceIT {
     private static final DateTimeFormatter GERMAN = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     @Autowired
-    private OnboardingService onboarding;
+    private TestAccounts accounts;
     @Autowired
     private DocumentService documents;
     @Autowired
@@ -49,10 +49,7 @@ class DeadlineProvenanceIT {
     @Test
     @DisplayName("a stated deadline carries its document, page and text, is never legally confirmed, and is reported as unconfirmed")
     void statedDeadlineIsTraceableAndUnconfirmed() throws Exception {
-        var created = onboarding.onboard(new OnboardingService.Request(
-                "prov-" + UUID.randomUUID().toString().substring(0, 12), "Herkunft",
-                "prov-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de", "Erika Mustermann",
-                "de", "Europe/Berlin", "DE", "Herkunft"));
+        var created = accounts.create("prov");
         UUID tenantId = created.tenantId();
         LocalDate due = LocalDate.now().plusDays(12);
         String text = """

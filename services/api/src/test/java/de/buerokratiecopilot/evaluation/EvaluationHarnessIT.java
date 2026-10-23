@@ -29,8 +29,8 @@ import de.buerokratiecopilot.contacts.identifiers.IdentifierExtractor;
 import de.buerokratiecopilot.documents.DocumentService;
 import de.buerokratiecopilot.documents.domain.Document;
 import de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline;
-import de.buerokratiecopilot.identity.onboarding.OnboardingService;
 import de.buerokratiecopilot.shared.context.RequestContext;
+import de.buerokratiecopilot.support.TestAccounts;
 
 /**
  * The evaluation set (task RD-09): synthetic German documents with known answers, run through the real pipeline, measured.
@@ -51,7 +51,7 @@ class EvaluationHarnessIT {
     private static final ObjectMapper JSON = new ObjectMapper();
 
     @Autowired
-    private OnboardingService onboarding;
+    private TestAccounts accounts;
     @Autowired
     private DocumentService documents;
     @Autowired
@@ -125,10 +125,7 @@ class EvaluationHarnessIT {
 
     private List<Result> run(String resource, String reportFile, String title) throws Exception {
         JsonNode set = JSON.readTree(getClass().getResourceAsStream(resource));
-        var created = onboarding.onboard(new OnboardingService.Request(
-                "eval-" + UUID.randomUUID().toString().substring(0, 12), "Evaluation",
-                "eval-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de", "Erika Mustermann",
-                "de", "Europe/Berlin", "DE", "Evaluation"));
+        var created = accounts.create("eval");
         UUID tenantId = created.tenantId();
         Set<String> knownTypes = new TreeSet<>(jdbc.queryForList("select code from document_types", String.class));
 

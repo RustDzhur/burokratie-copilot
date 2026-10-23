@@ -657,8 +657,8 @@ export interface SessionUser {
   readonly workspaceId: string;
   readonly workspaceName: string;
   readonly avatarUrl?: string | null;
-  /** False until the first-run wizard was finished; the sign-in sends such a person to it. */
-  readonly onboardingCompleted?: boolean;
+  /** False until the first-run wizard (§6.1) was finished; the sign-in sends such a person to it. */
+  readonly setupCompleted?: boolean;
   /** The account requires a second factor and this person has none yet: they may only set one up. */
   readonly mfaEnrolmentRequired?: boolean;
   /** Runs the platform: gets the /admin area. Given by the server's configuration, never by the interface. */
@@ -670,6 +670,37 @@ export interface SessionUser {
    */
   readonly permissions?: readonly string[];
   readonly subscription?: SubscriptionInfo | null;
+}
+
+/**
+ * The state of the first-run wizard (§6.1).
+ *
+ * <p>The server decides both facts: whether the cabinet is set up (a colleague invited later must not see the
+ * wizard again) and whether this person may change the name (it belongs to the account, like every setting).</p>
+ */
+export interface SetupState {
+  readonly cabinetName: string;
+  /** How many clients exist already; the wizard suggests three but does not require one. */
+  readonly mandantCount: number;
+  readonly completed: boolean;
+  readonly canEditCabinet: boolean;
+}
+
+/** One line of an imported client file: created, or skipped with the reason the office has to see. */
+export interface ContactImportLine {
+  /** The line number in the file as the person sees it. */
+  readonly line: number;
+  readonly status: 'CREATED' | 'SKIPPED';
+  readonly name: string | null;
+  readonly reason: string | null;
+}
+
+/** What an import did: how many lines were read, created, and why the rest were not. */
+export interface ContactImportReport {
+  readonly total: number;
+  readonly created: number;
+  readonly skipped: number;
+  readonly lines: readonly ContactImportLine[];
 }
 
 export type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'EXPIRED' | 'SUSPENDED';

@@ -6,7 +6,7 @@ test('a process is drawn, connected, checked and published in the editor', async
   await register(page, email);
   await confirmEmail(email);
   await signIn(page, email);
-  await page.waitForURL(/\/(onboarding|dashboard)/);
+  await page.waitForURL(/\/(setup|dashboard)/);
 
   await page.goto('/automations');
   await page.getByRole('button', { name: 'Automatisierung anlegen' }).click();

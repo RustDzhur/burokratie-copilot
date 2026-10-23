@@ -38,7 +38,7 @@ export type ScreenId =
   | 'register'
   | 'verifyEmail'
   | 'resetPassword'
-  | 'onboarding'
+  | 'setup'
   | 'dashboard'
   | 'inbox'
   | 'documentViewer'
@@ -137,8 +137,8 @@ export const screens: readonly ScreenDefinition[] = [
     inSidebar: false,
     requiresAuth: false,
   }),
-  // §5.2.3 — initial account setup
-  screen('onboarding', '/onboarding', 'sparkles', null, { inSidebar: false }),
+  // §6.1 — the first-run wizard: three steps, before the Posteingang.
+  screen('setup', '/setup', 'sparkles', null, { inSidebar: false, requiresAuth: true }),
   // §5.2.4 — dashboard
   screen('dashboard', '/dashboard', 'grid', null, { inSidebar: false }),
   // §5.2.5 — inbox

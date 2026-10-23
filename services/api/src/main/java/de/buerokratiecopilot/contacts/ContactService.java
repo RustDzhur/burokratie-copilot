@@ -29,7 +29,16 @@ public class ContactService {
     /** What a caller may filter by: a contact is a person, an organisation, or an authority. */
     public enum Kind { PERSON, ORGANISATION, AUTHORITY }
 
-    public record Draft(String name, Kind kind, String email, String phone) {
+    /**
+     * What a caller provides. The city is optional and is written to the contact's main address, where the
+     * client list reads it; a contact without an address is a normal contact.
+     */
+    public record Draft(String name, Kind kind, String email, String phone, String city) {
+
+        /** A draft without an address, for callers that do not know one. */
+        public Draft(String name, Kind kind, String email, String phone) {
+            this(name, kind, email, phone, null);
+        }
     }
 
     private final JdbcTemplate jdbc;
@@ -86,6 +95,7 @@ public class ContactService {
         Kind kind = draft.kind() == null ? Kind.PERSON : draft.kind();
         String email = draft.email() == null || draft.email().isBlank() ? null : draft.email().strip();
         String phone = draft.phone() == null || draft.phone().isBlank() ? null : draft.phone().strip();
+        String city = draft.city() == null || draft.city().isBlank() ? null : draft.city().strip();
 
         UUID id = jdbc.queryForObject("""
                 insert into contacts (id, tenant_id, contact_type, display_name, email, phone, is_authority,
@@ -94,6 +104,15 @@ public class ContactService {
                 returning id
                 """, UUID.class, tenantId, kind == Kind.PERSON ? "PERSON" : "ORGANIZATION",
                 draft.name().strip(), email, phone, kind == Kind.AUTHORITY, createdBy);
+
+        if (city != null) {
+            // The city lives on the address, like every other address field; the client list already reads it
+            // from there, so writing it anywhere else would make the wizard and the list disagree.
+            jdbc.update("""
+                    insert into contact_addresses (id, contact_id, tenant_id, address_type, city, is_primary)
+                    values (gen_random_uuid(), ?, ?, 'MAIN', ?, true)
+                    """, id, tenantId, city);
+        }
 
         identifiers.register(tenantId, id, email, phone, createdBy);
 
@@ -104,7 +123,9 @@ public class ContactService {
                 .build());
 
         return jdbc.queryForMap("""
-                select c.id, c.display_name, c.email::text as email, c.phone, c.updated_at, ? as kind, null as city
+                select c.id, c.display_name, c.email::text as email, c.phone, c.updated_at, ? as kind,
+                       (select a.city from contact_addresses a where a.contact_id = c.id
+                         order by a.created_at limit 1) as city
                 from contacts c where c.id = ? and c.tenant_id = ?
                 """, kind.name(), id, tenantId);
     }

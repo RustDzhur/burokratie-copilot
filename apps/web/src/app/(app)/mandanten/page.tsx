@@ -32,7 +32,7 @@ const HEALTH_TONE: Readonly<Record<MandantHealth, 'success' | 'warning' | 'dange
  * from the server in one request - the screen never sums up documents itself, because a second calculation
  * would be a second truth the moment the first one changes.</p>
  *
- * <p>The empty state is the onboarding path of §6.2: a cabinet without clients is not an error, it is the
+ * <p>The empty state is the first-run path of §6.2: a cabinet without clients is not an error, it is the
  * first minute of the product, and it says what to do ("Legen Sie Ihren ersten Mandanten an") instead of
  * showing an empty table.</p>
  */

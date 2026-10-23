@@ -24,9 +24,9 @@ import de.buerokratiecopilot.documents.domain.Document;
 import de.buerokratiecopilot.documents.domain.DocumentReview;
 import de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline;
 import de.buerokratiecopilot.documents.review.ReviewService;
-import de.buerokratiecopilot.identity.onboarding.OnboardingService;
 import de.buerokratiecopilot.shared.context.RequestContext;
 import de.buerokratiecopilot.shared.outbox.OutboxDispatcher;
+import de.buerokratiecopilot.support.TestAccounts;
 import de.buerokratiecopilot.support.TestDocuments;
 
 /**
@@ -50,7 +50,7 @@ class ClassificationCloseCallIT {
     private static final DateTimeFormatter GERMAN = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     @Autowired
-    private OnboardingService onboarding;
+    private TestAccounts accounts;
 
     @Autowired
     private DocumentService documents;
@@ -80,10 +80,7 @@ class ClassificationCloseCallIT {
     }
 
     private Account account() {
-        var created = onboarding.onboard(new OnboardingService.Request(
-                "close-" + UUID.randomUUID().toString().substring(0, 12), "Nahbereich",
-                "close-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de",
-                "Erika Mustermann", "de", "Europe/Berlin", "DE", "Nahbereich"));
+        var created = accounts.create("close");
         return new Account(created.tenantId(), created.adminUserId());
     }
 

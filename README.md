@@ -216,8 +216,9 @@ Follow-up: registration requires **e-mail verification**. The response's `nextSt
 `VERIFY_EMAIL` (a mail was sent) or `VERIFY_EMAIL_PENDING_MAIL_CONFIGURATION` (no SMTP sender
 configured — no mail was sent, so the verification token must be obtained by the operator).
 
-A controlled, token-protected bootstrap flow (`POST /api/v1/onboarding`) is planned but not
-implemented (implementation-plan A-018/A-024).
+A controlled, token-protected bootstrap flow is planned but not implemented (implementation-plan
+A-018/A-024); the account-setup flow of the previous edition was removed with the Kanzlei edition
+(specification §4.3).
 
 ## 6. Operations: backup and restore
 

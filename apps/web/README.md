@@ -48,7 +48,7 @@ src/
     (public)/             Landingpage (eigenes Layout)
     (auth)/               login, register, verify-email, reset-password
     (app)/                Alle Arbeitsbereichs-Screens in der App-Shell
-    onboarding/           Ersteinrichtung (eigenes Layout)
+    setup/                Ersteinrichtung (drei Schritte, eigenes Layout)
     design-system/        Dev-Vorschau aller Primitives (/_design leitet hierher)
     not-found.tsx, error.tsx
   components/

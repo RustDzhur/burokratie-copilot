@@ -17,8 +17,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-import de.buerokratiecopilot.identity.onboarding.OnboardingService;
 import de.buerokratiecopilot.shared.context.RequestContext;
+import de.buerokratiecopilot.support.TestAccounts;
 
 /**
  * The phone's calendar: a private address that serves iCalendar, with alarms and the explanation of each entry, that
@@ -33,7 +33,7 @@ class CalendarFeedIT {
     private MockMvc mvc;
 
     @Autowired
-    private OnboardingService onboarding;
+    private TestAccounts accounts;
 
     @Autowired
     private CalendarEventService calendar;
@@ -48,10 +48,7 @@ class CalendarFeedIT {
     }
 
     private Account account() {
-        var created = onboarding.onboard(new OnboardingService.Request(
-                "cal-" + UUID.randomUUID().toString().substring(0, 12), "Kalender",
-                "cal-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de", "Erika Mustermann",
-                "de", "Europe/Berlin", "DE", "Kalender"));
+        var created = accounts.create("cal");
         return new Account(created.tenantId(), created.adminUserId());
     }
 

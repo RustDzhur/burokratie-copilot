@@ -33,11 +33,14 @@ public class ContactController {
 
     private final ContactService contacts;
     private final de.buerokratiecopilot.contacts.identifiers.ContactIdentifierService identifiers;
+    private final de.buerokratiecopilot.contacts.ContactImportService imports;
 
     public ContactController(ContactService contacts,
-                             de.buerokratiecopilot.contacts.identifiers.ContactIdentifierService identifiers) {
+                             de.buerokratiecopilot.contacts.identifiers.ContactIdentifierService identifiers,
+                             de.buerokratiecopilot.contacts.ContactImportService imports) {
         this.contacts = contacts;
         this.identifiers = identifiers;
+        this.imports = imports;
     }
 
     public record IdentifierRequest(de.buerokratiecopilot.contacts.identifiers.IdentifierKind kind, String value) {
@@ -69,7 +72,12 @@ public class ContactController {
         return ResponseEntity.noContent().build();
     }
 
-    public record CreateContactRequest(String name, ContactService.Kind kind, String email, String phone) {
+    public record CreateContactRequest(String name, ContactService.Kind kind, String email, String phone,
+                                       String city) {
+    }
+
+    /** The content of an uploaded CSV file; the client reads the file and sends its text. */
+    public record ImportRequest(String content) {
     }
 
     @GetMapping
@@ -87,7 +95,21 @@ public class ContactController {
     public ResponseEntity<Map<String, Object>> create(@RequestBody CreateContactRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(contacts.create(
                 RequestContext.tenantId().orElseThrow(),
-                new ContactService.Draft(request.name(), request.kind(), request.email(), request.phone()),
+                new ContactService.Draft(request.name(), request.kind(), request.email(), request.phone(),
+                        request.city()),
                 CurrentUser.required()));
+    }
+
+    /**
+     * Creates clients from a simple CSV file ({@code name;email;city}) and answers with what happened to
+     * every line, including the ones it did not create and why (§6.1 step 2).
+     */
+    @PostMapping("/import")
+    @PreAuthorize("hasAuthority('contacts.create')")
+    @Operation(summary = "Creates clients from a CSV file and reports every skipped line")
+    public de.buerokratiecopilot.contacts.ContactImportService.ImportReport importCsv(
+            @RequestBody(required = false) ImportRequest request) {
+        return imports.importCsv(RequestContext.tenantId().orElseThrow(),
+                request == null ? null : request.content(), CurrentUser.required());
     }
 }
