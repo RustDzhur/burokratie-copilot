@@ -281,7 +281,7 @@ export const enScreens: ScreenMessages = {
     'status.processed': 'Processed',
     'status.failed': 'Failed',
     'status.archived': 'Archived',
-    subtitle: 'Complete registry of all documents including retention status.',
+    subtitle: 'What came in today, what still needs somebody, and what has left the office.',
     searchPlaceholder: 'Search title, sender, file reference or content',
     'action.export': 'Export registry',
     'row.delete': "Delete",

@@ -283,7 +283,7 @@ export const deScreens = {
     'status.processed': 'Verarbeitet',
     'status.failed': 'Fehlgeschlagen',
     'status.archived': 'Archiviert',
-    subtitle: 'Vollständiges Register aller Dokumente mit Aufbewahrungsstatus.',
+    subtitle: 'Was heute hereinkam, was noch jemanden braucht und was die Kanzlei verlassen hat.',
     searchPlaceholder: 'Titel, Absender, Aktenzeichen oder Inhalt suchen',
     'action.export': 'Register exportieren',
     'row.delete': "Löschen",

@@ -283,7 +283,7 @@ export const ruScreens: ScreenMessages = {
     'status.processed': 'Обработан',
     'status.failed': 'Ошибка',
     'status.archived': 'В архиве',
-    subtitle: 'Полный реестр всех документов со статусом хранения.',
+    subtitle: 'Что пришло сегодня, что ещё ждёт человека и что уже ушло из канцелярии.',
     searchPlaceholder: 'Поиск по названию, отправителю, номеру дела или содержимому',
     'action.export': 'Экспортировать реестр',
     'row.delete': "Удалить",
