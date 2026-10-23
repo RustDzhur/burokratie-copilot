@@ -345,4 +345,31 @@ class MandantOverviewIT {
         assertThat(row.get("lastActivityAt")).isNull();
         assertThat(row.get("deadlinesOpen")).isEqualTo(0);
     }
+
+    @Test
+    @DisplayName("a supplier the office pays is not a client it books for")
+    void supplierIsNotAMandant() throws Exception {
+        Account account = register();
+        UUID client = mandant(account, "Kunde GmbH");
+        UUID supplier = supplier(account, "Stadtwerke Musterstadt GmbH");
+
+        List<Map<String, Object>> rows = list(account, "");
+
+        List<String> names = rows.stream().map(row -> String.valueOf(row.get("displayName"))).toList();
+        assertThat(names).contains("Kunde GmbH");
+        assertThat(names)
+                .as("a pure supplier answers a different question than the client overview asks")
+                .doesNotContain("Stadtwerke Musterstadt GmbH");
+        assertThat(client).isNotNull();
+        assertThat(supplier).isNotNull();
+    }
+
+    private UUID supplier(Account account, String name) {
+        return RequestContext.runAs(account.tenantId(), () -> jdbc.queryForObject("""
+                insert into contacts (tenant_id, contact_type, display_name, organization_name, is_customer,
+                                      is_supplier)
+                values (?, 'ORGANIZATION', ?, ?, false, true)
+                returning id
+                """, UUID.class, account.tenantId(), name, name));
+    }
 }

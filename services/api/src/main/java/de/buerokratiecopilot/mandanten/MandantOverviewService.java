@@ -150,6 +150,10 @@ public class MandantOverviewService {
               left join belege b on b.mandant_id = c.id
               left join fristen f on f.mandant_id = c.id
              where c.tenant_id = ? and c.deleted_at is null
+               -- §7: a Mandant is a client. A contact that is only a supplier - the utility company, the phone
+               -- provider - is somebody the office pays, not somebody the office books for. Listing both makes
+               -- the client overview answer a different question than its name asks.
+               and (c.is_customer or not c.is_supplier)
             """;
 
     private static final String RECENT_DOCUMENTS_SQL = """
