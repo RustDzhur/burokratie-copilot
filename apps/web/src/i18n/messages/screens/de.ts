@@ -1158,7 +1158,7 @@ export const deScreens = {
     'scenario.assumption': "Annahme",
   },
   rules: {
-    'subtitle': "Schwellen und Schalter des Radars und der Dokumentenerkennung. Jede Änderung ist eine neue Version mit Begründung; der Standard der Plattform bleibt immer erreichbar.",
+    'subtitle': "Schwellen und Schalter der Dokumentenerkennung. Jede Änderung ist eine neue Version mit Begründung; der Standard der Plattform bleibt immer erreichbar.",
     'value': "Wert",
     'default': "Standard",
     'version': "Version",

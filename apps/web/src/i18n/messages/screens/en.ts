@@ -1154,7 +1154,7 @@ export const enScreens: ScreenMessages = {
     'scenario.assumption': "Assumption",
   },
   rules: {
-    'subtitle': "Thresholds and switches of the Radar and of document recognition. Every change is a new version with a reason; the platform default always stays available.",
+    'subtitle': "Thresholds and switches of document recognition. Every change is a new version with a reason; the platform default always stays available.",
     'value': "Value",
     'default': "Default",
     'version': "Version",
