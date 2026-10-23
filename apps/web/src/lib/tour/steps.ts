@@ -1,40 +1,38 @@
-/** One stop of the guided tour: what to point at (a CSS selector, none = a centred card), where to be, and the texts (keys of `tour`). */
+/** One stop of the guided tour: what to point at (a CSS selector, none = a centred card), where to be, and the texts (keys in the screen namespace). */
 export interface TourStep {
   readonly id: string;
   readonly selector?: string;
   readonly href?: string;
 }
 
-const COMMON_BEFORE: readonly TourStep[] = [
+/**
+ * The tour of the Kanzlei edition (§6.1: five minutes, then work).
+ *
+ * <p>It walks the three questions a bookkeeper asks - what came in, whose paperwork it is, what has to leave the
+ * office - and stops there. The previous tour pointed at nine menu entries this edition deleted: inbox, scan,
+ * review, tasks, contracts, payments, radar and the workspace switcher, so a demo guest was shown arrows pointing
+ * at nothing.</p>
+ */
+const STEPS: readonly TourStep[] = [
   { id: 'welcome' },
-  { id: 'attention', selector: '[data-tour="attention"]', href: '/dashboard' },
-  { id: 'inbox', selector: 'nav a[href="/inbox"]' },
-  { id: 'scan', selector: 'nav a[href="/scan"]' },
-  { id: 'documents', selector: 'nav a[href="/documents"]' },
-  { id: 'review', selector: '[data-testid="pending-review"], nav a[href="/review"]' },
-  { id: 'tasks', selector: 'nav a[href="/tasks"]' },
-  { id: 'contracts', selector: 'nav a[href="/contracts"]' },
-];
-
-const BUSINESS: readonly TourStep[] = [
-  { id: 'invoices', selector: 'nav a[href="/invoices"]' },
-  { id: 'payments', selector: 'nav a[href="/payments"]' },
-];
-
-const COMMON_AFTER: readonly TourStep[] = [
-  { id: 'radar', selector: 'nav a[href="/radar"]' },
-  { id: 'calendar', selector: 'nav a[href="/calendar"]' },
+  { id: 'posteingang', selector: 'nav a[href="/documents"]' },
+  { id: 'belege', selector: 'nav a[href="/invoices"]' },
+  { id: 'fristen', selector: 'nav a[href="/calendar"]' },
+  { id: 'mandanten', selector: 'nav a[href="/mandanten"]' },
+  { id: 'exporte', selector: 'nav a[href="/exports"]' },
   { id: 'search', selector: '[data-tour="search"]' },
   { id: 'account', selector: '[data-tour="account"]' },
   { id: 'finish' },
 ];
 
-/** The steps for a demo cabinet; a stop whose target is not on the screen (a menu entry the plan does not include) is left out. */
-export function stepsFor(persona: string): readonly TourStep[] {
-  const extra: TourStep[] = [];
-  if (persona === 'ADVISOR') extra.push({ id: 'switcher', selector: '[data-tour="switcher"]' });
-  const business = persona === 'FREELANCER' || persona === 'COMPANY' || persona === 'ADVISOR' ? BUSINESS : [];
-  return [...COMMON_BEFORE, ...business, ...extra, ...COMMON_AFTER];
+/**
+ * The steps for a demo cabinet.
+ *
+ * <p>One edition, one tour. The parameter stays because the demo entry point passes a persona and a caller that
+ * sends one must keep compiling; the persona no longer changes what the product is.</p>
+ */
+export function stepsFor(_persona: string): readonly TourStep[] {
+  return STEPS;
 }
 
 /** Whether the element is on the screen (hidden menus do not count). */

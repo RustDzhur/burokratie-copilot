@@ -84,7 +84,7 @@ describe('demo cabinet interface', () => {
     expect(await screen.findByRole('dialog', { name: 'Willkommen in der Demo-Kanzlei' })).toBeInTheDocument();
     expect(screen.getByText(/Schritt 1 von/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Weiter' }));
-    expect(screen.getByRole('dialog', { name: 'Was jetzt Aufmerksamkeit braucht' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Posteingang' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Zurück' }));
     expect(screen.getByRole('dialog', { name: 'Willkommen in der Demo-Kanzlei' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
@@ -93,8 +93,8 @@ describe('demo cabinet interface', () => {
 
   it('the tour points at the real element when it is on the screen', async () => {
     const target = document.createElement('a');
-    target.setAttribute('href', '/tasks');
-    target.textContent = 'Aufgaben';
+    target.setAttribute('href', '/documents');
+    target.textContent = 'Posteingang';
     const nav = document.createElement('nav');
     nav.appendChild(target);
     document.body.appendChild(nav);
@@ -103,9 +103,9 @@ describe('demo cabinet interface', () => {
     target.scrollIntoView = vi.fn();
 
     const user = userEvent.setup();
-    renderWithProviders(<GuidedTour persona="PERSON" onClose={vi.fn()} />);
-    for (let i = 0; i < 6; i += 1) await user.click(await screen.findByRole('button', { name: 'Weiter' }));
-    expect(await screen.findByRole('dialog', { name: 'Aufgaben' })).toBeInTheDocument();
+    renderWithProviders(<GuidedTour persona="ADVISOR" onClose={vi.fn()} />);
+    for (let i = 0; i < 1; i += 1) await user.click(await screen.findByRole('button', { name: 'Weiter' }));
+    expect(await screen.findByRole('dialog', { name: 'Posteingang' })).toBeInTheDocument();
     await waitFor(() => expect(target.scrollIntoView).toHaveBeenCalled());
     nav.remove();
   });
