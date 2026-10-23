@@ -19,8 +19,8 @@ describe('DocumentTypeChanger', () => {
         calls.push({ url, body: typeof init?.body === 'string' ? init.body : null });
         const body = url.includes('/documents/types')
           ? [
-              { code: 'rechnung', category: 'FINANCE', names: { de: 'Rechnung', en: 'Invoice', ru: 'Счёт' }, audiences: 'company', requiresReview: false },
-              { code: 'vertrag', category: 'CONTRACTS', names: { de: 'Vertrag', en: 'Contract', ru: 'Договор' }, audiences: 'company', requiresReview: true },
+              { code: 'rechnung', category: 'FINANCE', names: { de: 'Rechnung', en: 'Invoice', ru: 'Счёт' }, requiresReview: false },
+              { code: 'vertrag', category: 'CONTRACTS', names: { de: 'Vertrag', en: 'Contract', ru: 'Договор' }, requiresReview: true },
             ]
           : {};
         return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });

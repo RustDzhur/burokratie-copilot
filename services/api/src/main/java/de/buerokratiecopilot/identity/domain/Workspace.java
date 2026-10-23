@@ -12,8 +12,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 /**
- * A working area inside a tenant. The {@code mode} selects which modules are available
- * (spec §3.1, §17): a private person sees a different product than a company.
+ * A working area inside a tenant. The {@code mode} is historical metadata: there is one kind of cabinet in the
+ * Kanzlei edition (§4.3), and every workspace created now is a {@link Mode#BUSINESS} one. The other values remain
+ * because the database check constraint and rows written before V83 still use them.
  */
 @Entity
 @Table(name = "workspaces")

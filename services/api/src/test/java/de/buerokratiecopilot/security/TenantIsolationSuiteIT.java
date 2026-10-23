@@ -19,7 +19,6 @@ import org.springframework.test.context.ActiveProfiles;
 
 import de.buerokratiecopilot.approvals.PaymentApprovalService;
 import de.buerokratiecopilot.devices.DeviceService;
-import de.buerokratiecopilot.family.FamilyAccessService;
 import de.buerokratiecopilot.invoices.InvoiceService;
 import de.buerokratiecopilot.mail.outbound.OutboundMessageService;
 import de.buerokratiecopilot.responses.DraftValidation;
@@ -71,9 +70,6 @@ class TenantIsolationSuiteIT {
 
     @Autowired
     private DeviceService devices;
-
-    @Autowired
-    private FamilyAccessService family;
 
     @Autowired
     private RetentionService retention;
@@ -216,37 +212,6 @@ class TenantIsolationSuiteIT {
                 () -> devices.list(stranger.tenantId()))).isEmpty();
         assertThat(RequestContext.runAs(owner.tenantId(),
                 () -> devices.describe(owner.tenantId(), deviceId))).isNotEmpty();
-    }
-
-    @Test
-    @DisplayName("another tenant's document is not reachable through the family rule")
-    void documentIsNotReachableAcrossTenants() {
-        Tenant owner = tenant();
-        Tenant stranger = tenant();
-        UUID documentId = document(owner.tenantId(), "geheim.pdf");
-
-        assertThatThrownBy(() -> RequestContext.runAs(stranger.tenantId(),
-                () -> family.requireRead(stranger.tenantId(), stranger.userId(), documentId)))
-                .isInstanceOf(ApiException.class);
-
-        assertThat(RequestContext.runAs(owner.tenantId(),
-                () -> family.decide(owner.tenantId(), owner.userId(), documentId).readable())).isTrue();
-    }
-
-    @Test
-    @DisplayName("another tenant's personal document is not reachable either")
-    void personalDocumentIsNotReachableAcrossTenants() {
-        Tenant owner = tenant();
-        Tenant stranger = tenant();
-        UUID documentId = document(owner.tenantId(), "arztbrief.pdf");
-        RequestContext.runAs(owner.tenantId(), () -> {
-            family.markPersonal(owner.tenantId(), documentId, owner.userId(), owner.userId(), null);
-            return null;
-        });
-
-        assertThat(RequestContext.runAs(stranger.tenantId(),
-                () -> family.readableDocumentIds(stranger.tenantId(), stranger.userId(), 50)))
-                .isEmpty();
     }
 
     @Test

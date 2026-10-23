@@ -94,8 +94,7 @@ class UiContractIT {
                         .cookie(xsrf).header("X-XSRF-TOKEN", xsrf.getValue())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s","displayName":"Erika Mustermann",
-                                 "accountType":"COMPANY"}
+                                {"email":"%s","password":"%s","displayName":"Erika Mustermann"}
                                 """.formatted(email, PASSWORD)))
                 .andExpect(status().isCreated()).andReturn();
         userId = JsonPath.read(registration.getResponse().getContentAsString(), "$.userId");
@@ -135,18 +134,17 @@ class UiContractIT {
 
         mvc.perform(authed(post("/api/v1/auth/onboarding")).contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"workspaceName":"Muster Hausverwaltung","workspaceType":"company",
+                                {"workspaceName":"Muster Hausverwaltung",
                                  "sources":["upload","email"],"notifications":["deadlines","review","weekly"]}
                                 """))
                 .andExpect(status().isNoContent());
 
         mvc.perform(authed(get("/api/v1/auth/me")))
                 .andExpect(jsonPath("$.onboardingCompleted").value(true))
-                .andExpect(jsonPath("$.workspaceName").value("Muster Hausverwaltung"))
-                .andExpect(jsonPath("$.accountType").value("COMPANY"));
+                .andExpect(jsonPath("$.workspaceName").value("Muster Hausverwaltung"));
 
         mvc.perform(authed(post("/api/v1/auth/onboarding")).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"workspaceName\":\"x\",\"workspaceType\":\"banana\"}"))
+                        .content("{\"workspaceName\":\"x\",\"sources\":[\"banana\"]}"))
                 .andExpect(status().isBadRequest());
     }
 

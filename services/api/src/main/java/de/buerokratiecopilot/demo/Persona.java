@@ -6,19 +6,20 @@ import java.util.Locale;
 import de.buerokratiecopilot.shared.error.ApiException;
 import de.buerokratiecopilot.shared.error.ErrorCode;
 
-/** What a visitor says they want to use the platform for; it decides the kind of demo cabinet, its plan and what is in it. */
+/**
+ * What a visitor says they want to use the platform for; it decides the demo cabinet, its plan and what is in it.
+ *
+ * <p>There is one kind of cabinet now — the Kanzlei — so the demo no longer offers a private person or a household.
+ * The three purposes that remain are businesses an office works for, and the office itself.</p>
+ */
 public enum Persona {
 
-    /** One person with their own post. */
-    PERSON("PRIVATE_PERSON", "PERSONAL", "Einzelperson", "PRIVATE"),
-    /** A household: several people, one cabinet. */
-    FAMILY("FAMILY_HOUSEHOLD", "PERSONAL", "Familie", "FAMILY"),
     /** A freelancer or sole trader. */
     FREELANCER("FREELANCER", "BUSINESS", "Freiberufler", "BUSINESS"),
     /** A larger company with employees. */
     COMPANY("COMPANY_TEAM", "PROFESSIONAL", "Unternehmen", "BUSINESS"),
-    /** An accountant or advice centre looking after many companies. */
-    ADVISOR("EXTERNAL_REPRESENTATIVE", "PROFESSIONAL", "Beratungsstelle", "ADVISOR");
+    /** The office itself: an accountant looking after many clients. */
+    ADVISOR("EXTERNAL_REPRESENTATIVE", "PROFESSIONAL", "Kanzlei", "ADVISOR");
 
     private final String accountType;
     private final String planCode;

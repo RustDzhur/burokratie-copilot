@@ -106,10 +106,18 @@ public class AuthService {
         this.transactionTemplate = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
     }
 
-    /** Input of a registration; the account type decides the workspace mode (§3.1). */
-    public record RegisterCommand(String email, String password, String displayName, String accountType,
+    /**
+     * Input of a registration. The product is a Kanzlei tool, so the cabinet has one kind and the person no longer
+     * chooses one: registration creates the Kanzlei cabinet.
+     */
+    public record RegisterCommand(String email, String password, String displayName,
                                   String tenantName, String locale, String timeZone, boolean acceptedTerms) {
     }
+
+    /** The one kind of cabinet: an accounting office. */
+    static final String KANZLEI_ACCOUNT_TYPE = "COMPANY";
+    static final Workspace.Mode KANZLEI_WORKSPACE_MODE = Workspace.Mode.BUSINESS;
+    static final String KANZLEI_WORKSPACE_NAME = "Kanzlei";
 
     public record RegistrationResult(UUID userId, UUID tenantId, boolean verificationMailSent) {
     }
@@ -152,7 +160,7 @@ public class AuthService {
             throw ApiException.duplicate("An account with this e-mail address already exists");
         }
 
-        String accountType = command.accountType() == null ? "PRIVATE_PERSON" : command.accountType();
+        String accountType = KANZLEI_ACCOUNT_TYPE;
 
         User user = new User(UUID.randomUUID(), email, displayName);
         user.setStatus(User.Status.PENDING_VERIFICATION);
@@ -167,7 +175,7 @@ public class AuthService {
         // Flushed: the proof of acceptance below is written with plain SQL and needs the row to exist.
         users.saveAndFlush(user);
         if (command.acceptedTerms()) {
-            legal.recordAcceptance(user.getId(), command.accountType() == null ? "PRIVATE_PERSON" : command.accountType());
+            legal.recordAcceptance(user.getId());
         }
 
         Tenant tenant = new Tenant(UUID.randomUUID(), uniqueSlug(email),
@@ -177,10 +185,10 @@ public class AuthService {
                 accountType);
         tenants.saveAndFlush(tenant);
         // Every new workspace starts with the free trial.
-        subscriptions.startTrial(tenant.getId(), accountType);
+        subscriptions.startTrial(tenant.getId());
 
         Workspace workspace = new Workspace(UUID.randomUUID(), tenant.getId(),
-                workspaceNameFor(accountType), workspaceModeFor(accountType));
+                KANZLEI_WORKSPACE_NAME, KANZLEI_WORKSPACE_MODE);
         workspace.setDefaultWorkspace(true);
         workspaces.save(workspace);
 
@@ -204,7 +212,7 @@ public class AuthService {
                 .actor(AuditEvent.ActorType.USER, user.getId(), email)
                 .tenant(tenant.getId())
                 .entity("users", user.getId(), email)
-                .description("Account registered with type " + accountType)
+                .description("Account registered (Kanzlei)")
                 .request(ipAddress, userAgent, null, "/api/v1/auth/register", "POST")
                 .build());
 
@@ -379,7 +387,7 @@ public class AuthService {
 
     /** What the signed-in screen needs to greet the user and name the workspace. */
     public record SessionProfile(String email, String displayName, String locale, String timeZone,
-                                 String workspaceName, String accountType, List<String> roles) {
+                                 String workspaceName, List<String> roles) {
     }
 
     /**
@@ -392,13 +400,12 @@ public class AuthService {
                 .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHENTICATED, "The session user no longer exists"));
         Optional<Tenant> tenant = tenantId == null ? Optional.empty() : tenants.findById(tenantId);
         String workspaceName = tenant.map(Tenant::getName).orElse(null);
-        String accountType = tenant.map(Tenant::getAccountType).orElse(null);
         List<String> roleCodes = tenantId == null ? List.<String>of()
                 : memberships.findByTenantIdAndUserId(tenantId, userId)
                         .map(m -> membershipRoles.findRoleCodes(m.getId()))
                         .orElse(List.of());
         return new SessionProfile(user.getEmail(), user.getDisplayName(), user.getLocale(), user.getTimeZone(),
-                workspaceName, accountType, roleCodes);
+                workspaceName, roleCodes);
     }
 
     /**
@@ -578,26 +585,5 @@ public class AuthService {
             candidate = base + "-" + suffix++;
         }
         return candidate;
-    }
-
-    private static Workspace.Mode workspaceModeFor(String accountType) {
-        return switch (accountType) {
-            case "PRIVATE_PERSON" -> Workspace.Mode.PRIVATE;
-            case "FAMILY_HOUSEHOLD" -> Workspace.Mode.FAMILY;
-            case "EXTERNAL_REPRESENTATIVE" -> Workspace.Mode.ADVISOR;
-            case "HIGH_SECURITY_ORGANIZATION", "COMPANY", "COMPANY_TEAM", "FREELANCER" -> Workspace.Mode.BUSINESS;
-            default -> Workspace.Mode.PRIVATE;
-        };
-    }
-
-    private static String workspaceNameFor(String accountType) {
-        return switch (accountType) {
-            case "FAMILY_HOUSEHOLD" -> "Familie";
-            case "COMPANY", "COMPANY_TEAM" -> "Unternehmen";
-            case "FREELANCER" -> "Selbstständigkeit";
-            case "EXTERNAL_REPRESENTATIVE" -> "Beratung";
-            case "HIGH_SECURITY_ORGANIZATION" -> "Organisation";
-            default -> "Persönlich";
-        };
     }
 }

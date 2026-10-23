@@ -116,7 +116,6 @@ const user = (permissions: readonly string[]): SessionUser => ({
   roles: [],
   workspaceId: 'w1',
   workspaceName: 'Testkanzlei',
-  workspaceType: 'company',
   permissions,
 });
 

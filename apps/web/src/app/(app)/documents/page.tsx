@@ -21,7 +21,6 @@ import type {
   BelegStatusValue,
   DocumentSummary,
 } from '@/lib/api/types';
-import { useSession } from '@/lib/auth/session-context';
 import { useStatusLabels } from '@/lib/format/status';
 
 /** The drawers documents are sorted into, in the order a person looks for them. */
@@ -80,7 +79,6 @@ export default function DocumentsPage() {
   const locale = useLocale();
   const statusLabel = useStatusLabels('documents');
   const [category, setCategory] = useState<(typeof CATEGORY_TABS)[number]>('ALL');
-  const user = useSession();
   const toast = useToast();
   const [listVersion, setListVersion] = useState(0);
   const [sorting, setSorting] = useState(false);
@@ -519,7 +517,6 @@ export default function DocumentsPage() {
                   key: 'type',
                   label: t('filter.type'),
                   options: catalogue.state.data
-                    .filter((entry) => !user?.workspaceType || entry.audiences.split(',').includes(user.workspaceType))
                     .map((entry) => ({
                       value: entry.code,
                       label: `${t(`category.${entry.category}` as 'category.ALL')} · ${entry.names[locale] ?? entry.names.de}`,

@@ -128,13 +128,13 @@ class PlatformAdminIT {
     @Order(3)
     @DisplayName("prices and payment details are edited in the admin area, and the public price list follows")
     void pricesAndSettings() throws Exception {
-        mvc.perform(authed(put("/api/v1/admin/plans/PERSONAL").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"priceCents\":800}"))).andExpect(status().isOk());
+        mvc.perform(authed(put("/api/v1/admin/plans/BUSINESS").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"priceCents\":3000}"))).andExpect(status().isOk());
         mvc.perform(get("/api/v1/public/plans")).andExpect(status().isOk())
-                .andExpect(jsonPath("$.plans[?(@.code == 'PERSONAL')].price_cents").value(800))
+                .andExpect(jsonPath("$.plans[?(@.code == 'BUSINESS')].price_cents").value(3000))
                 .andExpect(jsonPath("$.trialDays").isNumber());
-        mvc.perform(authed(put("/api/v1/admin/plans/PERSONAL").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"priceCents\":790}"))).andExpect(status().isOk());
+        mvc.perform(authed(put("/api/v1/admin/plans/BUSINESS").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"priceCents\":2900}"))).andExpect(status().isOk());
 
         mvc.perform(authed(put("/api/v1/admin/settings").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"key\":\"billing.crypto\",\"value\":{\"asset\":\"USDT\",\"network\":\"TRON\","

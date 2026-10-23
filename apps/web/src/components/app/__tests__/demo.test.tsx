@@ -28,7 +28,7 @@ function serve(handlers: Record<string, unknown> = {}): void {
   );
 }
 
-const demoUser = { id: 'u', name: 'Erika Mustermann', email: 'demo-abc@demo.invalid', roles: [], workspaceId: 'w', workspaceName: 'Demo', workspaceType: 'company' } as unknown as SessionUser;
+const demoUser = { id: 'u', name: 'Erika Mustermann', email: 'demo-abc@demo.invalid', roles: [], workspaceId: 'w', workspaceName: 'Demo' } as unknown as SessionUser;
 const realUser = { ...demoUser, email: 'erika@example.de' } as SessionUser;
 
 describe('demo cabinet interface', () => {
@@ -39,20 +39,24 @@ describe('demo cabinet interface', () => {
     replace.mockClear();
   });
 
-  it('asks what the visitor wants to use the platform for and opens the chosen cabinet', async () => {
+  it('offers only the business cabinets the Kanzlei edition keeps, and opens the chosen one', async () => {
     const user = userEvent.setup();
-    serve({ '/public/demo/start': { persona: 'FREELANCER', next: '/dashboard?tour=1' } });
+    serve({ '/public/demo/start': { persona: 'ADVISOR', next: '/dashboard?tour=1' } });
     const assign = vi.fn();
     vi.stubGlobal('location', { ...window.location, assign });
     renderWithProviders(<DemoDialog open onClose={vi.fn()} />);
 
-    for (const name of [/Einzelperson/, /Familie/, /Freiberufler/, /Unternehmen/, /Beratungsstelle/]) {
+    // The private person and the household are gone (§4.3); the office itself, its client firms and a
+    // freelancer remain.
+    for (const name of [/Freiberufler/, /Unternehmen/, /Kanzlei/]) {
       expect(screen.getByRole('radio', { name })).toBeInTheDocument();
     }
-    await user.click(screen.getByRole('radio', { name: /Freiberufler/ }));
+    expect(screen.queryByRole('radio', { name: /Familie/ })).toBeNull();
+    expect(screen.queryByRole('radio', { name: /Einzelperson/ })).toBeNull();
+    await user.click(screen.getByRole('radio', { name: /Kanzlei/ }));
     await user.click(screen.getByRole('button', { name: 'Weiter' }));
 
-    await waitFor(() => expect(calls.some((c) => c.url.endsWith('/public/demo/start') && (c.body ?? '').includes('"persona":"FREELANCER"'))).toBe(true));
+    await waitFor(() => expect(calls.some((c) => c.url.endsWith('/public/demo/start') && (c.body ?? '').includes('"persona":"ADVISOR"'))).toBe(true));
     await waitFor(() => expect(assign).toHaveBeenCalledWith('/dashboard?tour=1'));
   });
 
@@ -66,7 +70,7 @@ describe('demo cabinet interface', () => {
     expect(calls).toHaveLength(0);
 
     rerender(<DemoBanner user={demoUser} />);
-    expect(await screen.findByText('Demo-Kabinett')).toBeInTheDocument();
+    expect(await screen.findByText('Demo-Kanzlei')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Demo beenden' }));
     await waitFor(() => expect(calls.some((c) => c.url.endsWith('/demo/exit') && c.method === 'POST')).toBe(true));
     await waitFor(() => expect(assign).toHaveBeenCalledWith('/'));
@@ -77,12 +81,12 @@ describe('demo cabinet interface', () => {
     const onClose = vi.fn();
     renderWithProviders(<GuidedTour persona="FREELANCER" onClose={onClose} />);
 
-    expect(await screen.findByRole('dialog', { name: 'Willkommen im Demo-Kabinett' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Willkommen in der Demo-Kanzlei' })).toBeInTheDocument();
     expect(screen.getByText(/Schritt 1 von/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Weiter' }));
     expect(screen.getByRole('dialog', { name: 'Was jetzt Aufmerksamkeit braucht' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Zurück' }));
-    expect(screen.getByRole('dialog', { name: 'Willkommen im Demo-Kabinett' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Willkommen in der Demo-Kanzlei' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
     expect(onClose).toHaveBeenCalled();
   });

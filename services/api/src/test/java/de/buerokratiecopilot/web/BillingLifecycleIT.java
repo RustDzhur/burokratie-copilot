@@ -77,7 +77,7 @@ class BillingLifecycleIT {
         MvcResult registration = mvc.perform(post("/api/v1/auth/register").cookie(xsrf)
                         .header("X-XSRF-TOKEN", xsrf.getValue()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s","password":"%s","displayName":"Erika Mustermann","accountType":"FAMILY_HOUSEHOLD"}
+                                {"email":"%s","password":"%s","displayName":"Erika Mustermann"}
                                 """.formatted(email, PASSWORD)))
                 .andExpect(status().isCreated()).andReturn();
         userId = UUID.fromString(JsonPath.read(registration.getResponse().getContentAsString(), "$.userId"));
@@ -94,7 +94,7 @@ class BillingLifecycleIT {
                 .andExpect(status().isOk()).andReturn().getResponse().getCookie("bc_session");
 
         mvc.perform(authed(get("/api/v1/auth/me"))).andExpect(status().isOk())
-                .andExpect(jsonPath("$.subscription.plan_code").value("PERSONAL"))
+                .andExpect(jsonPath("$.subscription.plan_code").value("BUSINESS"))
                 .andExpect(jsonPath("$.subscription.status").value("TRIAL"))
                 .andExpect(jsonPath("$.subscription.blocked").value(false))
                 .andExpect(jsonPath("$.subscription.days_left").value(org.hamcrest.Matchers.greaterThan(55)))
@@ -129,7 +129,7 @@ class BillingLifecycleIT {
                 """);
         MvcResult created = mvc.perform(authed(post("/api/v1/billing/invoices").contentType(MediaType.APPLICATION_JSON)
                         .content(request))).andExpect(status().isCreated())
-                .andExpect(jsonPath("$.amount_cents").value(790))
+                .andExpect(jsonPath("$.amount_cents").value(2900))
                 .andExpect(jsonPath("$.status").value("ISSUED")).andReturn();
         invoiceId = JsonPath.read(created.getResponse().getContentAsString(), "$.id");
 

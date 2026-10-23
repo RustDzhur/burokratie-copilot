@@ -16,7 +16,7 @@ import { toApiError } from '@/lib/api/errors';
 import { useApiResource } from '@/lib/api/hooks';
 import type { BillingInvoice, BillingState, InvoiceRequest } from '@/lib/api/types';
 import { PlanGrid } from '@/components/app/plan-grid';
-import { useSession, useSessionReload } from '@/lib/auth/session-context';
+import { useSessionReload } from '@/lib/auth/session-context';
 import styles from './billing.module.css';
 import { QrCode } from './qr-code';
 
@@ -32,7 +32,6 @@ export default function BillingPage() {
   const locale = useLocale();
   const toast = useToast();
   const router = useRouter();
-  const user = useSession();
   const reloadSession = useSessionReload();
 
   const { state, reload } = useApiResource<BillingState>((signal) => api.billing.state(signal), []);
@@ -59,19 +58,6 @@ export default function BillingPage() {
       reloadSession();
     } catch (caught) {
       toast.error(t('change.title'), tErrors(toApiError(caught).kind));
-    }
-  };
-
-  const switchCabinet = async (value: 'private' | 'family' | 'company'): Promise<void> => {
-    if (value === user?.workspaceType) return;
-    if (!window.confirm(t('cabinet.confirm'))) return;
-    try {
-      await api.account.setType(value);
-      toast.success(t('cabinet.done'));
-      reload();
-      reloadSession();
-    } catch (caught) {
-      toast.error(t('cabinet.title'), tErrors(toApiError(caught).kind));
     }
   };
 
@@ -138,26 +124,10 @@ export default function BillingPage() {
               </Card>
             </PageSection>
 
-            <PageSection title={t('cabinet.title')}>
-              <p className={styles.muted}>{t('cabinet.hint')}</p>
-              <Select
-                label={t('cabinet.label')}
-                options={[
-                  { value: 'private', label: t('cabinet.private') },
-                  { value: 'family', label: t('cabinet.family') },
-                  { value: 'company', label: t('cabinet.company') },
-                ]}
-                value={user?.workspaceType ?? 'private'}
-                disabled={!data.owner}
-                onChange={(event) => void switchCabinet(event.target.value as 'private' | 'family' | 'company')}
-              />
-            </PageSection>
-
             <PageSection title={t('change.title')}>
               <p className={styles.muted}>{t('change.hint')}</p>
               <PlanGrid
                 plans={data.plans}
-                cabinet={user?.workspaceType}
                 currentCode={data.planCode}
                 action={(plan) =>
                   plan.code === data.planCode ? (

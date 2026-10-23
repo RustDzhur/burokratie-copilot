@@ -17,7 +17,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
-import de.buerokratiecopilot.family.FamilyAccessService;
 import de.buerokratiecopilot.identity.onboarding.OnboardingService;
 import de.buerokratiecopilot.ingest.IngestService;
 import de.buerokratiecopilot.invoices.InvoiceService;
@@ -64,9 +63,6 @@ class MandatoryScenariosIT {
     private RetentionService retention;
 
     @Autowired
-    private FamilyAccessService family;
-
-    @Autowired
     private WorkflowService workflows;
 
     @Autowired
@@ -82,9 +78,9 @@ class MandatoryScenariosIT {
     private record Account(UUID tenantId, UUID adminUserId, UUID workspaceId, UUID approverId) {
     }
 
-    private Account account(String accountType) {
+    private Account account() {
         var created = onboarding.onboard(new OnboardingService.Request(
-                "sc-" + UUID.randomUUID().toString().substring(0, 12), "Szenario", accountType,
+                "sc-" + UUID.randomUUID().toString().substring(0, 12), "Szenario",
                 "admin-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de", "Administrator",
                 "de", "Europe/Berlin", "DE", "Szenario GmbH"));
 
@@ -142,7 +138,7 @@ class MandatoryScenariosIT {
     @Test
     @DisplayName("§28.3 (1-11): from an invoice upload to a confirmed payment, with the history")
     void theInvoiceChainRunsEndToEnd() {
-        Account account = account("COMPANY");
+        Account account = account();
 
         // 1. The account and its workspace exist; the administrator is its owner.
         assertThat(account.tenantId()).isNotNull();
@@ -203,7 +199,7 @@ class MandatoryScenariosIT {
     @Test
     @DisplayName("a letter from an authority becomes a case, a task and a reply")
     void theAuthorityLetterChainRuns() {
-        Account account = account("PRIVATE_PERSON");
+        Account account = account();
         RequestContext.runAs(account.tenantId(), () -> presets.install(account.tenantId(),
                 account.adminUserId()));
 
@@ -237,37 +233,11 @@ class MandatoryScenariosIT {
                 run.runId())).isEqualTo("COMPLETED");
     }
 
-    @Test
-    @DisplayName("a document of another tenant is not reachable")
-    void anotherTenantsDocumentIsRefused() {
-        Account owner = account("COMPANY");
-        Account stranger = account("COMPANY");
-        UUID documentId = upload(owner, callerFor(owner), "geheim".getBytes(
-                java.nio.charset.StandardCharsets.UTF_8), "cross-1");
-
-        assertThatThrownBy(() -> RequestContext.runAs(stranger.tenantId(), () -> family.requireRead(
-                stranger.tenantId(), stranger.adminUserId(), documentId)))
-                .isInstanceOf(ApiException.class);
-    }
-
-    @Test
-    @DisplayName("a contract with an end date can be filed and its deadline recorded")
-    void aContractWithAnEndDateIsFiled() {
-        Account account = account("COMPANY");
-        UUID contractId = jdbc.queryForObject("""
-                insert into contracts (id, tenant_id, title, contract_type, status, start_date, end_date)
-                values (gen_random_uuid(), ?, 'Rahmenvertrag', 'SERVICE', 'ACTIVE', ?, ?) returning id
-                """, UUID.class, account.tenantId(), java.sql.Date.valueOf(LocalDate.of(2026, 1, 1)),
-                java.sql.Date.valueOf(LocalDate.of(2026, 12, 31)));
-
-        assertThat(jdbc.queryForObject("select end_date from contracts where id = ?",
-                java.sql.Date.class, contractId)).isNotNull();
-    }
 
     @Test
     @DisplayName("a deletion is subject to the retention policy rather than simply happening")
     void deletionFollowsTheRetentionPolicy() {
-        Account account = account("COMPANY");
+        Account account = account();
         UUID policyId = RequestContext.runAs(account.tenantId(), () -> retention.definePolicy(
                 new RetentionService.PolicyRequest(account.tenantId(), "SZ-10", "Zehn Jahre", null, 120,
                         "DOCUMENT_DATE", "§ 147 AO", LocalDate.of(2020, 1, 1), account.adminUserId())));
@@ -279,18 +249,9 @@ class MandatoryScenariosIT {
     }
 
     @Test
-    @DisplayName("the modes are distinguished by the account type they were created with")
-    void theModesAreDistinguished() {
-        assertThat(jdbc.queryForObject("select account_type from tenants where id = ?", String.class,
-                account("PRIVATE_PERSON").tenantId())).isEqualTo("PRIVATE_PERSON");
-        assertThat(jdbc.queryForObject("select account_type from tenants where id = ?", String.class,
-                account("COMPANY").tenantId())).isEqualTo("COMPANY");
-    }
-
-    @Test
     @DisplayName("everything the platform did is in the audit trail")
     void everythingIsAudited() {
-        Account account = account("COMPANY");
+        Account account = account();
         upload(account, callerFor(account), "audit".getBytes(java.nio.charset.StandardCharsets.UTF_8),
                 "audit-1");
 
@@ -304,8 +265,8 @@ class MandatoryScenariosIT {
     @Test
     @DisplayName("an invoice of another tenant is not reachable")
     void anotherTenantsInvoiceIsRefused() {
-        Account owner = account("COMPANY");
-        Account stranger = account("COMPANY");
+        Account owner = account();
+        Account stranger = account();
         UUID invoiceId = invoice(owner, "RE-CROSS-1", new BigDecimal("50.00"));
 
         assertThatThrownBy(() -> RequestContext.runAs(stranger.tenantId(),

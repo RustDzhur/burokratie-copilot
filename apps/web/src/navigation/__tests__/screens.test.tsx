@@ -20,13 +20,18 @@ vi.mock('next/navigation', () => ({
 }));
 
 describe('screen registry', () => {
-  it('covers all 30 screens required by the specification, and the people screen of the cabinets', () => {
-    // The registry holds the screens the backend still serves: the removed contracts, radar and assistant
-    // modules are gone, and the generated letters remain one screen. The count is asserted on purpose: a
-    // screen added to the registry without appearing here is a screen the product claims and does not have.
-    expect(screens).toHaveLength(45);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(45);
-    expect(new Set(screens.map((screen) => screen.href)).size).toBe(45);
+  it('covers every screen the backend serves, and no screen for a removed cabinet kind', () => {
+    // The registry holds the screens the backend still serves: the removed contracts, radar, assistant and
+    // family/company/employees modules are gone, and the generated letters remain one screen. The count is
+    // asserted on purpose: a screen added to the registry without appearing here is a screen the product
+    // claims and does not have.
+    expect(screens).toHaveLength(42);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(42);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(42);
+    const ids = screens.map((screen) => screen.id);
+    expect(ids).not.toContain('family');
+    expect(ids).not.toContain('company');
+    expect(ids).not.toContain('employees');
   });
 
   it('puts every workspace screen into a sidebar section', () => {
@@ -82,56 +87,45 @@ describe('screen registry', () => {
 });
 
 describe('plans, permissions and the menu', () => {
-  // The mechanism is tested against the whole registry: most modules are no longer in the Kanzlei menu,
-  // but the filter itself must keep working for the screens that remain registered.
+  // There is one kind of cabinet now - the Kanzlei - so the menu filter answers two questions only: what the
+  // plan includes, and what the server granted. The mechanism stays tested against the whole registry.
   const names = (user: Parameters<typeof screensVisibleFor>[1]): string[] =>
     screensVisibleFor(screens, user).map((item) => item.id);
   const plan = (planTier: number) => ({ planTier });
 
-  it('hides what the plan does not include, and what the cabinet does not need', () => {
-    const free = names({ workspaceType: 'company', subscription: plan(0) });
+  it('hides what the plan does not include', () => {
+    const free = names({ subscription: plan(0) });
     expect(free).toContain('documents');
     expect(free).not.toContain('automations');
     expect(free).not.toContain('invoices');
 
-    const business = names({ workspaceType: 'company', subscription: plan(2) });
+    const business = names({ subscription: plan(2) });
     expect(business).toContain('invoices');
     expect(business).toContain('automations');
-    expect(business).not.toContain('employees');
     expect(business).not.toContain('audit');
 
-    const professional = names({ workspaceType: 'company', subscription: plan(3) });
-    expect(professional).toContain('employees');
+    const professional = names({ subscription: plan(3) });
     expect(professional).toContain('audit');
-
-    // A family never sees the business side, whatever it pays for.
-    const family = names({ workspaceType: 'family', subscription: plan(3) });
-    expect(family).toContain('family');
-    expect(family).not.toContain('invoices');
-    expect(family).not.toContain('payments');
-    expect(family).not.toContain('company');
-    expect(family).not.toContain('employees');
   });
 
   it('hides nothing while the plan is unknown (the server decides)', () => {
-    expect(names({ workspaceType: 'company' })).toContain('invoices');
+    expect(names({})).toContain('invoices');
   });
 
-  it('shows each kind of workspace its own screens, and the admin area only to the administrator', () => {
-    expect(names({ workspaceType: 'private' })).not.toContain('family');
-    expect(names({ workspaceType: 'private' })).not.toContain('company');
-    expect(names({ workspaceType: 'family' })).toContain('family');
-    expect(names({ workspaceType: 'family' })).not.toContain('employees');
-    expect(names({ workspaceType: 'company' })).toContain('employees');
-    expect(names({ workspaceType: 'company' })).not.toContain('family');
-    expect(names({ workspaceType: 'private' })).not.toContain('invoices');
-    expect(names({ workspaceType: 'company' })).toContain('invoices');
-    for (const kind of ['private', 'family', 'company'] as const) {
-      // parties was merged into contacts and removed (§4.3): no cabinet sees the screen any more.
-      expect(names({ workspaceType: kind })).not.toContain('parties');
-    }
-    expect(names({ workspaceType: 'company' })).not.toContain('admin');
-    expect(names({ workspaceType: 'company', platformAdmin: true })).toContain('admin');
+  it('has no screen for a family, a company cockpit or employees: the cabinet is one', () => {
+    // §4.3: the family and company modules are deleted, not hidden. A screen that came back would be a menu
+    // that lies about what the product does.
+    const ids = screens.map((item) => item.id);
+    expect(ids).not.toContain('family');
+    expect(ids).not.toContain('company');
+    expect(ids).not.toContain('employees');
+    // parties was merged into contacts and removed (§4.3) as well.
+    expect(ids).not.toContain('parties');
+  });
+
+  it('shows the admin area only to the administrator', () => {
+    expect(names({})).not.toContain('admin');
+    expect(names({ platformAdmin: true })).toContain('admin');
   });
 
   it('keeps the date vocabulary reachable through Einstellungen, under settings.view', () => {
@@ -139,12 +133,8 @@ describe('plans, permissions and the menu', () => {
     expect(sidebarScreens.map((item) => item.id)).not.toContain('dateMarkers');
     expect(getScreen('dateMarkers').href).toBe('/settings/date-markers');
     // It remains a registered screen, and its permission still decides whether the server would offer it.
-    expect(names({ workspaceType: 'private', permissions: ['tasks.view'] })).not.toContain(
-      'dateMarkers',
-    );
-    expect(names({ workspaceType: 'private', permissions: ['settings.view'] })).toContain(
-      'dateMarkers',
-    );
+    expect(names({ permissions: ['tasks.view'] })).not.toContain('dateMarkers');
+    expect(names({ permissions: ['settings.view'] })).toContain('dateMarkers');
   });
 
   it('keeps the account mapping reachable through Einstellungen, under settings.view', () => {
@@ -152,12 +142,8 @@ describe('plans, permissions and the menu', () => {
     // though it is not one of the eleven menu items.
     expect(sidebarScreens.map((item) => item.id)).not.toContain('kontoMapping');
     expect(getScreen('kontoMapping').href).toBe('/settings/konto-mapping');
-    expect(names({ workspaceType: 'private', permissions: ['tasks.view'] })).not.toContain(
-      'kontoMapping',
-    );
-    expect(names({ workspaceType: 'private', permissions: ['settings.view'] })).toContain(
-      'kontoMapping',
-    );
+    expect(names({ permissions: ['tasks.view'] })).not.toContain('kontoMapping');
+    expect(names({ permissions: ['settings.view'] })).toContain('kontoMapping');
   });
 });
 
@@ -221,7 +207,6 @@ describe('Sidebar', () => {
       roles: [],
       workspaceId: 'w',
       workspaceName: 'W',
-      workspaceType: 'private' as const,
       permissions: ['tasks.view'],
     };
     const { unmount } = renderWithProviders(

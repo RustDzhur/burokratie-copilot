@@ -13,7 +13,7 @@ vi.mock('next/navigation', () => ({
 
 const user = {
   id: 'u1', name: 'Erika Weber', email: 'erika@example.de', roles: [], workspaceId: 'w1', workspaceName: 'Weber',
-  workspaceType: 'company', avatarUrl: '/api/v1/profile/avatar?v=2',
+  avatarUrl: '/api/v1/profile/avatar?v=2',
 } as unknown as SessionUser;
 
 describe('Topbar: account menu', () => {

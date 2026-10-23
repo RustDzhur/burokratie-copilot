@@ -50,10 +50,6 @@ public class DocumentType {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder = 100;
 
-    /** Which kinds of cabinet the type is meant for: private, family, company (comma separated). */
-    @Column(name = "audiences", nullable = false, length = 60)
-    private String audiences = "private,family,company";
-
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -126,10 +122,6 @@ public class DocumentType {
 
     public void setRequiresReview(boolean requiresReview) {
         this.requiresReview = requiresReview;
-    }
-
-    public String getAudiences() {
-        return audiences;
     }
 
     public int getSortOrder() {

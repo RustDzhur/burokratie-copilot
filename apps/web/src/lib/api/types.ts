@@ -166,12 +166,11 @@ export interface PartyInput {
   readonly notes?: string | null;
 }
 
-/** One document type of the catalogue the platform recognises, and the kinds of cabinet it is meant for. */
+/** One document type of the catalogue the platform recognises. */
 export interface CatalogueEntry {
   readonly code: string;
   readonly category: string;
   readonly names: Readonly<Record<string, string>>;
-  readonly audiences: string;
 }
 
 export interface ExtractedField {
@@ -657,7 +656,6 @@ export interface SessionUser {
   readonly roles: readonly MemberRole[];
   readonly workspaceId: string;
   readonly workspaceName: string;
-  readonly workspaceType: 'private' | 'family' | 'company';
   readonly avatarUrl?: string | null;
   /** False until the first-run wizard was finished; the sign-in sends such a person to it. */
   readonly onboardingCompleted?: boolean;
@@ -697,11 +695,8 @@ export interface PlanSummary {
   readonly name: string;
   readonly priceCents: number;
   readonly currency: string;
-  readonly accountType?: string;
   readonly active?: boolean;
   readonly tier?: number;
-  /** The cabinets the plan is offered to: private, family, company. */
-  readonly audiences?: readonly string[];
   readonly analysesPerMonth?: number | null;
   readonly features?: readonly string[];
 }

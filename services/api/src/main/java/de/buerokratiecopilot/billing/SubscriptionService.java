@@ -46,23 +46,20 @@ public class SubscriptionService {
     private record Cached(boolean blocked, Instant loadedAt) {
     }
 
-    /** The plan that belongs to an account type chosen at registration. */
-    public static String planFor(String accountType) {
-        return switch (accountType == null ? "" : accountType) {
-            case "PRIVATE_PERSON", "FAMILY_HOUSEHOLD" -> "PERSONAL";
-            case "COMPANY_TEAM", "EXTERNAL_REPRESENTATIVE", "HIGH_SECURITY_ORGANIZATION" -> "PROFESSIONAL";
-            default -> "BUSINESS";
-        };
-    }
+    /**
+     * The plan a Kanzlei starts on. There is one kind of cabinet, so there is one starting plan; an owner moves to
+     * another tier in the price list afterwards.
+     */
+    public static final String KANZLEI_PLAN = "BUSINESS";
 
     /** Starts the free trial of a new tenant. */
     @Transactional
-    public void startTrial(UUID tenantId, String accountType) {
+    public void startTrial(UUID tenantId) {
         Instant end = Instant.now().plus(settings.trialDays(), ChronoUnit.DAYS);
         jdbc.update("""
                 insert into subscriptions (tenant_id, plan_code, status, trial_ends_at, access_until)
                 values (?, ?, 'TRIAL', ?, ?) on conflict (tenant_id) do nothing
-                """, tenantId, planFor(accountType), java.sql.Timestamp.from(end), java.sql.Timestamp.from(end));
+                """, tenantId, KANZLEI_PLAN, java.sql.Timestamp.from(end), java.sql.Timestamp.from(end));
     }
 
     /** True when this tenant may not use the platform right now. A tenant without a row is not blocked. */
@@ -108,14 +105,6 @@ public class SubscriptionService {
         if (known == null || known == 0) {
             throw new ApiException(ErrorCode.INVALID_REQUEST, "Unbekannter Tarif: " + planCode);
         }
-        Integer audience = jdbc.queryForObject("""
-                select count(*) from plans p join tenants t on t.id = ?
-                where p.code = ? and position(case t.account_type when 'PRIVATE_PERSON' then 'private'
-                      when 'FAMILY_HOUSEHOLD' then 'family' else 'company' end in p.audiences) > 0
-                """, Integer.class, tenantId, planCode);
-        if (audience == null || audience == 0) {
-            throw new ApiException(ErrorCode.INVALID_REQUEST, "Dieser Tarif ist für Ihre Kontoart nicht vorgesehen");
-        }
         jdbc.update("update subscriptions set plan_code = ? where tenant_id = ?", planCode, tenantId);
         if ("FREE".equals(planCode)) {
             // Free has no end: the access date moves far out, so the free tier is a tier and not a second trial.
@@ -124,24 +113,6 @@ public class SubscriptionService {
                            retention_until = null, data_choice = null, data_choice_at = null
                     where tenant_id = ? and (status in ('TRIAL', 'EXPIRED') or paid_until is null)
                     """, tenantId);
-        }
-        cache.remove(tenantId);
-    }
-
-    /**
-     * After the kind of account changed: a plan that is not offered to the new kind (a family plan for a company) gives
-     * way to the plan of the new kind, so the cabinet and the plan always fit together.
-     */
-    @Transactional
-    public void alignPlanToAccountType(UUID tenantId) {
-        String accountType = jdbc.queryForObject("select account_type from tenants where id = ?", String.class, tenantId);
-        String cabinet = PlanFeatures.cabinetOf(accountType);
-        Integer fits = jdbc.queryForObject("""
-                select count(*) from subscriptions s join plans p on p.code = s.plan_code
-                where s.tenant_id = ? and position(? in p.audiences) > 0
-                """, Integer.class, tenantId, cabinet);
-        if (fits == null || fits == 0) {
-            jdbc.update("update subscriptions set plan_code = ? where tenant_id = ?", planFor(accountType), tenantId);
         }
         cache.remove(tenantId);
     }

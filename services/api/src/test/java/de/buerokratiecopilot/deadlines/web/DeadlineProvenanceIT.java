@@ -50,7 +50,7 @@ class DeadlineProvenanceIT {
     @DisplayName("a stated deadline carries its document, page and text, is never legally confirmed, and is reported as unconfirmed")
     void statedDeadlineIsTraceableAndUnconfirmed() throws Exception {
         var created = onboarding.onboard(new OnboardingService.Request(
-                "prov-" + UUID.randomUUID().toString().substring(0, 12), "Herkunft", "PRIVATE_PERSON",
+                "prov-" + UUID.randomUUID().toString().substring(0, 12), "Herkunft",
                 "prov-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de", "Erika Mustermann",
                 "de", "Europe/Berlin", "DE", "Herkunft"));
         UUID tenantId = created.tenantId();

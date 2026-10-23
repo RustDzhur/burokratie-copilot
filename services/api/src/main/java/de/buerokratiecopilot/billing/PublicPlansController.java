@@ -31,7 +31,7 @@ public class PublicPlansController {
     public Map<String, Object> plans() {
         // No session here, so the connection is in the system context already; plans and settings are global.
         List<Map<String, Object>> plans = RequestContext.runAs((java.util.UUID) null,
-                () -> jdbc.queryForList("select code, name, price_cents, currency, tier, audiences, analyses_per_month, features from plans where is_active order by sort_order"));
+                () -> jdbc.queryForList("select code, name, price_cents, currency, tier, analyses_per_month, features from plans where is_active order by sort_order"));
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("trialDays", settings.trialDays());
         result.put("retentionDays", settings.retentionDays());

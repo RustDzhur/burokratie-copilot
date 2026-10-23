@@ -3,7 +3,6 @@ package de.buerokratiecopilot.legal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -27,8 +26,6 @@ public class LegalService {
 
     /** What the imprint needs before the platform is offered to the public (§ 5 DDG). */
     static final List<String> REQUIRED = List.of("name", "address", "email");
-    static final Set<String> BUSINESS_TYPES = Set.of("COMPANY", "COMPANY_TEAM", "FREELANCER", "EXTERNAL_REPRESENTATIVE",
-            "HIGH_SECURITY_ORGANIZATION");
 
     private final PlatformSettings settings;
     private final JdbcTemplate jdbc;
@@ -79,14 +76,15 @@ public class LegalService {
         return view;
     }
 
-    /** Records that the person accepted the current version of the texts; the business documents only for a business. */
+    /**
+     * Records that the person accepted the current version of the texts. The cabinet is a Kanzlei, a business, so the
+     * data-processing agreement (AVV) is part of every registration.
+     */
     @Transactional
-    public void recordAcceptance(UUID userId, String accountType) {
+    public void recordAcceptance(UUID userId) {
         record(userId, "AGB");
         record(userId, "DATENSCHUTZ");
-        if (accountType != null && BUSINESS_TYPES.contains(accountType)) {
-            record(userId, "AVV");
-        }
+        record(userId, "AVV");
     }
 
     private void record(UUID userId, String document) {

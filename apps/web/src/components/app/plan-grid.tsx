@@ -10,19 +10,15 @@ const euros = (cents: number): string => (cents / 100).toFixed(2).replace('.', '
 
 interface PlanGridProps {
   readonly plans: readonly PlanSummary[];
-  /** The kind of cabinet; plans that are not offered to it are left out. Omit to show every plan. */
-  readonly cabinet?: 'private' | 'family' | 'company';
   readonly currentCode?: string;
   /** What goes under each plan (a button, a link); receives the plan. */
   readonly action?: (plan: PlanSummary) => ReactNode;
 }
 
 /** The price list as cards: tier, price, who it is for, what is in it. The same cards on the landing page and in billing. */
-export function PlanGrid({ plans, cabinet, currentCode, action }: PlanGridProps) {
+export function PlanGrid({ plans, currentCode, action }: PlanGridProps) {
   const t = useTranslations('plans');
-  const shown = plans
-    .filter((plan) => !cabinet || !plan.audiences || plan.audiences.includes(cabinet))
-    .sort((a, b) => (a.tier ?? 0) - (b.tier ?? 0));
+  const shown = [...plans].sort((a, b) => (a.tier ?? 0) - (b.tier ?? 0));
   return (
     <ul className={styles.grid}>
       {shown.map((plan) => {

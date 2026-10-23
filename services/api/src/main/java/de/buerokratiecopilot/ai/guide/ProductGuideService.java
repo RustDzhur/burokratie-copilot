@@ -42,7 +42,7 @@ public class ProductGuideService {
     private static final Pattern OPEN = Pattern.compile("\\[\\[open:(/[a-z-]*)\\]\\]");
     private static final Set<String> ROUTES = Set.of("/dashboard", "/inbox", "/review", "/documents", "/cases", "/tasks",
             "/calendar", "/contracts", "/invoices", "/payments", "/contacts", "/mail", "/templates", "/assistant",
-            "/automations", "/integrations", "/scan", "/family", "/company", "/employees", "/reports", "/archive",
+            "/automations", "/integrations", "/scan", "/reports", "/archive",
             "/security", "/accessibility", "/notifications", "/audit", "/billing");
     private static final int MAX_MESSAGES = 10;
     private static final int MAX_MESSAGE_LENGTH = 1000;

@@ -116,18 +116,6 @@ class AccountModeControllerIT {
     }
 
     @Test
-    @DisplayName("the account types and what each implies are served")
-    void theTypesAreServed() throws Exception {
-        Session session = register();
-
-        mockMvc.perform(get("/api/v1/account/types").cookie(session.cookie()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").isNotEmpty())
-                .andExpect(jsonPath("$[0].accountType").isNotEmpty())
-                .andExpect(jsonPath("$[0].defaultModules").isArray());
-    }
-
-    @Test
     @DisplayName("a module says whether it is allowed and where that came from")
     void aModuleSaysWhereItCameFrom() throws Exception {
         Session session = register();
@@ -195,80 +183,12 @@ class AccountModeControllerIT {
                 .andExpect(status().isBadRequest());
     }
 
-    // ---------------------------------------------------------------- changing the type
-
-    @Test
-    @DisplayName("changing the account type deletes nothing")
-    void changingTheTypeDeletesNothing() throws Exception {
-        Session session = register();
-        String configured = moduleKey(session, false);
-        mockMvc.perform(post("/api/v1/account/modules/{key}", configured).with(csrf())
-                        .cookie(session.cookie())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"enabled\":true}"))
-                .andExpect(status().isOk());
-        // Something filed under the module, which must survive the change of type.
-        jdbc.update("""
-                insert into documents (id, tenant_id, original_filename, internal_name, mime_type,
-                                       size_bytes, content_hash, source, processing_status, review_status)
-                values (gen_random_uuid(), ?, 'akte.pdf', 'akte.pdf', 'application/pdf', 10, ?,
-                        'UPLOAD', 'READY', 'NOT_REQUIRED')
-                """, session.tenantId(),
-                "%064x".formatted(java.util.concurrent.ThreadLocalRandom.current().nextLong()));
-
-        mockMvc.perform(post("/api/v1/account/type").with(csrf())
-                        .cookie(session.cookie())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"accountType\":\"PRIVATE_PERSON\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accountType").value("PRIVATE_PERSON"))
-                .andExpect(jsonPath("$.note").isNotEmpty());
-
-        org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject("""
-                select count(*) from documents where tenant_id = ?
-                """, Integer.class, session.tenantId()))
-                .as("a module that becomes unavailable is no reason to destroy what was filed under it")
-                .isEqualTo(1);
-    }
-
-    @Test
-    @DisplayName("an unknown account type is refused rather than stored")
-    void anUnknownAccountTypeIsRefused() throws Exception {
-        Session session = register();
-
-        mockMvc.perform(post("/api/v1/account/type").with(csrf())
-                        .cookie(session.cookie())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"accountType\":\"INTERGALACTIC\"}"))
-                .andExpect(status().is4xxClientError());
-
-        // The type is unchanged, so a refused request did not half-apply.
-        mockMvc.perform(get("/api/v1/account").cookie(session.cookie()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accountType").value("COMPANY"));
-    }
-
-    @Test
-    @DisplayName("the types that have a module by default are served")
-    void theTypesWithAModuleAreServed() throws Exception {
-        Session session = register();
-        String implied = moduleKey(session, true);
-
-        mockMvc.perform(get("/api/v1/account/modules/{key}/types", implied).cookie(session.cookie()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accountTypes").isArray());
-    }
-
     // ---------------------------------------------------------------- what is refused
 
     @Test
     @DisplayName("without a session nothing is read or changed")
     void withoutASessionNothingHappens() throws Exception {
         mockMvc.perform(get("/api/v1/account")).andExpect(status().isUnauthorized());
-        mockMvc.perform(post("/api/v1/account/type").with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"accountType\":\"COMPANY\"}"))
-                .andExpect(status().isUnauthorized());
         mockMvc.perform(post("/api/v1/account/modules/{key}", "documents")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)

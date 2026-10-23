@@ -16,7 +16,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import de.buerokratiecopilot.accounts.ModuleCatalogue;
 import de.buerokratiecopilot.identity.domain.User;
 import de.buerokratiecopilot.identity.UserRepository;
 import de.buerokratiecopilot.shared.error.ApiException;
@@ -59,8 +58,12 @@ public class OnboardingService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    /** What a caller provides. */
-    public record Request(String slug, String accountName, String accountType, String adminEmail,
+    /** The one kind of cabinet: an accounting office. */
+    static final String KANZLEI_ACCOUNT_TYPE = "COMPANY";
+    static final String KANZLEI_WORKSPACE_MODE = "BUSINESS";
+
+    /** What a caller provides. The kind of cabinet is not part of it: there is one (Kanzlei edition, §4.3). */
+    public record Request(String slug, String accountName, String adminEmail,
                           String adminDisplayName, String language, String timeZone, String countryCode,
                           String organizationName) {
     }
@@ -104,7 +107,7 @@ public class OnboardingService {
      */
     @Transactional
     public Account onboard(Request request) {
-        String accountType = normalizeAccountType(request.accountType());
+        String accountType = KANZLEI_ACCOUNT_TYPE;
         String slug = requireSlug(request.slug());
 
         UUID existing = findTenantBySlug(slug);
@@ -117,7 +120,7 @@ public class OnboardingService {
         UUID organizationId = createOrganization(tenantId, request.organizationName() == null
                 ? request.accountName() : request.organizationName(), request.countryCode());
         UUID workspaceId = createWorkspace(tenantId, organizationId,
-                request.accountName() == null ? slug : request.accountName(), accountType);
+                request.accountName() == null ? slug : request.accountName());
         UUID adminUserId = createAdmin(request.adminEmail(), request.adminDisplayName(),
                 request.language(), request.timeZone());
         createOwnerMembership(tenantId, workspaceId, adminUserId);
@@ -128,7 +131,7 @@ public class OnboardingService {
                 adminUserId);
 
         return new Account(tenantId, workspaceId, organizationId, adminUserId, accountType,
-                workspaceModeFor(accountType), false);
+                KANZLEI_WORKSPACE_MODE, false);
     }
 
     /**
@@ -230,7 +233,7 @@ public class OnboardingService {
         return new Account(tenantId, workspaces.isEmpty() ? null : workspaces.getFirst(),
                 organizations.isEmpty() ? null : organizations.getFirst(),
                 owners.isEmpty() ? null : owners.getFirst(), accountType,
-                workspaceModeFor(accountType), existing);
+                KANZLEI_WORKSPACE_MODE, existing);
     }
 
     private UUID createTenant(String slug, String name, String accountType) {
@@ -251,12 +254,12 @@ public class OnboardingService {
                         : countryCode.toUpperCase(java.util.Locale.ROOT));
     }
 
-    private UUID createWorkspace(UUID tenantId, UUID organizationId, String name, String accountType) {
+    private UUID createWorkspace(UUID tenantId, UUID organizationId, String name) {
         return jdbc.queryForObject("""
                 insert into workspaces (id, tenant_id, organization_id, name, mode, is_default, settings)
                 values (gen_random_uuid(), ?, ?, ?, ?, true, '{}'::jsonb)
                 returning id
-                """, UUID.class, tenantId, organizationId, name.strip(), workspaceModeFor(accountType));
+                """, UUID.class, tenantId, organizationId, name.strip(), KANZLEI_WORKSPACE_MODE);
     }
 
     private UUID createAdmin(String email, String displayName, String language, String timeZone) {
@@ -320,34 +323,6 @@ public class OnboardingService {
             throw ApiException.conflict("Dieser Token wurde bereits verwendet");
         }
         return (UUID) row.get("user_id");
-    }
-
-    /**
-     * The workspace mode that follows from an account type.
-     *
-     * <p>A default and not a rule: the workspace records it, and an account may have workspaces of other
-     * modes later. It exists so that a new account starts with something sensible rather than with a
-     * question.</p>
-     */
-    static String workspaceModeFor(String accountType) {
-        return switch (accountType) {
-            case "PRIVATE_PERSON" -> "PRIVATE";
-            case "FAMILY_HOUSEHOLD" -> "FAMILY";
-            case "EXTERNAL_REPRESENTATIVE" -> "ADVISOR";
-            case "HIGH_SECURITY_ORGANIZATION" -> "PUBLIC_SECTOR";
-            default -> "BUSINESS";
-        };
-    }
-
-    private String normalizeAccountType(String accountType) {
-        if (accountType == null || accountType.isBlank()) {
-            throw new ApiException(ErrorCode.INVALID_REQUEST, "Ein Kontotyp ist erforderlich");
-        }
-        String normalized = accountType.toUpperCase(java.util.Locale.ROOT);
-        if (!ModuleCatalogue.isKnownAccountType(normalized)) {
-            throw new ApiException(ErrorCode.INVALID_REQUEST, "Unbekannter Kontotyp: " + accountType);
-        }
-        return normalized;
     }
 
     private String requireSlug(String slug) {

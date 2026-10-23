@@ -79,7 +79,6 @@ public class AuthController {
             @NotBlank @Email @Size(max = 320) String email,
             @NotBlank @Size(min = 12, max = 128) String password,
             @Size(max = 200) String displayName,
-            String accountType,
             @Size(max = 200) String tenantName,
             @Size(max = 10) String locale,
             @Size(max = 60) String timeZone,
@@ -105,7 +104,7 @@ public class AuthController {
 
     public record MeResponse(UUID userId, UUID tenantId, List<String> permissions, String email,
                              String displayName, String locale, String timeZone, String workspaceName,
-                             String accountType, List<String> roles, boolean onboardingCompleted,
+                             List<String> roles, boolean onboardingCompleted,
                              boolean mfaEnrolmentRequired, java.util.Map<String, Object> subscription,
                              Long avatarVersion) {
     }
@@ -123,7 +122,7 @@ public class AuthController {
                                                      HttpServletRequest httpRequest) {
         AuthService.RegistrationResult result = authService.register(
                 new AuthService.RegisterCommand(request.email(), request.password(), request.displayName(),
-                        request.accountType(), request.tenantName(), request.locale(), request.timeZone(),
+                        request.tenantName(), request.locale(), request.timeZone(),
                         Boolean.TRUE.equals(request.acceptedTerms())),
                 clientIp(httpRequest), httpRequest.getHeader(HttpHeaders.USER_AGENT));
 
@@ -220,7 +219,7 @@ public class AuthController {
         AuthService.SessionProfile profile = authService.describeSession(userId, tenantId);
         return ResponseEntity.ok(new MeResponse(userId, tenantId, permissions, profile.email(),
                 profile.displayName(), profile.locale(), profile.timeZone(), profile.workspaceName(),
-                profile.accountType(), profile.roles(), accountSetup.isCompleted(userId),
+                profile.roles(), accountSetup.isCompleted(userId),
                 enrolmentRequired(authentication, userId, tenantId), subscriptionOf(tenantId),
                 profileService.avatarVersion(userId)));
     }
@@ -244,8 +243,7 @@ public class AuthController {
         }
     }
 
-    public record OnboardingRequest(String workspaceName, String workspaceType, List<String> sources,
-                                    List<String> notifications) {
+    public record OnboardingRequest(String workspaceName, List<String> sources, List<String> notifications) {
     }
 
     @PostMapping("/onboarding")
@@ -260,7 +258,7 @@ public class AuthController {
         accountSetup.complete(de.buerokratiecopilot.shared.context.RequestContext.tenantId().orElseThrow(),
                 UUID.fromString(authentication.getName()), mayEdit,
                 new de.buerokratiecopilot.identity.auth.AccountSetupService.Setup(request.workspaceName(),
-                        request.workspaceType(), request.sources(), request.notifications()));
+                        request.sources(), request.notifications()));
         return ResponseEntity.noContent().build();
     }
 

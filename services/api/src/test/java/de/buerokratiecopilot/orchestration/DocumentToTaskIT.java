@@ -76,7 +76,7 @@ class DocumentToTaskIT {
 
     private Account account() {
         var created = onboarding.onboard(new OnboardingService.Request(
-                "orc-" + UUID.randomUUID().toString().substring(0, 12), "Orchestrierung", "PRIVATE_PERSON",
+                "orc-" + UUID.randomUUID().toString().substring(0, 12), "Orchestrierung",
                 "orc-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de", "Erika Mustermann",
                 "de", "Europe/Berlin", "DE", "Orchestrierung"));
         return new Account(created.tenantId(), created.adminUserId());

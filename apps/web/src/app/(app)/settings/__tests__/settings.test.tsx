@@ -37,7 +37,6 @@ describe('AccountSettingsPage', () => {
       roles: [],
       workspaceId: 'w',
       workspaceName: 'W',
-      workspaceType: 'private' as const,
       permissions: ['tasks.view'],
     };
     const { unmount } = renderWithProviders(

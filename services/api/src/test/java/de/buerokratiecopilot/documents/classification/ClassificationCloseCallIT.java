@@ -82,7 +82,7 @@ class ClassificationCloseCallIT {
     private Account account() {
         var created = onboarding.onboard(new OnboardingService.Request(
                 "close-" + UUID.randomUUID().toString().substring(0, 12), "Nahbereich",
-                "PRIVATE_PERSON", "close-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de",
+                "close-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de",
                 "Erika Mustermann", "de", "Europe/Berlin", "DE", "Nahbereich"));
         return new Account(created.tenantId(), created.adminUserId());
     }

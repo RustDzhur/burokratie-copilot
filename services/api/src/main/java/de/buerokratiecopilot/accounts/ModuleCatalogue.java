@@ -39,7 +39,6 @@ public final class ModuleCatalogue {
         MAIL("Postfach"),
         CONTRACTS("Verträge"),
         FINANCE("Finanzen"),
-        FAMILY("Familienbereich"),
         ACCOUNTING_EXPORT("Export für die Buchhaltung"),
         DEVICES("Geräte und Scanner"),
         REPORTS("Auswertungen"),
@@ -74,7 +73,7 @@ public final class ModuleCatalogue {
         defaults.put("PRIVATE_PERSON", personal);
         // A household also keeps what is shared, and keeps it apart from what is not.
         defaults.put("FAMILY_HOUSEHOLD", Set.of(Module.DOCUMENTS, Module.CASES, Module.TASKS,
-                Module.CALENDAR, Module.MAIL, Module.CONTRACTS, Module.FAMILY, Module.REPORTS));
+                Module.CALENDAR, Module.MAIL, Module.CONTRACTS, Module.REPORTS));
         // One person who invoices: the personal set plus their own books.
         defaults.put("FREELANCER", Set.of(Module.DOCUMENTS, Module.CASES, Module.TASKS, Module.CALENDAR,
                 Module.MAIL, Module.CONTRACTS, Module.FINANCE, Module.ACCOUNTING_EXPORT, Module.REPORTS));

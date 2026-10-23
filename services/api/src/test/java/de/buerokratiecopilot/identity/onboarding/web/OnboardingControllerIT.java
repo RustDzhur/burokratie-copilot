@@ -52,7 +52,7 @@ class OnboardingControllerIT {
 
     private String body(String slug) {
         return """
-                {"slug":"%s","accountName":"Muster GmbH","accountType":"COMPANY",
+                {"slug":"%s","accountName":"Muster GmbH",
                  "adminEmail":"admin-%s@example.de","adminDisplayName":"Erste Person",
                  "language":"de","timeZone":"Europe/Berlin","countryCode":"DE"}
                 """.formatted(slug, UUID.randomUUID().toString().substring(0, 8));

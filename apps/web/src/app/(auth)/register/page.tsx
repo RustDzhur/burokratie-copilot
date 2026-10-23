@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
-import { Checkbox, Input, RadioGroup } from '@/components/ui/form';
+import { Checkbox, Input } from '@/components/ui/form';
 import { InlineAlert } from '@/components/ui/feedback';
 import { useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
@@ -13,8 +13,6 @@ import { useApiResource } from '@/lib/api/hooks';
 import styles from '../auth-card.module.css';
 
 const MIN_PASSWORD_LENGTH = 12;
-
-type AccountType = 'private' | 'family' | 'company';
 
 /**
  * Registration screen.
@@ -34,7 +32,6 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
-  const [accountType, setAccountType] = useState<AccountType>('private');
   const [terms, setTerms] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
@@ -57,7 +54,8 @@ export default function RegisterPage() {
     setPending(true);
     setError(null);
     try {
-      await api.auth.register({ fullName, email, password, accountType, acceptedTerms: terms });
+      // One kind of cabinet: registration creates the Kanzlei account, no type is chosen.
+      await api.auth.register({ fullName, email, password, acceptedTerms: terms });
       router.push('/verify-email');
     } catch (caught) {
       setError(toApiError(caught));
@@ -123,17 +121,6 @@ export default function RegisterPage() {
           value={passwordConfirm}
           onChange={(event) => setPasswordConfirm(event.target.value)}
         />
-        <RadioGroup
-          legend={t('register.accountType')}
-          name="accountType"
-          value={accountType}
-          onChange={(value) => setAccountType(value as AccountType)}
-          options={[
-            { value: 'private', label: t('register.typePrivate') },
-            { value: 'family', label: t('register.typeFamily') },
-            { value: 'company', label: t('register.typeBusiness') },
-          ]}
-        />
         <Checkbox
           label={t('register.terms')}
           checked={terms}
@@ -142,13 +129,8 @@ export default function RegisterPage() {
         />
         <p className={styles.subtitle} lang="de">
           <Link href="/agb">AGB</Link> · <Link href="/datenschutz">Datenschutzerklärung</Link> ·{' '}
-          <Link href="/widerruf">Widerrufsbelehrung</Link>
-          {accountType === 'company' ? (
-            <>
-              {' '}
-              · <Link href="/avv">Auftragsverarbeitungsvertrag (AVV)</Link>
-            </>
-          ) : null}
+          <Link href="/widerruf">Widerrufsbelehrung</Link>{' '}
+          · <Link href="/avv">Auftragsverarbeitungsvertrag (AVV)</Link>
         </p>
         <Button
           type="submit"

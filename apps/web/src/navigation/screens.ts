@@ -58,9 +58,6 @@ export type ScreenId =
   | 'automations'
   | 'integrations'
   | 'scan'
-  | 'family'
-  | 'company'
-  | 'employees'
   | 'reports'
   | 'exports'
   | 'archive'
@@ -77,8 +74,6 @@ export type ScreenId =
   | 'profile'
   | 'accountSettings';
 
-export type WorkspaceKind = 'private' | 'family' | 'company';
-
 export interface ScreenDefinition {
   readonly id: ScreenId;
   /** Route path; `[id]` marks a dynamic segment. */
@@ -90,8 +85,6 @@ export interface ScreenDefinition {
   readonly requiresAuth: boolean;
   /** Key inside the `nav` namespace (single source for screen titles). */
   readonly titleKey: `items.${ScreenId}`;
-  /** Workspace kinds this screen is meant for; absent = every kind. Hidden from the menu otherwise, never blocked. */
-  readonly audience?: readonly WorkspaceKind[];
   /** Shown only to the platform administrator. */
   readonly adminOnly?: boolean;
   /**
@@ -111,7 +104,6 @@ function screen(
   options: {
     readonly inSidebar?: boolean;
     readonly requiresAuth?: boolean;
-    readonly audience?: readonly WorkspaceKind[];
     readonly adminOnly?: boolean;
     /** A backend permission the screen needs; see `ScreenDefinition.requiredPermission`. */
     readonly requiredPermission?: string;
@@ -128,7 +120,6 @@ function screen(
     inSidebar,
     requiresAuth: options.requiresAuth ?? inSidebar,
     titleKey: `items.${id}`,
-    audience: options.audience,
     adminOnly: options.adminOnly,
     requiredPermission: options.requiredPermission,
     minTier: options.minTier,
@@ -167,9 +158,9 @@ export const screens: readonly ScreenDefinition[] = [
   // §5.2.11 — calendar and deadlines
   screen('calendar', '/calendar', 'clock', 'arbeit'),
   // §5.2.13 — invoices and expenses
-  screen('invoices', '/invoices', 'receipt', 'arbeit', { audience: ['company'], minTier: 2 }),
+  screen('invoices', '/invoices', 'receipt', 'arbeit', { minTier: 2 }),
   // §5.2.14 — payments and reconciliation
-  screen('payments', '/payments', 'credit-card', null, { minTier: 2, audience: ['company'], inSidebar: false }),
+  screen('payments', '/payments', 'credit-card', null, { minTier: 2, inSidebar: false }),
   // §5.5 — the clients of the Kanzlei with the state of each one. §7 renames Contact to Mandant, so this is
   // the menu entry.
   screen('mandanten', '/mandanten', 'users', 'mandanten', { minTier: 0 }),
@@ -193,13 +184,6 @@ export const screens: readonly ScreenDefinition[] = [
   screen('integrations', '/integrations', 'plug', null, { minTier: 1, inSidebar: false }),
   // §5.2.21 — scanning and import
   screen('scan', '/scan', 'printer', null, { minTier: 1, inSidebar: false }),
-  // whom the cabinet belongs to: the person, the household members, the company
-  // §5.2.22 — family cockpit
-  screen('family', '/family', 'shield-heart', null, { audience: ['family'], minTier: 1, inSidebar: false }),
-  // §5.2.23 — company workspace
-  screen('company', '/company', 'building', null, { audience: ['company'], minTier: 2, inSidebar: false }),
-  // §5.2.24 — employees and roles
-  screen('employees', '/employees', 'user-cog', null, { audience: ['company'], minTier: 3, inSidebar: false }),
   // §5.2.25 — reports and analytics
   screen('reports', '/reports', 'bar-chart', 'verwaltung', { minTier: 1 }),
   // §5.6 — DATEV export packages. Not in the original §5.2 list; the Kanzlei specification makes it a P0
@@ -242,12 +226,11 @@ export const screens: readonly ScreenDefinition[] = [
   screen('accessEnded', '/access-ended', 'lock', null, { inSidebar: false }),
 ];
 
-/** The menu entries one person gets: the screens for their kind of workspace, and the admin area for the admin. */
+/** The menu entries one person gets: what the plan includes, what permissions allow, and the admin area for the admin. */
 export function screensVisibleFor(
   list: readonly ScreenDefinition[],
   user:
     | {
-        readonly workspaceType?: WorkspaceKind;
         readonly platformAdmin?: boolean;
         /** What the server granted; `undefined` means "not known", which hides nothing. */
         readonly permissions?: readonly string[];
@@ -269,8 +252,7 @@ export function screensVisibleFor(
     ) {
       return false;
     }
-    if (!item.audience || !user?.workspaceType) return true;
-    return item.audience.includes(user.workspaceType);
+    return true;
   });
 }
 

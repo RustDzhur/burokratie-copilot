@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Icon, type IconName } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader } from '@/components/ui/data';
-import { Checkbox, Input, RadioGroup, Switch } from '@/components/ui/form';
+import { Checkbox, Input, Switch } from '@/components/ui/form';
 import { InlineAlert, ProgressBar } from '@/components/ui/feedback';
 import { useToast } from '@/components/ui/toast';
 import { useTranslations } from '@/i18n/provider';
@@ -13,8 +13,6 @@ import { api } from '@/lib/api';
 import { toApiError, type ApiError } from '@/lib/api/errors';
 import { useAppearance } from '@/settings/appearance-provider';
 import styles from './onboarding.module.css';
-
-type WorkspaceType = 'private' | 'family' | 'company';
 
 interface StepDefinition {
   readonly id: string;
@@ -93,7 +91,6 @@ export default function OnboardingPage() {
   const [stepIndex, setStepIndex] = useState(0);
   const [displayName, setDisplayName] = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
-  const [workspaceType, setWorkspaceType] = useState<WorkspaceType>('private');
   const [sources, setSources] = useState<readonly string[]>(['upload']);
   const [notifications, setNotifications] = useState<readonly string[]>(['deadlines', 'review']);
   const [pending, setPending] = useState(false);
@@ -117,7 +114,7 @@ export default function OnboardingPage() {
     setPending(true);
     setError(null);
     try {
-      await api.auth.completeOnboarding({ workspaceName, workspaceType, sources, notifications });
+      await api.auth.completeOnboarding({ workspaceName, sources, notifications });
       toast.success(t('step.complete.title'), t('step.complete.description'));
       router.push('/dashboard');
     } catch (caught) {
@@ -184,18 +181,6 @@ export default function OnboardingPage() {
                 value={workspaceName}
                 onChange={(event) => setWorkspaceName(event.target.value)}
                 required
-              />
-              <RadioGroup
-                legend={t('step.workspace.type')}
-                name="workspaceType"
-                value={workspaceType}
-                onChange={(value) => setWorkspaceType(value as WorkspaceType)}
-                orientation="horizontal"
-                options={[
-                  { value: 'private', label: t('step.workspace.typePrivate') },
-                  { value: 'family', label: t('step.workspace.typeFamily') },
-                  { value: 'company', label: t('step.workspace.typeBusiness') },
-                ]}
               />
             </div>
           ) : null}

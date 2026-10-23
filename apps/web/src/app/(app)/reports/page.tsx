@@ -12,8 +12,9 @@ import { api } from '@/lib/api';
 import { useApiResource } from '@/lib/api/hooks';
 import styles from './reports.module.css';
 
-// The audiences the backend reports for (ReportService.Audience).
-const REPORT_TYPES = ['individual', 'company'] as const;
+// The audiences the backend reports for (ReportService.Audience). The Kanzlei starts on the office report; the
+// household report stays reachable because the report service still computes it (§5.9 reworks reports separately).
+const REPORT_TYPES = ['company', 'individual'] as const;
 const PERIODS = ['currentMonth', 'lastMonth', 'currentQuarter', 'currentYear'] as const;
 
 const isoDay = (date: Date): string =>
@@ -51,7 +52,7 @@ export default function ReportsPage() {
   const tCommon = useTranslations('common');
   const locale = useLocale();
 
-  const [type, setType] = useState<string>('individual');
+  const [type, setType] = useState<string>('company');
   const [period, setPeriod] = useState<string>('currentMonth');
 
   const { state, reload, isRefreshing } = useApiResource(

@@ -83,7 +83,7 @@ const ATTENTION_CARDS: readonly AttentionCard[] = [
     countKey: 'pendingApprovals',
     titleKey: 'card.pendingApprovals.title',
     descriptionKey: 'card.pendingApprovals.description',
-    href: '/company',
+    href: '/approvals',
     icon: 'check-square',
   },
   {

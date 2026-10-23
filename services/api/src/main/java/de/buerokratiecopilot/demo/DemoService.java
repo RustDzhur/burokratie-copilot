@@ -31,7 +31,7 @@ import de.buerokratiecopilot.shared.error.ErrorCode;
 
 /**
  * The demo cabinet: a visitor picks what they would use the platform for and enters, without a password, a cabinet of their own
- * that is already filled with invented letters, tasks, contracts and invoices.
+ * that is already filled with invented letters, tasks and invoices.
  *
  * <p>Every visitor gets a workspace of their own (a tenant created for them) so that two visitors never see or spoil each
  * other's cabinet, and so that "back to how it was" is exact: when the visitor leaves, or after a few hours, the whole workspace
@@ -244,14 +244,6 @@ public class DemoService {
         // The persona's name marks the cabinet for the interface (tour and banner).
         jdbc.update("update tenants set settings = jsonb_set(settings, '{demoPersona}', to_jsonb(?::text)) where id = ?",
                 persona.name(), tenantId);
-        if (persona == Persona.FAMILY) {
-            jdbc.update("""
-                    insert into contacts (tenant_id, contact_type, display_name, first_name, last_name) values
-                      (?, 'PERSON', 'Erika Mustermann', 'Erika', 'Mustermann'),
-                      (?, 'PERSON', 'Max Mustermann', 'Max', 'Mustermann'),
-                      (?, 'PERSON', 'Lena Mustermann', 'Lena', 'Mustermann')
-                    """, tenantId, tenantId, tenantId);
-        }
         for (DemoSamples.Sample sample : samples.forPersona(persona)) {
             file(sample);
         }
@@ -274,17 +266,12 @@ public class DemoService {
         }
     }
 
-    /** Contacts, contracts, invoices and colleagues that make the cabinet look lived in. */
+    /** Contacts, invoices and colleagues that make the cabinet look lived in. */
     private void extras(Persona persona, UUID tenantId, UUID userId, boolean withColleagues) {
         jdbc.update("""
                 insert into contacts (tenant_id, contact_type, display_name, organization_name, is_supplier) values
                   (?, 'ORGANIZATION', 'Stadtwerke Musterstadt GmbH', 'Stadtwerke Musterstadt GmbH', true),
                   (?, 'ORGANIZATION', 'Beispiel Telekom GmbH', 'Beispiel Telekom GmbH', true)
-                """, tenantId, tenantId);
-        jdbc.update("""
-                insert into contracts (tenant_id, title, contract_type, status, start_date, end_date, auto_renewal)
-                values (?, 'Internetanschluss', 'SERVICE', 'ACTIVE', current_date - 600, current_date + 75, true),
-                       (?, 'Stromliefervertrag', 'SERVICE', 'ACTIVE', current_date - 300, current_date + 420, false)
                 """, tenantId, tenantId);
         if (persona == Persona.FREELANCER || persona == Persona.COMPANY || persona == Persona.ADVISOR) {
             jdbc.update("""

@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import de.buerokratiecopilot.accounts.ModuleCatalogue.Module;
 import de.buerokratiecopilot.shared.error.ApiException;
-import de.buerokratiecopilot.shared.error.ErrorCode;
 
 /**
  * Decides which modules a tenant may use (spec §3.1, H-001 acceptance).
@@ -131,26 +130,6 @@ public class AccountModeService {
                               updated_at = now()
                 """, tenantId, moduleKey, "Modulverfügbarkeit", enabled, changedBy);
         log.info("Module {} {} for tenant {}", moduleKey, enabled ? "enabled" : "disabled", tenantId);
-    }
-
-    /**
-     * Changes the account type of a tenant.
-     *
-     * <p>Nothing is deleted. The records of a module that becomes unavailable stay where they are.</p>
-     */
-    @Transactional
-    public void changeAccountType(UUID tenantId, String newAccountType, UUID changedBy) {
-        if (!ModuleCatalogue.isKnownAccountType(newAccountType)) {
-            throw new ApiException(ErrorCode.INVALID_REQUEST,
-                    "Unbekannter Kontotyp: " + newAccountType);
-        }
-        int updated = jdbc.update("""
-                update tenants set account_type = ?, updated_at = now() where id = ?
-                """, newAccountType.toUpperCase(java.util.Locale.ROOT), tenantId);
-        if (updated == 0) {
-            throw ApiException.notFound("tenant");
-        }
-        log.info("Tenant {} changed to account type {} by {}", tenantId, newAccountType, changedBy);
     }
 
     /** The account type of a tenant. */

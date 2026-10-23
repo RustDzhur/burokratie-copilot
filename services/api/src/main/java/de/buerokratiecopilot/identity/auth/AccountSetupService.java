@@ -13,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import de.buerokratiecopilot.accounts.AccountModeService;
 import de.buerokratiecopilot.notifications.NotificationService;
 import de.buerokratiecopilot.notifications.NotificationChannelAdapter.Channel;
 import de.buerokratiecopilot.notifications.domain.Notification;
@@ -22,40 +21,33 @@ import de.buerokratiecopilot.shared.error.ApiException;
 import de.buerokratiecopilot.shared.error.ErrorCode;
 
 /**
- * The first-run setup after registration (spec §5.2.3): name the workspace, say what it is for, choose where
- * documents come from and what to be told about.
+ * The first-run setup after registration (spec §5.2.3): name the workspace, choose where documents come from
+ * and what to be told about. There is one kind of cabinet, so the wizard no longer asks what the account is
+ * for and never changes its type.
  *
- * <p>Only a person who may edit the account's settings changes the account. A member who was invited into
+ * <p>Only a person who may edit the account's settings renames the workspace. A member who was invited into
  * somebody else's workspace walks through the same wizard, and finishing it must not rename the owner's
- * workspace or change its type: for them the wizard only records that it was done and applies the
- * notification choices, which are their own.</p>
+ * workspace: for them the wizard only records that it was done and applies the notification choices, which
+ * are their own.</p>
  */
 @Service
 public class AccountSetupService {
 
     static final String ONBOARDING_KEY = "onboarding";
 
-    private static final Map<String, String> ACCOUNT_TYPES = Map.of(
-            "private", "PRIVATE_PERSON", "family", "FAMILY_HOUSEHOLD", "company", "COMPANY");
-    private static final Map<String, String> WORKSPACE_MODES = Map.of(
-            "private", "PRIVATE", "family", "FAMILY", "company", "BUSINESS");
     private static final List<String> SOURCES = List.of("upload", "email", "scanner");
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
-    private final AccountModeService accountModes;
     private final NotificationService notifications;
 
-    public AccountSetupService(JdbcTemplate jdbc, ObjectMapper json, AccountModeService accountModes,
-                               NotificationService notifications) {
+    public AccountSetupService(JdbcTemplate jdbc, ObjectMapper json, NotificationService notifications) {
         this.jdbc = jdbc;
         this.json = json;
-        this.accountModes = accountModes;
         this.notifications = notifications;
     }
 
-    public record Setup(String workspaceName, String workspaceType, List<String> sources,
-                        List<String> notifications) {
+    public record Setup(String workspaceName, List<String> sources, List<String> notifications) {
     }
 
     @Transactional(readOnly = true)
@@ -68,10 +60,6 @@ public class AccountSetupService {
 
     @Transactional
     public void complete(UUID tenantId, UUID userId, boolean mayEditAccount, Setup setup) {
-        String type = ACCOUNT_TYPES.get(setup.workspaceType() == null ? "" : setup.workspaceType());
-        if (type == null) {
-            throw new ApiException(ErrorCode.INVALID_REQUEST, "Unbekannter Kontotyp: " + setup.workspaceType());
-        }
         List<String> sources = setup.sources() == null ? List.of() : setup.sources();
         for (String source : sources) {
             if (!SOURCES.contains(source)) {
@@ -89,9 +77,6 @@ public class AccountSetupService {
                 jdbc.update("update tenants set name = ?, updated_at = now() where id = ?", name, tenantId);
                 jdbc.update("update workspaces set name = ? where tenant_id = ? and is_default", name, tenantId);
             }
-            jdbc.update("update workspaces set mode = ? where tenant_id = ? and is_default",
-                    WORKSPACE_MODES.get(setup.workspaceType()), tenantId);
-            accountModes.changeAccountType(tenantId, type, userId);
         }
 
         applyNotificationChoices(tenantId, userId, chosen);

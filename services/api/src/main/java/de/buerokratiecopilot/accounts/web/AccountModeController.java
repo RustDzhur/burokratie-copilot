@@ -30,13 +30,8 @@ import de.buerokratiecopilot.shared.error.ErrorCode;
  * only be changed through the database. This is the way in.</p>
  *
  * <p><strong>The account type supplies a starting point and the account's own decision overrides it.</strong>
- * A private person who starts keeping books does not need a different account, and a company that switched a
- * module off should not get it back because its type says so. The endpoints keep the two apart: changing the
- * type and configuring a module are different operations, and neither silently undoes the other.</p>
- *
- * <p><strong>Switching the account type deletes nothing.</strong> A module that becomes unavailable is no
- * reason to destroy what was filed under it, and the service leaves the records alone; the endpoint says so
- * in its answer so that nobody has to find out by looking.</p>
+ * A Kanzlei that switched a module off should not get it back because its type says so. There is one kind of
+ * cabinet, so the type itself is no longer switchable; only the modules are configured here.</p>
  *
  * <p>The permissions are the catalogue's own — {@code settings.view} and {@code settings.edit}. The
  * catalogue was checked first: there is no {@code accounts.manage}, and naming one would have repeated the
@@ -51,22 +46,13 @@ public class AccountModeController {
     private static final String CONFIGURE = "hasAuthority('settings.edit')";
 
     private final AccountModeService modes;
-    private final de.buerokratiecopilot.billing.SubscriptionService subscriptions;
-    private final de.buerokratiecopilot.billing.PlanFeatures planFeatures;
 
-    public AccountModeController(AccountModeService modes, de.buerokratiecopilot.billing.SubscriptionService subscriptions,
-                                 de.buerokratiecopilot.billing.PlanFeatures planFeatures) {
+    public AccountModeController(AccountModeService modes) {
         this.modes = modes;
-        this.subscriptions = subscriptions;
-        this.planFeatures = planFeatures;
     }
 
     /** What a caller sends to switch a module on or off. */
     public record ModuleBody(boolean enabled) {
-    }
-
-    /** What a caller sends to change the account type. */
-    public record TypeBody(String accountType) {
     }
 
     /** The account type and the modules that are actually available. */
@@ -90,17 +76,6 @@ public class AccountModeController {
                 .map(ModuleCatalogue::keyOf).sorted().toList());
         result.put("modules", available);
         return result;
-    }
-
-    /** The account types that exist, and what each implies by default. */
-    @GetMapping("/types")
-    @PreAuthorize(SEE)
-    @Operation(summary = "The account types and their default modules")
-    public List<Map<String, Object>> types() {
-        return ModuleCatalogue.accountTypes().stream().map(type -> Map.<String, Object>of(
-                "accountType", type,
-                "defaultModules", ModuleCatalogue.defaultsFor(type).stream()
-                        .map(ModuleCatalogue::keyOf).sorted().toList())).toList();
     }
 
     /**
@@ -141,42 +116,6 @@ public class AccountModeController {
         modes.configure(tenantId, moduleKey, body.enabled(), CurrentUser.required());
         return Map.of("moduleKey", moduleKey, "allowed", modes.allows(tenantId, moduleKey),
                 "configured", true);
-    }
-
-    /** Which account types have a module by default. */
-    @GetMapping("/modules/{moduleKey}/types")
-    @PreAuthorize(SEE)
-    @Operation(summary = "The account types that have this module by default")
-    public Map<String, Object> typesWithModule(@PathVariable String moduleKey) {
-        requireKnownModule(moduleKey);
-        return Map.of("moduleKey", moduleKey,
-                "accountTypes", ModuleCatalogue.accountTypesWith(ModuleCatalogue.byKey(moduleKey)).stream()
-                        .sorted().toList());
-    }
-
-    /**
-     * Changes the account type.
-     *
-     * <p>Nothing is deleted: a module that becomes unavailable is no reason to destroy what was filed under
-     * it, and the records become reachable again if the module is switched back on. The answer says so,
-     * because that is the question somebody asks before pressing the button.</p>
-     */
-    @PostMapping("/type")
-    @PreAuthorize(CONFIGURE)
-    @Operation(summary = "Changes the account type; nothing filed under a module is deleted")
-    public Map<String, Object> changeType(@RequestBody TypeBody body) {
-        UUID tenantId = tenant();
-        modes.changeAccountType(tenantId, body.accountType(), CurrentUser.required());
-        subscriptions.alignPlanToAccountType(tenantId);
-        planFeatures.forget(tenantId);
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("accountType", modes.accountTypeOf(tenantId));
-        result.put("defaultsOfType", modes.defaultsOf(modes.accountTypeOf(tenantId)).stream()
-                .map(ModuleCatalogue::keyOf).sorted().toList());
-        result.put("note", "Nichts wurde gelöscht: Dokumente unter einem Modul bleiben erhalten und sind "
-                + "wieder erreichbar, wenn das Modul erneut eingeschaltet wird.");
-        return result;
     }
 
     /** Refuses a module the catalogue does not know, with the ones that exist. */

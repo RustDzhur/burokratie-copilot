@@ -39,8 +39,8 @@ class OnboardingIT {
         return "onb-" + UUID.randomUUID().toString().substring(0, 12);
     }
 
-    private OnboardingService.Request request(String slug, String accountType) {
-        return new OnboardingService.Request(slug, "Muster GmbH", accountType,
+    private OnboardingService.Request request(String slug) {
+        return new OnboardingService.Request(slug, "Muster GmbH",
                 "admin-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de",
                 "Erste Administratorin", "de", "Europe/Berlin", "DE", "Muster GmbH");
     }
@@ -50,7 +50,7 @@ class OnboardingIT {
     @Test
     @DisplayName("onboarding creates the account, its organisation, its workspace and its owner")
     void onboardingCreatesEverything() {
-        OnboardingService.Account account = onboarding.onboard(request(slug(), "COMPANY"));
+        OnboardingService.Account account = onboarding.onboard(request(slug()));
 
         assertThat(account.tenantId()).isNotNull();
         assertThat(account.organizationId()).isNotNull();
@@ -72,8 +72,8 @@ class OnboardingIT {
     void onboardingIsIdempotentBySlug() {
         String slug = slug();
 
-        OnboardingService.Account first = onboarding.onboard(request(slug, "COMPANY"));
-        OnboardingService.Account second = onboarding.onboard(request(slug, "COMPANY"));
+        OnboardingService.Account first = onboarding.onboard(request(slug));
+        OnboardingService.Account second = onboarding.onboard(request(slug));
 
         assertThat(second.tenantId()).isEqualTo(first.tenantId());
         assertThat(second.alreadyExisted())
@@ -84,29 +84,9 @@ class OnboardingIT {
     }
 
     @Test
-    @DisplayName("the account type determines the module defaults and the workspace mode")
-    void accountTypeDeterminesTheDefaults() {
-        OnboardingService.Account privateAccount = onboarding.onboard(request(slug(), "PRIVATE_PERSON"));
-        OnboardingService.Account company = onboarding.onboard(request(slug(), "COMPANY"));
-
-        assertThat(privateAccount.workspaceMode()).isEqualTo("PRIVATE");
-        assertThat(company.workspaceMode()).isEqualTo("BUSINESS");
-        assertThat(jdbc.queryForObject("select account_type from tenants where id = ?", String.class,
-                privateAccount.tenantId())).isEqualTo("PRIVATE_PERSON");
-    }
-
-    @Test
-    @DisplayName("an unknown account type is refused")
-    void unknownAccountTypeIsRefused() {
-        assertThatThrownBy(() -> onboarding.onboard(request(slug(), "INTERGALACTIC")))
-                .isInstanceOf(ApiException.class)
-                .hasMessageContaining("Unbekannter Kontotyp");
-    }
-
-    @Test
     @DisplayName("a slug the schema would refuse gets a sentence instead of a constraint violation")
     void malformedSlugIsRefused() {
-        assertThatThrownBy(() -> onboarding.onboard(request("-bad-", "COMPANY")))
+        assertThatThrownBy(() -> onboarding.onboard(request("-bad-")))
                 .isInstanceOf(ApiException.class)
                 .hasMessageContaining("Kurzname");
     }
@@ -115,11 +95,11 @@ class OnboardingIT {
     @DisplayName("an address that already belongs to somebody is refused")
     void existingAddressIsRefused() {
         String email = "doppelt-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de";
-        onboarding.onboard(new OnboardingService.Request(slug(), "Erster", "COMPANY", email, null, "de",
+        onboarding.onboard(new OnboardingService.Request(slug(), "Erster", email, null, "de",
                 "Europe/Berlin", "DE", null));
 
         assertThatThrownBy(() -> onboarding.onboard(new OnboardingService.Request(slug(), "Zweiter",
-                "COMPANY", email, null, "de", "Europe/Berlin", "DE", null)))
+                email, null, "de", "Europe/Berlin", "DE", null)))
                 .as("taking over an existing account silently would be worse than refusing")
                 .isInstanceOf(ApiException.class)
                 .hasMessageContaining("bereits");
@@ -128,7 +108,7 @@ class OnboardingIT {
     @Test
     @DisplayName("the administrator cannot sign in before finishing the bootstrap")
     void theAdminHasNoPasswordYet() {
-        OnboardingService.Account account = onboarding.onboard(request(slug(), "COMPANY"));
+        OnboardingService.Account account = onboarding.onboard(request(slug()));
 
         assertThat(jdbc.queryForObject("select password_hash from users where id = ?", String.class,
                 account.adminUserId())).isNull();
@@ -141,7 +121,7 @@ class OnboardingIT {
     @Test
     @DisplayName("the bootstrap hands out a token once and stores only its hash")
     void theBootstrapTokenIsStoredHashed() {
-        OnboardingService.Bootstrap bootstrap = onboarding.bootstrapAdmin(request(slug(), "COMPANY"));
+        OnboardingService.Bootstrap bootstrap = onboarding.bootstrapAdmin(request(slug()));
 
         String stored = jdbc.queryForObject("""
                 select token_hash from one_time_tokens where user_id = ?
@@ -155,7 +135,7 @@ class OnboardingIT {
     @Test
     @DisplayName("a bootstrap token sets the first password and activates the administrator")
     void theBootstrapCompletes() {
-        OnboardingService.Bootstrap bootstrap = onboarding.bootstrapAdmin(request(slug(), "COMPANY"));
+        OnboardingService.Bootstrap bootstrap = onboarding.bootstrapAdmin(request(slug()));
 
         UUID userId = onboarding.completeBootstrap(bootstrap.token(), "EinSicheresPasswort-2026!", null);
 
@@ -173,7 +153,7 @@ class OnboardingIT {
     @Test
     @DisplayName("a bootstrap token works exactly once")
     void theBootstrapTokenIsSingleUse() {
-        OnboardingService.Bootstrap bootstrap = onboarding.bootstrapAdmin(request(slug(), "COMPANY"));
+        OnboardingService.Bootstrap bootstrap = onboarding.bootstrapAdmin(request(slug()));
         onboarding.completeBootstrap(bootstrap.token(), "EinSicheresPasswort-2026!", null);
 
         assertThatThrownBy(() -> onboarding.completeBootstrap(bootstrap.token(),
@@ -193,7 +173,7 @@ class OnboardingIT {
     @Test
     @DisplayName("an expired token is refused")
     void expiredTokenIsRefused() {
-        OnboardingService.Bootstrap bootstrap = onboarding.bootstrapAdmin(request(slug(), "COMPANY"));
+        OnboardingService.Bootstrap bootstrap = onboarding.bootstrapAdmin(request(slug()));
         jdbc.update("""
                 update one_time_tokens set expires_at = ? where user_id = ?
                 """, java.sql.Timestamp.from(Instant.now().minus(1, ChronoUnit.HOURS)),
@@ -208,7 +188,7 @@ class OnboardingIT {
     @Test
     @DisplayName("a weak password is refused")
     void weakPasswordIsRefused() {
-        OnboardingService.Bootstrap bootstrap = onboarding.bootstrapAdmin(request(slug(), "COMPANY"));
+        OnboardingService.Bootstrap bootstrap = onboarding.bootstrapAdmin(request(slug()));
 
         assertThatThrownBy(() -> onboarding.completeBootstrap(bootstrap.token(), "kurz", null))
                 .isInstanceOf(ApiException.class)
@@ -219,8 +199,8 @@ class OnboardingIT {
     @DisplayName("a bootstrap run for an existing account hands back a fresh token")
     void bootstrappingAgainIssuesAFreshToken() {
         String slug = slug();
-        OnboardingService.Bootstrap first = onboarding.bootstrapAdmin(request(slug, "COMPANY"));
-        OnboardingService.Bootstrap second = onboarding.bootstrapAdmin(request(slug, "COMPANY"));
+        OnboardingService.Bootstrap first = onboarding.bootstrapAdmin(request(slug));
+        OnboardingService.Bootstrap second = onboarding.bootstrapAdmin(request(slug));
 
         assertThat(second.alreadyExisted()).isTrue();
         assertThat(second.account().tenantId()).isEqualTo(first.account().tenantId());
@@ -234,7 +214,7 @@ class OnboardingIT {
     @DisplayName("an administrator whose token was not used cannot sign in")
     void anUnfinishedAdministratorCannotSignIn() {
         String slug = slug();
-        OnboardingService.Bootstrap bootstrap = onboarding.bootstrapAdmin(request(slug, "COMPANY"));
+        OnboardingService.Bootstrap bootstrap = onboarding.bootstrapAdmin(request(slug));
         UUID adminUserId = bootstrap.account().adminUserId();
 
         // The question is about this administrator, not about the installation: hasFinishedAdministrator
@@ -255,7 +235,7 @@ class OnboardingIT {
     @DisplayName("the account can be described by its slug")
     void theAccountCanBeDescribed() {
         String slug = slug();
-        onboarding.onboard(request(slug, "COMPANY"));
+        onboarding.onboard(request(slug));
 
         OnboardingService.Account described = onboarding.describeBySlug(slug);
 
@@ -274,7 +254,7 @@ class OnboardingIT {
     @Test
     @DisplayName("onboarding is recorded in the audit trail")
     void onboardingIsAudited() {
-        OnboardingService.Account account = onboarding.onboard(request(slug(), "COMPANY"));
+        OnboardingService.Account account = onboarding.onboard(request(slug()));
 
         var entries = jdbc.queryForList("""
                 select action from audit_events where tenant_id = ? and action = 'ACCOUNT_ONBOARDED'
@@ -284,16 +264,16 @@ class OnboardingIT {
     }
 
     @Test
-    @DisplayName("the module defaults of the chosen account type are what the account starts from")
+    @DisplayName("onboarding configures no module of its own: the catalogue is the starting point")
     void theAccountStartsFromItsTypeDefaults() {
-        OnboardingService.Account privateAccount = onboarding.onboard(request(slug(), "PRIVATE_PERSON"));
+        OnboardingService.Account account = onboarding.onboard(request(slug()));
 
         // H-001 owns the rule; this only checks that onboarding leaves the account in a state where the
         // rule applies, rather than configuring modules of its own.
-        assertThat(RequestContext.runAs(privateAccount.tenantId(),
+        assertThat(RequestContext.runAs(account.tenantId(),
                 () -> jdbc.queryForObject("select count(*) from feature_flags where tenant_id = ?",
-                        Integer.class, privateAccount.tenantId())))
-                .as("onboarding configures nothing itself; the account type decides")
+                        Integer.class, account.tenantId())))
+                .as("onboarding configures nothing itself; the module catalogue decides")
                 .isZero();
     }
 }

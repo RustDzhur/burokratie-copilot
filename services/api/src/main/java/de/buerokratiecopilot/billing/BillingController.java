@@ -146,7 +146,7 @@ public class BillingController {
     }
 
     private List<Map<String, Object>> plans() {
-        return jdbc.queryForList("select code, name, price_cents, currency, tier, audiences, analyses_per_month, features from plans where is_active order by sort_order");
+        return jdbc.queryForList("select code, name, price_cents, currency, tier, analyses_per_month, features from plans where is_active order by sort_order");
     }
 
     private boolean isOwner(UUID tenantId) {

@@ -49,7 +49,7 @@ class CalendarFeedIT {
 
     private Account account() {
         var created = onboarding.onboard(new OnboardingService.Request(
-                "cal-" + UUID.randomUUID().toString().substring(0, 12), "Kalender", "PRIVATE_PERSON",
+                "cal-" + UUID.randomUUID().toString().substring(0, 12), "Kalender",
                 "cal-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de", "Erika Mustermann",
                 "de", "Europe/Berlin", "DE", "Kalender"));
         return new Account(created.tenantId(), created.adminUserId());

@@ -9,7 +9,7 @@ import { useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { toApiError } from '@/lib/api/errors';
 
-const PERSONAS = ['PERSON', 'FAMILY', 'FREELANCER', 'COMPANY', 'ADVISOR'] as const;
+const PERSONAS = ['FREELANCER', 'COMPANY', 'ADVISOR'] as const;
 
 /**
  * "Try the demo": the visitor says what they would use the platform for and enters a demo cabinet of their own, without a password
@@ -17,7 +17,7 @@ const PERSONAS = ['PERSON', 'FAMILY', 'FREELANCER', 'COMPANY', 'ADVISOR'] as con
  */
 export function DemoDialog({ open, onClose }: { readonly open: boolean; readonly onClose: () => void }) {
   const t = useTranslations('demo');
-  const [persona, setPersona] = useState<string>('PERSON');
+  const [persona, setPersona] = useState<string>('ADVISOR');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -57,8 +57,8 @@ export function DemoDialog({ open, onClose }: { readonly open: boolean; readonly
         onChange={setPersona}
         options={PERSONAS.map((value) => ({
           value,
-          label: t(`persona.${value}.title` as 'persona.PERSON.title'),
-          description: t(`persona.${value}.description` as 'persona.PERSON.description'),
+          label: t(`persona.${value}.title` as 'persona.ADVISOR.title'),
+          description: t(`persona.${value}.description` as 'persona.ADVISOR.description'),
         }))}
       />
       {problem ? <InlineAlert tone="danger">{problem}</InlineAlert> : null}

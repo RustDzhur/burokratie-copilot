@@ -52,7 +52,7 @@ public class OnboardingController {
     }
 
     /** An account to create. */
-    public record OnboardBody(String slug, String accountName, String accountType, String adminEmail,
+    public record OnboardBody(String slug, String accountName, String adminEmail,
                               String adminDisplayName, String language, String timeZone,
                               String countryCode, String organizationName) {
     }
@@ -86,7 +86,7 @@ public class OnboardingController {
         requireFields(body.slug(), body.accountName(), body.adminEmail());
 
         OnboardingService.Account account = onboarding.onboard(new OnboardingService.Request(
-                body.slug(), body.accountName(), body.accountType(), body.adminEmail(),
+                body.slug(), body.accountName(), body.adminEmail(),
                 body.adminDisplayName(), body.language(), body.timeZone(), body.countryCode(),
                 body.organizationName()));
 
@@ -120,7 +120,7 @@ public class OnboardingController {
         }
 
         OnboardingService.Bootstrap bootstrap = onboarding.bootstrapAdmin(new OnboardingService.Request(
-                body.slug(), body.accountName(), body.accountType(), body.adminEmail(),
+                body.slug(), body.accountName(), body.adminEmail(),
                 body.adminDisplayName(), body.language(), body.timeZone(), body.countryCode(),
                 body.organizationName()));
 

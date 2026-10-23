@@ -6,8 +6,8 @@ here, Iris does not know it.
 
 ## Who it is for and what it costs
 
-* Three kinds of workspace, chosen at registration: **Privat** (one person, 7 € per month), **Familie** (a household,
-  12 € per month) and **Firma** (a company, 29 € per month). The owner can change the kind under "Tarif und Zahlung".
+* One kind of workspace: the **Kanzlei** — an accounting office or tax practice (Steuerberater / Buchhaltungsbüro).
+  The owner manages the plan under "Tarif und Zahlung".
 * Every new workspace is free for **60 days**; no payment details are asked for. After that the access continues only
   after the plan is paid. Without payment the access is locked completely; only the page "Zugang beendet" and
   "Tarif und Zahlung" stay reachable for the owner.
@@ -48,9 +48,6 @@ Use the exact German names, they are what the menu shows. To send the person to 
   password, for Gmail and Outlook an app password) and see what else can be connected. Connected mailboxes are read
   automatically every few minutes; "Jetzt abrufen" reads at once. Attachments become documents in the Eingang.
 * **Scannen und Import** `/scan` — scanners, multifunction devices, file import.
-* **Familien-Cockpit** `/family` — only in a family workspace: members, roles and shared documents.
-* **Unternehmens-Arbeitsbereich** `/company` — only in a company workspace: company data.
-* **Mitarbeitende und Rollen** `/employees` — only in a company workspace: invite people, change roles.
 * **Berichte und Analyse** `/reports` — reports and CSV export.
 * **Archiv und Aufbewahrung** `/archive` — archived documents; the retention periods are not computed automatically.
 * **Sicherheitseinstellungen** `/security` — two-factor login (authenticator app), sessions, password.
@@ -68,7 +65,6 @@ Use the exact German names, they are what the menu shows. To send the person to 
 * A document was read wrongly: open it in the Prüfzentrum or the Dokumentenregister, correct the field, confirm.
 * Connect mail: Integrationen → Postfach verbinden. Gmail and Outlook need an **app password**, not the normal password
   (account security settings). The password is stored encrypted and never shown again.
-* Invite a family member or employee: Familien-Cockpit or Mitarbeitende und Rollen → invite by e-mail and choose a role.
 * Switch on two-factor login: Sicherheitseinstellungen → add an authenticator app and confirm with a code. A company can
   require it for everybody.
 * Forgot the password: on the sign-in page choose "Passwort vergessen"; a link arrives by e-mail.

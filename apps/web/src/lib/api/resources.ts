@@ -263,7 +263,6 @@ interface MeResponse {
   readonly email: string;
   readonly displayName: string | null;
   readonly workspaceName: string | null;
-  readonly accountType: string | null;
   readonly roles: readonly string[];
   readonly onboardingCompleted?: boolean;
   readonly mfaEnrolmentRequired?: boolean;
@@ -313,18 +312,6 @@ const ROLE_FROM_BACKEND: Readonly<Record<string, MemberRole>> = {
   AUDITOR: 'auditor',
 };
 
-const ACCOUNT_TYPE_TO_BACKEND = {
-  private: 'PRIVATE_PERSON',
-  family: 'FAMILY_HOUSEHOLD',
-  company: 'COMPANY',
-} as const;
-
-function workspaceTypeFromBackend(accountType: string | null): SessionUser['workspaceType'] {
-  if (accountType === 'PRIVATE_PERSON') return 'private';
-  if (accountType === 'FAMILY_HOUSEHOLD') return 'family';
-  return 'company';
-}
-
 /** The one place that turns the backend's principal description into the user the screens work with. */
 export function sessionUserFromMe(me: MeResponse): SessionUser {
   return {
@@ -337,7 +324,6 @@ export function sessionUserFromMe(me: MeResponse): SessionUser {
     }),
     workspaceId: me.tenantId ?? '',
     workspaceName: me.workspaceName ?? '',
-    workspaceType: workspaceTypeFromBackend(me.accountType),
     avatarUrl: me.avatarVersion ? `/api/v1/profile/avatar?v=${me.avatarVersion}` : null,
     onboardingCompleted: me.onboardingCompleted ?? true,
     mfaEnrolmentRequired: me.mfaEnrolmentRequired ?? false,
@@ -531,12 +517,10 @@ export interface RegisterPayload {
   readonly fullName: string;
   readonly email: string;
   readonly password: string;
-  readonly accountType: 'private' | 'family' | 'company';
 }
 
 export interface OnboardingPayload {
   readonly workspaceName: string;
-  readonly workspaceType: 'private' | 'family' | 'company';
   readonly sources: readonly string[];
   readonly notifications: readonly string[];
 }
@@ -931,9 +915,6 @@ export interface ApiResources {
     list: (signal?: AbortSignal) => Promise<Page<DeviceSummary>>;
     scan: (id: string, profile?: string) => Promise<void>;
   };
-  readonly account: {
-    setType: (accountType: 'private' | 'family' | 'company') => Promise<void>;
-  };
   readonly telegram: {
     status: (signal?: AbortSignal) => Promise<TelegramStatus>;
     createLinkCode: () => Promise<TelegramStatus>;
@@ -1109,10 +1090,8 @@ interface PlanWire {
   readonly name: string;
   readonly price_cents: number;
   readonly currency: string;
-  readonly account_type?: string;
   readonly is_active?: boolean;
   readonly tier?: number;
-  readonly audiences?: string;
   readonly analyses_per_month?: number | null;
   readonly features?: string;
 }
@@ -1122,10 +1101,8 @@ const planFromWire = (wire: PlanWire): PlanSummary => ({
   name: wire.name,
   priceCents: wire.price_cents,
   currency: wire.currency,
-  accountType: wire.account_type,
   active: wire.is_active,
   tier: wire.tier,
-  audiences: wire.audiences ? wire.audiences.split(',') : undefined,
   analysesPerMonth: wire.analyses_per_month ?? null,
   features: wire.features ? wire.features.split(',').filter(Boolean) : undefined,
 });
@@ -1297,7 +1274,6 @@ export function createResources(client: ApiClient): ApiResources {
             email: payload.email,
             password: payload.password,
             displayName: payload.fullName,
-            accountType: ACCOUNT_TYPE_TO_BACKEND[payload.accountType],
             acceptedTerms: payload.acceptedTerms,
           },
           { idempotencyKey: true },
@@ -2095,15 +2071,6 @@ export function createResources(client: ApiClient): ApiResources {
       },
       scan: (id, profile) =>
         client.post<void>(`/devices/${id}/scan`, { profile }, { idempotencyKey: true }),
-    },
-    account: {
-      setType: async (accountType) => {
-        await client.post<unknown>(
-          '/account/type',
-          { accountType: ACCOUNT_TYPE_TO_BACKEND[accountType] },
-          { idempotencyKey: true },
-        );
-      },
     },
     telegram: {
       status: (signal) => client.get<TelegramStatus>('/telegram/status', withSignal(signal)),

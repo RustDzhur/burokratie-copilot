@@ -84,7 +84,7 @@ public class SenderService {
         String normal = normalise(name);
         Integer own = jdbc.queryForObject("""
                 select (select count(*) from users u where u.id = ? and lower(u.display_name) = ?)
-                     + (select count(*) from parties p where p.tenant_id = ? and p.deleted_at is null and lower(p.display_name) = ?)
+                     + (select count(*) from contacts c where c.tenant_id = ? and c.deleted_at is null and lower(c.display_name) = ?)
                      + (select count(*) from tenants t where t.id = ? and lower(t.name) = ?)
                 """, Integer.class, document.getCreatedBy(), normal, document.getTenantId(), normal, document.getTenantId(), normal);
         return own != null && own > 0;

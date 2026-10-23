@@ -67,7 +67,7 @@ class AuthFlowIT {
     private record Registered(UUID userId, UUID tenantId, String email, String password) {
     }
 
-    private Registered register(String accountType) throws Exception {
+    private Registered register() throws Exception {
         String email = "user-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de";
         String password = "EinSicheresPasswort-2026!";
 
@@ -76,8 +76,8 @@ class AuthFlowIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"%s","password":"%s","displayName":"Erika Mustermann",
-                                 "accountType":"%s","tenantName":"Muster GmbH"}
-                                """.formatted(email, password, accountType)))
+                                 "tenantName":"Muster GmbH"}
+                                """.formatted(email, password)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.tenantId").exists())
                 .andReturn();
@@ -90,7 +90,7 @@ class AuthFlowIT {
     @Test
     @DisplayName("registration creates the user, its tenant, a default workspace and an OWNER membership")
     void registrationCreatesTenantWorkspaceAndOwnership() throws Exception {
-        Registered registered = register("COMPANY");
+        Registered registered = register();
 
         User user = users.findById(registered.userId()).orElseThrow();
         assertThat(user.getStatus()).isEqualTo(User.Status.PENDING_VERIFICATION);
@@ -125,7 +125,7 @@ class AuthFlowIT {
     @Test
     @DisplayName("signing in before confirming the e-mail address is refused with a clear code")
     void loginBeforeVerificationIsRefused() throws Exception {
-        Registered registered = register("PRIVATE_PERSON");
+        Registered registered = register();
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .with(csrf())
@@ -141,7 +141,7 @@ class AuthFlowIT {
     @Test
     @DisplayName("a registered and confirmed user can sign in, receives a session cookie and is known to /me")
     void loginIssuesSessionCookieAndResolvesPrincipal() throws Exception {
-        Registered registered = register("COMPANY");
+        Registered registered = register();
         activate(registered);
 
         MvcResult login = mockMvc.perform(post("/api/v1/auth/login")
@@ -168,14 +168,13 @@ class AuthFlowIT {
                 .andExpect(jsonPath("$.email").value(registered.email()))
                 .andExpect(jsonPath("$.displayName").value("Erika Mustermann"))
                 .andExpect(jsonPath("$.workspaceName").value("Muster GmbH"))
-                .andExpect(jsonPath("$.accountType").value("COMPANY"))
                 .andExpect(jsonPath("$.roles[0]").value("OWNER"));
     }
 
     @Test
     @DisplayName("resending the verification link answers 202 for a known and an unknown address alike")
     void resendVerificationDoesNotRevealWhetherAnAccountExists() throws Exception {
-        Registered registered = register("PRIVATE_PERSON");
+        Registered registered = register();
         for (String email : new String[] {registered.email(), "nobody-" + UUID.randomUUID() + "@example.de"}) {
             mockMvc.perform(post("/api/v1/auth/verify-email/resend")
                             .with(csrf())
@@ -196,7 +195,7 @@ class AuthFlowIT {
     @Test
     @DisplayName("an unknown user and a wrong password produce the very same answer")
     void loginDoesNotRevealWhetherAnAccountExists() throws Exception {
-        Registered registered = register("COMPANY");
+        Registered registered = register();
         activate(registered);
 
         String wrongPassword = mockMvc.perform(post("/api/v1/auth/login")
@@ -224,7 +223,7 @@ class AuthFlowIT {
     @Test
     @DisplayName("repeated failures lock the account temporarily")
     void repeatedFailuresLockTheAccount() throws Exception {
-        Registered registered = register("COMPANY");
+        Registered registered = register();
         activate(registered);
 
         for (int attempt = 0; attempt < 5; attempt++) {
@@ -260,7 +259,7 @@ class AuthFlowIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"weak-%s@example.de","password":"passwort",
-                                 "displayName":"Test","accountType":"COMPANY"}
+                                 "displayName":"Test"}
                                 """.formatted(UUID.randomUUID().toString().substring(0, 8))))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))

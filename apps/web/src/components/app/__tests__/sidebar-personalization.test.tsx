@@ -76,11 +76,10 @@ const companyUser: SessionUser = {
   roles: [],
   workspaceId: 'w1',
   workspaceName: 'Weber & Partner',
-  workspaceType: 'company',
 };
 
-/** A cabinet the Kanzlei edition is not built for: "Belege" needs a company workspace. */
-const privateUser: SessionUser = { ...companyUser, id: 'u2', workspaceType: 'private' };
+/** A person the server granted no permission: "Exporte" needs documents.export, so the menu must hide it. */
+const limitedUser: SessionUser = { ...companyUser, id: 'u2', permissions: [] };
 
 function renderSidebar(user: SessionUser = companyUser): ReturnType<typeof renderWithProviders> {
   return renderWithProviders(
@@ -297,13 +296,13 @@ describe('personal sidebar', () => {
   });
 
   it('never shows a stored screen the person may not open', async () => {
-    // "Belege" needs a company workspace; a stored order that names it must not put it on a private menu.
-    stored = { order: ['invoices', 'cases'], hidden: [], updatedAt: null };
-    renderSidebar(privateUser);
+    // "Exporte" needs documents.export; a stored order that names it must not put it on a menu without the right.
+    stored = { order: ['exports', 'cases'], hidden: [], updatedAt: null };
+    renderSidebar(limitedUser);
 
     await waitFor(() => expect(mainLinks()[0]).toHaveAttribute('href', '/cases'));
-    expect(within(nav()).queryByRole('link', { name: catalogues.de.nav['items.invoices'] })).toBeNull();
-    expect(navLinks()).toHaveLength(screensVisibleFor(sidebarScreens, privateUser).length + 1);
+    expect(within(nav()).queryByRole('link', { name: catalogues.de.nav['items.exports'] })).toBeNull();
+    expect(navLinks()).toHaveLength(screensVisibleFor(sidebarScreens, limitedUser).length + 1);
   });
 
   it('ignores stored ids of screens that are no longer part of the menu', async () => {

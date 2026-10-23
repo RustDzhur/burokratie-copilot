@@ -126,7 +126,7 @@ class EvaluationHarnessIT {
     private List<Result> run(String resource, String reportFile, String title) throws Exception {
         JsonNode set = JSON.readTree(getClass().getResourceAsStream(resource));
         var created = onboarding.onboard(new OnboardingService.Request(
-                "eval-" + UUID.randomUUID().toString().substring(0, 12), "Evaluation", "COMPANY",
+                "eval-" + UUID.randomUUID().toString().substring(0, 12), "Evaluation",
                 "eval-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de", "Erika Mustermann",
                 "de", "Europe/Berlin", "DE", "Evaluation"));
         UUID tenantId = created.tenantId();

@@ -8,7 +8,6 @@ function me(permissions?: readonly string[]): Parameters<typeof sessionUserFromM
     email: 'nina@example.de',
     displayName: 'Nina Test',
     workspaceName: 'Testkabinett',
-    accountType: 'PRIVATE_PERSON',
     roles: ['OWNER'],
     permissions,
   };

@@ -223,7 +223,7 @@ public class DocumentController {
     }
 
     /** One entry of the catalogue of document types the platform recognises. */
-    public record CatalogueEntry(String code, String category, java.util.Map<String, String> names, String audiences) {
+    public record CatalogueEntry(String code, String category, java.util.Map<String, String> names) {
     }
 
     @GetMapping("/types")
@@ -236,8 +236,7 @@ public class DocumentController {
                         .comparing(de.buerokratiecopilot.documents.domain.DocumentType::getCategory)
                         .thenComparing(type -> type.nameIn("de")))
                 .map(type -> new CatalogueEntry(type.getCode(), type.getCategory(),
-                        java.util.Map.of("de", type.nameIn("de"), "en", type.nameIn("en"), "ru", type.nameIn("ru")),
-                        type.getAudiences()))
+                        java.util.Map.of("de", type.nameIn("de"), "en", type.nameIn("en"), "ru", type.nameIn("ru"))))
                 .toList();
     }
 

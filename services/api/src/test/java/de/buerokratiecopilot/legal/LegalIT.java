@@ -47,7 +47,7 @@ class LegalIT {
     private Session register() throws Exception {
         String email = "ins-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de";
         String body = mockMvc.perform(post("/api/v1/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"%s\",\"password\":\"EinSicheresPasswort-2026!\",\"displayName\":\"P\",\"accountType\":\"COMPANY\"}".formatted(email)))
+                .content("{\"email\":\"%s\",\"password\":\"EinSicheresPasswort-2026!\",\"displayName\":\"P\"}".formatted(email)))
                 .andReturn().getResponse().getContentAsString();
         UUID userId = UUID.fromString(JsonPath.read(body, "$.userId"));
         jdbc.update("update users set status = 'ACTIVE', email_verified_at = now() where id = ?", userId);
@@ -57,7 +57,7 @@ class LegalIT {
         return new Session(cookie, userId);
     }
 
-    private static final String REGISTER = "{\"email\":\"%s\",\"password\":\"EinSicheresPasswort-2026!\",\"displayName\":\"P\",\"accountType\":\"%s\"%s}";
+    private static final String REGISTER = "{\"email\":\"%s\",\"password\":\"EinSicheresPasswort-2026!\",\"displayName\":\"P\"%s}";
 
     @Test
     @DisplayName("the public legal data shows only what the operator entered, and names what is still missing")
@@ -82,23 +82,21 @@ class LegalIT {
         }
     }
 
-    private UUID register(String accountType, String extra) throws Exception {
+    private UUID register(String extra) throws Exception {
         String email = "legal-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de";
         String body = mockMvc.perform(post("/api/v1/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON)
-                .content(REGISTER.formatted(email, accountType, extra))).andExpect(status().isCreated())
+                .content(REGISTER.formatted(email, extra))).andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return UUID.fromString(JsonPath.read(body, "$.userId"));
     }
 
     @Test
-    @DisplayName("registration records which version of the terms and the privacy notice was accepted; a business also the processing agreement")
+    @DisplayName("registration records which version of the terms, the privacy notice and the processing agreement was accepted")
     void registrationRecordsTheAcceptance() throws Exception {
-        UUID business = register("COMPANY", ",\"acceptedTerms\":true");
+        // Every cabinet is a Kanzlei, a business, so the processing agreement is part of every registration.
+        UUID registered = register(",\"acceptedTerms\":true");
         assertThat(jdbc.queryForList("select document from legal_consents where user_id = ? and version = ? order by document",
-                String.class, business, LegalService.TEXT_VERSION)).containsExactly("AGB", "AVV", "DATENSCHUTZ");
-        UUID person = register("PRIVATE_PERSON", ",\"acceptedTerms\":true");
-        assertThat(jdbc.queryForList("select document from legal_consents where user_id = ? order by document", String.class,
-                person)).containsExactly("AGB", "DATENSCHUTZ");
+                String.class, registered, LegalService.TEXT_VERSION)).containsExactly("AGB", "AVV", "DATENSCHUTZ");
     }
 
     @Test
@@ -108,7 +106,7 @@ class LegalIT {
         try {
             String email = "legal-" + UUID.randomUUID().toString().substring(0, 8) + "@example.de";
             mockMvc.perform(post("/api/v1/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON)
-                    .content(REGISTER.formatted(email, "PRIVATE_PERSON", ""))).andExpect(status().isUnprocessableEntity());
+                    .content(REGISTER.formatted(email, ""))).andExpect(status().isUnprocessableEntity());
             assertThat(jdbc.queryForObject("select count(*) from users where email = ?", Integer.class, email)).isZero();
         }
         finally {

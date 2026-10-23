@@ -9,7 +9,6 @@ import { Button, IconButton } from '@/components/ui/button';
 import { LiveRegion } from '@/components/ui/feedback';
 import { ConfirmDialog } from '@/components/ui/overlay';
 import { useTranslations } from '@/i18n/provider';
-import { useSession } from '@/lib/auth/session-context';
 import { navSections, type ScreenDefinition } from '@/navigation/screens';
 import { usePersonalMenu } from './use-personal-menu';
 import styles from './sidebar.module.css';
@@ -53,7 +52,6 @@ export function Sidebar({
   const t = useTranslations('nav');
   const tCommon = useTranslations('common');
   const pathname = usePathname();
-  const session = useSession();
   const isCollapsed = collapsed && variant === 'desktop';
   const { layout, isSaving, hide, show, move, drop, reset } = usePersonalMenu();
 
@@ -322,15 +320,6 @@ export function Sidebar({
           </span>
         ) : null}
       </div>
-
-      {!isCollapsed && session?.workspaceType ? (
-        <p className={styles.cabinet} data-testid="cabinet-badge">
-          {t('cabinet.badge', {
-            cabinet: t(`cabinet.${session.workspaceType}` as 'cabinet.private'),
-            plan: session.subscription?.planName ?? '—',
-          })}
-        </p>
-      ) : null}
 
       {!isCollapsed && editing ? (
         <div className={styles.editPanel} role="group" aria-label={t('customise.editGroup')}>

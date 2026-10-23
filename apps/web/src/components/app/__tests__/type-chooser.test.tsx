@@ -8,8 +8,8 @@ vi.mock('@/lib/api', () => ({ api: { documents: { pipeline: vi.fn(), catalogue: 
 const documents = api.documents as unknown as Record<'pipeline' | 'catalogue', ReturnType<typeof vi.fn>>;
 
 const catalogue = [
-  { code: 'rechnung', category: 'FINANCE', names: { de: 'Rechnung' }, audiences: 'private,company' },
-  { code: 'businessplan', category: 'BUSINESS', names: { de: 'Businessplan' }, audiences: 'company' },
+  { code: 'rechnung', category: 'FINANCE', names: { de: 'Rechnung' } },
+  { code: 'businessplan', category: 'BUSINESS', names: { de: 'Businessplan' } },
 ];
 const flow = (extra: object) => ({ documentTypeName: null, typeNames: null, suggestedType: null, ...extra });
 

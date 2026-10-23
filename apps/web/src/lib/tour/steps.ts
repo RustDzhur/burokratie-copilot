@@ -32,11 +32,6 @@ const COMMON_AFTER: readonly TourStep[] = [
 /** The steps for a demo cabinet; a stop whose target is not on the screen (a menu entry the plan does not include) is left out. */
 export function stepsFor(persona: string): readonly TourStep[] {
   const extra: TourStep[] = [];
-  if (persona === 'FAMILY') extra.push({ id: 'parties', selector: 'nav a[href="/parties"]' });
-  if (persona === 'COMPANY') {
-    extra.push({ id: 'employees', selector: 'nav a[href="/employees"]' });
-    extra.push({ id: 'company', selector: 'nav a[href="/company"]' });
-  }
   if (persona === 'ADVISOR') extra.push({ id: 'switcher', selector: '[data-tour="switcher"]' });
   const business = persona === 'FREELANCER' || persona === 'COMPANY' || persona === 'ADVISOR' ? BUSINESS : [];
   return [...COMMON_BEFORE, ...business, ...extra, ...COMMON_AFTER];
