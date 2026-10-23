@@ -62,6 +62,11 @@ public class DatevExportService {
     private static final Logger log = LoggerFactory.getLogger(DatevExportService.class);
 
     /** The reason shown for a voucher without a client (§5.2). */
+    /**
+     * A voucher the office never dated cannot be placed in a period. It must not vanish from the batch without
+     * a word: the empty batch with an empty skip list is what a bookkeeper cannot explain.
+     */
+    public static final String REASON_NO_DOCUMENT_DATE = "Kein Belegdatum";
     public static final String REASON_NO_MANDANT = "Ohne Mandant";
 
     /** The reason shown for a voucher whose supplier/category has no usable account mapping. */
@@ -144,12 +149,20 @@ public class DatevExportService {
         String filename = buildFilename(periodFrom, periodTo, batchId);
         try {
             List<Candidate> candidates = loadCandidates(tenantId, periodFrom, periodTo, mandantId);
+            // A voucher with no date is filtered out by the period condition in the query, so it never reaches the
+            // loop below - and a batch that ignores it silently is a batch the office cannot explain. They are
+            // collected separately and reported as skipped.
+            List<UUID> undated = loadUndated(tenantId, mandantId);
             List<Mapping> mappings = loadMappings(tenantId);
 
             List<SkippedDocument> skipped = new ArrayList<>();
             List<DatevCsvWriter.Row> rows = new ArrayList<>();
             List<UUID> exported = new ArrayList<>();
             List<Item> items = new ArrayList<>();
+            for (UUID id : undated) {
+                skipped.add(new SkippedDocument(id, REASON_NO_DOCUMENT_DATE));
+                items.add(new Item(id, ITEM_SKIPPED, REASON_NO_DOCUMENT_DATE));
+            }
             BigDecimal total = BigDecimal.ZERO;
 
             for (Candidate candidate : candidates) {
@@ -267,6 +280,35 @@ public class DatevExportService {
     }
 
     // ------------------------------------------------------------------ selection and matching
+
+    /**
+     * Vouchers waiting for export that carry no date at all.
+     *
+     * <p>They cannot be placed in a period, so {@link #loadCandidates} never returns them - but the people who
+     * asked for a batch need to see them, otherwise a short batch looks like a bug in the export.</p>
+     */
+    private List<UUID> loadUndated(UUID tenantId, UUID mandantId) {
+        String mandantClause = mandantId == null ? "" : " and d.mandant_id = ?";
+        Object[] arguments = mandantId == null
+                ? new Object[] {tenantId}
+                : new Object[] {tenantId, mandantId};
+        return jdbc.query("""
+                select d.id
+                  from documents d
+                 where d.tenant_id = ?
+                   and d.deleted_at is null
+                   and d.beleg_status = 'ZU_PRUEFEN'
+                   and coalesce(d.document_date,
+                                (select (x.normalized_value)::date
+                                   from document_extractions x
+                                  where x.document_id = d.id
+                                    and x.field_key in ('Rechnungsdatum', 'Bescheiddatum', 'Schreibendatum')
+                                    and x.value_type = 'DATE'
+                                  limit 1)) is null
+                """ + mandantClause + """
+                 order by d.created_at, d.id
+                """, (rs, index) -> rs.getObject("id", UUID.class), arguments);
+    }
 
     private List<Candidate> loadCandidates(UUID tenantId, LocalDate from, LocalDate to, UUID mandantId) {
         // The optional client filter is appended instead of being expressed as "(? is null or …)": a nullable

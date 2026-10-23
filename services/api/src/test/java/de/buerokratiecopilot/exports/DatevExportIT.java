@@ -361,4 +361,24 @@ class DatevExportIT {
         assertThat(String.valueOf(rows.getFirst().get("filename"))).endsWith(".csv");
         assertThat(rows.getFirst().get("createdByName")).isEqualTo("DATEV Test");
     }
+
+    @Test
+    @DisplayName("a voucher without any date is skipped by name, not silently left out")
+    void undatedVoucherIsReported() throws Exception {
+        Account account = register();
+        UUID mandant = contact(account, "Ohne Datum GmbH");
+        mapping(account, mandant, null, null, "1200", "1600", null);
+
+        // A letter the office never dated: it cannot be placed in any period, so the period query drops it.
+        UUID undated = document(account, mandant, null, "OHNE-DATUM", "A", "10.00");
+        document(account, mandant, LocalDate.of(2026, 3, 10), "MIT-DATUM", "A", "20.00");
+
+        MvcResult batch = export(account, JAN_1, LocalDate.of(2026, 12, 31), null);
+
+        // One voucher exported, and the undated one named with its reason - an empty skip list next to a short
+        // batch is what a bookkeeper cannot explain.
+        assertThat(belegCount(batch)).isEqualTo(1);
+        assertThat(skippedReasons(batch)).containsEntry(undated, "Kein Belegdatum");
+        assertThat(belegStatus(account, undated)).isEqualTo("ZU_PRUEFEN");
+    }
 }
