@@ -156,7 +156,7 @@ describe('Mandant card', () => {
 
     expect(await screen.findByRole('link', { name: 'Belege anzeigen' })).toHaveAttribute(
       'href',
-      '/documents?party=m-1',
+      '/documents?mandantId=m-1',
     );
     expect(screen.getByRole('link', { name: 'Zurück zur Liste' })).toHaveAttribute(
       'href',

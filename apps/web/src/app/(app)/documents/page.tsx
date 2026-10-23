@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { BatchMandantDialog } from '@/components/app/batch-mandant-dialog';
 import { ExportButton } from '@/components/app/export-button';
 import { ListPage } from '@/components/app/list-page';
 import { MergeDialog } from '@/components/app/merge-dialog';
@@ -13,7 +14,12 @@ import { formatDate } from '@/i18n/format';
 import { useLocale, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { useApiResource } from '@/lib/api/hooks';
-import type { DocumentSummary, BelegStatusValue } from '@/lib/api/types';
+import type {
+  BelegBatchAction,
+  BelegBatchResult,
+  BelegStatusValue,
+  DocumentSummary,
+} from '@/lib/api/types';
 import { useSession } from '@/lib/auth/session-context';
 import { useStatusLabels } from '@/lib/format/status';
 
@@ -41,6 +47,32 @@ const STATUS_VALUES = [
   'archived',
 ] as const;
 
+/** The five states of the queue, in the order the office works through them (§8.1). */
+const BELEG_STATUS_VALUES = ['NEU', 'OFFEN', 'ZU_PRUEFEN', 'EXPORTIERT', 'FEHLER'] as const;
+
+/**
+ * Writes the queue's state into the address bar so the link can be handed to a colleague.
+ *
+ * <p>{@code replaceState} instead of pushing: a filter is not a page visit, and a back button that walks
+ * through every dropdown change would make the browser history useless. Unknown parameters are kept — the
+ * page shares its address with features it does not own.</p>
+ */
+function writeShareableUrl(next: Readonly<Record<string, string>>): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const params = new URLSearchParams(window.location.search);
+  for (const [key, value] of Object.entries(next)) {
+    if (value === '' || value === 'ALL') {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+  }
+  const query = params.toString();
+  window.history.replaceState(null, '', `${window.location.pathname}${query === '' ? '' : `?${query}`}`);
+}
+
 export default function DocumentsPage() {
   const t = useTranslations('documents');
   const tCommon = useTranslations('common');
@@ -52,16 +84,40 @@ export default function DocumentsPage() {
   const [listVersion, setListVersion] = useState(0);
   const [sorting, setSorting] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [assigning, setAssigning] = useState<null | {
+    readonly ids: readonly string[];
+    readonly clear: () => void;
+    readonly reload: () => void;
+  }>(null);
   const tErrors = useTranslations('errors');
   // §7: the person a voucher belongs to is a Mandant, and §5.2 puts that client in mandant_id. Reading the
   // merged-away parties table would show names the export does not recognise.
   const mandanten = useApiResource((signal) => api.contacts.list({ size: 500 }, signal), []);
-  // A link from the client card hands the client over (`?party=…`). Read after mount, not during render, so
-  // the page renders the same on the server and in the browser; the list remounts once the value is known.
-  const [deepLinkParty, setDeepLinkParty] = useState('');
+  // A link from the client card (§5.5) or a shared queue link hands the filters over (`?mandantId=…`,
+  // `?belegStatus=…`, `?category=…`). Read after mount, not during render, so the page renders the same on
+  // the server and in the browser; the list remounts once the values are known.
+  const [deepLink, setDeepLink] = useState<{ belegStatus: string; mandantId: string } | null>(null);
+  const [urlFilters, setUrlFilters] = useState<Record<string, string>>({});
   useEffect(() => {
-    const party = new URLSearchParams(window.location.search).get('party');
-    if (party) setDeepLinkParty(party);
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('belegStatus') ?? '';
+    const mandantId = params.get('mandantId') ?? '';
+    const tab = params.get('category') ?? '';
+    const validStatus = (BELEG_STATUS_VALUES as readonly string[]).includes(status) ? status : '';
+    const validTab = (CATEGORY_TABS as readonly string[]).includes(tab)
+      ? (tab as (typeof CATEGORY_TABS)[number])
+      : 'ALL';
+    if (validStatus !== '' || mandantId !== '') {
+      setDeepLink({ belegStatus: validStatus, mandantId });
+      setUrlFilters({
+        ...(validStatus === '' ? {} : { belegStatus: validStatus }),
+        ...(mandantId === '' ? {} : { mandantId }),
+      });
+    }
+    if (validTab !== 'ALL') {
+      setCategory(validTab);
+    }
   }, []);
   const catalogue = useApiResource((signal) => api.documents.catalogue(signal), []);
   const mandantName = (id: string | null | undefined): string =>
@@ -80,6 +136,15 @@ export default function DocumentsPage() {
     if (tab === 'ALL') return Object.values(counts.data).reduce((sum, value) => sum + value, 0);
     return counts.data[tab] ?? 0;
   };
+  // The open tab is sent with every request but is not a filter widget: adding it here refetches without
+  // remounting the list, so the filters the person set survive switching the tab.
+  const extraParams = useMemo(() => (category === 'ALL' ? undefined : { category }), [category]);
+  const initialFilters = deepLink === null
+    ? undefined
+    : {
+        ...(deepLink.belegStatus === '' ? {} : { belegStatus: deepLink.belegStatus }),
+        ...(deepLink.mandantId === '' ? {} : { mandantId: deepLink.mandantId }),
+      };
 
   const resort = async (): Promise<void> => {
     if (!window.confirm(t('resort.confirm'))) return;
@@ -133,6 +198,67 @@ export default function DocumentsPage() {
       setMoving(null);
     }
   };
+
+  /**
+   * Announces a bulk result the way the office reads it: how many vouchers moved, and the reasons the rest
+   * stayed. A toast that only said "done" would hide exactly the vouchers the person has to look at.
+   */
+  const announceBatch = (result: BelegBatchResult, total: number): void => {
+    // Identical reasons are one line: ten vouchers refused for the same rule are one thing to understand.
+    const reasons = [...new Set(result.skipped.map((entry) => entry.reason))];
+    if (reasons.length === 0) {
+      toast.success(t('bulk.batchDone', { count: result.updated }));
+      return;
+    }
+    toast.show({
+      title: t('bulk.batchPartial', { updated: result.updated, total }),
+      description: reasons.join(' · '),
+      tone: 'warning',
+      // A refused voucher is a message to read, not a notification to miss.
+      durationMs: 8000,
+    });
+  };
+
+  const runBatch = async (
+    action: BelegBatchAction,
+    ids: readonly string[],
+    context: { readonly clear: () => void; readonly reload: () => void },
+    mandantId?: string,
+  ): Promise<void> => {
+    setBatchBusy(true);
+    try {
+      const result = await api.documents.batch(ids, action, mandantId);
+      announceBatch(result, ids.length);
+      context.clear();
+      context.reload();
+      // §5.1: the counters are the first thing read after a bulk action, so they must not lag behind it.
+      reloadQueue();
+      reloadCounts();
+    } catch (error) {
+      toast.error(tErrors(toApiError(error).kind));
+    } finally {
+      setBatchBusy(false);
+    }
+  };
+
+  const assignSelected = async (mandantId: string): Promise<void> => {
+    if (assigning === null) {
+      return;
+    }
+    const context = assigning;
+    await runBatch('ASSIGN_MANDANT', context.ids, context, mandantId);
+    setAssigning(null);
+  };
+
+  const changeCategory = (tab: (typeof CATEGORY_TABS)[number]): void => {
+    setCategory(tab);
+    writeShareableUrl({
+      category: tab,
+      belegStatus: urlFilters.belegStatus ?? '',
+      mandantId: urlFilters.mandantId ?? '',
+    });
+  };
+
   const columns: readonly Column<DocumentSummary>[] = [
     {
       key: 'title',
@@ -248,6 +374,14 @@ export default function DocumentsPage() {
           reloadQueue();
         }}
       />
+      <BatchMandantDialog
+        open={assigning !== null}
+        contacts={mandanten.state.status === 'ready' ? mandanten.state.data.items : []}
+        count={assigning?.ids.length ?? 0}
+        busy={batchBusy}
+        onClose={() => setAssigning(null)}
+        onConfirm={(mandantId) => void assignSelected(mandantId)}
+      />
       {queue.status === 'ready' ? (
         <dl
           aria-label={t('queue.label')}
@@ -292,7 +426,7 @@ export default function DocumentsPage() {
               type="button"
               role="tab"
               aria-selected={active}
-              onClick={() => setCategory(tab)}
+              onClick={() => changeCategory(tab)}
               style={{
                 padding: '0.4rem 0.8rem',
                 borderRadius: '999px',
@@ -310,28 +444,44 @@ export default function DocumentsPage() {
         })}
       </div>
       <ListPage<DocumentSummary>
-        key={`${category}-${listVersion}-${deepLinkParty}`}
+        key={`${listVersion}-${deepLink?.belegStatus ?? ''}-${deepLink?.mandantId ?? ''}`}
         screenId="documents"
         namespace="documents"
-        initialFilters={deepLinkParty === '' ? undefined : { party: deepLinkParty }}
-        load={(params, signal) =>
-          api.documents.list(category === 'ALL' ? params : { ...params, category }, signal)
-        }
+        initialFilters={initialFilters}
+        extraParams={extraParams}
+        load={(params, signal) => api.documents.list(params, signal)}
         columns={columns}
         sortableKeys={['title', 'receivedAt']}
+        onFiltersChange={(filters) => {
+          setUrlFilters(filters);
+          // The address carries the queue filters, so a colleague who opens the link sees the same list.
+          writeShareableUrl({
+            category,
+            belegStatus: filters.belegStatus ?? '',
+            mandantId: filters.mandantId ?? '',
+          });
+        }}
         filters={[
-          ...(mandanten.state.status === 'ready' && mandanten.state.data.items.length > 1
-            ? [
-                {
-                  key: 'party',
-                  label: t('filter.party'),
-                  options: [
-                    ...mandanten.state.data.items.map((contact) => ({ value: contact.id, label: contact.name })),
-                    { value: 'NONE', label: t('party.none') },
-                  ],
-                },
-              ]
-            : []),
+          {
+            key: 'mandantId',
+            label: t('filter.mandant'),
+            // Always offered: "Ohne Mandant" is the filter the office needs most, even before the client
+            // list has loaded. The clients join the same select as soon as they are there.
+            options: [
+              ...(mandanten.state.status === 'ready'
+                ? mandanten.state.data.items.map((contact) => ({ value: contact.id, label: contact.name }))
+                : []),
+              { value: 'NONE', label: t('beleg.ohneMandant') },
+            ],
+          },
+          {
+            key: 'belegStatus',
+            label: t('filter.belegStatus'),
+            options: BELEG_STATUS_VALUES.map((value) => ({
+              value,
+              label: t(`beleg.${value}` as 'beleg.NEU'),
+            })),
+          },
           ...(catalogue.state.status === 'ready'
             ? [
                 {
@@ -356,11 +506,44 @@ export default function DocumentsPage() {
           allLabel: t('bulk.selectAll'),
           rowLabel: (row) => t('bulk.selectRow', { name: row.title }),
           actions: ({ ids, clear, reload }) => (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div
+              role="toolbar"
+              aria-label={t('bulk.toolbar')}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}
+            >
               <span>{t('bulk.count', { count: ids.length })}</span>
+              <Button
+                variant="secondary"
+                disabled={batchBusy}
+                onClick={() => void runBatch('ACCEPT', ids, { clear, reload })}
+              >
+                {t('bulk.accept')}
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={batchBusy}
+                onClick={() => void runBatch('TO_CHECK', ids, { clear, reload })}
+              >
+                {t('bulk.toCheck')}
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={batchBusy}
+                onClick={() => setAssigning({ ids, clear, reload })}
+              >
+                {t('bulk.assignMandant')}
+              </Button>
+              <Button
+                variant="danger"
+                disabled={batchBusy}
+                onClick={() => void runBatch('MARK_ERROR', ids, { clear, reload })}
+              >
+                {t('bulk.markError')}
+              </Button>
               <Button
                 variant="danger"
                 iconLeft="trash"
+                disabled={batchBusy}
                 onClick={() =>
                   void deleteMany(ids).then((done) => {
                     if (done) {

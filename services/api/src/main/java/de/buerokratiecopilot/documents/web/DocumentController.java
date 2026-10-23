@@ -29,6 +29,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import de.buerokratiecopilot.documents.DocumentService;
+import de.buerokratiecopilot.documents.domain.BelegStatus;
 import de.buerokratiecopilot.documents.domain.Document;
 
 /**
@@ -160,21 +161,24 @@ public class DocumentController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('documents.view')")
-    @Operation(summary = "List documents with search, status (repeatable) and source (repeatable) filters")
+    @Operation(summary = "List documents with search, status (repeatable), source (repeatable), "
+            + "voucher status and client filters")
     public ResponseEntity<Page<DocumentResponse>> list(
             @RequestParam(required = false) @Size(max = 200) String q,
             @RequestParam(required = false) java.util.List<Document.ProcessingStatus> status,
             @RequestParam(required = false) java.util.List<Document.Source> source,
             @RequestParam(required = false) @Size(max = 40) String category,
             @RequestParam(required = false) @Size(max = 80) String type,
-            @RequestParam(required = false) @Size(max = 40) String party,
+            @RequestParam(required = false) BelegStatus belegStatus,
+            @RequestParam(required = false) @Size(max = 40) String mandantId,
             @PageableDefault(size = 25, sort = "receivedAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
 
         // The types are few and shared by every account; reading them once per request is cheaper than a join per row.
         java.util.Map<java.util.UUID, de.buerokratiecopilot.documents.domain.DocumentType> byId =
                 new java.util.HashMap<>();
         documentTypes.findAll().forEach(documentType -> byId.put(documentType.getId(), documentType));
-        Page<Document> documents = documentService.list(q, status, source, category, type, pageable);
+        Page<Document> documents = documentService.list(q, status, source, category, type, belegStatus, mandantId,
+                pageable);
         java.util.Map<UUID, String> names = uploaders.namesOf(documents.getContent().stream().map(Document::getCreatedBy).toList());
         Page<DocumentResponse> page = documents
                 .map(document -> DocumentResponse.from(document,

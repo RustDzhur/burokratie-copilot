@@ -64,16 +64,51 @@ describe('documents ↔ backend', () => {
       json({ content: [wireDocument], number: 0, size: 25, totalElements: 41, totalPages: 2 }),
     );
 
-    const page = await api.documents.list({ status: 'processing', channel: 'email', sort: 'title,asc', q: 'x' });
+    const page = await api.documents.list({ status: 'processing', channel: 'email', sort: 'title,asc', q: 'x', belegStatus: 'NEU', mandantId: 'NONE' });
 
     const url = new URL(calls[0]?.url ?? '', 'http://x');
     expect(url.pathname).toBe('/api/v1/documents');
     expect(url.searchParams.getAll('status')).toContain('EXTRACTING');
     expect(url.searchParams.getAll('source')).toEqual(['EMAIL']);
     expect(url.searchParams.get('sort')).toBe('originalFilename,asc');
+    // The queue's own filters go to the server untouched: "NONE" is a value there, not an absent client.
+    expect(url.searchParams.get('belegStatus')).toBe('NEU');
+    expect(url.searchParams.get('mandantId')).toBe('NONE');
     expect(page.totalItems).toBe(41);
     expect(page.totalPages).toBe(2);
     expect(page.items[0]?.status).toBe('needs_review');
+  });
+
+  it('sends a bulk action and reads both halves of the answer', async () => {
+    const { api, calls } = resourcesWith(() =>
+      json({
+        updated: 1,
+        skipped: [{ id: 'd2', reason: 'Ein Beleg kann nicht von EXPORTIERT nach OFFEN wechseln.' }],
+      }),
+    );
+
+    const result = await api.documents.batch(['d1', 'd2'], 'ACCEPT');
+
+    const url = new URL(calls[0]?.url ?? '', 'http://x');
+    expect(url.pathname).toBe('/api/v1/documents/batch');
+    expect(calls[0]?.init.method).toBe('POST');
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({ ids: ['d1', 'd2'], action: 'ACCEPT' });
+    expect(result.updated).toBe(1);
+    expect(result.skipped[0]?.reason).toContain('EXPORTIERT');
+  });
+
+  it('sends the client with an assignment and leaves it out of the other actions', async () => {
+    const { api, calls } = resourcesWith(() => json({ updated: 2, skipped: [] }));
+
+    await api.documents.batch(['d1', 'd2'], 'ASSIGN_MANDANT', 'm-1');
+    await api.documents.batch(['d1'], 'MARK_ERROR');
+
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({
+      ids: ['d1', 'd2'],
+      action: 'ASSIGN_MANDANT',
+      mandantId: 'm-1',
+    });
+    expect(JSON.parse(String(calls[1]?.init.body))).toEqual({ ids: ['d1'], action: 'MARK_ERROR' });
   });
 
   it('opens a document with its fields and tolerates a missing audit permission', async () => {

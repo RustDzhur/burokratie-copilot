@@ -205,7 +205,7 @@ export default function MandantPage() {
             {/* The client filter exists on the voucher list, so the button hands the client over with the
                 link instead of making the person pick the same client again. */}
             <Link
-              href={`/documents?party=${encodeURIComponent(id)}`}
+              href={`/documents?mandantId=${encodeURIComponent(id)}`}
               className={buttonClass({ variant: 'primary' })}
             >
               {t('card.documents.show')}

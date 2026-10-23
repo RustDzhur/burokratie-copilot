@@ -1383,6 +1383,27 @@ export interface BelegCounts {
   readonly ohneMandant: number | null;
 }
 
+/** The bulk actions of the Posteingang (§5.1), named after what the office does, not after the status. */
+export type BelegBatchAction = 'ACCEPT' | 'TO_CHECK' | 'ASSIGN_MANDANT' | 'MARK_ERROR';
+
+/**
+ * One voucher of a selection that the server did not change, with the office's reason.
+ *
+ * <p>The reason is a sentence from the server, not a code: the status machine already says exactly why a
+ * voucher may not move, and turning that into a generic "failed" would take the answer away from the person
+ * who has to fix it.</p>
+ */
+export interface BelegBatchSkipped {
+  readonly id: string;
+  readonly reason: string;
+}
+
+/** What a bulk action answered: how many vouchers changed, and which ones stayed with their reason. */
+export interface BelegBatchResult {
+  readonly updated: number;
+  readonly skipped: readonly BelegBatchSkipped[];
+}
+
 /**
  * One voucher that was deliberately left out of a DATEV package, with the office's reason.
  *

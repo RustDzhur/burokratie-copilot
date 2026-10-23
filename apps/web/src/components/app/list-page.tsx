@@ -39,12 +39,25 @@ export interface ListPageProps<T> {
   readonly caption?: string;
   readonly filters?: readonly ListFilterDefinition[];
   /**
-   * Filter values the screen opens with, e.g. handed over by a link (`/documents?party=…`).
+   * Filter values the screen opens with, e.g. handed over by a link (`/documents?mandantId=…`).
    *
    * <p>Only the initial state: once the person changes a filter, their choice wins. A caller that changes
    * the value later remounts the list through its `key`, which is why this is not a controlled prop.</p>
    */
   readonly initialFilters?: Record<string, string>;
+  /**
+   * Called with the active filters whenever a person changes or resets them.
+   *
+   * <p>The list owns its filter state, so a screen that mirrors it into the URL (a shareable Posteingang)
+   * learns about a change here instead of duplicating the state.</p>
+   */
+  readonly onFiltersChange?: (filters: Record<string, string>) => void;
+  /**
+   * Values the screen adds to every list request outside the filter widget, e.g. the open tab
+   * (`category`) of the Posteingang. A change refetches without remounting the list, so the filters a
+   * person set survive switching the tab.
+   */
+  readonly extraParams?: Readonly<Record<string, string | number>>;
   readonly searchable?: boolean;
   readonly sortableKeys?: readonly string[];
   readonly pageSize?: number;
@@ -89,6 +102,8 @@ export function ListPage<T>({
   caption,
   filters = [],
   initialFilters,
+  onFiltersChange,
+  extraParams,
   searchable = true,
   sortableKeys,
   pageSize = 20,
@@ -136,8 +151,9 @@ export function ListPage<T>({
       ...(query.trim() !== '' ? { q: query.trim() } : {}),
       ...(sort ? { sort: `${sort.key},${sort.direction}` } : {}),
       ...active,
+      ...extraParams,
     };
-  }, [page, pageSize, query, sort, filterValues]);
+  }, [page, pageSize, query, sort, filterValues, extraParams]);
 
   const { state, reload, isRefreshing } = useApiResource<Page<T>>(
     (signal) => load(params, signal),
@@ -261,7 +277,9 @@ export function ListPage<T>({
             options={[...filter.options]}
             value={filterValues[filter.key] ?? ''}
             onChange={(event) => {
-              setFilterValues((current) => ({ ...current, [filter.key]: event.target.value }));
+              const next = { ...filterValues, [filter.key]: event.target.value };
+              setFilterValues(next);
+              onFiltersChange?.(next);
               setPage(0);
             }}
           />
@@ -273,6 +291,7 @@ export function ListPage<T>({
             onClick={() => {
               setQuery('');
               setFilterValues({});
+              onFiltersChange?.({});
               setPage(0);
             }}
           >

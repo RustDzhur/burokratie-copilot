@@ -118,6 +118,8 @@ import type {
   DocumentDetail,
   DocumentHistoryEntry,
   BelegCounts,
+  BelegBatchAction,
+  BelegBatchResult,
   BelegStatusValue,
   DocumentSummary,
   AdminOverview,
@@ -600,6 +602,11 @@ export interface ApiResources {
     belegCounts: (signal?: AbortSignal) => Promise<BelegCounts>;
     /** Moves a voucher through the office queue (§8.1); the server refuses a transition that is a lie. */
     setBelegStatus: (id: string, status: BelegStatusValue) => Promise<void>;
+    /**
+     * Applies one action to a selection of vouchers (§5.1). The answer is honest about both halves: how many
+     * changed and which ones the status machine refused, with the reason the office has to see.
+     */
+    batch: (ids: readonly string[], action: BelegBatchAction, mandantId?: string | null) => Promise<BelegBatchResult>;
     export: (params?: ListParams) => Promise<Blob>;
     get: (id: string, signal?: AbortSignal) => Promise<DocumentDetail>;
     history: (id: string, signal?: AbortSignal) => Promise<Page<DocumentHistoryEntry>>;
@@ -1321,6 +1328,12 @@ export function createResources(client: ApiClient): ApiResources {
       setBelegStatus: async (id, status) => {
         await client.patch<unknown>(`/documents/${id}/beleg-status`, { status });
       },
+      batch: (ids, action, mandantId) =>
+        client.post<BelegBatchResult>(
+          '/documents/batch',
+          { ids, action, ...(mandantId ? { mandantId } : {}) },
+          { idempotencyKey: true },
+        ),
       list: async (params, signal) => {
         // Screen filters are translated to the pipeline's vocabulary; one screen status covers several stages.
         const { status, channel, sort, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;

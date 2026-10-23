@@ -275,7 +275,7 @@ public class DocumentService {
     @Transactional(readOnly = true)
     public Page<Document> list(String query, java.util.Collection<Document.ProcessingStatus> statuses,
                                java.util.Collection<Document.Source> sources, Pageable pageable) {
-        return list(query, statuses, sources, null, null, pageable);
+        return list(query, statuses, sources, null, null, null, null, pageable);
     }
 
     /** @param category a document type category, {@code UNSORTED} for documents without a type, or null for all */
@@ -283,15 +283,65 @@ public class DocumentService {
     public Page<Document> list(String query, java.util.Collection<Document.ProcessingStatus> statuses,
                                java.util.Collection<Document.Source> sources, String category, String typeCode,
                                Pageable pageable) {
+        return list(query, statuses, sources, category, typeCode, null, null, pageable);
+    }
+
+    /**
+     * The queue's list query (Kanzlei edition, §5.1).
+     *
+     * @param category    a document type category, {@code UNSORTED} for documents without a type, or null for all
+     * @param belegStatus where the voucher stands in the office queue, or null for every state
+     * @param mandantId   a client id, {@code NONE} for vouchers without a client, or null/blank for all. The
+     *                    value is parsed here rather than in the controller so the API and any future caller
+     *                    share one answer for "Ohne Mandant".
+     */
+    @Transactional(readOnly = true)
+    public Page<Document> list(String query, java.util.Collection<Document.ProcessingStatus> statuses,
+                               java.util.Collection<Document.Source> sources, String category, String typeCode,
+                               BelegStatus belegStatus, String mandantId, Pageable pageable) {
         UUID tenantId = RequestContext.tenantId()
                 .orElseThrow(() -> new ApiException(ErrorCode.FORBIDDEN, "No tenant in context"));
+        MandantFilter mandant = MandantFilter.parse(mandantId);
         // Never pass null here: see the note on DocumentRepository.search.
         return documents.search(tenantId, query == null ? "" : query.trim(),
                 statuses == null || statuses.isEmpty()
                         ? java.util.EnumSet.allOf(Document.ProcessingStatus.class) : statuses,
                 sources == null || sources.isEmpty()
                         ? java.util.EnumSet.allOf(Document.Source.class) : sources,
-                category == null ? "" : category, typeCode == null ? "" : typeCode, pageable);
+                belegStatus == null
+                        ? java.util.EnumSet.allOf(BelegStatus.class) : java.util.EnumSet.of(belegStatus),
+                category == null ? "" : category, typeCode == null ? "" : typeCode,
+                mandant.filter(), mandant.withoutMandant(), mandant.id(), pageable);
+    }
+
+    /**
+     * The client filter of the queue: everybody, the vouchers without a client, or one client.
+     *
+     * <p>{@code NONE} is a value of the filter, not an absent UUID — "Ohne Mandant" is what the office
+     * works through first (§5.2). The all-zero UUID stands in for "no particular client" so the query
+     * never binds an untyped {@code null}.</p>
+     */
+    private record MandantFilter(boolean filter, boolean withoutMandant, UUID id) {
+
+        private static final UUID NONE = new UUID(0L, 0L);
+        private static final MandantFilter ANY = new MandantFilter(false, false, NONE);
+
+        static MandantFilter parse(String raw) {
+            if (raw == null || raw.isBlank()) {
+                return ANY;
+            }
+            String value = raw.trim();
+            if ("NONE".equalsIgnoreCase(value)) {
+                return new MandantFilter(true, true, NONE);
+            }
+            try {
+                return new MandantFilter(true, false, UUID.fromString(value));
+            }
+            catch (IllegalArgumentException ex) {
+                throw new ApiException(ErrorCode.INVALID_REQUEST,
+                        "mandantId muss eine Mandanten-Kennung oder NONE sein.");
+            }
+        }
     }
 
     /** Documents per category, for the tabs of the document list. */
