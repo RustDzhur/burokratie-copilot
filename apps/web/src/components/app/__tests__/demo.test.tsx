@@ -41,7 +41,7 @@ describe('demo cabinet interface', () => {
 
   it('offers only the business cabinets the Kanzlei edition keeps, and opens the chosen one', async () => {
     const user = userEvent.setup();
-    serve({ '/public/demo/start': { persona: 'ADVISOR', next: '/dashboard?tour=1' } });
+    serve({ '/public/demo/start': { persona: 'ADVISOR', next: '/documents?tour=1' } });
     const assign = vi.fn();
     vi.stubGlobal('location', { ...window.location, assign });
     renderWithProviders(<DemoDialog open onClose={vi.fn()} />);
@@ -57,7 +57,7 @@ describe('demo cabinet interface', () => {
     await user.click(screen.getByRole('button', { name: 'Weiter' }));
 
     await waitFor(() => expect(calls.some((c) => c.url.endsWith('/public/demo/start') && (c.body ?? '').includes('"persona":"ADVISOR"'))).toBe(true));
-    await waitFor(() => expect(assign).toHaveBeenCalledWith('/dashboard?tour=1'));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('/documents?tour=1'));
   });
 
   it('shows the demo strip only in a demo cabinet, and ending the demo deletes it and goes to the start page', async () => {

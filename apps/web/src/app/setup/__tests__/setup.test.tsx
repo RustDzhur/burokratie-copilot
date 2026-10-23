@@ -61,6 +61,9 @@ function serve(): void {
         state = { ...state, completed: true };
         return new Response(null, { status: 204 });
       }
+      if (url.includes('/public/demo/start')) {
+        return json({ persona: 'ADVISOR', next: '/documents?tour=1' });
+      }
       if (url.endsWith('/setup')) return json(state);
       if (url.includes('/contacts/import')) return json(importReport);
       if (url.includes('/contacts') && method === 'POST') {
@@ -221,6 +224,28 @@ describe('first-run wizard', () => {
       ),
     );
     await waitFor(() => expect(push).toHaveBeenCalledWith('/documents'));
+  });
+
+  it('opens the demo in the Posteingang, where the work is, and starts the tour there', async () => {
+    serve();
+    const user = userEvent.setup();
+    renderWithProviders(<SetupPage />);
+    await toStep(user, 3);
+
+    await user.click(screen.getByRole('button', { name: 'Demo-Kanzlei ansehen' }));
+
+    await waitFor(() =>
+      expect(
+        calls.some(
+          (call) =>
+            call.url.endsWith('/public/demo/start') &&
+            call.method === 'POST' &&
+            (call.body ?? '').includes('"persona":"ADVISOR"'),
+        ),
+      ).toBe(true),
+    );
+    // The backend says where the finished cabinet is; the empty dashboard would make the demo look broken.
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/documents?tour=1'));
   });
 
   it('sends a cabinet that is already set up straight to the Posteingang', async () => {

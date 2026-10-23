@@ -136,6 +136,14 @@ public class DocumentProcessingPipeline {
             return new AdvanceResult(documentId, DocumentProcessingStep.Step.DUPLICATE_CHECK,
                     "The document is a duplicate and is not processed again", current, List.of());
         }
+        if (reviews.hasOpenReview(documentId)) {
+            // The question was asked on an earlier run and is still unanswered. The steps after the one that asked
+            // were never executed, so "the step row is finished" does not mean the pipeline may continue: a
+            // redelivery of the event used to run extraction and matching past an open review, turn the status to
+            // READY and create a task from an unconfirmed classification. An open question holds the document.
+            return new AdvanceResult(documentId, null,
+                    "The document still waits for a human decision", current, List.of());
+        }
 
         List<DocumentProcessingStep.Step> executed = new java.util.ArrayList<>();
         for (DocumentProcessingStep.Step step : ORDER) {
@@ -173,8 +181,16 @@ public class DocumentProcessingPipeline {
             // Every stage is finished. A document that was waiting for people and has no question left is ready: the status
             // only changes when a stage runs, and after the last answer none does, so without this a document filed
             // in the right drawer would stay "in processing" for ever.
-            if (document.getProcessingStatus() == Document.ProcessingStatus.REVIEW_REQUIRED
-                    && !reviews.hasOpenReview(documentId)) {
+            if (document.getProcessingStatus() == Document.ProcessingStatus.REVIEW_REQUIRED) {
+                if (reviews.hasOpenReview(documentId)) {
+                    // Re-running the pipeline does not finish a document a person still has to answer for. Announcing
+                    // "processing completed" here used to hand every review document to the downstream handlers: the
+                    // addressee resolver then assigned the *sender* as the client, and the orchestrator saw a document
+                    // that was not READY. A replay must change nothing, so the announcement waits with the review.
+                    return new AdvanceResult(documentId, null,
+                            "The document still waits for a human decision",
+                            Document.ProcessingStatus.REVIEW_REQUIRED, executed);
+                }
                 document.setProcessingStatus(Document.ProcessingStatus.READY);
                 if (document.getReviewStatus() == Document.ReviewStatus.PENDING) {
                     document.setReviewStatus(Document.ReviewStatus.APPROVED);

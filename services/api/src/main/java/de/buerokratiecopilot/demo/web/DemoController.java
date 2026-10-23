@@ -51,7 +51,9 @@ public class DemoController {
         response.addHeader(HttpHeaders.SET_COOKIE, ResponseCookie.from(session.getCookieName(), started.sessionToken())
                 .httpOnly(true).secure(session.isCookieSecure()).sameSite(session.getCookieSameSite()).path("/")
                 .maxAge(Duration.ofHours(4)).build().toString());
-        return Map.of("persona", started.persona(), "next", "/dashboard?tour=1");
+        // §5.1/§6.1: the demo button lands in the Posteingang - the queue is what the visitor came to see.
+        // ?tour=1 starts the guided tour there; the first card explains the cabinet without hiding the work.
+        return Map.of("persona", started.persona(), "next", "/documents?tour=1");
     }
 
     @GetMapping("/demo/status")

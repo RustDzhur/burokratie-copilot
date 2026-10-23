@@ -20,11 +20,14 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import de.buerokratiecopilot.billing.TenantPurgeService;
 import de.buerokratiecopilot.documents.DocumentService;
+import de.buerokratiecopilot.documents.domain.BelegStatus;
 import de.buerokratiecopilot.documents.domain.Document;
 import de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline;
+import de.buerokratiecopilot.documents.zuordnung.MandantRoutingService;
 import de.buerokratiecopilot.identity.UserRepository;
 import de.buerokratiecopilot.identity.auth.SessionService;
 import de.buerokratiecopilot.orchestration.CaseOrchestrator;
+import de.buerokratiecopilot.parties.AddresseeResolver;
 import de.buerokratiecopilot.shared.context.RequestContext;
 import de.buerokratiecopilot.shared.error.ApiException;
 import de.buerokratiecopilot.shared.error.ErrorCode;
@@ -49,12 +52,6 @@ public class DemoService {
     static final int MAX_CABINETS = 60;
     static final int MAX_STARTS_PER_IP_PER_HOUR = 6;
 
-    /** The client companies of the advice-centre demo, each with a few letters of its own. */
-    private static final List<Map.Entry<String, List<String>>> ADVISOR_CLIENTS = List.of(
-            Map.entry("Müller Bau GmbH", List.of("handwerker-rechnung", "mahnung", "angebot")),
-            Map.entry("Schmidt Physiotherapie", List.of("software-rechnung", "ihk", "zahlungserinnerung")),
-            Map.entry("Weber Café UG", List.of("strom-rechnung", "vertrag-internet", "preiserhoehung")));
-
     public record Started(String sessionToken, UUID tenantId, String persona) {
     }
 
@@ -65,6 +62,8 @@ public class DemoService {
     private final DocumentService documents;
     private final DocumentProcessingPipeline pipeline;
     private final CaseOrchestrator orchestrator;
+    private final AddresseeResolver addressees;
+    private final MandantRoutingService routing;
     private final SessionService sessions;
     private final UserRepository users;
     private final TenantPurgeService purge;
@@ -72,6 +71,7 @@ public class DemoService {
 
     public DemoService(JdbcTemplate jdbc, PlatformTransactionManager transactionManager, DemoSamples samples, DemoGuard guard,
                        DocumentService documents, DocumentProcessingPipeline pipeline, CaseOrchestrator orchestrator,
+                       AddresseeResolver addressees, MandantRoutingService routing,
                        SessionService sessions, UserRepository users, TenantPurgeService purge) {
         this.jdbc = jdbc;
         this.transaction = new TransactionTemplate(transactionManager);
@@ -81,6 +81,8 @@ public class DemoService {
         this.documents = documents;
         this.pipeline = pipeline;
         this.orchestrator = orchestrator;
+        this.addressees = addressees;
+        this.routing = routing;
         this.sessions = sessions;
         this.users = users;
         this.purge = purge;
@@ -107,20 +109,6 @@ public class DemoService {
                 fill(persona, tenantId, userId);
                 return null;
             });
-            if (persona == Persona.ADVISOR) {
-                for (Map.Entry<String, List<String>> client : ADVISOR_CLIENTS) {
-                    UUID clientTenant = UUID.randomUUID();
-                    createWorkspace(clientTenant, client.getKey(), "COMPANY", "BUSINESS", persona.planCode(), userId);
-                    RequestContext.runAs(clientTenant, () -> {
-                        RequestContext.setUserId(userId);
-                        for (String id : client.getValue()) {
-                            file(samples.byId(id));
-                        }
-                        extras(Persona.COMPANY, clientTenant, userId, false);
-                        return null;
-                    });
-                }
-            }
         }
         catch (RuntimeException ex) {
             // A cabinet that could not be filled is not left behind half-built.
@@ -244,19 +232,43 @@ public class DemoService {
         // The persona's name marks the cabinet for the interface (tour and banner).
         jdbc.update("update tenants set settings = jsonb_set(settings, '{demoPersona}', to_jsonb(?::text)) where id = ?",
                 persona.name(), tenantId);
+        if (persona == Persona.ADVISOR) {
+            // The clients exist before their post arrives, which is the order a Kanzlei would set up its
+            // cabinet in: clients first, then the mail for them.
+            mandanten(tenantId);
+        }
         for (DemoSamples.Sample sample : samples.forPersona(persona)) {
             file(sample);
         }
         extras(persona, tenantId, userId, true);
     }
 
-    /** Puts one letter through the platform's own path: upload, reading, sorting, and the work that follows from it. */
+    /**
+     * Puts one letter through the platform's own path: upload, reading, sorting, the client of the voucher,
+     * and the work that follows from it.
+     *
+     * <p>The demo runs these steps inline instead of waiting for the outbox scheduler, because a visitor who
+     * opens the cabinet must see the finished Posteingang immediately. It calls the same services the
+     * {@code document.received}/{@code document.processing_completed} handlers call, in the same order, so
+     * nothing is simulated: a letter that the rules cannot clear stays in {@code REVIEW_REQUIRED} here too.</p>
+     */
     private void file(DemoSamples.Sample sample) {
         String text = DemoSamples.resolve(sample.text(), LocalDate.now());
         var received = documents.receive(new DocumentService.UploadRequest(
-                new de.buerokratiecopilot.documents.InMemoryUpload(sample.filename(), "text/plain", text.getBytes(StandardCharsets.UTF_8)), null, null, Document.Source.UPLOAD, null));
+                new de.buerokratiecopilot.documents.InMemoryUpload(sample.filename(), "text/plain",
+                        text.getBytes(StandardCharsets.UTF_8)), null, null, Document.Source.UPLOAD,
+                sample.sender()));
         UUID id = received.document().getId();
         pipeline.advance(id);
+        // Whom the letter belongs to is part of a finished Posteingang. In the real flow this runs when the
+        // processing-completed event is delivered; the demo cannot wait for the scheduler.
+        try {
+            addressees.resolve(id);
+            routing.route(id);
+        }
+        catch (RuntimeException ex) {
+            log.warn("The client of demo letter {} could not be determined: {}", sample.id(), ex.getMessage());
+        }
         try {
             orchestrator.orchestrate(id);
         }
@@ -264,15 +276,66 @@ public class DemoService {
             // A letter that waits for a person's check has no task yet: that is how the platform works, not an error.
             log.debug("No work created for demo letter {}: {}", sample.id(), ex.getMessage());
         }
+        moveBelegStatus(id, sample.belegStatus());
+    }
+
+    /**
+     * The three clients of the Kanzlei demo, and nothing else: the Mandanten screen must show three clients,
+     * not the senders of twenty letters. The senders arrive with the documents and are not turned into
+     * contacts by the demo, so a visitor sees exactly the cabinet the meeting script describes.
+     */
+    private void mandanten(UUID tenantId) {
+        jdbc.update("""
+                insert into contacts (tenant_id, contact_type, display_name, organization_name, is_customer, email)
+                values
+                  (?, 'ORGANIZATION', 'Müller Bau GmbH', 'Müller Bau GmbH', true, 'info@mueller-bau.example'),
+                  (?, 'ORGANIZATION', 'Schmidt Physiotherapie', 'Schmidt Physiotherapie', true, 'praxis@schmidt-physio.example'),
+                  (?, 'ORGANIZATION', 'Weber Café UG', 'Weber Café UG', true, 'cafe@weber-beispiel.example')
+                """, tenantId, tenantId, tenantId);
+        jdbc.update("""
+                insert into contact_addresses (contact_id, tenant_id, address_type, street, postal_code, city, is_primary)
+                select c.id, c.tenant_id, 'MAIN',
+                       case c.display_name when 'Müller Bau GmbH' then 'Hauptstraße 5'
+                                           when 'Schmidt Physiotherapie' then 'Bahnhofstraße 9'
+                                           else 'Marktplatz 4' end,
+                       '12345', 'Musterstadt', true
+                  from contacts c
+                 where c.tenant_id = ? and c.display_name in ('Müller Bau GmbH', 'Schmidt Physiotherapie', 'Weber Café UG')
+                """, tenantId);
+    }
+
+    /**
+     * Moves a demo voucher to the state the demo script shows. The transitions go through the office queue,
+     * one legal step at a time, so the counters at the top of the Posteingang describe a cabinet somebody has
+     * already worked in instead of twenty untouched arrivals.
+     */
+    private void moveBelegStatus(UUID documentId, String target) {
+        if (target == null || target.isBlank()) {
+            return;
+        }
+        List<BelegStatus> path = switch (BelegStatus.valueOf(target)) {
+            case NEU -> List.of(BelegStatus.NEU);
+            case OFFEN -> List.of(BelegStatus.OFFEN);
+            case ZU_PRUEFEN -> List.of(BelegStatus.OFFEN, BelegStatus.ZU_PRUEFEN);
+            case EXPORTIERT -> List.of(BelegStatus.OFFEN, BelegStatus.ZU_PRUEFEN, BelegStatus.EXPORTIERT);
+            case FEHLER -> List.of(BelegStatus.FEHLER);
+        };
+        for (BelegStatus status : path) {
+            documents.changeBelegStatus(documentId, status);
+        }
     }
 
     /** Contacts, invoices and colleagues that make the cabinet look lived in. */
     private void extras(Persona persona, UUID tenantId, UUID userId, boolean withColleagues) {
-        jdbc.update("""
-                insert into contacts (tenant_id, contact_type, display_name, organization_name, is_supplier) values
-                  (?, 'ORGANIZATION', 'Stadtwerke Musterstadt GmbH', 'Stadtwerke Musterstadt GmbH', true),
-                  (?, 'ORGANIZATION', 'Beispiel Telekom GmbH', 'Beispiel Telekom GmbH', true)
-                """, tenantId, tenantId);
+        if (persona != Persona.ADVISOR) {
+            // A Kanzlei cabinet shows its three clients, not the senders of its vouchers. The other demo
+            // cabinets are a single business, where the same two suppliers belong to the furniture.
+            jdbc.update("""
+                    insert into contacts (tenant_id, contact_type, display_name, organization_name, is_supplier) values
+                      (?, 'ORGANIZATION', 'Stadtwerke Musterstadt GmbH', 'Stadtwerke Musterstadt GmbH', true),
+                      (?, 'ORGANIZATION', 'Beispiel Telekom GmbH', 'Beispiel Telekom GmbH', true)
+                    """, tenantId, tenantId);
+        }
         if (persona == Persona.FREELANCER || persona == Persona.COMPANY || persona == Persona.ADVISOR) {
             jdbc.update("""
                     insert into customers (tenant_id, customer_number, name) values (?, 'K-1001', 'Beispiel Handels GmbH'), (?, 'K-1002', 'Muster Consulting AG')

@@ -455,4 +455,26 @@ class DocumentToTaskIT {
         assertThat(task.get("due_at")).isNull();
         assertThat(count("select count(*) from task_deadlines where task_id = ?", task.get("id"))).isZero();
     }
+
+    @Test
+    @DisplayName("in a normal cabinet a document that needs a person's decision still waits for one")
+    void sensitiveDocumentStaysInReview() {
+        Account account = account();
+        LocalDate due = LocalDate.now().plusDays(10);
+        // Inkasso is one of the types the platform may not decide on its own (spec §9.3): the demo fix must not
+        // turn "the type is plausible" into "the document is ready".
+        UUID documentId = uploadAndRun(account, "inkasso.txt", """
+                Inkasso Beispiel GmbH
+                Forderungsmanagement
+                Forderung: 842,50 EUR
+                Frist: %s
+                """.formatted(due.format(GERMAN)));
+
+        assertThat(jdbc.queryForObject("select processing_status from documents where id = ?", String.class,
+                documentId)).isEqualTo("REVIEW_REQUIRED");
+        assertThat(count("select count(*) from document_reviews where document_id = ? and status = 'PENDING'",
+                documentId)).isGreaterThanOrEqualTo(1);
+        assertThat(count("select count(*) from tasks where source_document_id = ?", documentId))
+                .as("no work is invented before a person has confirmed the type").isZero();
+    }
 }

@@ -16,26 +16,49 @@ import org.springframework.stereotype.Component;
 @Component
 public class DemoSamples {
 
-    public record Sample(String id, String filename, String text, List<String> personas) {
+    /**
+     * One invented letter.
+     *
+     * @param sender      the sender as the envelope says it; the demo passes it to the upload, so that the
+     *                    sender is not "read" from the first lines and the cabinet does not fill with invented
+     *                    supplier contacts
+     * @param belegStatus where the voucher should stand in the office queue after the demo is built; null
+     *                    leaves it at {@code NEU}
+     */
+    public record Sample(String id, String filename, String text, List<String> personas, String sender,
+                         String belegStatus) {
     }
 
     private static final Pattern DATE = Pattern.compile("\\{\\{([+-]\\d+)}}");
     private static final DateTimeFormatter GERMAN = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     private final List<Sample> all;
+    /** The Kanzlei demo has its own, larger set of vouchers (20 documents, three clients, some without a client). */
+    private final List<Sample> kanzlei;
 
     public DemoSamples(ObjectMapper json) throws IOException {
-        try (InputStream in = new ClassPathResource("demo/samples.json").getInputStream()) {
-            this.all = List.of(json.readValue(in, Sample[].class));
+        this.all = read(json, "demo/samples.json");
+        this.kanzlei = read(json, "demo/kanzlei-samples.json");
+    }
+
+    private static List<Sample> read(ObjectMapper json, String resource) throws IOException {
+        try (InputStream in = new ClassPathResource(resource).getInputStream()) {
+            return List.of(json.readValue(in, Sample[].class));
         }
     }
 
     public List<Sample> forPersona(Persona persona) {
+        // The Kanzlei is the product this edition sells; its demo is one office with its clients, not a
+        // collection of client workspaces. The other personas keep the smaller cabinets they had.
+        if (persona == Persona.ADVISOR) {
+            return kanzlei;
+        }
         return all.stream().filter(sample -> sample.personas().contains(persona.name())).toList();
     }
 
     public Sample byId(String id) {
-        return all.stream().filter(sample -> sample.id().equals(id)).findFirst()
+        return java.util.stream.Stream.concat(all.stream(), kanzlei.stream())
+                .filter(sample -> sample.id().equals(id)).findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Unknown demo sample " + id));
     }
 

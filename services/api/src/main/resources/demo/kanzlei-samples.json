@@ -1,0 +1,162 @@
+[
+ {
+  "id": "kanzlei-mueller-stadtwerke",
+  "filename": "Rechnung_Stadtwerke_Mueller.txt",
+  "sender": "Stadtwerke Musterstadt GmbH",
+  "belegStatus": "EXPORTIERT",
+  "personas": ["ADVISOR"],
+  "text": "Stadtwerke Musterstadt GmbH\nHauptstraße 12, 12345 Musterstadt\nTelefon: 0123 / 456 789-0\nE-Mail: service@stadtwerke-musterstadt.example\nUSt-IdNr.: DE123456789\nRechnungssteller: Stadtwerke Musterstadt GmbH\n\nMüller Bau GmbH\nHauptstraße 5, 12345 Musterstadt\n\nRechnung\nRechnungsnummer: RE-2026-0412\nRechnungsdatum: {{-3}}\nLeistungszeitraum: 01.09.2026 bis 30.09.2026\n\nStrom Abschlag September                     80,67 EUR\nNettobetrag:                                 80,67 EUR\nUmsatzsteuer 19 %:                           15,33 EUR\nBruttobetrag:                                96,00 EUR\n\nZahlbar bis {{+9}} auf das Konto IBAN DE89 3704 0044 0532 0130 00.\nBitte geben Sie bei der Überweisung die Rechnungsnummer an."
+ },
+ {
+  "id": "kanzlei-mueller-software",
+  "filename": "Rechnung_Software_Mueller.txt",
+  "sender": "Beispiel Software AG",
+  "belegStatus": "OFFEN",
+  "personas": ["ADVISOR"],
+  "text": "Beispiel Software AG\nIndustriestraße 4, 80331 München\nTelefon: 089 / 123 456-0\nE-Mail: rechnung@beispiel-software.example\nRechnungssteller: Beispiel Software AG\n\nMüller Bau GmbH\nHauptstraße 5, 12345 Musterstadt\n\nRechnung\nRechnungsnummer: 88-2026-33\nRechnungsdatum: {{-5}}\nLizenz Jahresabo Büro-Suite (12 Monate)       1.200,00 EUR\nUmsatzsteuer 19 %                               228,00 EUR\nBruttobetrag                                  1.428,00 EUR\nFällig am {{+11}}"
+ },
+ {
+  "id": "kanzlei-mueller-handwerker",
+  "filename": "Rechnung_Handwerker_Mueller.txt",
+  "sender": "Elektro Schneider e.K.",
+  "belegStatus": "ZU_PRUEFEN",
+  "personas": ["ADVISOR"],
+  "text": "Elektro Schneider e.K.\nWerkstattweg 8, 12345 Musterstadt\nTelefon: 0123 / 777 888\nE-Mail: info@elektro-schneider.example\nSteuernummer: 21/815/08150\nRechnungssteller: Elektro Schneider e.K.\n\nMüller Bau GmbH\nHauptstraße 5, 12345 Musterstadt\n\nRechnung Nr. 2026-117\nRechnungsdatum: {{-8}}\nMaterial und Arbeitszeit                      840,00 EUR\nUmsatzsteuer 19 %                             159,60 EUR\nBruttobetrag                                  999,60 EUR\nZahlbar bis {{+6}} ohne Abzug"
+ },
+ {
+  "id": "kanzlei-mueller-zahlungserinnerung",
+  "filename": "Zahlungserinnerung_Mueller.txt",
+  "sender": "Stadtwerke Musterstadt GmbH",
+  "belegStatus": "OFFEN",
+  "personas": ["ADVISOR"],
+  "text": "Stadtwerke Musterstadt GmbH\nHauptstraße 12, 12345 Musterstadt\nE-Mail: service@stadtwerke-musterstadt.example\nRechnungssteller: Stadtwerke Musterstadt GmbH\n\nMüller Bau GmbH\nHauptstraße 5, 12345 Musterstadt\n\nZahlungserinnerung\nSehr geehrte Damen und Herren,\nsicherlich ist es Ihrer Aufmerksamkeit entgangen, dass unsere Rechnung RE-2026-0388 vom {{-40}}\nüber 96,00 EUR noch nicht beglichen ist.\nWir bitten um eine freundliche Erinnerung an die offene Zahlung.\nBitte überweisen Sie den Betrag bis zum {{+4}}."
+ },
+ {
+  "id": "kanzlei-mueller-mahnung",
+  "filename": "Mahnung_Mueller.txt",
+  "sender": "Stadtwerke Musterstadt GmbH",
+  "belegStatus": "NEU",
+  "personas": ["ADVISOR"],
+  "text": "Stadtwerke Musterstadt GmbH\nHauptstraße 12, 12345 Musterstadt\nE-Mail: forderung@stadtwerke-musterstadt.example\nRechnungssteller: Stadtwerke Musterstadt GmbH\n\nMüller Bau GmbH\nHauptstraße 5, 12345 Musterstadt\n\nLetzte Mahnung\nBelegnummer: RE-2026-0388\nTrotz unserer Erinnerung ist der Rechnungsbetrag von 96,00 EUR nicht bei uns eingegangen.\nWir mahnen die Zahlung an und berechnen eine Mahngebühr von 5,00 EUR.\nOffener Betrag: 101,00 EUR\nZahlen Sie bitte bis zum {{+3}}."
+ },
+ {
+  "id": "kanzlei-mueller-vertrag",
+  "filename": "Vertrag_Internet_Mueller.txt",
+  "sender": "Beispiel Telekom GmbH",
+  "belegStatus": "NEU",
+  "personas": ["ADVISOR"],
+  "text": "Internetvertrag\nzwischen Beispiel Telekom GmbH (Anbieter) und Müller Bau GmbH (Kundin)\n\nMüller Bau GmbH\nHauptstraße 5, 12345 Musterstadt\n\n§ 1 Vertragsgegenstand: Bereitstellung eines DSL-Anschlusses mit 100 Mbit/s.\n§ 2 Laufzeit: Der Vertrag beginnt am 01.01.2025 und hat eine Mindestlaufzeit von 24 Monaten.\n§ 3 Verlängerung: Der Vertrag verlängert sich automatisch um 12 Monate, wenn er nicht mit einer Frist von drei Monaten zum Laufzeitende gekündigt wird.\n§ 4 Preis: Das monatliche Entgelt beträgt 39,95 EUR.\nOrt, Datum, Unterschrift"
+ },
+ {
+  "id": "kanzlei-schmidt-praxissoftware",
+  "filename": "Rechnung_Praxissoftware_Schmidt.txt",
+  "sender": "Beispiel Praxissoftware GmbH",
+  "belegStatus": "OFFEN",
+  "personas": ["ADVISOR"],
+  "text": "Beispiel Praxissoftware GmbH\nSoftwarepark 2, 50667 Köln\nE-Mail: abrechnung@beispiel-praxissoftware.example\nRechnungssteller: Beispiel Praxissoftware GmbH\n\nSchmidt Physiotherapie\nBahnhofstraße 9, 12345 Musterstadt\n\nRechnung\nRechnungsnummer: PS-2026-778\nRechnungsdatum: {{-6}}\nWartung Praxissoftware 4. Quartal               1.000,00 EUR\nUmsatzsteuer 19 %                                 190,00 EUR\nBruttobetrag                                      1.190,00 EUR\nZahlbar bis {{+12}}"
+ },
+ {
+  "id": "kanzlei-schmidt-strom",
+  "filename": "Rechnung_Strom_Schmidt.txt",
+  "sender": "Stadtwerke Musterstadt GmbH",
+  "belegStatus": "EXPORTIERT",
+  "personas": ["ADVISOR"],
+  "text": "Stadtwerke Musterstadt GmbH\nHauptstraße 12, 12345 Musterstadt\nE-Mail: service@stadtwerke-musterstadt.example\nRechnungssteller: Stadtwerke Musterstadt GmbH\n\nSchmidt Physiotherapie\nBahnhofstraße 9, 12345 Musterstadt\n\nRechnung\nRechnungsnummer: RE-2026-0501\nRechnungsdatum: {{-4}}\nStrom Abschlag Oktober                          180,00 EUR\nUmsatzsteuer 19 %                                34,20 EUR\nBruttobetrag                                    214,20 EUR\nZahlbar bis {{+8}}"
+ },
+ {
+  "id": "kanzlei-schmidt-ihk",
+  "filename": "IHK_Beitrag_Schmidt.txt",
+  "sender": "Industrie- und Handelskammer",
+  "belegStatus": "OFFEN",
+  "personas": ["ADVISOR"],
+  "text": "Industrie- und Handelskammer\nKammerplatz 1, 12345 Musterstadt\nTelefon: 0123 / 500 500\nE-Mail: beitrag@ihk-musterstadt.example\n\nSchmidt Physiotherapie\nBahnhofstraße 9, 12345 Musterstadt\n\nIHK-Beitrag 2026\nKammerbeitrag und Umlage\nGrundbeitrag: 180,00 EUR\nZahlbar bis {{+21}}"
+ },
+ {
+  "id": "kanzlei-schmidt-preiserhoehung",
+  "filename": "Preiserhoehung_Schmidt.txt",
+  "sender": "Beispiel Telekom GmbH",
+  "belegStatus": "NEU",
+  "personas": ["ADVISOR"],
+  "text": "Beispiel Telekom GmbH\nNetzstraße 1, 50667 Köln\nE-Mail: kundenservice@beispiel-telekom.example\n\nSchmidt Physiotherapie\nBahnhofstraße 9, 12345 Musterstadt\n\nInformation über die Anpassung Ihres Entgelts\nSehr geehrte Damen und Herren,\nzum {{+25}} erhöht sich das monatliche Entgelt für Ihren Internetanschluss von 39,95 EUR auf 44,95 EUR.\nSie haben das Recht, den Vertrag innerhalb von sechs Wochen nach Zugang dieses Schreibens außerordentlich zu kündigen."
+ },
+ {
+  "id": "kanzlei-schmidt-widerspruch",
+  "filename": "Widerspruch_Schmidt.txt",
+  "sender": "Schmidt Physiotherapie",
+  "belegStatus": "NEU",
+  "personas": ["ADVISOR"],
+  "text": "Schmidt Physiotherapie\nBahnhofstraße 9, 12345 Musterstadt\n\nAn das Finanzamt Musterstadt\nWiderspruch gegen den Bescheid vom {{-12}}, Steuernummer 21/815/08150\nHiermit lege ich Einspruch gegen den oben genannten Bescheid ein und bitte um Überprüfung."
+ },
+ {
+  "id": "kanzlei-schmidt-einkommensteuer",
+  "filename": "Einkommensteuerbescheid_Schmidt.txt",
+  "sender": "Finanzamt Musterstadt",
+  "belegStatus": "ZU_PRUEFEN",
+  "personas": ["ADVISOR"],
+  "text": "Finanzamt Musterstadt\nAmtsstraße 7, 12345 Musterstadt\nTelefon: 0123 / 400 400\nE-Mail: poststelle@finanzamt-musterstadt.example\n\nSchmidt Physiotherapie\nBahnhofstraße 9, 12345 Musterstadt\n\nEinkommensteuerbescheid 2025 vom {{-12}}\nFestsetzung der Einkommensteuer: 4.215,00 EUR. Bereits entrichtet: 3.800,00 EUR.\nAbschlusszahlung: 415,00 EUR, fällig bis zum {{+18}}.\nEinspruchsfrist: ein Monat nach Bekanntgabe."
+ },
+ {
+  "id": "kanzlei-weber-kaffee",
+  "filename": "Rechnung_Kaffeeroesterei_Weber.txt",
+  "sender": "Kaffeerösterei Beispiel GmbH",
+  "belegStatus": "OFFEN",
+  "personas": ["ADVISOR"],
+  "text": "Kaffeerösterei Beispiel GmbH\nRöstweg 3, 20095 Hamburg\nE-Mail: bestellung@kaffeeroesterei-beispiel.example\nRechnungssteller: Kaffeerösterei Beispiel GmbH\n\nWeber Café UG\nMarktplatz 4, 12345 Musterstadt\n\nRechnung\nRechnungsnummer: K-2026-091\nRechnungsdatum: {{-4}}\nKaffeebohnen Hausmischung 25 kg                410,00 EUR\nUmsatzsteuer 19 %                                77,90 EUR\nBruttobetrag                                     487,90 EUR\nZahlbar bis {{+5}}"
+ },
+ {
+  "id": "kanzlei-weber-reinigung",
+  "filename": "Rechnung_Reinigung_Weber.txt",
+  "sender": "Gebäudereinigung Sauber GmbH",
+  "belegStatus": "ZU_PRUEFEN",
+  "personas": ["ADVISOR"],
+  "text": "Gebäudereinigung Sauber GmbH\nPutzerstraße 11, 12345 Musterstadt\nE-Mail: abrechnung@reinigung-sauber.example\nRechnungssteller: Gebäudereinigung Sauber GmbH\n\nWeber Café UG\nMarktplatz 4, 12345 Musterstadt\n\nRechnung Nr. 2026-551\nRechnungsdatum: {{-2}}\nUnterhaltsreinigung Oktober                    200,00 EUR\nUmsatzsteuer 19 %                                38,00 EUR\nBruttobetrag                                     238,00 EUR\nZahlbar bis {{+7}}"
+ },
+ {
+  "id": "kanzlei-weber-miete",
+  "filename": "Rechnung_Hausverwaltung_Weber.txt",
+  "sender": "Hausverwaltung Musterstadt GmbH",
+  "belegStatus": "EXPORTIERT",
+  "personas": ["ADVISOR"],
+  "text": "Hausverwaltung Musterstadt GmbH\nVerwaltungsweg 2, 12345 Musterstadt\nE-Mail: verwaltung@hausverwaltung-musterstadt.example\nRechnungssteller: Hausverwaltung Musterstadt GmbH\n\nWeber Café UG\nMarktplatz 4, 12345 Musterstadt\n\nRechnung\nRechnungsnummer: M-2026-114\nRechnungsdatum: {{-9}}\nMiete Gewerbefläche Oktober                   1.500,00 EUR\nUmsatzsteuer 19 %                               285,00 EUR\nBruttobetrag                                   1.785,00 EUR\nZahlbar bis {{+10}}"
+ },
+ {
+  "id": "kanzlei-weber-inkasso",
+  "filename": "Inkasso_Weber.txt",
+  "sender": "Inkasso Beispiel GmbH",
+  "belegStatus": "NEU",
+  "personas": ["ADVISOR"],
+  "text": "Inkasso Beispiel GmbH\nForderungsschreiben im Auftrag der Muster Handels GmbH\n\nWeber Café UG\nMarktplatz 4, 12345 Musterstadt\n\nAktenzeichen INK-2026-7781\nForderung: 842,50 EUR\nTrotz mehrfacher Mahnung ist die Forderung nicht beglichen. Wir fordern Sie auf, den Betrag\nzuzüglich Inkassokosten bis zum {{+7}} zu zahlen. Andernfalls leiten wir weitere Schritte ein."
+ },
+ {
+  "id": "kanzlei-weber-mahnung",
+  "filename": "Mahnung_Weber.txt",
+  "sender": "Stadtwerke Musterstadt GmbH",
+  "belegStatus": "NEU",
+  "personas": ["ADVISOR"],
+  "text": "Stadtwerke Musterstadt GmbH\nHauptstraße 12, 12345 Musterstadt\nE-Mail: forderung@stadtwerke-musterstadt.example\nRechnungssteller: Stadtwerke Musterstadt GmbH\n\nWeber Café UG\nMarktplatz 4, 12345 Musterstadt\n\nLetzte Mahnung\nBelegnummer: RE-2026-0620\nDer Rechnungsbetrag von 214,20 EUR ist nicht eingegangen.\nWir mahnen die Zahlung an und berechnen eine Mahngebühr von 5,00 EUR.\nOffener Betrag: 219,20 EUR\nZahlen Sie bitte bis zum {{+2}}."
+ },
+ {
+  "id": "kanzlei-ohne-software-rechnung",
+  "filename": "Rechnung_Software_ohne_Mandant.txt",
+  "sender": "Beispiel Software AG",
+  "belegStatus": "NEU",
+  "personas": ["ADVISOR"],
+  "text": "Beispiel Software AG\nIndustriestraße 4, 80331 München\nE-Mail: rechnung@beispiel-software.example\nRechnungssteller: Beispiel Software AG\n\nRechnung\nRechnungsnummer: 88-2026-41\nRechnungsdatum: {{-7}}\nLizenz Jahresabo Büro-Suite (12 Monate)       1.200,00 EUR\nUmsatzsteuer 19 %                               228,00 EUR\nBruttobetrag                                  1.428,00 EUR\nZahlbar bis {{+13}}"
+ },
+ {
+  "id": "kanzlei-ohne-mahnung",
+  "filename": "Mahnung_ohne_Mandant.txt",
+  "sender": "Inkasso Beispiel GmbH",
+  "belegStatus": "ZU_PRUEFEN",
+  "personas": ["ADVISOR"],
+  "text": "Inkasso Beispiel GmbH\nForderungsweg 7, 50667 Köln\nE-Mail: forderung@inkasso-beispiel.example\n\nLetzte Mahnung\nBelegnummer: INK-2026-7781\nDer Rechnungsbetrag von 842,50 EUR ist nicht eingegangen.\nWir mahnen die Zahlung an und berechnen eine Mahngebühr von 5,00 EUR.\nOffener Betrag: 847,50 EUR\nZahlen Sie bitte bis zum {{+7}}."
+ },
+ {
+  "id": "kanzlei-ohne-kuendigung",
+  "filename": "Kuendigungsbestaetigung_ohne_Mandant.txt",
+  "sender": "Beispiel Versicherungs AG",
+  "belegStatus": "NEU",
+  "personas": ["ADVISOR"],
+  "text": "Beispiel Versicherungs AG\nVersicherungsweg 5, 10115 Berlin\nE-Mail: service@beispiel-versicherung.example\n\nBestätigung Ihrer Kündigung\nWir bestätigen den Eingang Ihrer Kündigung und beenden den Vertrag zum {{+45}}."
+ }
+]

@@ -1,12 +1,15 @@
 package de.buerokratiecopilot.demo;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
 import java.util.UUID;
 
 import jakarta.servlet.http.Cookie;
@@ -24,6 +27,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline;
+import de.buerokratiecopilot.orchestration.CaseOrchestrator;
 import de.buerokratiecopilot.shared.context.RequestContext;
 
 /** A demo cabinet opens without a password, is filled, cannot reach the outside, and is gone without a trace when left. */
@@ -38,12 +43,18 @@ class DemoCabinetIT {
     private JdbcTemplate jdbc;
     @Autowired
     private DemoService demo;
+    @Autowired
+    private DocumentProcessingPipeline pipeline;
+    @Autowired
+    private CaseOrchestrator orchestrator;
 
     private Cookie start(String persona, String ip) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/public/demo/start").with(csrf())
                         .with(request -> { request.setRemoteAddr(ip); return request; })
                         .contentType(MediaType.APPLICATION_JSON).content("{\"persona\":\"" + persona + "\"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.next").value("/dashboard?tour=1")).andReturn();
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.next").value("/documents?tour=1"))
+                .andReturn();
         Cookie cookie = result.getResponse().getCookie("bc_session");
         assertThat(cookie).isNotNull();
         return cookie;
@@ -69,9 +80,8 @@ class DemoCabinetIT {
                 .as("letters are sorted by the platform's own rules").isGreaterThanOrEqualTo(3);
         assertThat(count("select count(*) from documents where tenant_id = ? and processing_status = 'REVIEW_REQUIRED'", tenant))
                 .as("and the unsure ones wait for a person, which the visitor can try").isGreaterThan(0);
-        // No task is asserted here: the pipeline currently files every demo letter as REVIEW_REQUIRED, and the
-        // orchestrator only turns a READY document into work. Making the demo produce tasks is the Demo-Kanzlei
-        // step (§5.1, Э0), not a side effect of removing the household cabinet.
+        assertThat(count("select count(*) from tasks where tenant_id = ? and deleted_at is null", tenant))
+                .as("a demo that shows an empty task queue is not a demo of this product").isGreaterThan(0);
         assertThat(count("select count(*) from documents where tenant_id = ? and sender is not null and sender_contact_id is not null", tenant))
                 .as("the senders are read from the letters and kept as contacts").isGreaterThanOrEqualTo(3);
 
@@ -116,21 +126,90 @@ class DemoCabinetIT {
     }
 
     @Test
-    @DisplayName("the advice-centre demo holds several client companies, each with its own letters, and the switcher is there")
-    void advisorHasClients() throws Exception {
+    @DisplayName("the Kanzlei demo is one office with twenty vouchers, three clients, open work and dates - the meeting cabinet")
+    void advisorDemoIsTheMeetingCabinet() throws Exception {
         Cookie cookie = start("advisor", "10.1.0.5");
-        mockMvc.perform(get("/api/v1/workspaces").cookie(cookie)).andExpect(jsonPath("$.items.length()").value(4))
-                .andExpect(jsonPath("$.capabilities.professionalPlan").value(true));
-        UUID home = tenantOf(cookie);
-        UUID client = jdbc.queryForObject("""
-                select t.id from tenants t join memberships m on m.tenant_id = t.id
-                where m.user_id = (select user_id from memberships where tenant_id = ? and is_owner) and t.id <> ? order by t.name limit 1
-                """, UUID.class, home, home);
-        mockMvc.perform(post("/api/v1/workspaces/" + client + "/switch").with(csrf()).cookie(cookie)).andExpect(status().isNoContent());
-        assertThat(count("select count(*) from documents where tenant_id = ?", client)).isEqualTo(3);
-        // Leaving removes the office and all its clients.
+        UUID tenant = tenantOf(cookie);
+
+        // §10/Э0: 20 Belege in one Kanzlei, not twenty client workspaces.
+        assertThat(count("select count(*) from documents where tenant_id = ? and deleted_at is null", tenant))
+                .as("twenty vouchers").isGreaterThanOrEqualTo(20);
+        assertThat(count("select count(*) from contacts where tenant_id = ? and deleted_at is null", tenant))
+                .as("exactly the three clients of the demo Kanzlei").isEqualTo(3);
+        assertThat(count("select count(distinct mandant_id) from documents where tenant_id = ? and mandant_id is not null", tenant))
+                .as("the vouchers belong to at least three different clients").isGreaterThanOrEqualTo(3);
+        assertThat(count("select count(*) from documents where tenant_id = ? and mandant_id is null", tenant))
+                .as("some vouchers are honestly left 'Ohne Mandant' for the visitor to sort").isGreaterThanOrEqualTo(1);
+
+        // Work, and the dates that make it a Kanzlei rather than an archive.
+        assertThat(count("select count(*) from tasks where tenant_id = ? and deleted_at is null", tenant))
+                .as("the queue is not empty").isGreaterThan(0);
+        assertThat(count("""
+                select count(*) from task_deadlines
+                 where tenant_id = ? and is_active
+                   and coalesce(due_date, (due_at at time zone 'Europe/Berlin')::date) > current_date
+                """, tenant)).as("at least one Frist lies in the coming days").isGreaterThan(0);
+
+        // The Beleg card is not empty: amount, date and supplier were read from the text.
+        assertThat(count("""
+                select count(*) from documents d
+                 where d.tenant_id = ? and d.deleted_at is null
+                   and exists (select 1 from document_extractions e where e.document_id = d.id and e.field_key = 'Brutto')
+                   and exists (select 1 from document_extractions e where e.document_id = d.id and e.field_key = 'Rechnungsdatum')
+                   and exists (select 1 from document_extractions e where e.document_id = d.id and e.field_key = 'Lieferant')
+                """, tenant)).as("some vouchers carry amount, date and supplier").isGreaterThan(0);
+
+        // The office queue has been worked in; not every voucher is a fresh arrival.
+        assertThat(count("select count(distinct beleg_status) from documents where tenant_id = ?", tenant))
+                .as("the Beleg statuses are distributed").isGreaterThanOrEqualTo(3);
+        assertThat(count("select count(*) from documents where tenant_id = ? and beleg_status = 'NEU'", tenant))
+                .as("not all NEU").isLessThan(count("select count(*) from documents where tenant_id = ?", tenant));
+
+        // The buttons and screens the visitor opens read this cabinet, and the Posteingang is not empty.
+        mockMvc.perform(get("/api/v1/workspaces").cookie(cookie))
+                .andExpect(jsonPath("$.items.length()").value(1));
+        mockMvc.perform(get("/api/v1/demo/status").cookie(cookie))
+                .andExpect(jsonPath("$.demo").value(true)).andExpect(jsonPath("$.persona").value("ADVISOR"));
+        mockMvc.perform(get("/api/v1/documents").cookie(cookie))
+                .andExpect(jsonPath("$.totalElements").value(greaterThanOrEqualTo(20)))
+                .andExpect(jsonPath("$.content[0].id").exists());
+        mockMvc.perform(get("/api/v1/documents/beleg-counts").cookie(cookie))
+                .andExpect(jsonPath("$.ohneMandant").value(greaterThan(0)))
+                .andExpect(jsonPath("$.neu").value(greaterThan(0)));
+
         mockMvc.perform(post("/api/v1/demo/exit").with(csrf()).cookie(cookie)).andExpect(status().isOk());
-        assertThat(jdbc.queryForObject("select count(*) from tenants where id in (?, ?)", Integer.class, home, client)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from tenants where id = ?", Integer.class, tenant)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from documents where tenant_id = ?", Integer.class, tenant)).isZero();
+    }
+
+    @Test
+    @DisplayName("running the demo letters through the pipeline again creates no duplicate documents, tasks or deadlines")
+    void demoIsIdempotent() throws Exception {
+        Cookie cookie = start("advisor", "10.1.0.6");
+        UUID tenant = tenantOf(cookie);
+        int documents = count("select count(*) from documents where tenant_id = ? and deleted_at is null", tenant);
+        int tasks = count("select count(*) from tasks where tenant_id = ? and deleted_at is null", tenant);
+        int deadlines = count("select count(*) from task_deadlines where tenant_id = ?", tenant);
+        List<UUID> ids = RequestContext.runAs(tenant,
+                () -> jdbc.queryForList("select id from documents where tenant_id = ? and deleted_at is null",
+                        UUID.class, tenant));
+        assertThat(ids).isNotEmpty();
+
+        // The scheduler may deliver the same events again after a restart; the demo must look the same.
+        RequestContext.runAs(tenant, () -> {
+            for (UUID id : ids) {
+                pipeline.advance(id);
+                orchestrator.orchestrate(id);
+            }
+            return null;
+        });
+
+        assertThat(count("select count(*) from documents where tenant_id = ? and deleted_at is null", tenant))
+                .isEqualTo(documents);
+        assertThat(count("select count(*) from tasks where tenant_id = ? and deleted_at is null", tenant))
+                .isEqualTo(tasks);
+        assertThat(count("select count(*) from task_deadlines where tenant_id = ?", tenant))
+                .isEqualTo(deadlines);
     }
 
     @Test

@@ -114,5 +114,14 @@
    "FREELANCER",
    "COMPANY"
   ]
+ },
+ {
+  "id": "rechnung-ohne-kontakt",
+  "filename": "Rechnung_Reinigung.txt",
+  "text": "Gebäudereinigung Sauber GmbH\nPutzerstraße 11, 12345 Musterstadt\nTelefon: 0123 / 888 999\n\nRechnung Nr. 2026-771\nRechnungsdatum: {{-2}}\nUnterhaltsreinigung Oktober                    200,00 EUR\nUmsatzsteuer 19 %                               38,00 EUR\nBruttobetrag                                   238,00 EUR\nZahlbar bis {{+7}}",
+  "personas": [
+   "FREELANCER",
+   "COMPANY"
+  ]
  }
 ]

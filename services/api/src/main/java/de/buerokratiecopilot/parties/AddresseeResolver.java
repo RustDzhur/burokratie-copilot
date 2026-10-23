@@ -46,7 +46,8 @@ public class AddresseeResolver {
     /** Sets the addressee of one document when it has none and the text says clearly who it is. */
     public void resolve(UUID documentId) {
         List<Map<String, Object>> rows = jdbc.queryForList("""
-                select tenant_id, mandant_id, coalesce(extracted_text, '') as text, original_filename
+                select tenant_id, mandant_id, sender_contact_id, coalesce(extracted_text, '') as text,
+                       original_filename
                 from documents where id = ? and deleted_at is null
                 """, documentId);
         // §5.2: a document that already has a client keeps it. The platform does not overwrite a decision, and
@@ -55,7 +56,9 @@ public class AddresseeResolver {
             return;
         }
         UUID tenantId = (UUID) rows.get(0).get("tenant_id");
-        List<Candidate> candidates = candidates(tenantId);
+        // The sender is already known; it is never the addressee. Without this, an invoice that starts with the
+        // supplier's letterhead and names the supplier's own e-mail made the supplier the client of the voucher.
+        List<Candidate> candidates = without(candidates(tenantId), (UUID) rows.get(0).get("sender_contact_id"));
         UUID chosen = choose(candidates, String.valueOf(rows.get(0).get("text")));
         if (chosen != null) {
             // The candidate is already a contact, so the answer goes straight into the field the screen shows
@@ -72,13 +75,14 @@ public class AddresseeResolver {
             return;
         }
         List<Map<String, Object>> rows = jdbc.queryForList("""
-                select id, coalesce(extracted_text, '') as text from documents
+                select id, sender_contact_id, coalesce(extracted_text, '') as text from documents
                 where tenant_id = ? and mandant_id is null and deleted_at is null
                 order by received_at desc limit 500
                 """, tenantId);
         int set = 0;
         for (Map<String, Object> row : rows) {
-            UUID chosen = choose(candidates, String.valueOf(row.get("text")));
+            UUID chosen = choose(without(candidates, (UUID) row.get("sender_contact_id")),
+                    String.valueOf(row.get("text")));
             if (chosen != null) {
                 set += jdbc.update("update documents set mandant_id = ? where id = ? and mandant_id is null", chosen,
                         row.get("id"));
@@ -101,6 +105,14 @@ public class AddresseeResolver {
                  where tenant_id = ? and deleted_at is null
                 """, (rs, i) -> new Candidate((UUID) rs.getObject(1), rs.getString(2), lines(rs.getString(3)),
                 rs.getObject(4, LocalDate.class), lines(rs.getString(5)), rs.getString(6)), tenantId);
+    }
+
+    /** The candidates without one contact (the sender), because a letter is not addressed to its writer. */
+    private static List<Candidate> without(List<Candidate> candidates, UUID excluded) {
+        if (excluded == null) {
+            return candidates;
+        }
+        return candidates.stream().filter(candidate -> !excluded.equals(candidate.id())).toList();
     }
 
     private static List<String> lines(String value) {

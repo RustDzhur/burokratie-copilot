@@ -252,7 +252,11 @@ export default function SetupPage() {
       await api.setup.complete();
       if (openDemo) {
         // The demo is a cabinet of its own; the visitor is signed into it here and leaves it with one click.
-        await api.demo.start('ADVISOR');
+        // The backend says where the finished cabinet is: the Posteingang with the work in it, not an empty
+        // dashboard that would make the demo look broken.
+        const started = await api.demo.start('ADVISOR');
+        router.push(started.next || '/documents');
+        return;
       }
       router.push('/documents');
     } catch (caught) {
