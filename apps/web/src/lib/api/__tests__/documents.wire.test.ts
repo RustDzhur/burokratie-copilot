@@ -26,6 +26,13 @@ const wireDocument: DocumentWire = {
   documentTypeId: null,
   legalHold: false,
   receivedAt: '2026-10-01T10:00:00Z',
+  // §5.1: what the extraction found for the booking, exactly as DocumentResponse sends it.
+  amount: 1234.56,
+  amountCurrency: 'EUR',
+  documentDate: '2026-03-15',
+  supplierName: 'Muster GmbH',
+  deadlineDate: '2026-04-01',
+  deadlineDaysLeft: 2,
 };
 
 function resourcesWith(handler: (url: string, init: RequestInit) => Response) {
@@ -50,6 +57,29 @@ describe('documents ↔ backend', () => {
       status: 'needs_review',
       channel: 'scan',
       sizeBytes: 1200,
+      amount: 1234.56,
+      amountCurrency: 'EUR',
+      documentDate: '2026-03-15',
+      supplierName: 'Muster GmbH',
+      deadlineDate: '2026-04-01',
+      deadlineDaysLeft: 2,
+    });
+    // An answer without the fields is not an error: the adapter makes them null and the screen a dash.
+    const withoutBookingData: DocumentWire = {
+      ...wireDocument,
+      amount: undefined,
+      amountCurrency: undefined,
+      documentDate: undefined,
+      supplierName: undefined,
+      deadlineDate: undefined,
+      deadlineDaysLeft: undefined,
+    };
+    expect(documentFromWire(withoutBookingData)).toMatchObject({
+      amount: null,
+      documentDate: null,
+      supplierName: null,
+      deadlineDate: null,
+      deadlineDaysLeft: null,
     });
     expect(wireStatusesFor('processing')).toEqual(
       expect.arrayContaining(['OCR_PENDING', 'EXTRACTING', 'CLASSIFYING', 'MATCHING']),

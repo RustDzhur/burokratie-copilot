@@ -7,6 +7,7 @@ import {
   waitFor,
   within,
 } from '@/test/render';
+import { formatCurrency } from '@/i18n/format';
 import DocumentsPage from '../page';
 
 /**
@@ -44,6 +45,13 @@ const documents = [
     receivedAt: '2026-03-01T09:00:00Z',
     documentTypeCode: null,
     documentTypeNames: null,
+    // §5.1: what the extraction found for this voucher.
+    amount: 1234.56,
+    amountCurrency: 'EUR',
+    documentDate: '2026-03-15',
+    supplierName: 'Muster GmbH',
+    deadlineDate: '2026-04-01',
+    deadlineDaysLeft: 2,
   },
   {
     id: 'd2',
@@ -230,5 +238,30 @@ describe('Posteingang queue', () => {
     expect(await screen.findByText('2 ausgewählt')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Dokument auswählen: Rechnung Februar' })).toBeChecked();
     await expectNoA11yViolations(container);
+  });
+
+  it('shows the extracted amount and voucher date, and a red deadline badge under three days', async () => {
+    serve();
+    renderWithProviders(<DocumentsPage />);
+
+    const billedRow = (await screen.findByRole('link', { name: 'Rechnung Januar' })).closest('tr');
+    expect(billedRow).not.toBeNull();
+    const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent ?? '');
+    const billedCells = within(billedRow as HTMLElement).getAllByRole('cell');
+    // The amount is the one the extraction found, formatted the German way (1.234,56 €).
+    expect(billedCells[headers.indexOf('Betrag')]?.textContent).toBe(formatCurrency(1234.56, 'de', 'EUR'));
+    expect(billedCells[headers.indexOf('Belegdatum')]?.textContent).toBe('15.03.2026');
+    expect(billedCells[headers.indexOf('Lieferant')]?.textContent).toBe('Muster GmbH');
+    const badge = within(billedRow as HTMLElement).getByText('2 Tage');
+    expect(badge.closest('[data-tone="danger"]')).not.toBeNull();
+
+    // A voucher the extraction found nothing for shows dashes in Betrag and Belegdatum, and no deadline
+    // badge: an empty cell is the truth, a zero or a green "keine Frist" would not be.
+    const emptyRow = (await screen.findByRole('link', { name: 'Rechnung Februar' })).closest('tr') as HTMLElement;
+    const cells = within(emptyRow).getAllByRole('cell');
+    expect(cells[headers.indexOf('Betrag')]?.textContent).toBe('—');
+    expect(cells[headers.indexOf('Belegdatum')]?.textContent).toBe('—');
+    expect(cells[headers.indexOf('Lieferant')]?.textContent).toBe('—');
+    expect(within(emptyRow).queryByText(/Tage|überfällig/)).toBeNull();
   });
 });

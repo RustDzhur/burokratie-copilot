@@ -40,6 +40,13 @@ export interface DocumentWire {
   readonly senderContactId?: string | null;
   readonly senderSource?: string | null;
   readonly uploadedByName?: string | null;
+  /** Extracted booking figures (Kanzlei edition, §5.1); omitted by the backend when not found. */
+  readonly amount?: number | null;
+  readonly amountCurrency?: string | null;
+  readonly documentDate?: string | null;
+  readonly supplierName?: string | null;
+  readonly deadlineDate?: string | null;
+  readonly deadlineDaysLeft?: number | null;
 }
 
 export interface UploadWire {
@@ -194,6 +201,13 @@ export function documentFromWire(wire: DocumentWire): DocumentSummary {
     confidence: null,
     legalHold: wire.legalHold ?? false,
     sizeBytes: wire.sizeBytes ?? null,
+    // Null, never a default: the screen shows a dash for a value the extraction did not find.
+    amount: wire.amount ?? null,
+    amountCurrency: wire.amountCurrency ?? null,
+    documentDate: wire.documentDate ?? null,
+    supplierName: wire.supplierName ?? null,
+    deadlineDate: wire.deadlineDate ?? null,
+    deadlineDaysLeft: wire.deadlineDaysLeft ?? null,
   };
 }
 

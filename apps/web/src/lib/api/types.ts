@@ -52,6 +52,14 @@ export interface DocumentSummary {
   readonly confidence?: number | null;
   readonly retentionUntil?: IsoDate | null;
   readonly legalHold?: boolean;
+  /** What the extraction found for the booking (Kanzlei edition, §5.1); null when it found nothing. */
+  readonly amount?: number | null;
+  readonly amountCurrency?: string | null;
+  readonly documentDate?: IsoDate | null;
+  readonly supplierName?: string | null;
+  /** The next active deadline of the voucher and how many days are left (negative once overdue). */
+  readonly deadlineDate?: IsoDate | null;
+  readonly deadlineDaysLeft?: number | null;
   readonly ownerName?: string | null;
   readonly pageCount?: number | null;
   readonly sizeBytes?: number | null;

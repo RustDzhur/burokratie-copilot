@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ProcessingPanel } from '@/components/app/processing-panel';
 import { PageHeader, PageSection, ResourceView } from '@/components/app/resource-view';
+import { BelegdatenCard } from '@/components/app/belegdaten-card';
 import { DocumentExplanation } from '@/components/app/document-explanation';
 import { DocumentTypeChanger } from '@/components/app/document-type-changer';
 import { MandantReroute } from '@/components/app/mandant-reroute';
@@ -294,6 +295,16 @@ export default function DocumentViewerPage() {
                 {formatDateTime(document.receivedAt, locale)}
               </span>
             </div>
+
+            {/* §5.1: the booking figures the platform extracted, or a dash where it found nothing. */}
+            <BelegdatenCard
+              amount={document.amount}
+              amountCurrency={document.amountCurrency}
+              documentDate={document.documentDate}
+              supplierName={document.supplierName}
+              deadlineDate={document.deadlineDate}
+              deadlineDaysLeft={document.deadlineDaysLeft}
+            />
 
             <Tabs
               label={document.title}

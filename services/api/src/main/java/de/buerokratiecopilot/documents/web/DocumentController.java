@@ -51,19 +51,22 @@ public class DocumentController {
     private final de.buerokratiecopilot.documents.classification.DocumentResortService resorter;
     private final de.buerokratiecopilot.documents.UploaderNames uploaders;
     private final de.buerokratiecopilot.documents.integrity.DocumentIntegrityService integrity;
+    private final de.buerokratiecopilot.documents.BelegdatenService belegdaten;
 
     public DocumentController(DocumentService documentService,
                               de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline,
                               de.buerokratiecopilot.documents.DocumentTypeRepository documentTypes,
                               de.buerokratiecopilot.documents.classification.DocumentResortService resorter,
                               de.buerokratiecopilot.documents.UploaderNames uploaders,
-                              de.buerokratiecopilot.documents.integrity.DocumentIntegrityService integrity) {
+                              de.buerokratiecopilot.documents.integrity.DocumentIntegrityService integrity,
+                              de.buerokratiecopilot.documents.BelegdatenService belegdaten) {
         this.uploaders = uploaders;
         this.resorter = resorter;
         this.documentService = documentService;
         this.pipeline = pipeline;
         this.documentTypes = documentTypes;
         this.integrity = integrity;
+        this.belegdaten = belegdaten;
     }
 
     /** Summary of a document as returned by the API. */
@@ -97,7 +100,15 @@ public class DocumentController {
             UUID senderContactId,
             String senderSource,
             UUID uploadedBy,
-            String uploadedByName) {
+            String uploadedByName,
+            /** What the platform extracted for the booking (§5.1); null when the document carries none. */
+            java.math.BigDecimal amount,
+            String amountCurrency,
+            String supplierName,
+            /** The next active deadline of the document, or null when it has none (§5.1). */
+            java.time.LocalDate deadlineDate,
+            /** Days from today to {@link #deadlineDate}; negative once the deadline has passed. */
+            Integer deadlineDaysLeft) {
 
         static DocumentResponse from(Document document) {
             return from(document, null);
@@ -120,7 +131,8 @@ public class DocumentController {
                     type == null ? null : java.util.Map.of("de", type.nameIn("de"), "en", type.nameIn("en"),
                             "ru", type.nameIn("ru")),
                     document.getSender(), document.getSenderDetails(),
-                    document.getSenderContactId(), document.getSenderSource(), document.getCreatedBy(), null);
+                    document.getSenderContactId(), document.getSenderSource(), document.getCreatedBy(), null,
+                    null, null, null, null, null);
         }
 
         /** The same answer with the name of the person who uploaded the document. */
@@ -129,7 +141,22 @@ public class DocumentController {
                     reviewStatus, belegStatus, mandantId, confidentiality, source, documentNumber, documentDate, documentTypeId,
                     duplicateOfDocumentId,
                     legalHold, receivedAt, updatedAt, documentTypeCode, category, documentTypeNames, sender,
-                    senderDetails, senderContactId, senderSource, uploadedBy, uploadedBy == null ? null : names.get(uploadedBy));
+                    senderDetails, senderContactId, senderSource, uploadedBy, uploadedBy == null ? null : names.get(uploadedBy),
+                    amount, amountCurrency, supplierName, deadlineDate, deadlineDaysLeft);
+        }
+
+        /** The same answer with the booking figures the queue and the voucher card show (§5.1). */
+        DocumentResponse withBelegdaten(de.buerokratiecopilot.documents.BelegdatenService.Belegdaten data) {
+            // The stored date of the voucher stays authoritative; while the pipeline never wrote one, the
+            // extracted invoice/decision date is the date the document carries (§5.1).
+            java.time.LocalDate belegDate = documentDate != null || data == null ? documentDate : data.documentDate();
+            return new DocumentResponse(id, originalFilename, mimeType, sizeBytes, contentHash, version, processingStatus,
+                    reviewStatus, belegStatus, mandantId, confidentiality, source, documentNumber, belegDate, documentTypeId,
+                    duplicateOfDocumentId, legalHold, receivedAt, updatedAt, documentTypeCode, category, documentTypeNames,
+                    sender, senderDetails, senderContactId, senderSource, uploadedBy, uploadedByName,
+                    data == null ? null : data.amount(), data == null ? null : data.amountCurrency(),
+                    data == null ? null : data.supplierName(), data == null ? null : data.deadlineDate(),
+                    data == null ? null : data.deadlineDaysLeft());
         }
     }
 
@@ -180,9 +207,14 @@ public class DocumentController {
         Page<Document> documents = documentService.list(q, status, source, category, type, belegStatus, mandantId,
                 pageable);
         java.util.Map<UUID, String> names = uploaders.namesOf(documents.getContent().stream().map(Document::getCreatedBy).toList());
+        // One query for the whole page: the extracted amount, supplier and next deadline (§5.1).
+        java.util.Map<UUID, de.buerokratiecopilot.documents.BelegdatenService.Belegdaten> facts =
+                belegdaten.forDocuments(documents.getContent().stream().map(Document::getId).toList());
         Page<DocumentResponse> page = documents
                 .map(document -> DocumentResponse.from(document,
-                        document.getDocumentTypeId() == null ? null : byId.get(document.getDocumentTypeId())).withUploader(names));
+                                document.getDocumentTypeId() == null ? null : byId.get(document.getDocumentTypeId()))
+                        .withUploader(names)
+                        .withBelegdaten(facts.get(document.getId())));
         return ResponseEntity.ok(page);
     }
 
@@ -245,7 +277,9 @@ public class DocumentController {
         // The type is named in the answer, as in the list: a screen that opens one document must not have to ask again.
         return ResponseEntity.ok(DocumentResponse.from(document,
                 document.getDocumentTypeId() == null ? null : documentTypes.findById(document.getDocumentTypeId()).orElse(null))
-                .withUploader(namesFor(document)));
+                .withUploader(namesFor(document))
+                // The card shows the same extracted figures as the queue row (§5.1).
+                .withBelegdaten(belegdaten.forDocument(document.getId())));
     }
 
     /**

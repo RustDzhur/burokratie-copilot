@@ -131,6 +131,9 @@ export function Badge({
       ]
         .filter(Boolean)
         .join(' ')}
+      // Same hook as StatusPill: a test (and the design system) can assert the tone without
+      // depending on generated class names.
+      data-tone={tone}
     >
       {icon ? <Icon name={icon} size={13} /> : null}
       <span>{children}</span>

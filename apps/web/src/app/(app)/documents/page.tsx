@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { BatchMandantDialog } from '@/components/app/batch-mandant-dialog';
+import { DeadlineBadge } from '@/components/app/deadline-badge';
 import { ExportButton } from '@/components/app/export-button';
 import { ListPage } from '@/components/app/list-page';
 import { MergeDialog } from '@/components/app/merge-dialog';
@@ -10,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { toApiError } from '@/lib/api/errors';
 import type { Column } from '@/components/ui';
-import { formatDate } from '@/i18n/format';
+import { formatCurrency, formatDate } from '@/i18n/format';
 import { useLocale, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { useApiResource } from '@/lib/api/hooks';
@@ -287,6 +288,29 @@ export default function DocumentsPage() {
         ),
     },
     {
+      key: 'supplier',
+      header: t('column.supplier'),
+      // §5.1: the supplier the extraction read. The sender of the letter is a different statement, shown
+      // in its own column; an invoice without a supplier stays a dash here rather than borrowing one.
+      render: (row) => row.supplierName ?? '—',
+    },
+    {
+      key: 'amount',
+      header: t('column.amount'),
+      align: 'end',
+      // §5.1: what the extraction found, written the way the office writes it. A voucher without an
+      // amount shows a dash; the queue does not pretend a value exists.
+      render: (row) =>
+        row.amount === null || row.amount === undefined
+          ? '—'
+          : formatCurrency(row.amount, locale, row.amountCurrency ?? 'EUR'),
+    },
+    {
+      key: 'documentDate',
+      header: t('column.documentDate'),
+      render: (row) => (row.documentDate ? formatDate(row.documentDate, locale) : '—'),
+    },
+    {
       key: 'uploadedBy',
       header: t('column.uploadedBy'),
       render: (row) => row.uploadedByName ?? (row.channel === 'email' ? t('uploadedBy.mail') : t('uploadedBy.unknown')),
@@ -294,7 +318,14 @@ export default function DocumentsPage() {
     {
       key: 'status',
       header: t('column.status'),
-      render: (row) => <StatusPill label={statusLabel(row.status)} status={row.status} />,
+      render: (row) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <StatusPill label={statusLabel(row.status)} status={row.status} />
+          {/* §5.1: the deadline stands next to the status, where the office looks first. No deadline,
+              no badge — there is nothing to be urgent about. */}
+          <DeadlineBadge date={row.deadlineDate} daysLeft={row.deadlineDaysLeft} />
+        </span>
+      ),
     },
     {
       key: 'belegStatus',
