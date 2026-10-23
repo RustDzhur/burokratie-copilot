@@ -292,7 +292,24 @@ public class DatevExportService {
                                     and x.field_key in ('Rechnungsnummer', 'Aktenzeichen')
                                   order by x.verified_at desc nulls last, x.created_at desc
                                   limit 1)) as belegnummer,
-                       d.document_date,
+                       -- The voucher's own date. documents.document_date is the authoritative column but the
+                       -- pipeline never writes it, so a filter on it alone selected nothing: the export looked
+                       -- broken for every real workspace. The extracted date is the fallback, in the same order
+                       -- the orchestrator uses.
+                       coalesce(d.document_date,
+                                (select (x.normalized_value)::date
+                                   from document_extractions x
+                                  where x.document_id = d.id
+                                    and x.field_key in ('Rechnungsdatum', 'Bescheiddatum', 'Schreibendatum')
+                                    and x.value_type = 'DATE'
+                                  order by case x.field_key
+                                               when 'Rechnungsdatum' then 0
+                                               when 'Bescheiddatum' then 1
+                                               else 2
+                                           end,
+                                           x.verified_at desc nulls last,
+                                           x.created_at desc
+                                  limit 1)) as beleg_datum,
                        d.sender,
                        d.mandant_id,
                        c.display_name as mandant_name,
@@ -320,15 +337,26 @@ public class DatevExportService {
                  where d.tenant_id = ?
                    and d.deleted_at is null
                    and d.beleg_status = 'ZU_PRUEFEN'
-                   and d.document_date is not null
-                   and d.document_date >= ?
-                   and d.document_date <= ?
+                   and coalesce(d.document_date,
+                                (select (x.normalized_value)::date
+                                   from document_extractions x
+                                  where x.document_id = d.id
+                                    and x.field_key in ('Rechnungsdatum', 'Bescheiddatum', 'Schreibendatum')
+                                    and x.value_type = 'DATE'
+                                  order by case x.field_key
+                                               when 'Rechnungsdatum' then 0
+                                               when 'Bescheiddatum' then 1
+                                               else 2
+                                           end,
+                                           x.verified_at desc nulls last,
+                                           x.created_at desc
+                                  limit 1)) between ? and ?
                 """ + mandantClause + """
-                 order by d.document_date, d.created_at, d.id
+                 order by beleg_datum nulls last, d.created_at, d.id
                 """, (rs, index) -> new Candidate(
                 rs.getObject("id", UUID.class),
                 rs.getString("belegnummer"),
-                rs.getObject("document_date", LocalDate.class),
+                rs.getObject("beleg_datum", LocalDate.class),
                 rs.getString("sender"),
                 rs.getObject("mandant_id", UUID.class),
                 rs.getString("mandant_name"),
