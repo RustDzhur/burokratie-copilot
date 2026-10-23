@@ -368,7 +368,7 @@ export const enScreens: ScreenMessages = {
     'billing.title': "Plan and billing",
     'billing.description': "Plan, payments and invoices",
     'rules.title': "Rules",
-    'rules.description': "Thresholds of the Radar and of document recognition",
+    'rules.description': "Thresholds of document recognition",
     'dateMarkers.title': "Date terms",
     'dateMarkers.description': "Words that recognise deadlines, appointments and payment dates",
     'kontoMapping.title': "Account mapping",

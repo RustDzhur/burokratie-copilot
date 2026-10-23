@@ -370,7 +370,7 @@ export const deScreens = {
     'billing.title': "Tarif und Abrechnung",
     'billing.description': "Plan, Zahlungen und Rechnungen",
     'rules.title': "Regeln",
-    'rules.description': "Schwellen für Radar und Dokumentenerkennung",
+    'rules.description': "Schwellen für die Dokumentenerkennung",
     'dateMarkers.title': "Datumsbegriffe",
     'dateMarkers.description': "Wörter, die Fristen, Termine und Zahlungsziele erkennen",
     'kontoMapping.title': "Konten-Zuordnung",

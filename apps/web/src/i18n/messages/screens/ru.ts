@@ -370,7 +370,7 @@ export const ruScreens: ScreenMessages = {
     'billing.title': "Тариф и оплата",
     'billing.description': "План, платежи и счета",
     'rules.title': "Правила",
-    'rules.description': "Пороги Радара и распознавания документов",
+    'rules.description': "Пороги распознавания документов",
     'dateMarkers.title': "Обозначения дат",
     'dateMarkers.description': "Слова, по которым распознаются сроки, встречи и даты платежей",
     'kontoMapping.title': "Соответствие счетов",
