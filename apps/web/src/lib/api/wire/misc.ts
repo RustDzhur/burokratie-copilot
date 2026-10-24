@@ -4,6 +4,7 @@
 
 import type {
   AssistantAnswer,
+  AssistantToolAnswer,
   AutomationStatus,
   AutomationSummary,
   CalendarEvent,
@@ -332,5 +333,29 @@ export function assistantAnswerFromWire(wire: AssistantWire): AssistantAnswer {
     model: wire.model,
     correlationId: wire.correlationId ?? null,
     disclaimerRequired: wire.disclaimerRequired ?? false,
+  };
+}
+
+/** The tool answer of the assistant: an answer, a proposal to confirm, or a refusal. */
+export interface AssistantToolWire {
+  readonly kind?: string | null;
+  readonly message?: string | null;
+  readonly proposalId?: string | null;
+  readonly tool?: string | null;
+  readonly preview?: string | null;
+  readonly result?: Record<string, unknown> | null;
+  readonly code?: string | null;
+}
+
+export function assistantToolAnswerFromWire(wire: AssistantToolWire): AssistantToolAnswer {
+  const kind = wire.kind === 'PROPOSAL' || wire.kind === 'REFUSED' || wire.kind === 'ANSWER' ? wire.kind : 'ANSWER';
+  return {
+    kind,
+    message: wire.message ?? '',
+    proposalId: wire.proposalId ?? null,
+    tool: wire.tool ?? null,
+    preview: wire.preview ?? null,
+    result: wire.result ?? null,
+    code: wire.code ?? null,
   };
 }

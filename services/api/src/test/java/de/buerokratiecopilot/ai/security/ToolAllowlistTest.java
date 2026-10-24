@@ -251,8 +251,12 @@ class ToolAllowlistTest {
         assertThat(catalogue).isNotEmpty();
         assertThat(catalogue).allSatisfy(tool -> {
             assertThat(tool.risk()).isNotNull();
-            assertThat(tool.requiredPermission()).isNotBlank();
             assertThat(tool.description()).isNotBlank();
+            // list_screens is the one tool that needs no right: naming the areas of the application
+            // discloses nothing that the signed-in person could not see.
+            if (!"list_screens".equals(tool.name())) {
+                assertThat(tool.requiredPermission()).isNotBlank();
+            }
         });
         assertThat(catalogue).anySatisfy(tool -> assertThat(tool.risk()).isEqualTo(Risk.DANGEROUS));
         assertThat(catalogue).anySatisfy(tool -> assertThat(tool.risk()).isEqualTo(Risk.READ_ONLY));

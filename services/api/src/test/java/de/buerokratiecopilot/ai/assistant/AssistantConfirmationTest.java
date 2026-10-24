@@ -121,7 +121,7 @@ class AssistantConfirmationTest {
     void everyEffectiveToolIsProposed() {
         UUID tenantId = tenant();
         UUID user = person(tenantId, "mail.send", "documents.create", "tasks.create", "cases.edit",
-                "documents.delete", "finance.export");
+                "documents.delete", "finance.export", "documents.edit", "tasks.edit");
 
         for (String tool : policy.toolsThatNeedAPerson()) {
             enable(tenantId, tool);

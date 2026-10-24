@@ -515,6 +515,17 @@ export interface AssistantAnswer {
   readonly disclaimerRequired?: boolean;
 }
 
+/** What the assistant's tools answer: a plain answer, a proposal a person must confirm, or a refusal. */
+export interface AssistantToolAnswer {
+  readonly kind: 'ANSWER' | 'PROPOSAL' | 'REFUSED';
+  readonly message: string;
+  readonly proposalId?: string | null;
+  readonly tool?: string | null;
+  readonly preview?: string | null;
+  readonly result?: Record<string, unknown> | null;
+  readonly code?: string | null;
+}
+
 export interface SessionUser {
   readonly id: string;
   readonly name: string;

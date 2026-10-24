@@ -180,6 +180,20 @@ class AssistantToolControllerIT {
     }
 
     @Test
+    @DisplayName("a question in plain words is refused honestly while the AI service is off")
+    void plainWordAskRefusesWhileAiIsOff() throws Exception {
+        Session session = register();
+
+        mockMvc.perform(post("/api/v1/assistant/ask").with(csrf())
+                        .cookie(session.cookie())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\":\"Lege eine Aufgabe an\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.kind").value("REFUSED"))
+                .andExpect(jsonPath("$.code").value("NOT_CONFIGURED"));
+    }
+
+    @Test
     @DisplayName("without a session nothing is asked and nothing is confirmed")
     void withoutASessionNothingHappens() throws Exception {
         mockMvc.perform(post("/api/v1/assistant/tools").with(csrf())
@@ -187,6 +201,10 @@ class AssistantToolControllerIT {
                         .content("{\"tool\":\"list_open_tasks\"}"))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(post("/api/v1/assistant/proposals/{id}/confirm", UUID.randomUUID()).with(csrf()))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/v1/assistant/ask").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\":\"Hallo\"}"))
                 .andExpect(status().isUnauthorized());
     }
 }

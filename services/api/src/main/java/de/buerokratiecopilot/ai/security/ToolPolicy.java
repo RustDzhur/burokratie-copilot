@@ -96,12 +96,24 @@ public class ToolPolicy {
                 "Nennt zu einem Radar-Hinweis die Regel, die Gründe und die Belege (Dokument, Seite, Textstelle)"));
         register(new Tool("list_contracts", Risk.READ_ONLY, "contracts.view",
                 "Listet Verträge mit Laufzeit und Kündigungsfrist"));
+        register(new Tool("list_screens", Risk.READ_ONLY, null,
+                "Nennt die Bereiche der Anwendung und wo sie zu finden sind"));
+        register(new Tool("list_calendar_events", Risk.READ_ONLY, "tasks.view",
+                "Listet Termine, Erinnerungen und Fristen aus dem Kalender"));
+        register(new Tool("list_deadlines", Risk.READ_ONLY, "tasks.view",
+                "Listet anstehende Fristen der Aufgaben und Vorgänge"));
         register(new Tool("draft_letter", Risk.WRITE, "documents.create",
                 "Erstellt einen Entwurf; wird nicht versendet"));
         register(new Tool("create_task", Risk.WRITE, "tasks.create", "Legt eine Aufgabe an"));
         register(new Tool("update_case", Risk.WRITE, "cases.edit", "Ändert ein Verfahren"));
+        register(new Tool("move_document", Risk.WRITE, "documents.edit",
+                "Verschiebt ein Dokument in einen Vorgang oder nimmt es aus allen Vorgängen heraus"));
+        register(new Tool("create_calendar_event", Risk.WRITE, "tasks.create",
+                "Legt einen Termin oder eine Erinnerung im Kalender an"));
+        register(new Tool("create_deadline", Risk.WRITE, "tasks.edit",
+                "Notiert eine Frist zu einer Aufgabe"));
         register(new Tool("send_email", Risk.DANGEROUS, "mail.send",
-                "Versendet eine Nachricht nach außen"));
+                "Legt den Entwurf einer Nachricht an; versendet wird erst nach menschlicher Freigabe"));
         register(new Tool("delete_document", Risk.DANGEROUS, "documents.delete", "Löscht ein Dokument"));
         register(new Tool("export_data", Risk.DANGEROUS, "finance.export",
                 "Exportiert Daten aus dem Mandanten"));
@@ -143,8 +155,8 @@ public class ToolPolicy {
                     tool.risk(), false);
         }
 
-        if (request.userId() != null && !hasPermission(tenantId, request.userId(),
-                tool.requiredPermission())) {
+        if (tool.requiredPermission() != null && request.userId() != null
+                && !hasPermission(tenantId, request.userId(), tool.requiredPermission())) {
             return new Decision(false, "MISSING_PERMISSION",
                     "Dem Benutzer fehlt das Recht '" + tool.requiredPermission() + "' für "
                             + tool.name(), tool.risk(), false);

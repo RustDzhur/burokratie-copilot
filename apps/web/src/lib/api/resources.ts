@@ -85,6 +85,7 @@ import {
 } from './wire/people';
 import {
   assistantAnswerFromWire,
+  assistantToolAnswerFromWire,
   automationCode,
   automationFromWire,
   automationStartKind,
@@ -101,6 +102,7 @@ import {
   templateFromWire,
   templateSourceEntityFor,
   templateSourcePathFor,
+  type AssistantToolWire,
   type AssistantWire,
   type CalendarEventWire,
   type ContactWire,
@@ -114,6 +116,7 @@ import type {
   AccessibilityPreferences,
   ArchiveEntry,
   AssistantAnswer,
+  AssistantToolAnswer,
   AuditEntry,
   AutomationSummary,
   CalendarEvent,
@@ -695,6 +698,14 @@ export interface ApiResources {
   };
   readonly assistant: {
     ask: (payload: AssistantQueryPayload, signal?: AbortSignal) => Promise<AssistantAnswer>;
+  };
+  /** The assistant that operates the platform: tools, proposals and their confirmation. */
+  readonly assistantTools: {
+    ask: (payload: { readonly question: string }) => Promise<AssistantToolAnswer>;
+    confirm: (
+      proposalId: string,
+    ) => Promise<{ readonly message: string; readonly result: Record<string, unknown> | null }>;
+    reject: (proposalId: string) => Promise<void>;
   };
   readonly automations: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<AutomationSummary>>;
@@ -1790,6 +1801,20 @@ export function createResources(client: ApiClient): ApiResources {
         assistantAnswerFromWire(
           await client.post<AssistantWire>('/ai/assistant/query', payload, withSignal(signal)),
         ),
+    },
+    assistantTools: {
+      ask: async (payload) =>
+        assistantToolAnswerFromWire(
+          await client.post<AssistantToolWire>('/assistant/ask', payload, { timeoutMs: 60_000 }),
+        ),
+      confirm: async (proposalId) =>
+        client.post<{ message: string; result: Record<string, unknown> | null }>(
+          `/assistant/proposals/${proposalId}/confirm`,
+          undefined,
+          { timeoutMs: 60_000 },
+        ),
+      reject: async (proposalId) =>
+        client.post<void>(`/assistant/proposals/${proposalId}/reject`, undefined),
     },
     automations: {
       list: async (params, signal) => {
