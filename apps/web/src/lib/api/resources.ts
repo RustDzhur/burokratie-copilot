@@ -303,6 +303,7 @@ const ROLE_FROM_BACKEND: Readonly<Record<string, MemberRole>> = {
   AUDITOR: 'auditor',
 };
 
+// family остаётся для смены кабинета у старых аккаунтов; при регистрации он не предлагается
 const ACCOUNT_TYPE_TO_BACKEND = {
   private: 'PRIVATE_PERSON',
   family: 'FAMILY_HOUSEHOLD',
@@ -386,7 +387,7 @@ export interface RegisterPayload {
   readonly fullName: string;
   readonly email: string;
   readonly password: string;
-  readonly accountType: 'private' | 'family' | 'company';
+  readonly accountType: 'private' | 'company';
 }
 
 export interface OnboardingPayload {

@@ -15,7 +15,8 @@ import styles from '../auth-card.module.css';
 
 const MIN_PASSWORD_LENGTH = 12;
 
-type AccountType = 'private' | 'family' | 'company';
+// Тарифная сетка уменьшена: остались Personal (private) и Business (company); family убран.
+type AccountType = 'private' | 'company';
 
 /**
  * Registration screen.
@@ -139,7 +140,6 @@ export default function RegisterPage() {
           onChange={(value) => setAccountType(value as AccountType)}
           options={[
             { value: 'private', label: t('register.typePrivate') },
-            { value: 'family', label: t('register.typeFamily') },
             { value: 'company', label: t('register.typeBusiness') },
           ]}
         />
