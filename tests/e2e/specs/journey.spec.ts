@@ -60,8 +60,10 @@ test.describe('first journey', () => {
 
     // A hand-maintained list drifts: a screen was added and this list did not know about it, so the sweep
     // that says 'every screen' was silently checking one screen fewer - and the one it missed was broken.
+    // The retired screens (assistant, automations, scan) are gone from the list: their routes redirect
+    // to the dashboard/inbox, so visiting them would prove nothing about their own pages.
     const routes = ['dashboard', 'inbox', 'documents', 'review', 'cases', 'tasks', 'calendar', 'contracts', 'invoices',
-      'payments', 'contacts', 'mail', 'templates', 'generated-documents', 'assistant', 'automations', 'integrations', 'scan', 'family',
+      'payments', 'contacts', 'mail', 'templates', 'generated-documents', 'integrations', 'family',
       'company', 'employees', 'reports', 'archive', 'security', 'accessibility', 'notifications', 'audit',
       'settings/date-markers'];
     for (const route of routes) {

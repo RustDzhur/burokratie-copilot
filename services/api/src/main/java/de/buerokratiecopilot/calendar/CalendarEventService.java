@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import de.buerokratiecopilot.audit.AuditService;
 import de.buerokratiecopilot.audit.domain.AuditEvent;
+import de.buerokratiecopilot.calendar.caldav.CalDavSyncService;
 import de.buerokratiecopilot.shared.error.ApiException;
 import de.buerokratiecopilot.shared.error.ErrorCode;
 
@@ -37,10 +38,12 @@ public class CalendarEventService {
 
     private final JdbcTemplate jdbc;
     private final AuditService audit;
+    private final CalDavSyncService calDavSync;
 
-    public CalendarEventService(JdbcTemplate jdbc, AuditService audit) {
+    public CalendarEventService(JdbcTemplate jdbc, AuditService audit, CalDavSyncService calDavSync) {
         this.jdbc = jdbc;
         this.audit = audit;
+        this.calDavSync = calDavSync;
     }
 
     /**
@@ -162,11 +165,16 @@ public class CalendarEventService {
                 .description("Calendar entry created")
                 .build());
 
-        return jdbc.queryForMap("""
+        Map<String, Object> created = jdbc.queryForMap("""
                 select e.id::text as id, e.title, e.starts_on as date, e.ends_on as end_date,
                        e.event_type as type, e.all_day, null as case_reference, e.case_id::text as case_id,
                        e.note, e.source_document_id::text as document_id, 'CALENDAR_ENTRY' as origin
                 from calendar_events e where e.id = ? and e.tenant_id = ?
                 """, id, tenantId);
+
+        // Best effort: an entry stored here also goes into a connected external calendar; a failing
+        // push is recorded on the connection and never disturbs the local entry.
+        calDavSync.afterCreated(tenantId, createdBy, created);
+        return created;
     }
 }

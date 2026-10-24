@@ -50,6 +50,14 @@ export default function TemplatesPage() {
           label: t('filter.status'),
           options: STATUS_VALUES.map((value) => ({ value, label: statusLabel(value) })),
         },
+        {
+          key: 'type',
+          label: t('filter.type'),
+          options: [
+            { value: 'LETTER', label: t('type.letter') },
+            { value: 'CONTRACT', label: t('type.contract') },
+          ],
+        },
       ]}
       createTitle={t('action.new')}
       createFields={[

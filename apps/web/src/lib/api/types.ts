@@ -170,6 +170,25 @@ export interface ContractSummary {
   readonly currency?: string | null;
 }
 
+/** One version of a contract, with the document it is bound to when one was generated (V72). */
+export interface ContractVersionSummary {
+  readonly id: string;
+  readonly versionLabel: string;
+  readonly effectiveFrom: IsoDate | null;
+  readonly changeNote: string | null;
+  readonly current: boolean;
+  readonly createdAt: string;
+  readonly documentId: string | null;
+}
+
+/** What generating the contract document produced: the new version and the stored files. */
+export interface ContractGenerationResult {
+  readonly versionId: string;
+  readonly documentId: string;
+  readonly generatedDocuments: { readonly pdf: string; readonly docx: string };
+  readonly usedFields: readonly string[];
+}
+
 export type InvoiceStatus = 'draft' | 'review' | 'approved' | 'paid' | 'overdue';
 export type InvoiceDirection = 'incoming' | 'outgoing';
 
@@ -356,6 +375,34 @@ export interface CalendarEvent {
   readonly caseId?: string | null;
   readonly documentId?: string | null;
   readonly taskId?: string | null;
+}
+
+/** One calendar of a CalDAV account, as the discovery step offers it. */
+export interface CalDavCalendarInfo {
+  readonly path: string;
+  readonly name: string;
+}
+
+/** The status of the CalDAV connection — deliberately without any secret. */
+export interface CalendarConnectionStatus {
+  readonly id: string;
+  readonly provider: 'icloud' | 'caldav';
+  readonly account: string;
+  readonly serverUrl: string;
+  readonly calendarPath: string;
+  readonly calendarName?: string | null;
+  readonly status: 'CONNECTED' | 'ERROR' | 'DISABLED';
+  readonly lastSyncAt?: string | null;
+  readonly lastSyncStatus?: 'SUCCESS' | 'PARTIAL' | 'FAILED' | null;
+  readonly error?: string | null;
+}
+
+/** What a manual sync did. */
+export interface CalendarSyncResult {
+  readonly pushed: number;
+  readonly deletedRemote: number;
+  readonly failed: number;
+  readonly status: 'SUCCESS' | 'PARTIAL' | 'FAILED';
 }
 
 export interface ReportSeriesPoint {

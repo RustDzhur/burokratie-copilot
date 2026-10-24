@@ -52,6 +52,7 @@ import {
 } from './wire/work';
 import {
   contractFromWire,
+  contractVersionFromWire,
   decimalFromInput,
   directionToWire,
   invoiceFromWire,
@@ -59,6 +60,8 @@ import {
   paymentFromWire,
   paymentStatusesFor,
   type BankTransactionWire,
+  type ContractGenerationWire,
+  type ContractVersionWire,
   type ContractWire,
   type InvoiceWire,
 } from './wire/finance';
@@ -96,6 +99,8 @@ import {
   templateCategoryToWire,
   templateCode,
   templateFromWire,
+  templateSourceEntityFor,
+  templateSourcePathFor,
   type AssistantWire,
   type CalendarEventWire,
   type ContactWire,
@@ -112,6 +117,9 @@ import type {
   AuditEntry,
   AutomationSummary,
   CalendarEvent,
+  CalDavCalendarInfo,
+  CalendarConnectionStatus,
+  CalendarSyncResult,
   CaseSummary,
   ContactSummary,
   ContractSummary,
@@ -151,6 +159,8 @@ import type {
   ApprovalDecision,
   ContactProfile,
   ContractMemory,
+  ContractGenerationResult,
+  ContractVersionSummary,
   InvoiceMemory,
   RelationshipItem,
   TimelineEntry,
@@ -544,6 +554,26 @@ export interface ApiResources {
       create: (label: string, locale: string) => Promise<{ readonly id: string; readonly label: string; readonly token: string }>;
       revoke: (id: string) => Promise<void>;
     };
+    /** A CalDAV connection into an external calendar (iCloud / generic). The password goes in, never out. */
+    readonly connection: {
+      status: (signal?: AbortSignal) => Promise<CalendarConnectionStatus | null>;
+      connect: (payload: {
+        readonly provider: 'icloud' | 'caldav';
+        readonly account: string;
+        readonly appPassword: string;
+        readonly serverUrl?: string;
+        readonly calendarPath: string;
+        readonly calendarName?: string;
+      }) => Promise<CalendarConnectionStatus>;
+      disconnect: () => Promise<void>;
+      discover: (payload: {
+        readonly provider: 'icloud' | 'caldav';
+        readonly account: string;
+        readonly appPassword: string;
+        readonly serverUrl?: string;
+      }) => Promise<readonly CalDavCalendarInfo[]>;
+      sync: () => Promise<CalendarSyncResult>;
+    };
   };
   readonly contracts: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<ContractSummary>>;
@@ -554,6 +584,12 @@ export interface ApiResources {
       readonly startDate?: string;
       readonly endDate?: string;
     }) => Promise<ContractSummary>;
+    /** The versions of a contract, oldest first, each with its bound document when one exists. */
+    versions: (id: string, signal?: AbortSignal) => Promise<readonly ContractVersionSummary[]>;
+    /** Generates the contract document from a CONTRACT template; render and storage happen in one call. */
+    generate: (id: string, templateId: string) => Promise<ContractGenerationResult>;
+    /** The file of a contract version, as an address a link can point at. */
+    versionDownloadUrl: (versionId: string) => string;
   };
   readonly invoices: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<InvoiceSummary>>;
@@ -1486,6 +1522,39 @@ export function createResources(client: ApiClient): ApiResources {
           await client.request<unknown>(`/calendar/feeds/${id}`, { method: 'DELETE', parse: 'none' });
         },
       },
+      connection: {
+        status: (signal) =>
+          client.get<CalendarConnectionStatus | null>('/calendar/connection', withSignal(signal)),
+        connect: (payload) =>
+          client.post<CalendarConnectionStatus>(
+            '/calendar/connection',
+            {
+              provider: payload.provider,
+              account: payload.account,
+              appPassword: payload.appPassword,
+              serverUrl: payload.serverUrl ?? null,
+              calendarPath: payload.calendarPath,
+              calendarName: payload.calendarName ?? null,
+            },
+            { idempotencyKey: true },
+          ),
+        disconnect: async () => {
+          await client.request<unknown>('/calendar/connection', { method: 'DELETE', parse: 'none' });
+        },
+        discover: (payload) =>
+          client.post<readonly CalDavCalendarInfo[]>(
+            '/calendar/connection/discover',
+            {
+              provider: payload.provider,
+              account: payload.account,
+              appPassword: payload.appPassword,
+              serverUrl: payload.serverUrl ?? null,
+            },
+            { idempotencyKey: true },
+          ),
+        sync: () =>
+          client.post<CalendarSyncResult>('/calendar/connection/sync', {}, { idempotencyKey: true }),
+      },
     },
     contracts: {
       list: async (params, signal) => {
@@ -1526,6 +1595,16 @@ export function createResources(client: ApiClient): ApiResources {
         );
         return contractFromWire({ ...created, partnerName: payload.partner });
       },
+      versions: async (id, signal) => {
+        const rows = await client.get<readonly ContractVersionWire[]>(
+          `/contracts/${id}/versions`,
+          withSignal(signal),
+        );
+        return rows.map(contractVersionFromWire);
+      },
+      generate: (id, templateId) =>
+        client.post<ContractGenerationWire>(`/contracts/${id}/generate`, { templateId }, { idempotencyKey: true }),
+      versionDownloadUrl: (versionId) => `/api/v1/contracts/versions/${versionId}/download`,
     },
     invoices: {
       // The two documents the backend can produce for an invoice. They were reachable through the API and
@@ -1655,10 +1734,15 @@ export function createResources(client: ApiClient): ApiResources {
     },
     templates: {
       list: async (params, signal) => {
-        const { status, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
+        const { status, type, ...rest } = (params ?? {}) as Record<string, string | number | undefined>;
         const page = await client.list<TemplateWire>(
           '/templates',
-          { ...rest, status: typeof status === 'string' ? status.toUpperCase() : undefined },
+          {
+            ...rest,
+            status: typeof status === 'string' ? status.toUpperCase() : undefined,
+            // The screen filters by template type; the backend's closed catalogue calls it category.
+            category: typeof type === 'string' ? type.toUpperCase() : undefined,
+          },
           withSignal(signal),
         );
         return { ...page, items: page.items.map(templateFromWire) };
@@ -1674,10 +1758,13 @@ export function createResources(client: ApiClient): ApiResources {
             bodyHtml: body,
             // Every placeholder in the text becomes a field the person fills in: the backend refuses a
             // body that uses a placeholder nobody declared, and typing {{name}} is declaration enough.
+            // Contract placeholders declare their source ({{Vertrag.Title}} → VERTRAG/Title), so the
+            // renderer resolves them from the contract instead of asking a person.
             fields: placeholdersIn(body).map((key) => ({
               fieldKey: key,
               labelGerman: key,
-              sourceEntity: 'CUSTOM',
+              sourceEntity: templateSourceEntityFor(key),
+              sourcePath: templateSourcePathFor(key),
               valueType: 'TEXT',
               required: false,
             })),

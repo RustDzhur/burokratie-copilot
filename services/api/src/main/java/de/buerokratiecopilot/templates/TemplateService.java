@@ -35,7 +35,10 @@ public class TemplateService {
 
     /** The entities a field may draw from, as the schema allows. */
     public static final List<String> SOURCE_ENTITIES = List.of("USER", "ORGANIZATION", "CONTACT", "CASE",
-            "CONTRACT", "INVOICE", "PAYMENT", "TASK", "CUSTOM");
+            "CONTRACT", "INVOICE", "PAYMENT", "TASK", "CUSTOM",
+            // Contract document sources (V72): the contract record, its parties, the workspace and the
+            // customer contact. Named the way a template addresses them: {{Vertrag.Title}}, {{Partei.Name}}.
+            "PARTEI", "VERTRAG", "WERK", "KUNDE");
 
     /** The categories the schema allows. */
     public static final List<String> CATEGORIES = List.of("LETTER", "APPLICATION", "OBJECTION",
@@ -159,7 +162,7 @@ public class TemplateService {
      */
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<Map<String, Object>> list(
-            UUID tenantId, String query, List<String> statuses,
+            UUID tenantId, String query, List<String> statuses, String category,
             org.springframework.data.domain.Pageable pageable) {
         String term = query == null ? "" : query.strip();
         List<String> wanted = statuses == null || statuses.isEmpty() ? List.of("DRAFT", "PUBLISHED") : statuses;
@@ -167,6 +170,11 @@ public class TemplateService {
             if (!List.of("DRAFT", "PUBLISHED").contains(status)) {
                 throw new ApiException(ErrorCode.INVALID_REQUEST, "Unbekannter Status: " + status);
             }
+        }
+        String wantedCategory = category == null || category.isBlank() ? ""
+                : category.toUpperCase(java.util.Locale.ROOT);
+        if (!wantedCategory.isEmpty() && !CATEGORIES.contains(wantedCategory)) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "Unbekannte Kategorie: " + category);
         }
         String base = """
                 from (
@@ -179,9 +187,11 @@ public class TemplateService {
                   where t.is_active and (t.tenant_id = ? or t.tenant_id is null)
                 ) u
                 where u.status in (?, ?) and (? = '' or lower(u.name) like '%' || lower(?) || '%')
+                  and (? = '' or u.category = ?)
                 """;
         Object[] arguments = {tenantId, wanted.contains("DRAFT") ? "DRAFT" : "-",
-                wanted.contains("PUBLISHED") ? "PUBLISHED" : "-", term, term};
+                wanted.contains("PUBLISHED") ? "PUBLISHED" : "-", term, term, wantedCategory,
+                wantedCategory};
         Long total = jdbc.queryForObject("select count(*) " + base, Long.class, arguments);
         Object[] paged = java.util.Arrays.copyOf(arguments, arguments.length + 2);
         paged[arguments.length] = pageable.getPageSize();

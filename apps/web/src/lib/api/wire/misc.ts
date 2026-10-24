@@ -175,6 +175,49 @@ export function templateCategoryToWire(type: string): string {
   return TEMPLATE_CATEGORIES.includes(upper) ? upper : 'OTHER';
 }
 
+/**
+ * The field catalogue of a CONTRACT template (V72), grouped by source. The list mirrors the backend's
+ * {@code ContractTemplateValues} vocabulary; a placeholder whose source is not listed here resolves to a
+ * hand-filled custom field.
+ */
+export const CONTRACT_TEMPLATE_FIELD_GROUPS: readonly {
+  readonly source: string;
+  readonly prefix: string;
+  readonly fields: readonly string[];
+}[] = [
+  {
+    source: 'VERTRAG',
+    prefix: 'Vertrag',
+    fields: [
+      'Title', 'Nummer', 'Typ', 'Status', 'Beschreibung', 'Start', 'Ende', 'UnterzeichnetAm',
+      'AutoVerlaengerung', 'VerlaengerungsMonate', 'Kuendigungsfrist', 'KuendigungBis', 'Betrag',
+      'Waehrung', 'Zahlungsintervall', 'Laufzeit',
+    ],
+  },
+  {
+    source: 'PARTEI',
+    prefix: 'Partei',
+    fields: [
+      'Name', 'Rolle', 'Anschrift', 'Email', 'Telefon', 'Gegenpartei.Name', 'Gegenpartei.Rolle',
+      'Gegenpartei.Anschrift', 'Gegenpartei.Email', 'Gegenpartei.Telefon',
+    ],
+  },
+  { source: 'WERK', prefix: 'Werk', fields: ['Name', 'Adresse'] },
+  { source: 'KUNDE', prefix: 'Kunde', fields: ['Name', 'Organisation', 'Anschrift', 'Email', 'Telefon'] },
+];
+
+/** The source entity a placeholder draws from: contract sources by their prefix, everything else CUSTOM. */
+export function templateSourceEntityFor(placeholder: string): string {
+  const prefix = placeholder.split('.')[0]?.toLowerCase() ?? '';
+  return { vertrag: 'VERTRAG', partei: 'PARTEI', werk: 'WERK', kunde: 'KUNDE' }[prefix] ?? 'CUSTOM';
+}
+
+/** The path within the source, so {@code Vertrag.Title} declares source VERTRAG and path Title. */
+export function templateSourcePathFor(placeholder: string): string {
+  const dot = placeholder.indexOf('.');
+  return dot >= 0 ? placeholder.slice(dot + 1) : '';
+}
+
 /** `{{ key }}` placeholders found in a body, each once, in order of appearance. */
 export function placeholdersIn(body: string): string[] {
   const found = new Set<string>();

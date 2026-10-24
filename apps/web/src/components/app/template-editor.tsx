@@ -2,12 +2,16 @@
 
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/form';
+import { Input, Select } from '@/components/ui/form';
 import { useTranslations } from '@/i18n/provider';
+import { CONTRACT_TEMPLATE_FIELD_GROUPS } from '@/lib/api/wire/misc';
 import { fillPlaceholders, placeholderNames, sanitizeTemplateHtml } from '@/lib/templates/sanitize';
 
 /** The fields most letters need; a person can add their own beside them. */
 export const STANDARD_FIELDS = ['recipient_name', 'recipient_address', 'date', 'reference', 'subject', 'sender_name', 'amount'] as const;
+
+/** The template kinds the editor offers; LETTER is the default and CONTRACT draws from the contract catalogue. */
+export const TEMPLATE_TYPES = ['LETTER', 'CONTRACT'] as const;
 
 export interface TemplateDraft {
   readonly name: string;
@@ -69,6 +73,22 @@ export function TemplateEditor({ onSave, busy = false }: { readonly onSave: (dra
     setCustom('');
   };
 
+  /** The title of a contract field group, by its source; typed so the keys stay in the catalogue. */
+  const sourceTitle = (source: string): string => {
+    switch (source) {
+      case 'VERTRAG':
+        return t('editor.source.vertrag');
+      case 'PARTEI':
+        return t('editor.source.partei');
+      case 'WERK':
+        return t('editor.source.werk');
+      case 'KUNDE':
+        return t('editor.source.kunde');
+      default:
+        return source;
+    }
+  };
+
   const save = (): void => {
     if (name.trim().length === 0) {
       setProblem(t('visual.nameRequired'));
@@ -87,7 +107,15 @@ export function TemplateEditor({ onSave, busy = false }: { readonly onSave: (dra
   return (
     <div data-testid="template-editor">
       <Input label={t('column.name')} value={name} onChange={(event) => setName(event.target.value)} required />
-      <Input label={t('column.type')} value={type} onChange={(event) => setType(event.target.value)} />
+      <Select
+        label={t('column.type')}
+        value={type}
+        onChange={(event) => setType(event.target.value)}
+        options={TEMPLATE_TYPES.map((value) => ({
+          value,
+          label: value === 'CONTRACT' ? t('type.contract') : t('type.letter'),
+        }))}
+      />
 
       <div role="toolbar" aria-label={t('visual.toolbar')} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', margin: '0.75rem 0' }}>
         <Button variant="secondary" onClick={() => format('bold')}>
@@ -129,6 +157,22 @@ export function TemplateEditor({ onSave, busy = false }: { readonly onSave: (dra
                 </Button>
               ))}
             </div>
+            {type === 'CONTRACT' ? (
+              <div data-testid="contract-fields">
+                {CONTRACT_TEMPLATE_FIELD_GROUPS.map((group) => (
+                  <section key={group.source} aria-labelledby={`fields-${group.source}`}>
+                    <h4 id={`fields-${group.source}`}>{sourceTitle(group.source)}</h4>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {group.fields.map((field) => (
+                        <Button key={field} variant="ghost" onClick={() => insert(`${group.prefix}.${field}`)}>
+                          {`{{${group.prefix}.${field}}}`}
+                        </Button>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            ) : null}
             <Input label={t('visual.customField')} value={custom} onChange={(event) => setCustom(event.target.value)} />
             <Button variant="secondary" onClick={addCustom}>
               {t('visual.addField')}

@@ -41,7 +41,7 @@ import de.buerokratiecopilot.shared.error.ErrorCode;
 public class CalendarFeedService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
-    private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'");
+    static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'");
     private static final DateTimeFormatter DAY = DateTimeFormatter.BASIC_ISO_DATE;
     private static final List<String> CONFIDENTIAL_TYPES = List.of("medizinische_rechnung", "medizinisches_dokument");
 
@@ -128,13 +128,19 @@ public class CalendarFeedService {
         List<Map<String, Object>> entries = RequestContext.runAs(owner.tenantId(), () -> {
             List<Map<String, Object>> list = events.events(owner.tenantId(), owner.userId(), false,
                     today.minusDays(7), today.plusDays(390));
-            return withConfidentialFlags(list);
+            return withConfidentialFlags(jdbc, list);
         });
         return render(entries, labels(owner.locale()));
     }
 
-    /** Marks the entries that belong to a task of a confidential document type. */
-    private List<Map<String, Object>> withConfidentialFlags(List<Map<String, Object>> entries) {
+    /**
+     * Marks the entries that belong to a task of a confidential document type.
+     *
+     * <p>Shared with the CalDAV connection: what must not appear on a phone's lock screen must not be
+     * pushed to an external calendar either.</p>
+     */
+    public static List<Map<String, Object>> withConfidentialFlags(JdbcTemplate jdbc,
+                                                                  List<Map<String, Object>> entries) {
         java.util.Set<String> confidential = new java.util.HashSet<>();
         for (Map<String, Object> entry : entries) {
             if (entry.get("task_id") == null) {
@@ -192,56 +198,67 @@ public class CalendarFeedService {
 
         String stamp = OffsetDateTime.now(ZoneOffset.UTC).format(STAMP);
         for (Map<String, Object> entry : entries) {
-            LocalDate start = LocalDate.parse(String.valueOf(entry.get("date")));
-            LocalDate end = entry.get("end_date") == null ? start
-                    : LocalDate.parse(String.valueOf(entry.get("end_date")));
-            boolean confidential = Boolean.TRUE.equals(entry.get("confidential"));
-            String type = String.valueOf(entry.get("type"));
-            boolean deadline = "DEADLINE".equals(type);
-            String typeLabel = deadline ? labels.deadline()
-                    : "REMINDER".equals(type) ? labels.reminder() : labels.appointment();
-            String title = confidential ? labels.confidentialTitle() : String.valueOf(entry.get("title"));
-
-            StringBuilder description = new StringBuilder();
-            if (confidential) {
-                description.append(labels.confidentialBody());
-            }
-            else {
-                description.append(labels.type()).append(": ").append(typeLabel);
-                if (entry.get("case_reference") != null) {
-                    description.append("\n").append(labels.caseLabel()).append(": ")
-                            .append(entry.get("case_reference"));
-                }
-                if (entry.get("note") != null && !String.valueOf(entry.get("note")).isBlank()) {
-                    description.append("\n\n").append(entry.get("note"));
-                }
-            }
-            String link = entry.get("document_id") != null && !confidential
-                    ? baseUrl + "/documents/" + entry.get("document_id") : baseUrl + "/calendar";
-            description.append("\n\n").append(labels.openInApp()).append(": ").append(link);
-
-            line(out, "BEGIN:VEVENT");
-            line(out, "UID:" + escape(String.valueOf(entry.get("id"))) + "@copilot");
-            line(out, "DTSTAMP:" + stamp);
-            line(out, "DTSTART;VALUE=DATE:" + start.format(DAY));
-            line(out, "DTEND;VALUE=DATE:" + end.plusDays(1).format(DAY));
-            line(out, "SUMMARY:" + escape((deadline ? typeLabel + ": " : "") + title));
-            line(out, "DESCRIPTION:" + escape(description.toString()));
-            line(out, "URL:" + link);
-            line(out, "CATEGORIES:" + escape(typeLabel));
-            line(out, "STATUS:CONFIRMED");
-            line(out, "TRANSP:TRANSPARENT");
-            // Alarms the phone schedules itself. For an all-day entry the trigger counts from midnight of its day:
-            // -PT15H is nine in the morning on the day before, PT8H is eight in the morning on the day itself.
-            if (deadline) {
-                alarm(out, title, "-P2DT15H"); // three days ahead, 09:00
-            }
-            alarm(out, title, "-PT15H"); // the day before, 09:00
-            alarm(out, title, "PT8H"); // the day itself, 08:00
-            line(out, "END:VEVENT");
+            renderVEvent(out, entry, labels, stamp, baseUrl);
         }
         line(out, "END:VCALENDAR");
         return out.toString();
+    }
+
+    /**
+     * One entry as a VEVENT block.
+     *
+     * <p>Shared with the CalDAV connection: an event pushed to an external calendar must carry the same
+     * shape as the feed's entries, including the same UID, alarms and confidential masking.</p>
+     */
+    static void renderVEvent(StringBuilder out, Map<String, Object> entry, Labels labels, String stamp,
+                             String baseUrl) {
+        LocalDate start = LocalDate.parse(String.valueOf(entry.get("date")));
+        LocalDate end = entry.get("end_date") == null ? start
+                : LocalDate.parse(String.valueOf(entry.get("end_date")));
+        boolean confidential = Boolean.TRUE.equals(entry.get("confidential"));
+        String type = String.valueOf(entry.get("type"));
+        boolean deadline = "DEADLINE".equals(type);
+        String typeLabel = deadline ? labels.deadline()
+                : "REMINDER".equals(type) ? labels.reminder() : labels.appointment();
+        String title = confidential ? labels.confidentialTitle() : String.valueOf(entry.get("title"));
+
+        StringBuilder description = new StringBuilder();
+        if (confidential) {
+            description.append(labels.confidentialBody());
+        }
+        else {
+            description.append(labels.type()).append(": ").append(typeLabel);
+            if (entry.get("case_reference") != null) {
+                description.append("\n").append(labels.caseLabel()).append(": ")
+                        .append(entry.get("case_reference"));
+            }
+            if (entry.get("note") != null && !String.valueOf(entry.get("note")).isBlank()) {
+                description.append("\n\n").append(entry.get("note"));
+            }
+        }
+        String link = entry.get("document_id") != null && !confidential
+                ? baseUrl + "/documents/" + entry.get("document_id") : baseUrl + "/calendar";
+        description.append("\n\n").append(labels.openInApp()).append(": ").append(link);
+
+        line(out, "BEGIN:VEVENT");
+        line(out, "UID:" + escape(String.valueOf(entry.get("id"))) + "@copilot");
+        line(out, "DTSTAMP:" + stamp);
+        line(out, "DTSTART;VALUE=DATE:" + start.format(DAY));
+        line(out, "DTEND;VALUE=DATE:" + end.plusDays(1).format(DAY));
+        line(out, "SUMMARY:" + escape((deadline ? typeLabel + ": " : "") + title));
+        line(out, "DESCRIPTION:" + escape(description.toString()));
+        line(out, "URL:" + link);
+        line(out, "CATEGORIES:" + escape(typeLabel));
+        line(out, "STATUS:CONFIRMED");
+        line(out, "TRANSP:TRANSPARENT");
+        // Alarms the phone schedules itself. For an all-day entry the trigger counts from midnight of its day:
+        // -PT15H is nine in the morning on the day before, PT8H is eight in the morning on the day itself.
+        if (deadline) {
+            alarm(out, title, "-P2DT15H"); // three days ahead, 09:00
+        }
+        alarm(out, title, "-PT15H"); // the day before, 09:00
+        alarm(out, title, "PT8H"); // the day itself, 08:00
+        line(out, "END:VEVENT");
     }
 
     private static void alarm(StringBuilder out, String title, String trigger) {

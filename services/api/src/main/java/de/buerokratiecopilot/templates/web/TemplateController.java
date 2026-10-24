@@ -85,8 +85,9 @@ public class TemplateController {
     public org.springframework.data.domain.Page<Map<String, Object>> list(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) List<String> status,
+            @RequestParam(required = false) String category,
             @org.springframework.data.web.PageableDefault(size = 25) org.springframework.data.domain.Pageable pageable) {
-        return templates.list(tenant(), q, status, pageable);
+        return templates.list(tenant(), q, status, category, pageable);
     }
 
     @PostMapping

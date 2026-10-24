@@ -5,6 +5,7 @@
 import type {
   ContractStatus,
   ContractSummary,
+  ContractVersionSummary,
   InvoiceDirection,
   InvoiceStatus,
   InvoiceSummary,
@@ -185,4 +186,36 @@ export function contractFromWire(wire: ContractWire): ContractSummary {
     value: wire.costAmount === null || wire.costAmount === undefined ? null : Number(wire.costAmount),
     currency: wire.costCurrency ?? null,
   };
+}
+
+/* ------------------------- contract versions (V72) ------------------------- */
+
+export interface ContractVersionWire {
+  readonly id: string;
+  readonly contractId: string;
+  readonly versionLabel: string;
+  readonly effectiveFrom?: string | null;
+  readonly changeNote?: string | null;
+  readonly current: boolean;
+  readonly createdAt: string;
+  readonly documentId?: string | null;
+}
+
+export function contractVersionFromWire(wire: ContractVersionWire): ContractVersionSummary {
+  return {
+    id: wire.id,
+    versionLabel: wire.versionLabel,
+    effectiveFrom: wire.effectiveFrom ?? null,
+    changeNote: wire.changeNote ?? null,
+    current: wire.current,
+    createdAt: wire.createdAt,
+    documentId: wire.documentId ?? null,
+  };
+}
+
+export interface ContractGenerationWire {
+  readonly versionId: string;
+  readonly documentId: string;
+  readonly generatedDocuments: { readonly pdf: string; readonly docx: string };
+  readonly usedFields: readonly string[];
 }

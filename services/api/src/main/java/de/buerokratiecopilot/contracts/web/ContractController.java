@@ -48,12 +48,21 @@ public class ContractController {
     private final ContractService contracts;
     private final ContractVersionService versionService;
     private final de.buerokratiecopilot.contracts.ContractPartyRepository parties;
+    private final de.buerokratiecopilot.contracts.ContractDocumentService documentService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+    private final de.buerokratiecopilot.shared.storage.BlobStore blobs;
 
     public ContractController(ContractService contracts, ContractVersionService versionService,
-                              de.buerokratiecopilot.contracts.ContractPartyRepository parties) {
+                              de.buerokratiecopilot.contracts.ContractPartyRepository parties,
+                              de.buerokratiecopilot.contracts.ContractDocumentService documentService,
+                              org.springframework.jdbc.core.JdbcTemplate jdbc,
+                              de.buerokratiecopilot.shared.storage.BlobStore blobs) {
         this.contracts = contracts;
         this.versionService = versionService;
         this.parties = parties;
+        this.documentService = documentService;
+        this.jdbc = jdbc;
+        this.blobs = blobs;
     }
 
     /** The counterparty a person recognises a contract by: the primary party, else the first one named. */
@@ -263,13 +272,15 @@ public class ContractController {
 
     public record VersionResponse(String id, String contractId, String versionLabel,
                                   LocalDate effectiveFrom, String changeNote, boolean current,
-                                  String createdAt, List<ClauseResponse> clauses) {
+                                  String createdAt, String documentId,
+                                  List<ClauseResponse> clauses) {
 
         static VersionResponse from(ContractVersion version,
                                     List<de.buerokratiecopilot.contracts.domain.ContractClause> clauses) {
             return new VersionResponse(version.getId().toString(), version.getContractId().toString(),
                     version.getVersionLabel(), version.getEffectiveFrom(), version.getChangeNote(),
                     version.isCurrent(), version.getCreatedAt().toString(),
+                    version.getDocumentId() == null ? null : version.getDocumentId().toString(),
                     clauses.stream().map(clause -> ClauseResponse.from(new ContractService.ClauseView(
                             clause, clause.isInterpretationVerified(),
                             ContractService.interpretationState(clause)))).toList());
@@ -325,6 +336,97 @@ public class ContractController {
                         versionService.view(version.getId(), RequestContext.tenantId().orElseThrow())
                                 .clauses()))
                 .toList());
+    }
+
+    /** A document generation request: which template to render the contract with. */
+    public record GenerateRequest(UUID templateId) {
+    }
+
+    /**
+     * Generates the document of the contract from a CONTRACT template (spec §13, V72).
+     *
+     * <p>Render, export and storage happen in one call, so a click cannot stop between "file produced"
+     * and "version recorded". A template that cannot be filled in answers 422 and writes nothing; the
+     * message names every unknown or empty field at once.</p>
+     */
+    @PostMapping("/{id}/generate")
+    @PreAuthorize("hasAuthority('contracts.edit')")
+    @Operation(summary = "Generates the contract document from a CONTRACT template")
+    public ResponseEntity<Map<String, Object>> generate(@PathVariable UUID id,
+                                                        @RequestBody GenerateRequest request) {
+        if (request == null || request.templateId() == null) {
+            throw new de.buerokratiecopilot.shared.error.ApiException(
+                    de.buerokratiecopilot.shared.error.ErrorCode.VALIDATION_FAILED,
+                    "Bitte eine CONTRACT-Vorlage auswählen");
+        }
+        de.buerokratiecopilot.contracts.ContractDocumentService.Generated generated =
+                documentService.generate(RequestContext.tenantId().orElseThrow(), id,
+                        request.templateId(), CurrentUser.required());
+        return ResponseEntity.status(HttpStatus.CREATED).body(generated.asMap());
+    }
+
+    /**
+     * The file of a contract version.
+     *
+     * <p>A version bound to a document by {@code /{id}/generate} carries its PDF here; the route serves the
+     * stored file with its own filename, exactly like the generated-documents download.</p>
+     */
+    @GetMapping("/versions/{versionId}/download")
+    @PreAuthorize("hasAuthority('contracts.view')")
+    @Operation(summary = "The document file of a contract version")
+    public ResponseEntity<byte[]> downloadVersion(@PathVariable UUID versionId) {
+        UUID tenantId = RequestContext.tenantId().orElseThrow();
+        var row = jdbc.query("""
+                select v.document_id, d.original_filename, d.mime_type
+                  from contract_versions v
+                  join contracts c on c.id = v.contract_id
+                  join documents d on d.id = v.document_id
+                 where v.id = ? and v.tenant_id = ? and c.deleted_at is null and d.deleted_at is null
+                """, rs -> {
+            if (!rs.next()) {
+                return null;
+            }
+            return new Object[] {rs.getObject("document_id", UUID.class),
+                    rs.getString("original_filename"), rs.getString("mime_type")};
+        }, versionId, tenantId);
+        if (row == null) {
+            throw de.buerokratiecopilot.shared.error.ApiException.notFound(
+                    "Zu dieser Vertragsversion gibt es kein Dokument");
+        }
+
+        var blobRow = jdbc.query("""
+                select b.storage_key, b.content_type
+                  from document_versions dv
+                  join document_blobs b on b.id = dv.blob_id
+                 where dv.document_id = ? and dv.tenant_id = ? and b.deleted_at is null
+                 order by dv.version desc limit 1
+                """, rs -> {
+            if (!rs.next()) {
+                return null;
+            }
+            return new Object[] {rs.getString("storage_key"), rs.getString("content_type")};
+        }, row[0], tenantId);
+        if (blobRow == null) {
+            throw de.buerokratiecopilot.shared.error.ApiException.notFound(
+                    "Die Datei zu dieser Vertragsversion konnte nicht gefunden werden");
+        }
+
+        byte[] content;
+        try (java.io.InputStream data = blobs.retrieve((String) blobRow[0])) {
+            content = data.readAllBytes();
+        }
+        catch (java.io.IOException ex) {
+            throw de.buerokratiecopilot.shared.error.ApiException.notFound(
+                    "Die Datei konnte nicht gelesen werden: " + ex.getMessage());
+        }
+
+        String filename = row[1] == null ? "Vertrag" : (String) row[1];
+        String mimeType = blobRow[1] == null ? "application/octet-stream" : (String) blobRow[1];
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + filename + "\"")
+                .contentType(org.springframework.http.MediaType.parseMediaType(mimeType))
+                .body(content);
     }
 
     @PostMapping("/versions/{versionId}/clauses")

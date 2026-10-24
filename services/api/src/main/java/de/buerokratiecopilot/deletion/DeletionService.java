@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import de.buerokratiecopilot.audit.AuditService;
 import de.buerokratiecopilot.audit.domain.AuditEvent;
+import de.buerokratiecopilot.calendar.caldav.CalDavSyncService;
 import de.buerokratiecopilot.documents.DocumentService;
 import de.buerokratiecopilot.shared.context.RequestContext;
 import de.buerokratiecopilot.shared.error.ApiException;
@@ -50,11 +51,14 @@ public class DeletionService {
     private final JdbcTemplate jdbc;
     private final DocumentService documents;
     private final AuditService audit;
+    private final CalDavSyncService calDavSync;
 
-    public DeletionService(JdbcTemplate jdbc, DocumentService documents, AuditService audit) {
+    public DeletionService(JdbcTemplate jdbc, DocumentService documents, AuditService audit,
+                           CalDavSyncService calDavSync) {
         this.jdbc = jdbc;
         this.documents = documents;
         this.audit = audit;
+        this.calDavSync = calDavSync;
     }
 
     private UUID tenant() {
@@ -114,9 +118,15 @@ public class DeletionService {
                         code = left(code, 60) || '-del-' || substr(id::text, 1, 8)
                     where id = ? and tenant_id = ? and deleted_at is null
                     """, id, tenantId);
-            case CALENDAR_EVENT -> changed = jdbc.update(
-                    "update calendar_events set deleted_at = now() where id = ? and tenant_id = ? and deleted_at is null",
-                    id, tenantId);
+            case CALENDAR_EVENT -> {
+                changed = jdbc.update(
+                        "update calendar_events set deleted_at = now() where id = ? and tenant_id = ? and deleted_at is null",
+                        id, tenantId);
+                if (changed > 0) {
+                    // Best effort: the remote twin in a connected external calendar goes with it.
+                    calDavSync.afterDeleted(tenantId, id);
+                }
+            }
             case NOTIFICATION -> changed = jdbc.update(
                     "delete from notifications where id = ? and tenant_id = ? and user_id = ?", id, tenantId,
                     RequestContext.userId().orElseThrow(() -> new ApiException(ErrorCode.FORBIDDEN, "No user")));
