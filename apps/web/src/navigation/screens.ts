@@ -55,6 +55,8 @@ export type ScreenId =
   | 'contacts'
   | 'mail'
   | 'templates'
+  // assistant, automations and scan keep their ids although their screens were retired: the pages stay
+  // on disk behind redirects, and list-page.tsx still names them. They resolve to no screen on purpose.
   | 'assistant'
   | 'automations'
   | 'integrations'
@@ -186,14 +188,11 @@ export const screens: readonly ScreenDefinition[] = [
   // destination of its own, so it stays out of the sidebar.
   screen('generatedDocument', '/generated-documents/[id]', 'file-text', 'documents',
     { inSidebar: false, minTier: 1 }),
-  // §5.2.18 — AI assistant
-  screen('assistant', '/assistant', 'sparkles', 'workspace', { minTier: 1 }),
-  // §5.2.19 — automations
-  screen('automations', '/automations', 'zap', 'automation', { minTier: 2 }),
+  // The assistant lives in the topbar (Iris) since the UI cleanup; /assistant is redirected to /dashboard.
+  // Automations and scanning duplicated the inbox and were retired the same way: their routes redirect
+  // and their pages stay on disk only so nothing else breaks while they are being removed.
   // §5.2.20 — integrations
   screen('integrations', '/integrations', 'plug', 'automation', { minTier: 1 }),
-  // §5.2.21 — scanning and import
-  screen('scan', '/scan', 'printer', 'automation', { minTier: 1 }),
   // whom the cabinet belongs to: the person, the household members, the company
   screen('parties', '/parties', 'users', 'organisation'),
   // §5.2.22 — family cockpit

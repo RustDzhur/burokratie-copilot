@@ -48,6 +48,11 @@ const nextConfig: NextConfig = {
     return [
       { source: '/', destination: '/login', permanent: false },
       { source: '/_design', destination: '/design-system', permanent: false },
+      // UI cleanup: retired screens keep their pages on disk but their routes lead somewhere useful.
+      // Scan duplicated the inbox; the assistant moved into the topbar (Iris); automations were retired.
+      { source: '/scan', destination: '/inbox', permanent: false },
+      { source: '/automations', destination: '/dashboard', permanent: false },
+      { source: '/assistant', destination: '/dashboard', permanent: false },
     ];
   },
   async rewrites() {

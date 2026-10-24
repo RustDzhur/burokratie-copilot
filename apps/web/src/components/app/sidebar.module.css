@@ -284,6 +284,23 @@
   border-top: 1px solid var(--color-border-subtle);
 }
 
+/* The icon-only rail has no room for the "Weitere" block itself: this button expands the sidebar. */
+.collapsedAdditional {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 38px;
+  margin-top: var(--space-4);
+  border-radius: var(--radius-md);
+  color: var(--color-text-subtle);
+}
+
+.collapsedAdditional:hover {
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text);
+}
+
 .additionalToggle {
   display: flex;
   align-items: center;

@@ -90,6 +90,18 @@
   display: inline-flex;
 }
 
+/* Iris: the assistant moved from the corner to the topbar. The anchor stays static on purpose so the
+   panel positions itself against the sticky header (see iris-panel.module.css). */
+.irisAnchor {
+  display: inline-flex;
+}
+
+.irisButton[aria-expanded='true'] {
+  background-color: var(--color-bg-subtle);
+  border-color: var(--color-border);
+  color: var(--color-accent-text);
+}
+
 .badge {
   position: absolute;
   top: 2px;

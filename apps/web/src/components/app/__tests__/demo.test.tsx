@@ -100,7 +100,7 @@ describe('demo cabinet interface', () => {
 
     const user = userEvent.setup();
     renderWithProviders(<GuidedTour persona="PERSON" onClose={vi.fn()} />);
-    for (let i = 0; i < 6; i += 1) await user.click(await screen.findByRole('button', { name: 'Weiter' }));
+    for (let i = 0; i < 5; i += 1) await user.click(await screen.findByRole('button', { name: 'Weiter' }));
     expect(await screen.findByRole('dialog', { name: 'Aufgaben' })).toBeInTheDocument();
     await waitFor(() => expect(target.scrollIntoView).toHaveBeenCalled());
     nav.remove();

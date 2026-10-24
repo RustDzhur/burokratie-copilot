@@ -115,7 +115,7 @@ describe('personal sidebar', () => {
     vi.unstubAllGlobals();
   });
 
-  it('shows the standard menu by sections while nothing is stored', async () => {
+  it('shows the standard menu: the daily screens up front, everything else in "Weitere"', async () => {
     renderSidebar();
     await waitFor(() =>
       expect(calls.some((call) => call.method === 'GET' && call.url.endsWith('/me/navigation'))).toBe(
@@ -123,16 +123,18 @@ describe('personal sidebar', () => {
       ),
     );
 
-    const expected = screensVisibleFor(sidebarScreens, privateUser);
-    expect(navLinks()).toHaveLength(expected.length + 1);
-    for (const item of expected) {
-      expect(
-        within(nav()).getByRole('link', { name: catalogues.de.nav[item.titleKey] }),
-      ).toBeInTheDocument();
-    }
-    // The familiar section headings are untouched, and there is nothing to put away.
-    expect(within(nav()).getByText('Arbeitsbereich')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Weitere/ })).toBeNull();
+    // The five daily screens plus the brand link; "Weitere" is collapsed below them.
+    expect(mainLinks().map((link) => link.getAttribute('href'))).toEqual([
+      '/dashboard',
+      '/inbox',
+      '/documents',
+      '/tasks',
+      '/calendar',
+    ]);
+    expect(navLinks()).toHaveLength(6);
+    expect(within(nav()).getByRole('button', { name: /Weitere/ })).toBeInTheDocument();
+    // The standard menu is flat: no section headings over the main list.
+    expect(within(nav()).queryByText('Arbeitsbereich')).toBeNull();
   });
 
   it('applies the stored order without section headings', async () => {
@@ -173,8 +175,11 @@ describe('personal sidebar', () => {
       within(region as HTMLElement).getByRole('button', { name: 'Dashboard wieder anzeigen' }),
     );
 
-    await waitFor(() => expect(screen.queryByRole('button', { name: /Weitere/ })).toBeNull());
-    expect(mainLinks()[mainLinks().length - 1]).toHaveAttribute('href', '/dashboard');
+    await waitFor(() =>
+      expect(mainLinks()[mainLinks().length - 1]).toHaveAttribute('href', '/dashboard'),
+    );
+    // "Weitere" stays: the other screens are still put away.
+    expect(within(nav()).getByRole('button', { name: /Weitere/ })).toBeInTheDocument();
   });
 
   it('persists a change once, after the short pause, with the complete menu', async () => {
@@ -188,13 +193,14 @@ describe('personal sidebar', () => {
 
     await waitFor(() => expect(findPut()).toBeDefined(), { timeout: 3000 });
     const body = findPut()?.body as { order: string[]; hidden: string[] };
-    expect(body.hidden).toEqual(['dashboard']);
-    expect(body.order).not.toContain('dashboard');
-    expect(body.order).toHaveLength(expected.length - 1);
-    // The order carries every remaining screen, so hiding something alone cannot lose the others.
-    expect(new Set(body.order)).toEqual(
-      new Set(expected.map((item) => item.id).filter((id) => id !== 'dashboard')),
-    );
+    // The main list loses the dashboard; the dashboard joins the screens already in "Weitere".
+    expect(body.order).toEqual(['inbox', 'documents', 'tasks', 'calendar']);
+    expect(body.hidden).toEqual([
+      ...expected
+        .map((item) => item.id)
+        .filter((id) => !['dashboard', 'inbox', 'documents', 'tasks', 'calendar'].includes(id)),
+      'dashboard',
+    ]);
   });
 
   it('reorders with the up/down buttons, not only by dragging', async () => {
@@ -258,11 +264,26 @@ describe('personal sidebar', () => {
         calls.some((call) => call.method === 'DELETE' && call.url.endsWith('/me/navigation')),
       ).toBe(true),
     );
-    await waitFor(() => expect(within(nav()).getByText('Arbeitsbereich')).toBeInTheDocument());
+    // Back to the standard menu: a flat main list of the daily screens, everything else in "Weitere".
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId('nav-main')).queryByText('Arbeitsbereich'),
+      ).toBeNull(),
+    );
+    await waitFor(() =>
+      expect(mainLinks().map((link) => link.getAttribute('href'))).toEqual([
+        '/dashboard',
+        '/inbox',
+        '/documents',
+        '/tasks',
+        '/calendar',
+      ]),
+    );
+    expect(within(nav()).getByRole('button', { name: /Weitere/ })).toBeInTheDocument();
+    // "Weitere" is open (edit mode opened it), so the screens it holds are visible again.
     expect(
       within(nav()).getByRole('link', { name: catalogues.de.nav['items.audit'] }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Weitere/ })).toBeNull();
   });
 
   it('rolls the menu back and says so when the server refuses the change', async () => {
@@ -275,7 +296,10 @@ describe('personal sidebar', () => {
     await person.click(within(nav()).getByRole('button', { name: 'Dashboard ausblenden' }));
 
     await waitFor(() => expect(findPut()).toBeDefined(), { timeout: 3000 });
-    await waitFor(() => expect(screen.queryByRole('button', { name: /Weitere/ })).toBeNull());
+    // The rollback restores the standard menu: the dashboard is back at the front of the main list.
+    await waitFor(() =>
+      expect(mainLinks().map((link) => link.getAttribute('href'))[0]).toBe('/dashboard'),
+    );
     expect(
       within(nav()).getByRole('link', { name: catalogues.de.nav['items.dashboard'] }),
     ).toBeInTheDocument();

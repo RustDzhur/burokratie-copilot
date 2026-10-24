@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { renderWithProviders, screen, within } from '@/test/render';
+import { renderWithProviders, screen, userEvent, within } from '@/test/render';
 import { Sidebar } from '@/components/app/sidebar';
 import {
   navSections,
@@ -13,21 +13,21 @@ import { catalogues } from '@/i18n/messages';
 import { SessionProvider } from '@/lib/auth/session-context';
 
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/cases',
+  usePathname: () => '/inbox',
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
   useParams: () => ({}),
   useSearchParams: () => new URLSearchParams(),
 }));
 
 describe('screen registry', () => {
-  it('covers all 30 screens required by the specification, and the people screen of the cabinets', () => {
-    // §5.2.2 (registration and sign-in) is four routes; the generated letters are the forty-fourth screen.
-    // The date vocabulary brings the count to forty-six: it is reached from the settings cabinet and stands
-    // in the governance section like the other settings screens. The count is asserted on purpose: a screen
-    // added to the registry without appearing here is a screen the product claims and does not have.
-    expect(screens).toHaveLength(46);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(46);
-    expect(new Set(screens.map((screen) => screen.href)).size).toBe(46);
+  it('covers all screens the product navigates to', () => {
+    // The retired screens (assistant, automations, scan) left the registry: their routes redirect
+    // and their pages stay on disk only until they are removed. The count is asserted on purpose:
+    // a screen added to the registry without appearing here is a screen the product claims and
+    // does not have.
+    expect(screens).toHaveLength(42);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(42);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(42);
   });
 
   it('puts every workspace screen into a sidebar section', () => {
@@ -37,7 +37,7 @@ describe('screen registry', () => {
         expect(sectionIds.has(screen.section)).toBe(true);
       }
     }
-    expect(sidebarScreens).toHaveLength(35);
+    expect(sidebarScreens).toHaveLength(32);
   });
 
   it('has a German, English and Russian title for every screen', () => {
@@ -116,13 +116,24 @@ describe('plans and the menu', () => {
 });
 
 describe('Sidebar', () => {
-  it('renders a labelled navigation landmark with all sections and screens', () => {
+  it('renders a labelled navigation landmark: daily screens up front, everything else in "Weitere"', async () => {
+    const person = userEvent.setup();
     renderWithProviders(<Sidebar collapsed={false} onToggleCollapse={() => undefined} />);
 
     const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
-    // 34 workspace screens (the admin area is hidden from everybody but the platform administrator) plus the
-    // brand link back to the dashboard.
-    expect(within(nav).getAllByRole('link')).toHaveLength(35);
+    // The five daily screens plus the brand link back to the dashboard.
+    expect(within(nav).getAllByRole('link')).toHaveLength(6);
+    for (const id of ['dashboard', 'inbox', 'documents', 'tasks', 'calendar'] as const) {
+      expect(
+        within(nav).getByRole('link', { name: catalogues.de.nav[`items.${id}`] }),
+      ).toBeInTheDocument();
+    }
+
+    // Everything else waits, grouped by section, in the collapsed "Weitere" block.
+    const toggle = within(nav).getByRole('button', { name: /Weitere/ });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await person.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
     for (const section of navSections) {
       expect(within(nav).getByText(catalogues.de.nav[section.labelKey])).toBeInTheDocument();
@@ -160,7 +171,7 @@ describe('Sidebar', () => {
     renderWithProviders(<Sidebar collapsed={false} onToggleCollapse={() => undefined} />);
 
     const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
-    const active = within(nav).getByRole('link', { name: 'Vorgänge und Akten' });
+    const active = within(nav).getByRole('link', { name: 'Eingang' });
     expect(active).toHaveAttribute('aria-current', 'page');
   });
 
@@ -168,7 +179,7 @@ describe('Sidebar', () => {
     renderWithProviders(<Sidebar collapsed onToggleCollapse={() => undefined} />);
 
     const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
-    expect(within(nav).getByRole('link', { name: 'Vorgänge und Akten' })).toBeInTheDocument();
+    expect(within(nav).getByRole('link', { name: 'Eingang' })).toBeInTheDocument();
   });
 
   it('translates titles when the locale is switched', () => {
@@ -180,7 +191,7 @@ describe('Sidebar', () => {
     expect(within(nav).getByRole('link', { name: 'Входящие' })).toBeInTheDocument();
   });
 
-  it('leaves the date vocabulary out of the menu for a person without settings.view', () => {
+  it('leaves the date vocabulary out of the menu for a person without settings.view', async () => {
     const user = {
       id: 'u',
       name: 'N',
@@ -203,15 +214,19 @@ describe('Sidebar', () => {
     ).toBeNull();
     unmount();
 
+    const person = userEvent.setup();
     renderWithProviders(
       <SessionProvider user={{ ...user, permissions: ['tasks.view', 'settings.view'] }}>
         <Sidebar collapsed={false} onToggleCollapse={() => undefined} />
       </SessionProvider>,
     );
+    const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
+    // The date vocabulary waits with the other settings screens in "Weitere".
+    // ("Weitere" may already be open: the sidebar remembers that choice per browser.)
+    const toggle = within(nav).getByRole('button', { name: /Weitere/ });
+    if (toggle.getAttribute('aria-expanded') === 'false') await person.click(toggle);
     expect(
-      within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).getByRole('link', {
-        name: catalogues.de.nav['items.dateMarkers'],
-      }),
+      within(nav).getByRole('link', { name: catalogues.de.nav['items.dateMarkers'] }),
     ).toHaveAttribute('href', '/settings/date-markers');
   });
 });

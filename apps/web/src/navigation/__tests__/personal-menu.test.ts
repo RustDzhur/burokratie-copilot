@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { screensVisibleFor, sidebarScreens, type ScreenDefinition } from '../screens';
 import {
+  DEFAULT_MAIN_IDS,
   hideFromMenu,
   layoutMenu,
   mainOrderOf,
@@ -15,13 +16,24 @@ const available: readonly ScreenDefinition[] = screensVisibleFor(sidebarScreens,
 const ids = (items: readonly ScreenDefinition[]): string[] => items.map((item) => item.id);
 
 describe('personal menu layout', () => {
-  it('keeps the standard menu by sections while nothing is stored', () => {
+  it('shows the daily screens in the main list and groups everything else into "Weitere"', () => {
     const layout = layoutMenu(available, standardMenu);
 
-    expect(layout.personalised).toBe(false);
-    expect(ids(layout.main)).toEqual(ids(available));
-    expect(layout.additional).toEqual([]);
-    expect(layout.hiddenIds).toEqual([]);
+    expect(layout.personalised).toBe(true);
+    expect(ids(layout.main)).toEqual(DEFAULT_MAIN_IDS);
+    // Nothing is lost: every available screen is either in the main list or in "Weitere".
+    expect([...ids(layout.main), ...layout.hiddenIds].sort()).toEqual([...ids(available)].sort());
+    expect(new Set(ids(layout.main)).size).toBe(ids(layout.main).length);
+    // Grouped by the registry sections, in registry order — not in the order they were hidden.
+    expect(layout.additional.map((group) => group.section.id)).toEqual([
+      'workspace',
+      'documents',
+      'finance',
+      'organisation',
+      'automation',
+      'governance',
+    ]);
+    expect(layout.hiddenIds).toHaveLength(ids(available).length - DEFAULT_MAIN_IDS.length);
   });
 
   it('applies the stored order and puts the rest behind it in registry order', () => {
@@ -47,11 +59,11 @@ describe('personal menu layout', () => {
     expect(layout.hiddenIds).toEqual([]);
   });
 
-  it('keeps an order that is entirely unknown as the standard menu', () => {
+  it('falls back to the standard menu when the stored order is entirely unknown', () => {
     const layout = layoutMenu(available, { order: ['gone'], hidden: [] });
 
-    expect(layout.personalised).toBe(false);
-    expect(ids(layout.main)).toEqual(ids(available));
+    expect(ids(layout.main)).toEqual(DEFAULT_MAIN_IDS);
+    expect(layout.hiddenIds).toHaveLength(ids(available).length - DEFAULT_MAIN_IDS.length);
   });
 
   it('groups hidden screens into "Weitere" by their registry section', () => {
@@ -125,6 +137,6 @@ describe('personal menu edits', () => {
   });
 
   it('exposes the current main order for the edit actions', () => {
-    expect(mainOrderOf(layoutMenu(available, standardMenu))).toEqual(firstIds);
+    expect(mainOrderOf(layoutMenu(available, standardMenu))).toEqual(DEFAULT_MAIN_IDS);
   });
 });

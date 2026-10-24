@@ -60,7 +60,8 @@ describe('AppShell', () => {
     );
 
     const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
-    expect(within(nav).getAllByRole('link')).toHaveLength(35);
+    // The five daily screens plus the brand link; everything else waits in the collapsed "Weitere".
+    expect(within(nav).getAllByRole('link')).toHaveLength(6);
     // No fabricated user data: the account button falls back to the sign-in label.
     expect(screen.getAllByRole('button', { name: /Anmelden|Benutzermenü/ }).length).toBeGreaterThan(
       0,

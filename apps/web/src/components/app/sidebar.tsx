@@ -37,8 +37,8 @@ interface DropTarget {
  *
  * <p>The menu is personal: the main list follows the order the person stored, the screens they do not
  * need wait in the collapsed "Weitere" block at the bottom, and the edit mode reorders and hides them.
- * An account with nothing stored sees the standard menu by sections — exactly the menu that existed
- * before personalisation, so a fresh or forgotten preference cannot change the familiar view.</p>
+ * An account with nothing stored sees the standard menu — the screens every day starts with
+ * (dashboard, inbox, documents, tasks, calendar) up front, everything else grouped in "Weitere".</p>
  *
  * <p>Keyboard: a single logical tab order (skip link → sidebar → topbar → main), `aria-current="page"`
  * on the active screen and visible focus everywhere. Reordering never depends on dragging: every item
@@ -351,6 +351,26 @@ export function Sidebar({
 
       <div className={styles.scrollArea}>
         <div data-testid="nav-main">{mainList}</div>
+
+        {isCollapsed && layout.hiddenIds.length > 0 ? (
+          // The collapsed rail has no room for "Weitere": expanding brings the sidebar back with
+          // "Weitere" already open, so nothing the person put away becomes unreachable.
+          <button
+            type="button"
+            className={styles.collapsedAdditional}
+            aria-label={t('customise.weitere')}
+            title={t('customise.weitere')}
+            onClick={() => {
+              onToggleCollapse();
+              setWeitereOpen(true);
+            }}
+          >
+            <span className={styles.linkIcon} aria-hidden="true">
+              <Icon name="chevron-right" size={18} />
+            </span>
+            <span className={styles.visuallyHidden}>{t('customise.weitere')}</span>
+          </button>
+        ) : null}
 
         {!isCollapsed && layout.hiddenIds.length > 0 ? (
           <div className={styles.additional}>

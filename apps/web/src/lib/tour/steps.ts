@@ -9,7 +9,7 @@ const COMMON_BEFORE: readonly TourStep[] = [
   { id: 'welcome' },
   { id: 'attention', selector: '[data-tour="attention"]', href: '/dashboard' },
   { id: 'inbox', selector: 'nav a[href="/inbox"]' },
-  { id: 'scan', selector: 'nav a[href="/scan"]' },
+  // The scan screen was retired (its route redirects to the inbox), so there is nothing to point at.
   { id: 'documents', selector: 'nav a[href="/documents"]' },
   { id: 'review', selector: '[data-testid="pending-review"], nav a[href="/review"]' },
   { id: 'tasks', selector: 'nav a[href="/tasks"]' },

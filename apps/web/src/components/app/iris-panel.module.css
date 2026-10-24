@@ -1,41 +1,34 @@
-.fab {
-  position: fixed;
-  right: var(--space-5);
-  bottom: var(--space-5);
-  z-index: 40;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border: 0;
-  border-radius: 999px;
-  background: var(--color-accent, #2f5bea);
-  color: var(--color-text-on-accent);
-  font: inherit;
-  font-weight: var(--font-weight-semibold);
-  box-shadow: 0 6px 24px rgb(0 0 0 / 0.25);
-  cursor: pointer;
-}
-
-.fab:focus-visible {
-  outline: 3px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
+/* Iris chat panel, anchored under the topbar button. The panel is rendered inside the sticky header,
+   so `position: absolute` against the header (the nearest positioned ancestor) hangs it below the
+   topbar; on small screens it becomes a sheet that fills the space under the header. */
 
 .panel {
-  position: fixed;
-  right: var(--space-5);
-  bottom: var(--space-5);
-  z-index: 41;
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: var(--space-3);
   display: flex;
   flex-direction: column;
-  width: min(400px, calc(100vw - 2 * var(--space-4)));
-  height: min(560px, calc(100vh - 2 * var(--space-4)));
+  width: min(400px, calc(100vw - 2 * var(--space-3)));
+  height: min(560px, calc(100vh - var(--layout-topbar-height) - 3 * var(--space-2) - var(--space-3)));
+  height: min(560px, calc(100dvh - var(--layout-topbar-height) - 3 * var(--space-2) - var(--space-3)));
   background: var(--color-surface, #fff);
   color: var(--color-text);
   border: 1px solid var(--color-border, #d0d7e2);
   border-radius: var(--radius-lg, 14px);
   box-shadow: 0 12px 40px rgb(0 0 0 / 0.3);
+}
+
+@media (max-width: 640px) {
+  .panel {
+    left: 0;
+    right: 0;
+    width: auto;
+    height: calc(100vh - var(--layout-topbar-height) - 3 * var(--space-2));
+    height: calc(100dvh - var(--layout-topbar-height) - 3 * var(--space-2));
+    border-radius: 0;
+    border-inline: 0;
+    border-bottom: 0;
+  }
 }
 
 .header {

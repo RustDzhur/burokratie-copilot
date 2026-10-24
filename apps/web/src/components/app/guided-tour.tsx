@@ -35,8 +35,21 @@ export function GuidedTour({ persona, onClose }: { readonly persona: string; rea
     if (step.href && pathname !== step.href.split('?')[0]) router.push(step.href);
   }, [step, pathname, router]);
 
+  // Most screens wait in the collapsed "Weitere" block of the sidebar; a step that points at a nav link
+  // opens that block once, so the tour can point at the real element instead of showing a centred card.
+  const expandedForStepRef = useRef<string | null>(null);
+
   const locate = useCallback((): void => {
     const element = step.selector ? document.querySelector(step.selector) : null;
+    if (
+      !visible(element) &&
+      step.selector?.includes('nav a[href=') &&
+      expandedForStepRef.current !== step.id
+    ) {
+      expandedForStepRef.current = step.id;
+      const toggle = document.querySelector<HTMLButtonElement>('button[aria-controls="nav-weitere"]');
+      if (toggle && toggle.getAttribute('aria-expanded') === 'false') toggle.click();
+    }
     if (visible(element)) {
       element.scrollIntoView({ block: 'center', inline: 'nearest' });
       const rect = element.getBoundingClientRect();

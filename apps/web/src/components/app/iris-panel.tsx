@@ -3,12 +3,11 @@
 import { comfortAllowed } from '@/consent/consent';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Icon } from '@/components/icons';
 import { Button, IconButton } from '@/components/ui/button';
 import { useLocale, useTranslations } from '@/i18n/provider';
 import { api } from '@/lib/api';
 import { findScreenByPath } from '@/navigation/screens';
-import styles from './iris-widget.module.css';
+import styles from './iris-panel.module.css';
 
 interface Message {
   readonly role: 'user' | 'assistant';
@@ -28,17 +27,24 @@ function restore(): Message[] {
   }
 }
 
+export interface IrisPanelProps {
+  /** Controlled by the topbar button: the panel is rendered only while open. */
+  readonly open: boolean;
+  readonly onClose: () => void;
+}
+
 /**
- * Iris, the assistant that knows the application. A round button in the corner opens a small chat; the answer can
- * offer a button that opens the screen it talks about. The conversation lives only in this browser tab.
+ * Iris, the assistant that knows the application. The panel is controlled by the topbar: the button
+ * there opens it as a dropdown under the header (a sheet on small screens), and this component renders
+ * the chat. The answer can offer a button that opens the screen it talks about. The conversation lives
+ * only in this browser tab.
  */
-export function IrisWidget() {
+export function IrisPanel({ open, onClose }: IrisPanelProps) {
   const t = useTranslations('iris');
   const tNav = useTranslations('nav');
   const locale = useLocale();
   const pathname = usePathname();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<readonly Message[]>([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -94,23 +100,16 @@ export function IrisWidget() {
     void send(draft);
   };
 
-  if (!open) {
-    return (
-      <button type="button" className={styles.fab} onClick={() => setOpen(true)} aria-label={t('open')}>
-        <Icon name="sparkles" size={18} />
-        <span>{t('name')}</span>
-      </button>
-    );
-  }
+  if (!open) return null;
 
   return (
-    <section className={styles.panel} role="dialog" aria-label={t('name')}>
+    <section className={styles.panel} id="iris-panel" role="dialog" aria-label={t('name')}>
       <header className={styles.header}>
         <div>
           <h2 className={styles.title}>{t('name')}</h2>
           <p className={styles.subtitle}>{t('subtitle')}</p>
         </div>
-        <IconButton label={t('close')} icon="x" size="sm" onClick={() => setOpen(false)} />
+        <IconButton label={t('close')} icon="x" size="sm" onClick={onClose} />
       </header>
 
       <ul className={styles.messages} ref={listRef} aria-live="polite">
@@ -140,7 +139,7 @@ export function IrisWidget() {
                     variant="secondary"
                     onClick={() => {
                       router.push(message.open as string);
-                      setOpen(false);
+                      onClose();
                     }}
                   >
                     {t('openScreen', { name: tNav(screen.titleKey) })}

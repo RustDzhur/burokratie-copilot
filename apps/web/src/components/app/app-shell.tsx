@@ -13,7 +13,6 @@ import { SessionProvider } from '@/lib/auth/session-context';
 import { useApiResource } from '@/lib/api/hooks';
 import type { SessionUser } from '@/lib/api/types';
 import { screens, screensVisibleFor } from '@/navigation/screens';
-import { IrisWidget } from './iris-widget';
 import { QuickCapture } from './quick-capture';
 import { SubscriptionBanner } from './subscription-banner';
 import { Sidebar } from './sidebar';
@@ -157,6 +156,7 @@ export function AppShell({ children }: AppShellProps) {
           user={user}
           unreadNotifications={unread}
           pendingReview={pendingReview}
+          blocked={blocked}
           onOpenNotifications={() => router.push('/notifications')}
           onSignOut={() => {
             void handleSignOut();
@@ -196,7 +196,6 @@ export function AppShell({ children }: AppShellProps) {
         />
       </Drawer>
 
-      {blocked ? null : <IrisWidget />}
       {blocked ? null : <QuickCapture />}
 
       <CommandPalette

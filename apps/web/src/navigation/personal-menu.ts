@@ -1,4 +1,10 @@
-import { navSections, type NavSection, type ScreenDefinition } from './screens';
+import {
+  navSections,
+  sidebarScreens,
+  type NavSection,
+  type ScreenDefinition,
+  type ScreenId,
+} from './screens';
 
 /**
  * The person's own menu, and how it is derived from the screen registry.
@@ -6,9 +12,11 @@ import { navSections, type NavSection, type ScreenDefinition } from './screens';
  * <p>Nothing here talks to the API or to React: the same functions decide what the sidebar and the
  * command palette show, and the tests can reason about the order without a browser.</p>
  *
- * <p>The standard menu is what an account that never changed anything sees: the registry's sections,
- * in the registry's order. A stored order switches the main list to a flat, personal one — sections are
- * the product's suggestion, not the person's.</p>
+ * <p>The standard menu is what an account that never changed anything sees: the screens every day
+ * starts with — dashboard, inbox, documents, tasks, calendar — in the main list, and every other
+ * screen waiting, grouped by its section, in the collapsed "Weitere" block at the bottom. A stored
+ * order switches the main list to a flat, personal one; sections are the product's suggestion,
+ * not the person's.</p>
  */
 
 /** What is stored for one person. Empty arrays mean the standard menu. */
@@ -17,7 +25,24 @@ export interface MenuPreferences {
   readonly hidden: readonly string[];
 }
 
-export const standardMenu: MenuPreferences = { order: [], hidden: [] };
+/** The screens every day starts with: always in the main list, in this order. */
+export const DEFAULT_MAIN_IDS: readonly ScreenId[] = [
+  'dashboard',
+  'inbox',
+  'documents',
+  'tasks',
+  'calendar',
+];
+
+/** Everything else waits, grouped by section, in the collapsed "Weitere" block. */
+const STANDARD_HIDDEN_IDS: readonly ScreenId[] = sidebarScreens
+  .map((item) => item.id)
+  .filter((id) => !DEFAULT_MAIN_IDS.includes(id));
+
+export const standardMenu: MenuPreferences = {
+  order: [...DEFAULT_MAIN_IDS],
+  hidden: [...STANDARD_HIDDEN_IDS],
+};
 
 /** Hidden screens of one registry section, as "Weitere" shows them. */
 export interface MenuGroup {
@@ -26,9 +51,9 @@ export interface MenuGroup {
 }
 
 export interface MenuLayout {
-  /** The main list, in the person's order; the registry's order while nothing was stored. */
+  /** The main list, in the person's order; the standard menu while nothing was stored. */
   readonly main: readonly ScreenDefinition[];
-  /** True when a stored order applies: the main list is flat and section headings are not shown. */
+  /** True when the main list is flat: the standard menu, or a stored order. Section headings are not shown. */
   readonly personalised: boolean;
   /** The hidden screens, grouped by section; sections without hidden screens are omitted. */
   readonly additional: readonly MenuGroup[];
@@ -66,19 +91,21 @@ export function layoutMenu(
   const byId = new Map<string, (typeof available)[number]>(available.map((item) => [item.id, item]));
   const ordered = resolveIds(preferences.order, byId);
   const hiddenIds = resolveIds(preferences.hidden, byId);
-  const hiddenSet = new Set(hiddenIds);
+  // Nothing stored (or nothing that resolves) means the standard menu: the daily screens up front,
+  // everything else in "Weitere". A stored menu is taken exactly as it was written.
+  const stored = ordered.length > 0 || hiddenIds.length > 0;
+  const effectiveOrder = stored ? ordered : [...standardMenu.order];
+  const effectiveHidden = stored ? hiddenIds : [...standardMenu.hidden];
+  const hiddenSet = new Set(effectiveHidden);
   // A stored menu that both orders and hides a screen means "hidden": putting something away wins.
-  const enteredOrder = ordered.filter((id) => !hiddenSet.has(id));
-  const personalised = ordered.length > 0;
+  const enteredOrder = effectiveOrder.filter((id) => !hiddenSet.has(id));
+  const personalised = effectiveOrder.length > 0;
 
-  const placed = new Set<string>([...enteredOrder, ...hiddenIds]);
+  const placed = new Set<string>([...enteredOrder, ...effectiveHidden]);
   // A screen nobody placed yet stays reachable at the end of the main list instead of disappearing.
   const unplaced = available.map((item) => item.id).filter((id) => !placed.has(id));
 
-  const mainIds = personalised
-    ? [...enteredOrder, ...unplaced]
-    : available.map((item) => item.id).filter((id) => !hiddenSet.has(id));
-  const main = mainIds.flatMap((id) => {
+  const main = [...enteredOrder, ...unplaced].flatMap((id) => {
     const item = byId.get(id);
     return item ? [item] : [];
   });
@@ -88,7 +115,7 @@ export function layoutMenu(
     return items.length > 0 ? [{ section, items }] : [];
   });
 
-  return { main, personalised, additional, hiddenIds };
+  return { main, personalised, additional, hiddenIds: resolveIds(effectiveHidden, byId) };
 }
 
 /** The main order, whether or not the person has stored one: what "hide", "show" and "move" start from. */

@@ -240,10 +240,8 @@ export default function DashboardPage() {
                           </li>
                         ))}
                       </ul>
-                      <Link href="/automations" className={styles.cardAction}>
-                        {t('viewAll')}
-                        <Icon name="arrow-right" size={15} />
-                      </Link>
+                      {/* The automations screen was retired (redirected to the dashboard): the status
+                          list stays, but a "view all" link would only lead back here. */}
                     </CardBody>
                   </Card>
                   <Card>

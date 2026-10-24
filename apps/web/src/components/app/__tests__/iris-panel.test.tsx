@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders, screen, userEvent, waitFor } from '@/test/render';
-import { IrisWidget } from '../iris-widget';
+import { IrisPanel } from '../iris-panel';
 
 const push = vi.fn();
 vi.mock('next/navigation', () => ({
@@ -23,7 +23,7 @@ function answerWith(body: unknown): void {
   );
 }
 
-describe('IrisWidget', () => {
+describe('IrisPanel', () => {
   beforeEach(() => {
     window.sessionStorage.clear();
     push.mockClear();
@@ -33,14 +33,18 @@ describe('IrisWidget', () => {
     vi.unstubAllGlobals();
   });
 
-  it('opens from the corner button and greets', async () => {
-    renderWithProviders(<IrisWidget />);
-    await userEvent.click(screen.getByRole('button', { name: 'Iris öffnen' }));
+  it('greets while the topbar holds it open', () => {
+    renderWithProviders(<IrisPanel open onClose={vi.fn()} />);
     expect(screen.getByRole('dialog', { name: 'Iris' })).toBeInTheDocument();
     expect(screen.getByText(/ich bin Iris/i)).toBeInTheDocument();
   });
 
-  it('shows the answer, and the button it offers opens that screen', async () => {
+  it('renders nothing while closed', () => {
+    renderWithProviders(<IrisPanel open={false} onClose={vi.fn()} />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('shows the answer, and the button it offers opens that screen and closes the panel', async () => {
     answerWith({
       available: true,
       text: 'Öffnen Sie die Integrationen und wählen Sie Postfach verbinden.',
@@ -48,8 +52,8 @@ describe('IrisWidget', () => {
       handoff: false,
       reason: '',
     });
-    renderWithProviders(<IrisWidget />);
-    await userEvent.click(screen.getByRole('button', { name: 'Iris öffnen' }));
+    const onClose = vi.fn();
+    renderWithProviders(<IrisPanel open onClose={onClose} />);
     await userEvent.type(
       screen.getByLabelText('Frage an Iris …'),
       'Wie verbinde ich mein Postfach?',
@@ -59,12 +63,12 @@ describe('IrisWidget', () => {
     expect(await screen.findByText(/Postfach verbinden/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Öffnen: / }));
     expect(push).toHaveBeenCalledWith('/integrations');
+    expect(onClose).toHaveBeenCalled();
   });
 
   it('says plainly that the assistant is not set up instead of inventing an answer', async () => {
     answerWith({ available: false, text: '', open: '', handoff: false, reason: 'NOT_CONFIGURED' });
-    renderWithProviders(<IrisWidget />);
-    await userEvent.click(screen.getByRole('button', { name: 'Iris öffnen' }));
+    renderWithProviders(<IrisPanel open onClose={vi.fn()} />);
     await userEvent.type(screen.getByLabelText('Frage an Iris …'), 'Hallo');
     await userEvent.click(screen.getByRole('button', { name: 'Senden' }));
 

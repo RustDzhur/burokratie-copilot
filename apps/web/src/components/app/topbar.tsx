@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/icons';
 import { IconButton } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/data';
@@ -10,6 +11,7 @@ import { localeNames, locales, type Locale } from '@/i18n/config';
 import { useLocale, useSetLocale, useTranslations } from '@/i18n/provider';
 import type { SessionUser } from '@/lib/api/types';
 import { DropdownMenu, type MenuItemDefinition } from './dropdown-menu';
+import { IrisPanel } from './iris-panel';
 import { WorkspaceSwitcher } from './workspace-switcher';
 import styles from './topbar.module.css';
 
@@ -22,10 +24,12 @@ export interface TopbarProps {
   readonly pendingReview?: number;
   readonly onOpenNotifications?: () => void;
   readonly onSignOut?: () => void;
+  /** A workspace whose access ended: the assistant is not shown, like in the old corner widget. */
+  readonly blocked?: boolean;
 }
 
 /**
- * Top bar: search/command palette trigger, notifications, appearance, language
+ * Top bar: search/command palette trigger, Iris, notifications, appearance, language
  * and the account menu. On mobile it collapses to a menu button plus the
  * essential controls (docs/task.md §5.2, §23.4 — mobile support).
  */
@@ -37,13 +41,46 @@ export function Topbar({
   pendingReview = 0,
   onOpenNotifications,
   onSignOut,
+  blocked = false,
 }: TopbarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const t = useTranslations('nav');
+  const tIris = useTranslations('iris');
   const tCommon = useTranslations('common');
   const locale = useLocale();
   const setLocale = useSetLocale();
   const { settings, update, reset } = useAppearance();
+
+  const [irisOpen, setIrisOpen] = useState(false);
+  const irisAnchorRef = useRef<HTMLDivElement | null>(null);
+
+  // A route change means a new page: the assistant closes instead of covering it.
+  useEffect(() => {
+    setIrisOpen(false);
+  }, [pathname]);
+
+  // Like the other topbar menus: clicking outside or pressing Escape closes the panel.
+  useEffect(() => {
+    if (!irisOpen) return undefined;
+    const onPointerDown = (event: MouseEvent): void => {
+      if (irisAnchorRef.current && !irisAnchorRef.current.contains(event.target as Node)) {
+        setIrisOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        setIrisOpen(false);
+        irisAnchorRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [irisOpen]);
 
   const themeItems: MenuItemDefinition[] = [
     {
@@ -118,6 +155,20 @@ export function Topbar({
           <a href="/review" data-testid="pending-review" style={{ fontWeight: 600, textDecoration: 'underline' }}>
             {t('pendingReview', { count: pendingReview })}
           </a>
+        ) : null}
+        {!blocked ? (
+          <div className={styles.irisAnchor} ref={irisAnchorRef}>
+            <IconButton
+              label={tIris('open')}
+              icon="sparkles"
+              aria-haspopup="dialog"
+              aria-expanded={irisOpen}
+              aria-controls="iris-panel"
+              className={styles.irisButton}
+              onClick={() => setIrisOpen((open) => !open)}
+            />
+            <IrisPanel open={irisOpen} onClose={() => setIrisOpen(false)} />
+          </div>
         ) : null}
         <DropdownMenu
           label={t('notifications')}
