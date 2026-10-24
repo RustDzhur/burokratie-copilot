@@ -38,7 +38,7 @@ export interface AppearanceSettings {
 }
 
 export const defaultAppearance: AppearanceSettings = {
-  theme: 'system',
+  theme: 'dark',
   contrast: 'normal',
   textScale: 100,
   motion: 'auto',
