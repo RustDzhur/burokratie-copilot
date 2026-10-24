@@ -1,0 +1,197 @@
+/* SVG charts in the firmspace style: gradient fills, glow, hover tooltips. */
+
+.chartWrap {
+  min-width: 0;
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+}
+
+.sparkline {
+  display: block;
+  filter: drop-shadow(0 0 6px var(--color-glow-accent));
+}
+
+/* Bars grow in when the chart appears; motion switches it off via tokens. */
+.bar {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: charts-grow var(--motion-duration-slow) var(--motion-ease-emphasized) backwards;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.barActive {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: charts-grow var(--motion-duration-slow) var(--motion-ease-emphasized) backwards;
+  filter: drop-shadow(0 0 8px var(--color-glow-accent));
+}
+
+@keyframes charts-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.baseline {
+  stroke: var(--color-border-strong);
+  stroke-width: 1;
+}
+
+.barValue {
+  fill: var(--color-text-subtle);
+  font-size: 9px;
+  font-family: var(--font-sans);
+}
+
+/* Lines draw themselves in: dashoffset runs down to zero. */
+.lineDraw {
+  stroke-dasharray: 900;
+  stroke-dashoffset: 900;
+  animation: charts-draw 1.2s var(--motion-ease-emphasized) forwards;
+}
+
+.areaDraw {
+  opacity: 0;
+  animation: charts-fade var(--motion-duration-slow) var(--motion-ease-standard) 0.2s forwards;
+}
+
+@keyframes charts-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes charts-fade {
+  to {
+    opacity: 1;
+  }
+}
+
+.guide {
+  stroke: var(--color-border-glass);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.dot {
+  fill: var(--color-accent);
+  filter: drop-shadow(0 0 6px var(--color-glow-accent));
+}
+
+/* Axis labels under the canvas: evenly spread, muted, truncated. */
+.verticalLabels {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.verticalLabel {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: var(--font-size-2xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The hover tooltip: a small glass chip above the chart. */
+.tooltip {
+  position: absolute;
+  z-index: var(--z-raised);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border-glass);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-glass-strong);
+  backdrop-filter: blur(var(--glass-blur));
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow-md);
+}
+
+/* Horizontal bars (reports-style): label, gradient track, value, CSS tooltip. */
+.horizontalList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.horizontalRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(72px, 130px) 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.horizontalLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-subtle);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.horizontalTrack {
+  display: block;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-inset);
+  overflow: hidden;
+}
+
+.horizontalBar {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: var(--radius-pill);
+  background-image: linear-gradient(90deg, var(--color-cyan), var(--color-accent) 55%, var(--color-violet));
+  box-shadow: 0 0 10px -2px var(--color-glow-accent);
+  transition: filter var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.horizontalValue {
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.horizontalRow .tooltip {
+  display: none;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.horizontalRow:hover .tooltip,
+.horizontalRow:focus-within .tooltip {
+  display: block;
+}
+
+.horizontalRow:hover .horizontalBar {
+  filter: brightness(1.15);
+}
+
+/* The moving dashed lines honour the reduced-motion override in globals.css. */
+
+/* Wrapper of the vertical charts: the tooltip positions against it. */
+.verticalWrap {
+  position: relative;
+  min-width: 0;
+}

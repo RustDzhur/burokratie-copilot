@@ -66,21 +66,26 @@
 }
 
 /* ---- Variants ----------------------------------------------------------- */
+/* The primary action: the neon pill of the firmspace site — a gradient with a
+   soft glow; the ink colour is chosen per theme so the label stays at AA
+   contrast on every stop of the gradient. */
 .variant-primary {
+  background-image: var(--gradient-brand);
   background-color: var(--color-accent);
   color: var(--color-text-on-accent);
-  border-color: var(--color-accent);
-  box-shadow: var(--shadow-xs);
+  border-color: transparent;
+  box-shadow: var(--shadow-neon);
 }
 
 .variant-primary:hover:not(:disabled) {
-  background-color: var(--color-accent-hover);
-  border-color: var(--color-accent-hover);
+  filter: brightness(1.08);
+  box-shadow: var(--shadow-neon), 0 10px 28px -12px var(--color-glow-accent);
+  transform: translateY(-1px);
 }
 
 .variant-primary:active:not(:disabled) {
-  background-color: var(--color-accent-active);
-  border-color: var(--color-accent-active);
+  filter: brightness(0.96);
+  transform: translateY(0);
 }
 
 .variant-secondary {

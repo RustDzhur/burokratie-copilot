@@ -1,10 +1,10 @@
-/* Application shell layout. */
-
+/* Application shell layout. The shell itself stays transparent so the cosmic
+   background of the dark theme (body) shines through the glass panels. */
 .shell {
   display: flex;
   align-items: flex-start;
   min-height: 100dvh;
-  background-color: var(--color-bg);
+  background-color: transparent;
 }
 
 .skipLink {

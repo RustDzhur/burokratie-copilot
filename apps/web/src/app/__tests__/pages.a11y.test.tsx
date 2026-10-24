@@ -78,7 +78,7 @@ describe('key screens — accessibility', () => {
     const { container } = renderWithProviders(<DashboardPage />);
 
     expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText('Dokumente in Verarbeitung')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Dokumente in Verarbeitung').length).toBeGreaterThan(0));
     await expectNoA11yViolations(container);
   });
 

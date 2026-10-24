@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { useMemo } from 'react';
 import { Icon, type IconName } from '@/components/icons';
+import { BarChart, FlowLine, TrendLine, type ChartPoint } from '@/components/ui/charts';
 import { Card, CardBody, CardHeader } from '@/components/ui/data';
 import { EmptyState, InlineAlert } from '@/components/ui/feedback';
 import {
@@ -125,6 +127,39 @@ export default function DashboardPage() {
     [],
   );
 
+  /** The activity of the last 14 days, newest last: what the trend chart draws. */
+  const activityByDay = useMemo<readonly ChartPoint[]>(() => {
+    const summary: DashboardSummary | null = state.status === 'ready' ? state.data : null;
+    const buckets = Array.from({ length: 14 }, (_, index) => {
+      const day = new Date();
+      day.setHours(0, 0, 0, 0);
+      day.setDate(day.getDate() - (13 - index));
+      return { day, count: 0 };
+    });
+    for (const entry of summary?.activity ?? []) {
+      const at = new Date(entry.at);
+      const index = 13 - Math.floor((Date.now() - at.getTime()) / 86_400_000);
+      const bucket = buckets[index];
+      if (index >= 0 && index < buckets.length && bucket) {
+        bucket.count += 1;
+      }
+    }
+    return buckets.map(({ day, count }) => ({
+      label: `${String(day.getDate()).padStart(2, '0')}.${String(day.getMonth() + 1).padStart(2, '0')}`,
+      value: count,
+    }));
+  }, [state]);
+
+  /** The attention counts as one interactive overview. */
+  const attentionPoints = useMemo<readonly ChartPoint[]>(
+    () =>
+      ATTENTION_CARDS.map((card) => ({
+        label: t(card.titleKey),
+        value: (state.status === 'ready' ? state.data.counts[card.countKey] : 0) ?? 0,
+      })),
+    [state, t],
+  );
+
   return (
     <>
       <PageHeader
@@ -197,7 +232,35 @@ export default function DashboardPage() {
             </PageSection>
 
             <div className={styles.twoColumn}>
-              <PageSection title={t('sections.activity')}>
+              <PageSection title={t('sections.charts')}>
+              <div className={styles.cardGrid}>
+                <Card interactive>
+                  <CardHeader title={t('charts.attentionTitle')} />
+                  <CardBody>
+                    <BarChart
+                      points={attentionPoints}
+                      ariaLabel={t('charts.attentionTitle')}
+                      showValue
+                    />
+                  </CardBody>
+                </Card>
+                <Card interactive>
+                  <CardHeader title={t('charts.trendTitle')} />
+                  <CardBody>
+                    <TrendLine points={activityByDay} ariaLabel={t('charts.trendTitle')} />
+                  </CardBody>
+                </Card>
+                <Card interactive>
+                  <CardHeader title={t('charts.flowTitle')} />
+                  <CardBody>
+                    <p className="muted">{t('charts.flowHint')}</p>
+                    <FlowLine />
+                  </CardBody>
+                </Card>
+              </div>
+            </PageSection>
+
+            <PageSection title={t('sections.activity')}>
                 {data.activity.length === 0 ? (
                   <EmptyState
                     icon="clock"
