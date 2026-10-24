@@ -424,6 +424,7 @@ export const deCore = {
     'register.submit': 'Konto erstellen',
     'register.hasAccount': 'Sie haben bereits ein Konto?',
     'register.login': 'Anmelden',
+    'register.mailUnavailable': 'Die Bestätigungs-E-Mail ist derzeit nicht konfiguriert. Sie können sich direkt anmelden.',
     'register.mismatch': 'Die Passwörter stimmen nicht überein.',
     'verify.title': 'E-Mail-Adresse bestätigen',
     'verify.subtitle': 'Wir haben Ihnen einen Bestätigungscode an {email} gesendet.',

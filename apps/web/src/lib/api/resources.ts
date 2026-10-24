@@ -446,7 +446,7 @@ export interface ApiResources {
     /** Whether sign-in through an external identity provider is set up. */
     ssoAvailable: () => Promise<boolean>;
     logout: () => Promise<void>;
-    register: (payload: RegisterPayload) => Promise<{ userId: string; email: string }>;
+    register: (payload: RegisterPayload) => Promise<{ userId: string; email: string; verificationMailSent: boolean }>;
     verifyEmail: (payload: { token: string }) => Promise<void>;
     resendVerification: (payload: { email: string }) => Promise<void>;
     requestPasswordReset: (payload: { email: string }) => Promise<void>;
@@ -1087,7 +1087,7 @@ export function createResources(client: ApiClient): ApiResources {
       },
       logout: () => client.post<void>('/auth/logout'),
       register: async (payload) => {
-        const created = await client.post<{ userId: string }>(
+        const created = await client.post<{ userId: string; verificationMailSent: boolean }>(
           '/auth/register',
           {
             email: payload.email,
@@ -1098,7 +1098,11 @@ export function createResources(client: ApiClient): ApiResources {
           },
           { idempotencyKey: true },
         );
-        return { userId: created.userId, email: payload.email };
+        return {
+          userId: created.userId,
+          email: payload.email,
+          verificationMailSent: created.verificationMailSent === true,
+        };
       },
       verifyEmail: (payload) =>
         client.post<void>('/auth/verify-email', payload, { idempotencyKey: true }),

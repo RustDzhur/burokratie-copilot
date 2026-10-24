@@ -412,6 +412,7 @@ export const ruCore: CoreMessages = {
     'register.submit': 'Создать аккаунт',
     'register.hasAccount': 'Уже есть аккаунт?',
     'register.login': 'Войти',
+    'register.mailUnavailable': 'Письмо для подтверждения сейчас не настроено. Вы можете войти сразу.',
     'register.mismatch': 'Пароли не совпадают.',
     'verify.title': 'Подтверждение адреса e-mail',
     'verify.subtitle': 'Мы отправили код подтверждения на {email}.',

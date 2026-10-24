@@ -409,6 +409,7 @@ export const enCore: CoreMessages = {
     'register.submit': 'Create account',
     'register.hasAccount': 'Already have an account?',
     'register.login': 'Sign in',
+    'register.mailUnavailable': 'The confirmation e-mail is currently not configured. You can sign in right away.',
     'register.mismatch': 'The passwords do not match.',
     'verify.title': 'Verify e-mail address',
     'verify.subtitle': 'We sent a verification code to {email}.',

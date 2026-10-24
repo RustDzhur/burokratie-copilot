@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox, Input, RadioGroup } from '@/components/ui/form';
 import { InlineAlert } from '@/components/ui/feedback';
 import { useTranslations } from '@/i18n/provider';
+import { useToast } from '@/components/ui/toast';
 import { api } from '@/lib/api';
 import { toApiError, type ApiError } from '@/lib/api/errors';
 import { useApiResource } from '@/lib/api/hooks';
@@ -28,6 +29,7 @@ export default function RegisterPage() {
   const tErrors = useTranslations('errors');
   const tCommon = useTranslations('common');
   const router = useRouter();
+  const toast = useToast();
 
   const { state: plans } = useApiResource((signal) => api.publicPlans.get(signal), []);
   const [fullName, setFullName] = useState('');
@@ -57,8 +59,15 @@ export default function RegisterPage() {
     setPending(true);
     setError(null);
     try {
-      await api.auth.register({ fullName, email, password, accountType, acceptedTerms: terms });
-      router.push('/verify-email');
+      const result = await api.auth.register({ fullName, email, password, accountType, acceptedTerms: terms });
+      // Честно: почта отправляется только если SMTP настроен. В пилоте SMTP нет —
+      // не ведём человека на экран «код отправлен», а сразу пускаем на вход.
+      if (result.verificationMailSent) {
+        router.push('/verify-email');
+      } else {
+        toast.info(t('register.mailUnavailable'));
+        router.push('/login');
+      }
     } catch (caught) {
       setError(toApiError(caught));
     } finally {
