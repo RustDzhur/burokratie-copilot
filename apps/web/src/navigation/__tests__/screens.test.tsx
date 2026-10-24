@@ -60,7 +60,7 @@ describe('screen registry', () => {
     expect(findScreenByPath('/dashboard/')?.id).toBe('dashboard');
     expect(findScreenByPath('/documents/abc-123')?.id).toBe('documents');
     expect(findScreenByPath('/unknown-route')).toBeUndefined();
-    expect(findScreenByPath('/')?.id).toBe('landing');
+    expect(findScreenByPath('/')).toBeUndefined(); // корень ведёт на /login
   });
 
   it('exposes screens by id', () => {

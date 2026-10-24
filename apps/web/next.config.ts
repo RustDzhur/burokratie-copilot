@@ -45,7 +45,10 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   async redirects() {
-    return [{ source: '/_design', destination: '/design-system', permanent: false }];
+    return [
+      { source: '/', destination: '/login', permanent: false },
+      { source: '/_design', destination: '/design-system', permanent: false },
+    ];
   },
   async rewrites() {
     return [{ source: '/api/v1/:path*', destination: `${apiOrigin}/api/v1/:path*` }];

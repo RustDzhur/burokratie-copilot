@@ -74,3 +74,18 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-subtle);
 }
+
+/* Плашка пилотной фазы: некоммерческий экспериментальный проект (первые 500 бесплатно). */
+.pilot {
+  width: 100%;
+  max-width: 28rem;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-accent, #4f6bed);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-accent, #4f6bed) 8%, transparent);
+  text-align: center;
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+  color: var(--color-text);
+}

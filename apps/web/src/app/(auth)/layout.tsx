@@ -26,6 +26,7 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
           <LanguageMenu />
         </div>
       </header>
+      <p className={styles.pilot}>{t('common', 'pilot.banner')}</p>
       <main id="main-content" className={styles.main}>
         {children}
       </main>

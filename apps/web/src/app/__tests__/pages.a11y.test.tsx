@@ -4,7 +4,6 @@ import DashboardPage from '../(app)/dashboard/page';
 import InboxPage from '../(app)/inbox/page';
 import AccessibilityPage from '../(app)/accessibility/page';
 import LoginPage from '../(auth)/login/page';
-import LandingPage from '../(public)/page';
 import DesignSystemPage from '../design-system/page';
 
 vi.mock('next/navigation', () => ({
@@ -47,12 +46,6 @@ afterEach(() => {
  * is announced badly is just as broken as a missing one (§29, §23).
  */
 describe('key screens — accessibility', () => {
-  it('landing page renders without violations', async () => {
-    stubFetchFailure();
-    const { container } = renderWithProviders(<LandingPage />);
-    await expectNoA11yViolations(container);
-  });
-
   it('login page renders without violations and labels every field', async () => {
     stubFetchFailure();
     const { container } = renderWithProviders(<LoginPage />);

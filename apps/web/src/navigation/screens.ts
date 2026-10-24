@@ -32,7 +32,6 @@ export const navSections: readonly NavSection[] = [
 ];
 
 export type ScreenId =
-  | 'landing'
   | 'login'
   | 'register'
   | 'verifyEmail'
@@ -136,8 +135,7 @@ function screen(
 }
 
 export const screens: readonly ScreenDefinition[] = [
-  // §5.2.1 — public landing page
-  screen('landing', '/', 'home', null, { inSidebar: false, requiresAuth: false }),
+  // §5.2.1 — корневой адрес ведёт на вход (редирект в next.config.ts), отдельного лендинга у платформы нет
   // §5.2.2 — registration and sign-in
   screen('login', '/login', 'lock', null, { inSidebar: false, requiresAuth: false }),
   screen('register', '/register', 'user', null, { inSidebar: false, requiresAuth: false }),

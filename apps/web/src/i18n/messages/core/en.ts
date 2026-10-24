@@ -19,6 +19,7 @@ export const enCore: CoreMessages = {
     'switcher.hint': "Every client has its own documents, tasks and mailboxes. Nothing is shared between clients.",
     'switcher.switchFailed': "Switching failed",
     'switcher.createFailed': "The client could not be created",
+    'pilot.banner': 'Pilot phase – not yet a commercial offer. The first 500 users join free of charge and share feedback to help us improve. The first pricing round starts in May 2027.',
     'app.slogan': 'Weniger Bürokratie. Mehr Zeit für dich.',
     'app.tagline': 'The intelligent administrative cockpit for Germany',
     'actions.capture': 'Take a photo',

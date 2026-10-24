@@ -28,6 +28,7 @@ export const deCore = {
     'switcher.hint': "Jeder Mandant hat seine eigenen Dokumente, Aufgaben und Postfächer. Es wird nichts zwischen den Mandanten geteilt.",
     'switcher.switchFailed': "Wechsel nicht möglich",
     'switcher.createFailed': "Mandant konnte nicht angelegt werden",
+    'pilot.banner': 'Pilotphase – noch kein kommerzielles Angebot. Die ersten 500 Nutzer arbeiten kostenlos mit und geben Feedback zur Verbesserung. Die erste Tarifrunde startet im Mai 2027.',
     'app.slogan': 'Weniger Bürokratie. Mehr Zeit für dich.',
     'app.tagline': 'Der intelligente Verwaltungs-Cockpit für Deutschland',
     'actions.capture': 'Foto aufnehmen',
