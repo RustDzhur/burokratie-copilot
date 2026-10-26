@@ -53,7 +53,7 @@ function AgentCard({ agent }: { readonly agent: AgentCatalogEntry }) {
           <div>
             <p className={styles.cardSectionLabel}>{t('card.functions')}</p>
             <ul className={styles.cardList}>
-              {agent.functions.map((fn) => (
+              {agent.functions.map((fn: string) => (
                 <li key={fn}>{fn}</li>
               ))}
             </ul>
@@ -64,7 +64,7 @@ function AgentCard({ agent }: { readonly agent: AgentCatalogEntry }) {
           <div>
             <p className={styles.cardSectionLabel}>{t('card.triggers')}</p>
             <div className={styles.cardTriggers}>
-              {agent.triggers.map((trigger) => (
+              {agent.triggers.map((trigger: string) => (
                 <Badge key={trigger} tone="neutral" variant="outline">
                   {agentTriggerLabel(t, trigger)}
                 </Badge>
@@ -101,7 +101,7 @@ export default function AgentsPage() {
   const agents = state.status === 'ready' ? state.data : [];
   const shown = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return agents.filter((agent) => {
+    return agents.filter((agent: { id: string; name: string; category: string; description: string; functions: readonly string[]; triggers: readonly string[]; implemented: boolean; runCount: number }) => {
       if (category !== '' && agent.category !== category) return false;
       if (needle === '') return true;
       return (

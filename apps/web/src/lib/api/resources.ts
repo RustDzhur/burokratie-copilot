@@ -192,6 +192,10 @@ import type {
   TaskDetail,
   ExplanationOutcome,
   SetupState,
+  AgentCatalogEntry,
+  AgentDetail,
+  AgentRunResponse,
+  AgentRunRow,
   ContactImportReport,
 } from './types';
 

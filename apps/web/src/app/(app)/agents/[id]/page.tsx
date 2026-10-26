@@ -172,7 +172,7 @@ export default function AgentDetailPage() {
   }
 
   const { manifest, implemented, runCount, runs } = state.data;
-  const triggerOptions = ['manual', ...manifest.triggers.filter((value) => value !== 'manual')];
+  const triggerOptions = ['manual', ...manifest.triggers.filter((value: string) => value !== 'manual')];
   const inputEntries = Object.entries(manifest.inputs);
 
   return (
@@ -219,7 +219,7 @@ export default function AgentDetailPage() {
               <CardHeader title={t('detail.functions')} headingLevel={2} />
               <CardBody>
                 <ul className={styles.sectionList}>
-                  {manifest.functions.map((fn) => (
+                  {manifest.functions.map((fn: string) => (
                     <li key={fn}>{fn}</li>
                   ))}
                 </ul>
@@ -232,7 +232,7 @@ export default function AgentDetailPage() {
               <CardHeader title={t('detail.triggers')} headingLevel={2} />
               <CardBody>
                 <div className={styles.triggerList}>
-                  {manifest.triggers.map((value) => (
+                  {manifest.triggers.map((value: string) => (
                     <Badge key={value} tone="neutral" variant="outline">
                       {agentTriggerLabel(t, value)}
                     </Badge>
@@ -257,7 +257,7 @@ export default function AgentDetailPage() {
                   value={trigger}
                   onChange={(event) => setTrigger(event.target.value)}
                 >
-                  {triggerOptions.map((value) => (
+                  {triggerOptions.map((value: string) => (
                     <option key={value} value={value}>
                       {agentTriggerLabel(t, value)}
                     </option>
@@ -267,11 +267,11 @@ export default function AgentDetailPage() {
                 {inputEntries.length > 0 ? (
                   <>
                     <p className={styles.pillHint}>{t('detail.inputsHint')}</p>
-                    {inputEntries.map(([name, hint]) => (
+                    {inputEntries.map(([name, hint]: [string, unknown]) => (
                       <AgentInputField
                         key={name}
                         name={name}
-                        hint={hint}
+                        hint={String(hint ?? '')}
                         value={values[name] ?? ''}
                         onChange={(value) =>
                           setValues((current) => ({ ...current, [name]: value }))
@@ -319,7 +319,7 @@ export default function AgentDetailPage() {
                       <p className={styles.journalSummary}>{t('result.producedEmpty')}</p>
                     ) : (
                       <ul className={styles.producedList}>
-                        {result.produced.map((item, index) => (
+                        {result.produced.map((item: { kind: string; ref: string; label: string }, index) => (
                           <li key={`${item.kind}-${item.ref}-${index}`}>
                             <span className={styles.producedKind}>{item.kind}</span>
                             {item.ref ? <code>{item.ref}</code> : null}
@@ -341,7 +341,7 @@ export default function AgentDetailPage() {
                 <EmptyState icon="clock" size="sm" title={t('journal.empty')} />
               ) : (
                 <ol className={styles.journalList}>
-                  {runs.map((run) => (
+                  {runs.map((run: AgentRunRow) => (
                     <JournalRow key={run.id} run={run} />
                   ))}
                 </ol>
