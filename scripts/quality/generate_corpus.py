@@ -31,6 +31,7 @@ import math
 import random
 import shutil
 import sys
+import time
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
@@ -1265,7 +1266,7 @@ def kita_fee(s: Scenario, rng: random.Random, variant: int, lang: str = "de") ->
     day = date(2026, rng.randint(1, 10), rng.randint(1, 28))
     amount = round(rng.uniform(80, 420), 2)
     blocks = base(s, "Kita-Gebührenbescheid", [
-        ("kv", "Kind", "Mia Muster"), ("kv", "Betrag", f"{eur(amount)} monatlich"),
+        ("kv", "Kind", "Mia Muster"), ("kv", "Kita-Beitrag", f"{eur(amount)} monatlich"),
         ("kv", "Datum", d(day)), ("kv", "Zeitraum", "01.09.2026 bis 31.08.2027")])
     blocks.extend([
         ("text", "Sehr geehrte Familie Muster,"),
@@ -2241,7 +2242,13 @@ def _save_image(image: Image.Image, path: Path, condition: str) -> None:
 def _save_pdf(images: Sequence[Image.Image], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     rgb = [image.convert("RGB") for image in images]
-    rgb[0].save(path, format="PDF", resolution=DPI, save_all=True, append_images=rgb[1:], quality=85)
+    # Pillow otherwise stamps the current time into CreationDate/ModDate, which makes
+    # the same document produce different bytes on every regeneration. A fixed epoch
+    # keeps the corpus byte-for-byte reproducible.
+    fixed = time.gmtime(0)
+    rgb[0].save(path, format="PDF", resolution=DPI, save_all=True, append_images=rgb[1:],
+                quality=85, creationDate=fixed, modDate=fixed,
+                producer="Buerokratie-Copilot quality corpus", creator="generate_corpus.py")
 
 
 def _layout_for(doc: DocContent, plan: Plan, rng: random.Random) -> Layout:

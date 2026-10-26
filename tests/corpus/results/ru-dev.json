@@ -1,0 +1,894 @@
+{
+  "run" : {
+    "label" : "ru-dev",
+    "split" : "dev",
+    "startedAt" : "2026-10-26T19:26:06.868077Z",
+    "durationSeconds" : 9,
+    "corpusVersion" : 1,
+    "corpusSeed" : 20261026,
+    "manifest" : "/Users/rustem/Documents/WebDevelopment/burokratie-copilot/tests/corpus/documents/manifest.json",
+    "documentCount" : 8,
+    "ocr" : "tesseract",
+    "ocrLanguages" : "deu+eng",
+    "gitCommit" : "",
+    "javaVersion" : "21.0.3",
+    "os" : "Mac OS X aarch64"
+  },
+  "documents" : [ {
+    "id" : "dev-rechnung-ru-01",
+    "file" : "dev/dev-rechnung-ru-01.jpg",
+    "split" : "dev",
+    "language" : "ru",
+    "trueType" : "rechnung",
+    "trueCategory" : "FINANCE",
+    "difficulty" : "russian",
+    "condition" : "russian",
+    "pagesExpected" : 1,
+    "multipage" : false,
+    "paid" : null,
+    "handwritten" : false,
+    "stamped" : false,
+    "cropped" : false,
+    "foreignObjects" : [ ],
+    "expectedFields" : {
+      "Rechnungsnummer" : "RE-2026-8341",
+      "Rechnungsdatum" : "2026-03-20",
+      "Brutto" : "673.78"
+    },
+    "expectedSupplier" : "Stadtwerke Musterstadt GmbH",
+    "expectedNumber" : "RE-2026-8341",
+    "expectedDate" : "2026-03-20",
+    "expectedAmount" : "673.78",
+    "expectedExpenseCategory" : "fees",
+    "expenseText" : "Консультационные услуги",
+    "acceptableTypes" : [ ],
+    "notes" : "Russian translation; the platform intentionally routes non-German documents to a person",
+    "actual" : {
+      "error" : null,
+      "classifiedType" : null,
+      "acceptedType" : null,
+      "confidence" : null,
+      "language" : "ru",
+      "sender" : "Stadtwerke Musterstadt GmbH",
+      "senderSource" : "LETTER",
+      "processingStatus" : "REVIEW_REQUIRED",
+      "reviewStatus" : "PENDING",
+      "extractedTextLength" : 556,
+      "extractedTextSnippet" : "Stadtwerke Musterstadt GmbH\nHauptstraße 12 - 12345 Musterstadt : Tel. 0345 123456 - service@stadtwerke-musterstadt.de\nСчёт\nНомер счёта: ВЕ-2026-8341\nДата счёта: 20.03.2026\nУважаемые дамы и господа,\nНаправляем Вам счёт за оказанные услуги:\n| Позиция Описание Сумма\n| 1 Консультационные услуги 566,20 EUR\nСумма без НДС: 566,20 EUR\nНДС 19 %: 107,58 EUR\nИтого к оплате: 673,78 EUR\nОплата до 03.04.2026 на счёт IBAN DE89370400440532013000.\nПросим указать номер счёта при оплате.\nС уважением,\nStadtwerke Musterstadt GmbH\nStadtwerke Musterstadt GmbH\nSeite 1 von 1",
+      "pageCount" : 1,
+      "ocrPages" : 1,
+      "ocrConfidence" : 0.9445,
+      "detectAgentType" : "invoice",
+      "expenseCategory" : null,
+      "fields" : {
+        "IBAN" : {
+          "value" : "DE89370400440532013000.",
+          "normalized" : "DE89370400440532013000",
+          "type" : "IBAN",
+          "sourceKind" : "OCR",
+          "page" : 1,
+          "snippet" : "Оплата до 03.04.2026 на счёт IBAN DE89370400440532013000.",
+          "confidence" : 0.85
+        }
+      },
+      "steps" : {
+        "SECURITY_SCAN" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "HASH" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "DUPLICATE_CHECK" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "FORMAT_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "TEXT_EXTRACT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 91,
+          "error" : null
+        },
+        "OCR" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 1273,
+          "error" : null
+        },
+        "LANGUAGE_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 1,
+          "error" : null
+        },
+        "CLASSIFY" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 279,
+          "error" : null
+        }
+      },
+      "classificationRationale" : null,
+      "pages" : [ {
+        "page" : 1,
+        "ocrUsed" : true,
+        "confidence" : 0.9445,
+        "textLength" : 556,
+        "error" : null
+      } ],
+      "detectAgentOk" : true,
+      "detectAgentSummary" : "Dokumenttyp erkannt: invoice"
+    },
+    "durationMs" : 2155
+  }, {
+    "id" : "dev-zahlungserinnerung-ru-02",
+    "file" : "dev/dev-zahlungserinnerung-ru-02.jpg",
+    "split" : "dev",
+    "language" : "ru",
+    "trueType" : "zahlungserinnerung",
+    "trueCategory" : "FINANCE",
+    "difficulty" : "russian",
+    "condition" : "russian",
+    "pagesExpected" : 1,
+    "multipage" : false,
+    "paid" : null,
+    "handwritten" : false,
+    "stamped" : false,
+    "cropped" : false,
+    "foreignObjects" : [ ],
+    "expectedFields" : {
+      "Schreibendatum" : "2026-07-11",
+      "Betrag" : "301.12"
+    },
+    "expectedSupplier" : "Stadtwerke Musterstadt GmbH",
+    "expectedNumber" : null,
+    "expectedDate" : "2026-07-11",
+    "expectedAmount" : "301.12",
+    "expectedExpenseCategory" : null,
+    "expenseText" : null,
+    "acceptableTypes" : [ ],
+    "notes" : "Russian translation; the platform intentionally routes non-German documents to a person",
+    "actual" : {
+      "error" : null,
+      "classifiedType" : null,
+      "acceptedType" : null,
+      "confidence" : null,
+      "language" : "ru",
+      "sender" : "Stadtwerke Musterstadt GmbH",
+      "senderSource" : "LETTER",
+      "processingStatus" : "REVIEW_REQUIRED",
+      "reviewStatus" : "PENDING",
+      "extractedTextLength" : 472,
+      "extractedTextSnippet" : "Stadtwerke Musterstadt GmbH\nHauptstraße 12 - 12345 Musterstadt - Tel. 0345 123456 - service@stadtwerke-musterstadt.de\nНапоминание об оплате\nНомер счёта: RE-2026-4027\nСумма: 301,12 EUR\nСрок оплаты: 18.07.2026\nДата: 11.07.2026\nУважаемые дамы и господа,\nНапоминаем Вам о неоплаченном счёте.\nПросим оплатить сумму до 18.07.2026.\nЕсли оплата уже произведена, просьба не учитывать данное письмо.\nС уважением,\nStadtwerke Musterstadt GmbH\nStadtwerke Musterstadt GmbH Seite 1 von 1",
+      "pageCount" : 1,
+      "ocrPages" : 1,
+      "ocrConfidence" : 0.95,
+      "detectAgentType" : "scan",
+      "expenseCategory" : null,
+      "fields" : { },
+      "steps" : {
+        "SECURITY_SCAN" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "HASH" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "DUPLICATE_CHECK" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "FORMAT_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "TEXT_EXTRACT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 18,
+          "error" : null
+        },
+        "OCR" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 931,
+          "error" : null
+        },
+        "LANGUAGE_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "CLASSIFY" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 102,
+          "error" : null
+        }
+      },
+      "classificationRationale" : null,
+      "pages" : [ {
+        "page" : 1,
+        "ocrUsed" : true,
+        "confidence" : 0.95,
+        "textLength" : 472,
+        "error" : null
+      } ],
+      "detectAgentOk" : true,
+      "detectAgentSummary" : "Dokumenttyp erkannt: scan"
+    },
+    "durationMs" : 1205
+  }, {
+    "id" : "dev-vertrag-ru-03",
+    "file" : "dev/dev-vertrag-ru-03.jpg",
+    "split" : "dev",
+    "language" : "ru",
+    "trueType" : "vertrag",
+    "trueCategory" : "CONTRACTS",
+    "difficulty" : "russian",
+    "condition" : "russian",
+    "pagesExpected" : 1,
+    "multipage" : false,
+    "paid" : null,
+    "handwritten" : false,
+    "stamped" : false,
+    "cropped" : false,
+    "foreignObjects" : [ ],
+    "expectedFields" : {
+      "Beginn" : "2026-06-03",
+      "Kosten" : "1136.06",
+      "Kuendigungsfrist" : "3"
+    },
+    "expectedSupplier" : "Nordlicht Software GmbH",
+    "expectedNumber" : null,
+    "expectedDate" : "2026-06-03",
+    "expectedAmount" : "1136.06",
+    "expectedExpenseCategory" : null,
+    "expenseText" : null,
+    "acceptableTypes" : [ ],
+    "notes" : "Russian translation; the platform intentionally routes non-German documents to a person",
+    "actual" : {
+      "error" : null,
+      "classifiedType" : null,
+      "acceptedType" : null,
+      "confidence" : null,
+      "language" : "ru",
+      "sender" : "Nordlicht Software GmbH",
+      "senderSource" : "LETTER",
+      "processingStatus" : "REVIEW_REQUIRED",
+      "reviewStatus" : "PENDING",
+      "extractedTextLength" : 518,
+      "extractedTextSnippet" : "Nordlicht Software GmbH\nSpeicherstadt 7 - 20457 Hamburg - Tel. 040 998877 - rechnung@nordlicht-software.de\nДоговор\nмежду Nordlicht Software GmbH (Исполнитель) и ООО «Пример» (Заказчик).\n1. Предмет договора\nИсполнитель оказывает услуги по технической поддержке информационных систем.\n2. Срок действия\nНачало: 17.06.2026\nСрок: 24 месяца\nСтоимость: 1.136,06 EUR в месяц\nСрок уведомления: 3 месяца\nДоговор может быть расторгнут в письменной форме.\nС уважением,\nNordlicht Software GmbH\nNordlicht Software GmbH\nSeite 1 von 1",
+      "pageCount" : 1,
+      "ocrPages" : 1,
+      "ocrConfidence" : 0.9539,
+      "detectAgentType" : "invoice",
+      "expenseCategory" : null,
+      "fields" : { },
+      "steps" : {
+        "SECURITY_SCAN" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "HASH" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "DUPLICATE_CHECK" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "FORMAT_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "TEXT_EXTRACT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 20,
+          "error" : null
+        },
+        "OCR" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 883,
+          "error" : null
+        },
+        "LANGUAGE_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "CLASSIFY" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 78,
+          "error" : null
+        }
+      },
+      "classificationRationale" : null,
+      "pages" : [ {
+        "page" : 1,
+        "ocrUsed" : true,
+        "confidence" : 0.9539,
+        "textLength" : 518,
+        "error" : null
+      } ],
+      "detectAgentOk" : true,
+      "detectAgentSummary" : "Dokumenttyp erkannt: invoice"
+    },
+    "durationMs" : 1097
+  }, {
+    "id" : "dev-kuendigung-ru-04",
+    "file" : "dev/dev-kuendigung-ru-04.jpg",
+    "split" : "dev",
+    "language" : "ru",
+    "trueType" : "kuendigung",
+    "trueCategory" : "CONTRACTS",
+    "difficulty" : "russian",
+    "condition" : "russian",
+    "pagesExpected" : 1,
+    "multipage" : false,
+    "paid" : null,
+    "handwritten" : false,
+    "stamped" : false,
+    "cropped" : false,
+    "foreignObjects" : [ ],
+    "expectedFields" : {
+      "Aktenzeichen" : "V-4464",
+      "Schreibendatum" : "2026-02-17"
+    },
+    "expectedSupplier" : "Autohaus Bruns GmbH",
+    "expectedNumber" : "V-4464",
+    "expectedDate" : "2026-02-17",
+    "expectedAmount" : null,
+    "expectedExpenseCategory" : null,
+    "expenseText" : null,
+    "acceptableTypes" : [ ],
+    "notes" : "Russian translation; the platform intentionally routes non-German documents to a person",
+    "actual" : {
+      "error" : null,
+      "classifiedType" : null,
+      "acceptedType" : null,
+      "confidence" : null,
+      "language" : "ru",
+      "sender" : "Autohaus Bruns GmbH",
+      "senderSource" : "LETTER",
+      "processingStatus" : "REVIEW_REQUIRED",
+      "reviewStatus" : "PENDING",
+      "extractedTextLength" : 378,
+      "extractedTextSnippet" : "Autohaus Bruns GmbH\nIndustriestraße 44 - 28195 Bremen - Tel. 0421 556677 - service@autohaus-bruns.de\nРасторжение договора\nНомер договора: V-4464\nДата: 17.02.2026\nУважаемые дамы и господа,\nНастоящим расторгаем договор V-4464 в ближайший возможный срок.\nПросим подтвердить прекращение договора в письменной форме.\nС уважением,\nAutohaus Bruns GmbH\nAutohaus Bruns GmbH\nSeite 1 von 1",
+      "pageCount" : 1,
+      "ocrPages" : 1,
+      "ocrConfidence" : 0.9511,
+      "detectAgentType" : "scan",
+      "expenseCategory" : null,
+      "fields" : { },
+      "steps" : {
+        "DUPLICATE_CHECK" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "FORMAT_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "SECURITY_SCAN" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "HASH" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "TEXT_EXTRACT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 15,
+          "error" : null
+        },
+        "OCR" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 823,
+          "error" : null
+        },
+        "LANGUAGE_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "CLASSIFY" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 63,
+          "error" : null
+        }
+      },
+      "classificationRationale" : null,
+      "pages" : [ {
+        "page" : 1,
+        "ocrUsed" : true,
+        "confidence" : 0.9511,
+        "textLength" : 378,
+        "error" : null
+      } ],
+      "detectAgentOk" : true,
+      "detectAgentSummary" : "Dokumenttyp erkannt: scan"
+    },
+    "durationMs" : 995
+  }, {
+    "id" : "dev-behoerdenbescheid-ru-05",
+    "file" : "dev/dev-behoerdenbescheid-ru-05.jpg",
+    "split" : "dev",
+    "language" : "ru",
+    "trueType" : "behoerdenbescheid",
+    "trueCategory" : "GOVERNMENT",
+    "difficulty" : "russian",
+    "condition" : "russian",
+    "pagesExpected" : 1,
+    "multipage" : false,
+    "paid" : null,
+    "handwritten" : false,
+    "stamped" : false,
+    "cropped" : false,
+    "foreignObjects" : [ ],
+    "expectedFields" : {
+      "Aktenzeichen" : "AZ-581119",
+      "Bescheiddatum" : "2026-02-25",
+      "Behoerde" : "Stadt Rheinstadt"
+    },
+    "expectedSupplier" : "Stadt Rheinstadt",
+    "expectedNumber" : "AZ-581119",
+    "expectedDate" : "2026-02-25",
+    "expectedAmount" : null,
+    "expectedExpenseCategory" : null,
+    "expenseText" : null,
+    "acceptableTypes" : [ ],
+    "notes" : "Russian translation; the platform intentionally routes non-German documents to a person",
+    "actual" : {
+      "error" : null,
+      "classifiedType" : null,
+      "acceptedType" : null,
+      "confidence" : null,
+      "language" : "ru",
+      "sender" : "Stadt Rheinstadt",
+      "senderSource" : "LETTER",
+      "processingStatus" : "REVIEW_REQUIRED",
+      "reviewStatus" : "PENDING",
+      "extractedTextLength" : 525,
+      "extractedTextSnippet" : "Stadt Rheinstadt\nRathausplatz 1 - 68159 Mannheim - Tel. 0621 555666 - stadt@rheinstadt.de\nРешение ведомства\nНомер дела: AZ-581119\nДата решения: 25.02.2026\nВедомство: Stadt Rheinstadt\nУважаемые дамы и господа,\nПо Вашему заявлению принято следующее решение.\nЗаявление удовлетворено. Пособие назначается с 01.09.2026 на двенадцать месяцев.\nСрок: no 27.03.2026\nПросим предоставить недостающие документы в указанный срок.\nРешение может быть обжаловано в течение месяца.\nС уважением,\nStadt Rheinstadt\nStadt Rheinstadt\nSeite 1 von 1",
+      "pageCount" : 1,
+      "ocrPages" : 1,
+      "ocrConfidence" : 0.952,
+      "detectAgentType" : "notice",
+      "expenseCategory" : null,
+      "fields" : { },
+      "steps" : {
+        "SECURITY_SCAN" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "HASH" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "DUPLICATE_CHECK" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "FORMAT_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "TEXT_EXTRACT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 16,
+          "error" : null
+        },
+        "OCR" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 909,
+          "error" : null
+        },
+        "LANGUAGE_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "CLASSIFY" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 63,
+          "error" : null
+        }
+      },
+      "classificationRationale" : null,
+      "pages" : [ {
+        "page" : 1,
+        "ocrUsed" : true,
+        "confidence" : 0.952,
+        "textLength" : 525,
+        "error" : null
+      } ],
+      "detectAgentOk" : true,
+      "detectAgentSummary" : "Dokumenttyp erkannt: notice"
+    },
+    "durationMs" : 1077
+  }, {
+    "id" : "dev-quittung_kassenbon-ru-06",
+    "file" : "dev/dev-quittung_kassenbon-ru-06.jpg",
+    "split" : "dev",
+    "language" : "ru",
+    "trueType" : "quittung_kassenbon",
+    "trueCategory" : "FINANCE",
+    "difficulty" : "russian",
+    "condition" : "russian",
+    "pagesExpected" : 1,
+    "multipage" : false,
+    "paid" : null,
+    "handwritten" : false,
+    "stamped" : false,
+    "cropped" : false,
+    "foreignObjects" : [ ],
+    "expectedFields" : {
+      "Schreibendatum" : "2026-10-21",
+      "Betrag" : "38.76"
+    },
+    "expectedSupplier" : "Malerbetrieb Nowak",
+    "expectedNumber" : null,
+    "expectedDate" : "2026-10-21",
+    "expectedAmount" : "38.76",
+    "expectedExpenseCategory" : null,
+    "expenseText" : null,
+    "acceptableTypes" : [ ],
+    "notes" : "Russian translation; the platform intentionally routes non-German documents to a person",
+    "actual" : {
+      "error" : null,
+      "classifiedType" : null,
+      "acceptedType" : null,
+      "confidence" : null,
+      "language" : "ru",
+      "sender" : "Malerbetrieb Nowak",
+      "senderSource" : "LETTER",
+      "processingStatus" : "REVIEW_REQUIRED",
+      "reviewStatus" : "PENDING",
+      "extractedTextLength" : 338,
+      "extractedTextSnippet" : "Malerbetrieb Nowak\nHandwerksgasse 14 - 45127 Essen - Tel. 0201 889977 - info@maler-nowak.de\nКассовый чек\nНомер чека: 09-98676\nДата: 21.10.2026\nТовар Количество Цена\nКофе 1 2,80 EUR\nБулочка 2 3,40 EUR\nКанцтовары 1 32,56 EUR\nИтого: 38,76 EUR\nСпасибо за покупку!\nНДС 19 % включён.\nОплата наличными: 38,76 EUR\nMalerbetrieb Nowak\nSeite 1 von 1",
+      "pageCount" : 1,
+      "ocrPages" : 1,
+      "ocrConfidence" : 0.9436,
+      "detectAgentType" : "scan",
+      "expenseCategory" : null,
+      "fields" : { },
+      "steps" : {
+        "SECURITY_SCAN" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "HASH" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "DUPLICATE_CHECK" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "FORMAT_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "TEXT_EXTRACT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 26,
+          "error" : null
+        },
+        "OCR" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 818,
+          "error" : null
+        },
+        "LANGUAGE_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "CLASSIFY" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 56,
+          "error" : null
+        }
+      },
+      "classificationRationale" : null,
+      "pages" : [ {
+        "page" : 1,
+        "ocrUsed" : true,
+        "confidence" : 0.9436,
+        "textLength" : 338,
+        "error" : null
+      } ],
+      "detectAgentOk" : true,
+      "detectAgentSummary" : "Dokumenttyp erkannt: scan"
+    },
+    "durationMs" : 988
+  }, {
+    "id" : "dev-medizinische_rechnung-ru-07",
+    "file" : "dev/dev-medizinische_rechnung-ru-07.jpg",
+    "split" : "dev",
+    "language" : "ru",
+    "trueType" : "medizinische_rechnung",
+    "trueCategory" : "FAMILY_EDUCATION_HEALTH",
+    "difficulty" : "russian",
+    "condition" : "russian",
+    "pagesExpected" : 1,
+    "multipage" : false,
+    "paid" : null,
+    "handwritten" : false,
+    "stamped" : false,
+    "cropped" : false,
+    "foreignObjects" : [ ],
+    "expectedFields" : {
+      "Schreibendatum" : "2026-01-03",
+      "Betrag" : "151.09"
+    },
+    "expectedSupplier" : "Praxis Dr. med. Yilmaz",
+    "expectedNumber" : null,
+    "expectedDate" : "2026-01-03",
+    "expectedAmount" : "151.09",
+    "expectedExpenseCategory" : null,
+    "expenseText" : null,
+    "acceptableTypes" : [ ],
+    "notes" : "Russian translation; the platform intentionally routes non-German documents to a person",
+    "actual" : {
+      "error" : null,
+      "classifiedType" : null,
+      "acceptedType" : null,
+      "confidence" : null,
+      "language" : "ru",
+      "sender" : "Praxis Dr. med. Yilmaz",
+      "senderSource" : "LETTER",
+      "processingStatus" : "REVIEW_REQUIRED",
+      "reviewStatus" : "PENDING",
+      "extractedTextLength" : 445,
+      "extractedTextSnippet" : "Praxis Dr. med. Yilmaz\nLindenstraße 31 - 70173 Stuttgart - Tel. 0711 223366 - praxis@dr-yilmaz.de\nМедицинский счёт\nНомер счёта: MR-5756\nДата: 03.01.2026\nПациент: Госпожа Эрика Мустер\nУважаемые дамы и господа,\nНаправляем счёт за медицинские услуги.\nУслуга Сумма\nКонсультация и осмотр 90,65 EUR\nЛабораторные анализы 60,44 EUR\nИтого к оплате: 151,09 EUR\nОплата до 17.01.2026.\nС уважением,\nPraxis Dr. med. Yilmaz\nPraxis Dr. med. Yilmaz\nSeite 1 von 1",
+      "pageCount" : 1,
+      "ocrPages" : 1,
+      "ocrConfidence" : 0.9559,
+      "detectAgentType" : "invoice",
+      "expenseCategory" : null,
+      "fields" : { },
+      "steps" : {
+        "DUPLICATE_CHECK" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "SECURITY_SCAN" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "HASH" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "FORMAT_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "TEXT_EXTRACT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 19,
+          "error" : null
+        },
+        "OCR" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 878,
+          "error" : null
+        },
+        "LANGUAGE_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "CLASSIFY" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 69,
+          "error" : null
+        }
+      },
+      "classificationRationale" : null,
+      "pages" : [ {
+        "page" : 1,
+        "ocrUsed" : true,
+        "confidence" : 0.9559,
+        "textLength" : 445,
+        "error" : null
+      } ],
+      "detectAgentOk" : true,
+      "detectAgentSummary" : "Dokumenttyp erkannt: invoice"
+    },
+    "durationMs" : 1057
+  }, {
+    "id" : "dev-schule-ru-08",
+    "file" : "dev/dev-schule-ru-08.jpg",
+    "split" : "dev",
+    "language" : "ru",
+    "trueType" : "schule",
+    "trueCategory" : "FAMILY_EDUCATION_HEALTH",
+    "difficulty" : "russian",
+    "condition" : "russian",
+    "pagesExpected" : 1,
+    "multipage" : false,
+    "paid" : null,
+    "handwritten" : false,
+    "stamped" : false,
+    "cropped" : false,
+    "foreignObjects" : [ ],
+    "expectedFields" : {
+      "Schreibendatum" : "2026-02-20"
+    },
+    "expectedSupplier" : "Grundschule Am Park",
+    "expectedNumber" : null,
+    "expectedDate" : "2026-02-20",
+    "expectedAmount" : null,
+    "expectedExpenseCategory" : null,
+    "expenseText" : null,
+    "acceptableTypes" : [ ],
+    "notes" : "Russian translation; the platform intentionally routes non-German documents to a person",
+    "actual" : {
+      "error" : null,
+      "classifiedType" : null,
+      "acceptedType" : null,
+      "confidence" : null,
+      "language" : "ru",
+      "sender" : "Grundschule Am Park",
+      "senderSource" : "LETTER",
+      "processingStatus" : "REVIEW_REQUIRED",
+      "reviewStatus" : "PENDING",
+      "extractedTextLength" : 419,
+      "extractedTextSnippet" : "Grundschule Am Park\nParkallee 2 - 50667 Köln - Tel. 0221 778899 - sekretariat@grundschule-am-park.de\nПисьмо родителям\nДата: 20.02.2026\nУчебный год: 2026/2027\nУважаемые родители,\nПриглашаем Вас на родительское собрание.\nДата собрания: 06.03.2026\nТемы: школьная поездка, успеваемость и школьная конференция.\nПросим сообщить о Вашем участии до 12.10.2026.\nС уважением,\nGrundschule Am Park\nGrundschule Am Park\nSeite 1 von 1",
+      "pageCount" : 1,
+      "ocrPages" : 1,
+      "ocrConfidence" : 0.9569,
+      "detectAgentType" : "scan",
+      "expenseCategory" : null,
+      "fields" : { },
+      "steps" : {
+        "SECURITY_SCAN" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "HASH" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "DUPLICATE_CHECK" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "FORMAT_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "TEXT_EXTRACT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 16,
+          "error" : null
+        },
+        "OCR" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 748,
+          "error" : null
+        },
+        "LANGUAGE_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "CLASSIFY" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 38,
+          "error" : null
+        }
+      },
+      "classificationRationale" : null,
+      "pages" : [ {
+        "page" : 1,
+        "ocrUsed" : true,
+        "confidence" : 0.9569,
+        "textLength" : 419,
+        "error" : null
+      } ],
+      "detectAgentOk" : true,
+      "detectAgentSummary" : "Dokumenttyp erkannt: scan"
+    },
+    "durationMs" : 892
+  } ]
+}

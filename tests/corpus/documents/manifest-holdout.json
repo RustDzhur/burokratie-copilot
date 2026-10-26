@@ -524,7 +524,7 @@
       ],
       "notes": "",
       "mime": "image/jpeg",
-      "bytes": 163779
+      "bytes": 164585
     },
     {
       "id": "holdout-schule-clean-15",
@@ -1418,7 +1418,7 @@
       ],
       "notes": "two pages, second page carries continuation/terms",
       "mime": "application/pdf",
-      "bytes": 463051
+      "bytes": 463184
     },
     {
       "id": "holdout-businessplan-multipage-02",
@@ -1455,7 +1455,7 @@
       ],
       "notes": "two pages, second page carries continuation/terms",
       "mime": "application/pdf",
-      "bytes": 480571
+      "bytes": 480704
     },
     {
       "id": "holdout-mietvertrag-multipage-03",
@@ -1491,7 +1491,7 @@
       ],
       "notes": "two pages, second page carries continuation/terms",
       "mime": "application/pdf",
-      "bytes": 472567
+      "bytes": 472700
     },
     {
       "id": "holdout-rechnung-handwritten-01",
@@ -1639,7 +1639,7 @@
       ],
       "notes": "",
       "mime": "image/jpeg",
-      "bytes": 200160
+      "bytes": 201237
     },
     {
       "id": "holdout-rechnung-stamped-paid-01",

@@ -45,6 +45,21 @@ class SenderRecognizerTest {
     }
 
     @Test
+    @DisplayName("a contact line with an organisation word in the e-mail address is not taken for the sender")
+    void contactLineIsNotTheSender() {
+        var sender = SenderRecognizer.recognise("""
+                Immobilienverwaltung Krüger
+                Schlossstraße 5 - 01067 Dresden - Tel. 0351 445599 - verwaltung@immo-krueger.example
+                Mietvertrag
+                Miete: 989,67 EUR monatlich
+                """).orElseThrow();
+        assertThat(sender.name()).isEqualTo("Immobilienverwaltung Krüger");
+        assertThat(sender.street()).isEqualTo("Schlossstraße 5");
+        assertThat(sender.postalCode()).isEqualTo("01067");
+        assertThat(sender.city()).startsWith("Dresden");
+    }
+
+    @Test
     @DisplayName("the recipient's address further down is not taken for the sender's")
     void recipientIsNotTheSender() {
         var sender = SenderRecognizer.recognise(LETTERHEAD).orElseThrow();

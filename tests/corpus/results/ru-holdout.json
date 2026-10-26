@@ -1,0 +1,570 @@
+{
+  "run" : {
+    "label" : "ru-holdout",
+    "split" : "holdout",
+    "startedAt" : "2026-10-26T19:26:40.026948Z",
+    "durationSeconds" : 6,
+    "corpusVersion" : 1,
+    "corpusSeed" : 20261026,
+    "manifest" : "/Users/rustem/Documents/WebDevelopment/burokratie-copilot/tests/corpus/documents/manifest.json",
+    "documentCount" : 5,
+    "ocr" : "tesseract",
+    "ocrLanguages" : "deu+eng",
+    "gitCommit" : "",
+    "javaVersion" : "21.0.3",
+    "os" : "Mac OS X aarch64"
+  },
+  "documents" : [ {
+    "id" : "holdout-rechnung-ru-01",
+    "file" : "holdout/holdout-rechnung-ru-01.jpg",
+    "split" : "holdout",
+    "language" : "ru",
+    "trueType" : "rechnung",
+    "trueCategory" : "FINANCE",
+    "difficulty" : "russian",
+    "condition" : "russian",
+    "pagesExpected" : 1,
+    "multipage" : false,
+    "paid" : null,
+    "handwritten" : false,
+    "stamped" : false,
+    "cropped" : false,
+    "foreignObjects" : [ ],
+    "expectedFields" : {
+      "Rechnungsnummer" : "RE-2026-1666",
+      "Rechnungsdatum" : "2026-05-11",
+      "Brutto" : "1956.68"
+    },
+    "expectedSupplier" : "Stadtwerke Musterstadt GmbH",
+    "expectedNumber" : "RE-2026-1666",
+    "expectedDate" : "2026-05-11",
+    "expectedAmount" : "1956.68",
+    "expectedExpenseCategory" : "fees",
+    "expenseText" : "Консультационные услуги",
+    "acceptableTypes" : [ ],
+    "notes" : "Russian translation; the platform intentionally routes non-German documents to a person",
+    "actual" : {
+      "error" : null,
+      "classifiedType" : null,
+      "acceptedType" : null,
+      "confidence" : null,
+      "language" : "ru",
+      "sender" : "Stadtwerke Musterstadt GmbH",
+      "senderSource" : "LETTER",
+      "processingStatus" : "REVIEW_REQUIRED",
+      "reviewStatus" : "PENDING",
+      "extractedTextLength" : 562,
+      "extractedTextSnippet" : "Stadtwerke Musterstadt GmbH\nHauptstraße 12 - 12345 Musterstadt - Tel. 0345 123456 - service@stadtwerke-musterstadt.de\nСчёт\nНомер счёта: RE-2026-1666\nДата счёта: 11.05.2026\nУважаемые дамы и господа,\nНаправляем Вам счёт за оказанные услуги:\n| Позиция Описание Сумма\n| 1 Консультационные услуги 1.644,27 EUR\nСумма без НДС: 1.644,27 EUR\nНДС 19 %: 312,41 EUR\nИтого к оплате: 1.956,68 EUR\nОплата до 25.05.2026 на счёт IBAN DE89370400440532013000.\nПросим указать номер счёта при оплате.\nС уважением,\nStadtwerke Musterstadt GmbH\nStadtwerke Musterstadt GmbH\nSeite 1 von 1",
+      "pageCount" : 1,
+      "ocrPages" : 1,
+      "ocrConfidence" : 0.9473,
+      "detectAgentType" : "invoice",
+      "expenseCategory" : null,
+      "fields" : {
+        "IBAN" : {
+          "value" : "DE89370400440532013000.",
+          "normalized" : "DE89370400440532013000",
+          "type" : "IBAN",
+          "sourceKind" : "OCR",
+          "page" : 1,
+          "snippet" : "Оплата до 25.05.2026 на счёт IBAN DE89370400440532013000.",
+          "confidence" : 0.85
+        }
+      },
+      "steps" : {
+        "SECURITY_SCAN" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "HASH" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "DUPLICATE_CHECK" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "FORMAT_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "TEXT_EXTRACT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 90,
+          "error" : null
+        },
+        "OCR" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 1493,
+          "error" : null
+        },
+        "LANGUAGE_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 2,
+          "error" : null
+        },
+        "CLASSIFY" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 285,
+          "error" : null
+        }
+      },
+      "classificationRationale" : null,
+      "pages" : [ {
+        "page" : 1,
+        "ocrUsed" : true,
+        "confidence" : 0.9473,
+        "textLength" : 562,
+        "error" : null
+      } ],
+      "detectAgentOk" : true,
+      "detectAgentSummary" : "Dokumenttyp erkannt: invoice"
+    },
+    "durationMs" : 2319
+  }, {
+    "id" : "holdout-vertrag-ru-02",
+    "file" : "holdout/holdout-vertrag-ru-02.jpg",
+    "split" : "holdout",
+    "language" : "ru",
+    "trueType" : "vertrag",
+    "trueCategory" : "CONTRACTS",
+    "difficulty" : "russian",
+    "condition" : "russian",
+    "pagesExpected" : 1,
+    "multipage" : false,
+    "paid" : null,
+    "handwritten" : false,
+    "stamped" : false,
+    "cropped" : false,
+    "foreignObjects" : [ ],
+    "expectedFields" : {
+      "Beginn" : "2026-03-12",
+      "Kosten" : "1116.76",
+      "Kuendigungsfrist" : "3"
+    },
+    "expectedSupplier" : "Nordlicht Software GmbH",
+    "expectedNumber" : null,
+    "expectedDate" : "2026-03-12",
+    "expectedAmount" : "1116.76",
+    "expectedExpenseCategory" : null,
+    "expenseText" : null,
+    "acceptableTypes" : [ ],
+    "notes" : "Russian translation; the platform intentionally routes non-German documents to a person",
+    "actual" : {
+      "error" : null,
+      "classifiedType" : null,
+      "acceptedType" : null,
+      "confidence" : null,
+      "language" : "ru",
+      "sender" : "Nordlicht Software GmbH",
+      "senderSource" : "LETTER",
+      "processingStatus" : "REVIEW_REQUIRED",
+      "reviewStatus" : "PENDING",
+      "extractedTextLength" : 518,
+      "extractedTextSnippet" : "Nordlicht Software GmbH\nSpeicherstadt 7 - 20457 Hamburg - Tel. 040 998877 - rechnung@nordlicht-software.de\nДоговор\nмежду Nordlicht Software GmbH (Исполнитель) и ООО «Пример» (Заказчик).\n1. Предмет договора\nИсполнитель оказывает услуги по технической поддержке информационных систем.\n2. Срок действия\nНачало: 26.03.2026\nСрок: 24 месяца\nСтоимость: 1.116,76 EUR в месяц\nСрок уведомления: 3 месяца\nДоговор может быть расторгнут в письменной форме.\nС уважением,\nNordlicht Software GmbH\nNordlicht Software GmbH\nSeite 1 von 1",
+      "pageCount" : 1,
+      "ocrPages" : 1,
+      "ocrConfidence" : 0.9538,
+      "detectAgentType" : "invoice",
+      "expenseCategory" : null,
+      "fields" : { },
+      "steps" : {
+        "SECURITY_SCAN" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "HASH" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "DUPLICATE_CHECK" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "FORMAT_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "TEXT_EXTRACT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 24,
+          "error" : null
+        },
+        "OCR" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 948,
+          "error" : null
+        },
+        "LANGUAGE_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "CLASSIFY" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 88,
+          "error" : null
+        }
+      },
+      "classificationRationale" : null,
+      "pages" : [ {
+        "page" : 1,
+        "ocrUsed" : true,
+        "confidence" : 0.9538,
+        "textLength" : 518,
+        "error" : null
+      } ],
+      "detectAgentOk" : true,
+      "detectAgentSummary" : "Dokumenttyp erkannt: invoice"
+    },
+    "durationMs" : 1188
+  }, {
+    "id" : "holdout-behoerdenbescheid-ru-03",
+    "file" : "holdout/holdout-behoerdenbescheid-ru-03.jpg",
+    "split" : "holdout",
+    "language" : "ru",
+    "trueType" : "behoerdenbescheid",
+    "trueCategory" : "GOVERNMENT",
+    "difficulty" : "russian",
+    "condition" : "russian",
+    "pagesExpected" : 1,
+    "multipage" : false,
+    "paid" : null,
+    "handwritten" : false,
+    "stamped" : false,
+    "cropped" : false,
+    "foreignObjects" : [ ],
+    "expectedFields" : {
+      "Aktenzeichen" : "AZ-728264",
+      "Bescheiddatum" : "2026-10-26",
+      "Behoerde" : "Stadt Rheinstadt"
+    },
+    "expectedSupplier" : "Stadt Rheinstadt",
+    "expectedNumber" : "AZ-728264",
+    "expectedDate" : "2026-10-26",
+    "expectedAmount" : null,
+    "expectedExpenseCategory" : null,
+    "expenseText" : null,
+    "acceptableTypes" : [ ],
+    "notes" : "Russian translation; the platform intentionally routes non-German documents to a person",
+    "actual" : {
+      "error" : null,
+      "classifiedType" : null,
+      "acceptedType" : null,
+      "confidence" : null,
+      "language" : "ru",
+      "sender" : "Stadt Rheinstadt",
+      "senderSource" : "LETTER",
+      "processingStatus" : "REVIEW_REQUIRED",
+      "reviewStatus" : "PENDING",
+      "extractedTextLength" : 525,
+      "extractedTextSnippet" : "Stadt Rheinstadt\nRathausplatz 1 - 68159 Mannheim - Tel. 0621 555666 - stadt@rheinstadt.de\nРешение ведомства\nНомер дела: AZ-728264\nДата решения: 26.10.2026\nВедомство: Stadt Rheinstadt\nУважаемые дамы и господа,\nПо Вашему заявлению принято следующее решение.\nЗаявление удовлетворено. Пособие назначается с 01.09.2026 на двенадцать месяцев.\nСрок: no 25.11.2026\nПросим предоставить недостающие документы в указанный срок.\nРешение может быть обжаловано в течение месяца.\nС уважением,\nStadt Rheinstadt\nStadt Rheinstadt\nSeite 1 von 1",
+      "pageCount" : 1,
+      "ocrPages" : 1,
+      "ocrConfidence" : 0.9524,
+      "detectAgentType" : "notice",
+      "expenseCategory" : null,
+      "fields" : { },
+      "steps" : {
+        "SECURITY_SCAN" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "HASH" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "DUPLICATE_CHECK" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "FORMAT_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "TEXT_EXTRACT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 15,
+          "error" : null
+        },
+        "OCR" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 1035,
+          "error" : null
+        },
+        "LANGUAGE_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "CLASSIFY" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 88,
+          "error" : null
+        }
+      },
+      "classificationRationale" : null,
+      "pages" : [ {
+        "page" : 1,
+        "ocrUsed" : true,
+        "confidence" : 0.9524,
+        "textLength" : 525,
+        "error" : null
+      } ],
+      "detectAgentOk" : true,
+      "detectAgentSummary" : "Dokumenttyp erkannt: notice"
+    },
+    "durationMs" : 1250
+  }, {
+    "id" : "holdout-medizinische_rechnung-ru-04",
+    "file" : "holdout/holdout-medizinische_rechnung-ru-04.jpg",
+    "split" : "holdout",
+    "language" : "ru",
+    "trueType" : "medizinische_rechnung",
+    "trueCategory" : "FAMILY_EDUCATION_HEALTH",
+    "difficulty" : "russian",
+    "condition" : "russian",
+    "pagesExpected" : 1,
+    "multipage" : false,
+    "paid" : null,
+    "handwritten" : false,
+    "stamped" : false,
+    "cropped" : false,
+    "foreignObjects" : [ ],
+    "expectedFields" : {
+      "Schreibendatum" : "2026-04-12",
+      "Betrag" : "117.61"
+    },
+    "expectedSupplier" : "Praxis Dr. med. Yilmaz",
+    "expectedNumber" : null,
+    "expectedDate" : "2026-04-12",
+    "expectedAmount" : "117.61",
+    "expectedExpenseCategory" : null,
+    "expenseText" : null,
+    "acceptableTypes" : [ ],
+    "notes" : "Russian translation; the platform intentionally routes non-German documents to a person",
+    "actual" : {
+      "error" : null,
+      "classifiedType" : null,
+      "acceptedType" : null,
+      "confidence" : null,
+      "language" : "ru",
+      "sender" : "Praxis Dr. med. Yilmaz",
+      "senderSource" : "LETTER",
+      "processingStatus" : "REVIEW_REQUIRED",
+      "reviewStatus" : "PENDING",
+      "extractedTextLength" : 445,
+      "extractedTextSnippet" : "Praxis Dr. med. Yilmaz\nLindenstraße 31 - 70173 Stuttgart - Tel. 0711 223366 - praxis@dr-yilmaz.de\nМедицинский счёт\nНомер счёта: MR-4146\nДата: 12.04.2026\nПациент: Госпожа Эрика Мустер\nУважаемые дамы и господа,\nНаправляем счёт за медицинские услуги.\nУслуга Сумма\nКонсультация и осмотр 70,57 EUR\nЛабораторные анализы 47,04 EUR\nИтого к оплате: 117,61 EUR\nОплата до 26.04.2026.\nС уважением,\nPraxis Dr. med. Yilmaz\nPraxis Dr. med. Yilmaz\nSeite 1 von 1",
+      "pageCount" : 1,
+      "ocrPages" : 1,
+      "ocrConfidence" : 0.9552,
+      "detectAgentType" : "invoice",
+      "expenseCategory" : null,
+      "fields" : { },
+      "steps" : {
+        "SECURITY_SCAN" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "HASH" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "DUPLICATE_CHECK" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "FORMAT_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "TEXT_EXTRACT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 20,
+          "error" : null
+        },
+        "OCR" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 784,
+          "error" : null
+        },
+        "LANGUAGE_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "CLASSIFY" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 80,
+          "error" : null
+        }
+      },
+      "classificationRationale" : null,
+      "pages" : [ {
+        "page" : 1,
+        "ocrUsed" : true,
+        "confidence" : 0.9552,
+        "textLength" : 445,
+        "error" : null
+      } ],
+      "detectAgentOk" : true,
+      "detectAgentSummary" : "Dokumenttyp erkannt: invoice"
+    },
+    "durationMs" : 988
+  }, {
+    "id" : "holdout-arbeitszeugnis-ru-05",
+    "file" : "holdout/holdout-arbeitszeugnis-ru-05.jpg",
+    "split" : "holdout",
+    "language" : "ru",
+    "trueType" : "arbeitszeugnis",
+    "trueCategory" : "EMPLOYMENT",
+    "difficulty" : "russian",
+    "condition" : "russian",
+    "pagesExpected" : 1,
+    "multipage" : false,
+    "paid" : null,
+    "handwritten" : false,
+    "stamped" : false,
+    "cropped" : false,
+    "foreignObjects" : [ ],
+    "expectedFields" : {
+      "Schreibendatum" : "2026-08-26"
+    },
+    "expectedSupplier" : "Rheinland Logistik GmbH",
+    "expectedNumber" : null,
+    "expectedDate" : "2026-08-26",
+    "expectedAmount" : null,
+    "expectedExpenseCategory" : null,
+    "expenseText" : null,
+    "acceptableTypes" : [ ],
+    "notes" : "Russian translation; the platform intentionally routes non-German documents to a person",
+    "actual" : {
+      "error" : null,
+      "classifiedType" : null,
+      "acceptedType" : null,
+      "confidence" : null,
+      "language" : "ru",
+      "sender" : "Rheinland Logistik GmbH",
+      "senderSource" : "LETTER",
+      "processingStatus" : "REVIEW_REQUIRED",
+      "reviewStatus" : "PENDING",
+      "extractedTextLength" : 486,
+      "extractedTextSnippet" : "Rheinland Logistik GmbH\nHafenstraße 20 - 47119 Duisburg - Tel. 0203 667788 - personal@rheinland-logistik.de\nТрудовая характеристика\nДата: 26.08.2026\nСотруднию Господин Макс Мустер\nГосподин Макс Мустер работал в нашей компании с 01.03.2022 по 30.09.2026.\nОн всегда показывал очень хорошие результаты и выполнял свои задачи к полному удовлетворению\nруководства.\nМы сожалеем о его уходе и желаем успехов в будущем.\nС уважением,\nRheinland Logistik GmbH\nRheinland Logistik GmbH Seite 1 von 1",
+      "pageCount" : 1,
+      "ocrPages" : 1,
+      "ocrConfidence" : 0.9518,
+      "detectAgentType" : "certificate",
+      "expenseCategory" : null,
+      "fields" : { },
+      "steps" : {
+        "SECURITY_SCAN" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "HASH" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "DUPLICATE_CHECK" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "FORMAT_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "TEXT_EXTRACT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 15,
+          "error" : null
+        },
+        "OCR" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 950,
+          "error" : null
+        },
+        "LANGUAGE_DETECT" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 0,
+          "error" : null
+        },
+        "CLASSIFY" : {
+          "status" : "SUCCEEDED",
+          "attempt" : 1,
+          "durationMs" : 49,
+          "error" : null
+        }
+      },
+      "classificationRationale" : null,
+      "pages" : [ {
+        "page" : 1,
+        "ocrUsed" : true,
+        "confidence" : 0.9518,
+        "textLength" : 486,
+        "error" : null
+      } ],
+      "detectAgentOk" : true,
+      "detectAgentSummary" : "Dokumenttyp erkannt: certificate"
+    },
+    "durationMs" : 1112
+  } ]
+}

@@ -275,10 +275,12 @@ public class FieldExtractionService {
     }
 
     /**
-     * Finds the label on its own line and returns what follows it.
+     * Finds every occurrence of the label on its own line and returns what follows each one.
      *
      * <p>The label must be followed by a separator or whitespace, otherwise {@code Frist} would match
-     * inside {@code Fristverlängerung} and produce a value from the wrong place.</p>
+     * inside {@code Fristverlängerung} and produce a value from the wrong place. All occurrences are
+     * returned because the first one can be a heading; the caller keeps the first value that passes
+     * its type check.</p>
      */
     private List<Candidate> candidatesAfterLabel(String text, String label, DocumentPage page) {
         String lowered = text.toLowerCase(Locale.GERMAN);

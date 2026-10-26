@@ -220,4 +220,27 @@ class FieldExtractionIT {
         assertThat(document.getProcessingStatus()).isEqualTo(Document.ProcessingStatus.REVIEW_REQUIRED);
         assertThat(document.getDocumentTypeId()).isNull();
     }
+
+    @Test
+    @DisplayName("a heading that contains the label does not hide the value further down")
+    void continuesPastALabelOccurrenceThatIsOnlyAHeading() throws Exception {
+        // "Bruttobetrag und Zahlungsziel" is a heading, not the gross amount. The first
+        // occurrence of the label used to stop the search, so the real value below it was
+        // reported as missing. The valid value below must win.
+        UUID id = uploadInvoice("""
+                Muster GmbH
+                Rechnungsnummer: 2026-001
+                Rechnungsdatum: 15.03.2026
+                Bruttobetrag und Zahlungsziel
+                Netto: 1.000,00 EUR
+                Umsatzsteuer: 190,00 EUR
+                Bruttobetrag: 1.190,00 EUR
+                Zahlbar bis: 31.03.2026
+                """);
+        advance(id);
+
+        assertThat(field(id, "Brutto").getNormalizedValue()).isEqualTo("1190.00");
+        assertThat(field(id, "Brutto").getFieldValue()).contains("1.190,00");
+    }
+
 }

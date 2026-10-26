@@ -998,7 +998,7 @@
       ],
       "notes": "",
       "mime": "image/jpeg",
-      "bytes": 181168
+      "bytes": 182367
     },
     {
       "id": "dev-schule-clean-28",
@@ -2186,7 +2186,7 @@
       ],
       "notes": "two pages, second page carries continuation/terms",
       "mime": "application/pdf",
-      "bytes": 503222
+      "bytes": 503355
     },
     {
       "id": "dev-mietvertrag-multipage-02",
@@ -2222,7 +2222,7 @@
       ],
       "notes": "two pages, second page carries continuation/terms",
       "mime": "application/pdf",
-      "bytes": 532206
+      "bytes": 532339
     },
     {
       "id": "dev-businessplan-multipage-03",
@@ -2259,7 +2259,7 @@
       ],
       "notes": "two pages, second page carries continuation/terms",
       "mime": "application/pdf",
-      "bytes": 515257
+      "bytes": 515390
     },
     {
       "id": "dev-betriebskostenabrechnung-multipage-04",
@@ -2296,7 +2296,7 @@
       ],
       "notes": "two pages, second page carries continuation/terms",
       "mime": "application/pdf",
-      "bytes": 434329
+      "bytes": 434462
     },
     {
       "id": "dev-rechnung-handwritten-01",
@@ -2480,7 +2480,7 @@
       ],
       "notes": "",
       "mime": "image/jpeg",
-      "bytes": 204953
+      "bytes": 205927
     },
     {
       "id": "dev-rechnung-stamped-paid-01",
@@ -3460,7 +3460,7 @@
       ],
       "notes": "",
       "mime": "image/jpeg",
-      "bytes": 163779
+      "bytes": 164585
     },
     {
       "id": "holdout-schule-clean-15",
@@ -4354,7 +4354,7 @@
       ],
       "notes": "two pages, second page carries continuation/terms",
       "mime": "application/pdf",
-      "bytes": 463051
+      "bytes": 463184
     },
     {
       "id": "holdout-businessplan-multipage-02",
@@ -4391,7 +4391,7 @@
       ],
       "notes": "two pages, second page carries continuation/terms",
       "mime": "application/pdf",
-      "bytes": 480571
+      "bytes": 480704
     },
     {
       "id": "holdout-mietvertrag-multipage-03",
@@ -4427,7 +4427,7 @@
       ],
       "notes": "two pages, second page carries continuation/terms",
       "mime": "application/pdf",
-      "bytes": 472567
+      "bytes": 472700
     },
     {
       "id": "holdout-rechnung-handwritten-01",
@@ -4575,7 +4575,7 @@
       ],
       "notes": "",
       "mime": "image/jpeg",
-      "bytes": 200160
+      "bytes": 201237
     },
     {
       "id": "holdout-rechnung-stamped-paid-01",
