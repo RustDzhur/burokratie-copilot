@@ -113,6 +113,28 @@ public class Document {
     @Column(name = "document_type_id")
     private UUID documentTypeId;
 
+    /** Expense category chosen by the rule engine or by a person (expenses module); null until classified. */
+    @Column(name = "expense_category_id")
+    private UUID expenseCategoryId;
+
+    /** Resolved archive folder, e.g. {@code /Belege/2026/Material/Waren}. Null while no category is fixed. */
+    @Column(name = "folder_path", length = 400)
+    private String folderPath;
+
+    @Column(name = "expense_category_confidence", precision = 5, scale = 4)
+    private java.math.BigDecimal expenseCategoryConfidence;
+
+    /** RULE when the rules decided, MANUAL when a person chose the category. */
+    @Column(name = "expense_category_source", length = 10)
+    private String expenseCategorySource;
+
+    /** One sentence naming the evidence that produced the category. */
+    @Column(name = "expense_category_rationale")
+    private String expenseCategoryRationale;
+
+    @Column(name = "categorized_at")
+    private Instant categorizedAt;
+
     @Column(name = "language", length = 10)
     private String language;
 
@@ -302,6 +324,54 @@ public class Document {
 
     public void setDocumentTypeId(UUID documentTypeId) {
         this.documentTypeId = documentTypeId;
+    }
+
+    public UUID getExpenseCategoryId() {
+        return expenseCategoryId;
+    }
+
+    public void setExpenseCategoryId(UUID expenseCategoryId) {
+        this.expenseCategoryId = expenseCategoryId;
+    }
+
+    public String getFolderPath() {
+        return folderPath;
+    }
+
+    public void setFolderPath(String folderPath) {
+        this.folderPath = folderPath;
+    }
+
+    public java.math.BigDecimal getExpenseCategoryConfidence() {
+        return expenseCategoryConfidence;
+    }
+
+    public void setExpenseCategoryConfidence(java.math.BigDecimal expenseCategoryConfidence) {
+        this.expenseCategoryConfidence = expenseCategoryConfidence;
+    }
+
+    public String getExpenseCategorySource() {
+        return expenseCategorySource;
+    }
+
+    public void setExpenseCategorySource(String expenseCategorySource) {
+        this.expenseCategorySource = expenseCategorySource;
+    }
+
+    public String getExpenseCategoryRationale() {
+        return expenseCategoryRationale;
+    }
+
+    public void setExpenseCategoryRationale(String expenseCategoryRationale) {
+        this.expenseCategoryRationale = expenseCategoryRationale;
+    }
+
+    public Instant getCategorizedAt() {
+        return categorizedAt;
+    }
+
+    public void setCategorizedAt(Instant categorizedAt) {
+        this.categorizedAt = categorizedAt;
     }
 
     public String getLanguage() {

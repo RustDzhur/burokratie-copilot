@@ -46,6 +46,7 @@ public class DocumentResortService {
     private final de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline;
     private final de.buerokratiecopilot.documents.sender.SenderService senders;
     private final de.buerokratiecopilot.documents.DocumentBlobRepository blobs;
+    private final de.buerokratiecopilot.expenses.ExpenseCategorizationService expenses;
     private final Map<de.buerokratiecopilot.documents.domain.DocumentProcessingStep.Step,
             de.buerokratiecopilot.documents.pipeline.ProcessingStepHandler> handlers = new java.util.EnumMap<>(
             de.buerokratiecopilot.documents.domain.DocumentProcessingStep.Step.class);
@@ -56,8 +57,10 @@ public class DocumentResortService {
                                  de.buerokratiecopilot.documents.DocumentBlobRepository blobs,
                                  List<de.buerokratiecopilot.documents.pipeline.ProcessingStepHandler> stepHandlers,
                                  de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline,
-                                 de.buerokratiecopilot.documents.sender.SenderService senders) {
+                                 de.buerokratiecopilot.documents.sender.SenderService senders,
+                                 de.buerokratiecopilot.expenses.ExpenseCategorizationService expenses) {
         this.senders = senders;
+        this.expenses = expenses;
         this.pipeline = pipeline;
         this.blobs = blobs;
         stepHandlers.forEach(handler -> handlers.put(handler.step(), handler));
@@ -207,7 +210,25 @@ public class DocumentResortService {
         documents.save(document);
     }
 
+    /**
+     * Re-sorts the document type, then the expense category.
+     *
+     * <p>The two are separate decisions: the type says what kind of letter this is, the category says which
+     * drawer of the bookkeeping it belongs in. A rule change can move one without the other, so both are
+     * repeated. A category a person chose is left alone by {@code refresh}.</p>
+     */
     private String resortOne(UUID documentId) {
+        String result = classifyAgain(documentId);
+        Document document = documents.findById(documentId).orElseThrow();
+        de.buerokratiecopilot.expenses.ExpenseCategorizationService.Outcome outcome = expenses.refresh(document);
+        if (outcome.decision() != null) {
+            log.debug("Document {} filed as expense category {} in {}", documentId, outcome.decision().code(),
+                    outcome.decision().folderPath());
+        }
+        return result;
+    }
+
+    private String classifyAgain(UUID documentId) {
         Document document = documents.findById(documentId).orElseThrow();
         // Only a type a person chose themselves is theirs. "Confirm" on a suggestion is not a choice: the old screen
         // pre-selected the guess, and a guess confirmed in a click is exactly what ended up in the wrong drawers.

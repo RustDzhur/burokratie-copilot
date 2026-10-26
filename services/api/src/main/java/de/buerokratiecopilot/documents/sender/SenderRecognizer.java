@@ -109,7 +109,10 @@ public final class SenderRecognizer {
         if (name == null) {
             for (int i = 0; i < Math.min(8, head.size()); i++) {
                 String line = head.get(i);
-                if (line.length() > 90 || TITLE_WORD.matcher(line).find() || RECIPIENT_CUE.matcher(line).find()) {
+                // A contact line is not the sender's name, even when the local part of the e-mail
+                // address contains an organisation word ("verwaltung@immo-krueger.de").
+                if (line.length() > 90 || line.contains("@") || line.toLowerCase(Locale.ROOT).startsWith("www.")
+                        || TITLE_WORD.matcher(line).find() || RECIPIENT_CUE.matcher(line).find()) {
                     continue;
                 }
                 if (LEGAL_FORM.matcher(line).find() || AUTHORITY.matcher(line).find() || ORGANIZATION_WORD.matcher(line).find()) {

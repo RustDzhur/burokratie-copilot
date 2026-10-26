@@ -1,10 +1,14 @@
 package de.buerokratiecopilot.documents.pipeline;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import org.springframework.stereotype.Component;
 
 import de.buerokratiecopilot.documents.classification.ClassificationService;
 import de.buerokratiecopilot.documents.domain.Document;
 import de.buerokratiecopilot.documents.domain.DocumentProcessingStep;
+import de.buerokratiecopilot.expenses.ExpenseCategorizationService;
 
 /**
  * Classifies a document and applies the confidence thresholds (spec §9.1 step 8, §9.3).
@@ -17,6 +21,11 @@ import de.buerokratiecopilot.documents.domain.DocumentProcessingStep;
  * <p>When the classifier cannot decide, the step does not fail: "we do not know what this is" is a
  * result, and it routes the document to a person with the reason attached. A failure is reserved for
  * the case where the stage could not run at all.</p>
+ *
+ * <p>The expense category is decided in the same step, and on purpose even when the document type waits
+ * for a person: the two questions are independent. A receipt whose letter type is uncertain is still a
+ * fuel receipt, and the tax adviser wants it in the right drawer. The category is stored either way; the
+ * folder is only derived when the rules are sure enough (see {@link ExpenseCategorizationService}).</p>
  */
 @Component
 public class ClassifyStepHandler implements ProcessingStepHandler {
@@ -27,13 +36,16 @@ public class ClassifyStepHandler implements ProcessingStepHandler {
     private final de.buerokratiecopilot.documents.fields.FieldExtractionService extraction;
 
     private final de.buerokratiecopilot.documents.sender.SenderService senders;
+    private final ExpenseCategorizationService expenses;
 
     public ClassifyStepHandler(ClassificationService classification,
                                de.buerokratiecopilot.documents.fields.FieldExtractionService extraction,
-                               de.buerokratiecopilot.documents.sender.SenderService senders) {
+                               de.buerokratiecopilot.documents.sender.SenderService senders,
+                               ExpenseCategorizationService expenses) {
         this.classification = classification;
         this.extraction = extraction;
         this.senders = senders;
+        this.expenses = expenses;
     }
 
     @Override
@@ -46,21 +58,24 @@ public class ClassifyStepHandler implements ProcessingStepHandler {
         // Who sent the letter is read as soon as there is text, whether or not the type needs a person's check: the sender is
         // there to be found later, and a document that waits for a person has a sender too.
         senders.apply(context.document());
+        Map<String, Object> diagnostics = new LinkedHashMap<>();
+
         if (context.document().getDocumentTypeId() != null) {
             // The stage is the only one that sets a type by itself, so a type present before it runs was chosen by a person.
             // The rules do not ask again about what a person has decided.
-            return StepResult.succeeded(java.util.Map.of("typeChosenByPerson", true),
-                    Document.ProcessingStatus.CLASSIFYING);
+            diagnostics.put("typeChosenByPerson", true);
+            expenseDiagnostics(diagnostics, context.document());
+            return StepResult.succeeded(diagnostics, Document.ProcessingStatus.CLASSIFYING);
         }
         ClassificationService.Outcome outcome = classification.classify(context.document(),
                 context.version(), context.document().getSender());
+        diagnostics.putAll(outcome.diagnostics());
 
         if (outcome.requiresReview()) {
             // The pipeline stops here until a person decides, so the extraction stage will not run before
             // that. A reviewer who is shown an empty table cannot judge anything, and a document that waits
             // with nothing read from it looks as if it had not been looked at. The values are read now,
             // against the suggested type or the generic field set, and stay unverified until confirmed.
-            java.util.Map<String, Object> diagnostics = new java.util.LinkedHashMap<>(outcome.diagnostics());
             try {
                 var preview = extraction.extract(context.document(), context.version());
                 diagnostics.put("previewFields", preview.found().size());
@@ -69,8 +84,29 @@ public class ClassifyStepHandler implements ProcessingStepHandler {
                 log.warn("Reading the fields for the review of document {} failed: {}",
                         context.document().getId(), ex.getMessage());
             }
+            expenseDiagnostics(diagnostics, context.document());
             return StepResult.succeeded(diagnostics, Document.ProcessingStatus.REVIEW_REQUIRED);
         }
-        return StepResult.succeeded(outcome.diagnostics(), Document.ProcessingStatus.CLASSIFYING);
+        expenseDiagnostics(diagnostics, context.document());
+        return StepResult.succeeded(diagnostics, Document.ProcessingStatus.CLASSIFYING);
+    }
+
+    /**
+     * Runs the expense rules and records what they saw. A failure of this optional enrichment must not fail
+     * the classification stage: the document type is the answer the pipeline is waiting for, the expense
+     * category is an additional filing decision that can be repeated with the resort or the API.
+     */
+    private void expenseDiagnostics(Map<String, Object> diagnostics, Document document) {
+        try {
+            ExpenseCategorizationService.Outcome outcome = expenses.categorize(document);
+            diagnostics.put("expenseCategoryApplied", outcome.applied());
+            diagnostics.put("expenseCategorySuggested", outcome.suggested());
+            diagnostics.put("expenseCategory", outcome.decision() == null ? null : outcome.decision().code());
+            diagnostics.put("folderPath", document.getFolderPath());
+        }
+        catch (RuntimeException ex) {
+            diagnostics.put("expenseCategoryError", ex.getMessage());
+            log.warn("Categorising document {} as an expense failed: {}", document.getId(), ex.getMessage());
+        }
     }
 }

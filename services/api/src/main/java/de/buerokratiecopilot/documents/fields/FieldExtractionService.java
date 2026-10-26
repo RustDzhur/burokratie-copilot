@@ -78,6 +78,13 @@ public class FieldExtractionService {
     /** How much text around the value is stored as evidence. */
     private static final int SNIPPET_MARGIN = 60;
 
+    /**
+     * How many occurrences of one label are inspected on a page. A document can repeat a word
+     * (a heading, a table cell, the actual value), but a pathological file must not turn the
+     * search into a quadratic scan.
+     */
+    private static final int MAX_CANDIDATES_PER_LABEL = 100;
+
     /** The generic field set every type without its own fields uses (reference, amount, date, IBAN). */
     private static final String GENERIC_TYPE = "unbekannt";
 
@@ -190,7 +197,7 @@ public class FieldExtractionService {
                 withoutHint.add(field.getFieldKey());
                 continue;
             }
-            Optional<Candidate> candidate = search(documentPages, labels);
+            Optional<Candidate> candidate = search(documentPages, labels, field.getValueType());
             if (candidate.isEmpty()) {
                 notFound.add(field.getFieldKey());
                 continue;
@@ -245,16 +252,22 @@ public class FieldExtractionService {
      * <p>Page order is preserved, so a value is attributed to the page a reader would find it on; the
      * declared label order decides which variant wins when a document contains several.</p>
      */
-    private Optional<Candidate> search(List<DocumentPage> documentPages, List<String> labels) {
+    private Optional<Candidate> search(List<DocumentPage> documentPages, List<String> labels,
+                                       String valueType) {
         for (String label : labels) {
             for (DocumentPage page : documentPages) {
                 String text = page.getTextContent();
                 if (text == null || text.isBlank()) {
                     continue;
                 }
-                Optional<Candidate> candidate = findAfterLabel(text, label, page);
-                if (candidate.isPresent()) {
-                    return candidate;
+                // A word can appear first as part of a heading ("Miete und Betriebskosten",
+                // "Vertragsbeginn und Laufzeit", "Gutschrift / Stornorechnung") and only later
+                // with its value. The heading is not a value: it fails the type check, and the
+                // search continues instead of reporting the field as missing for the whole page.
+                for (Candidate candidate : candidatesAfterLabel(text, label, page)) {
+                    if (FieldValueParser.parse(candidate.value(), valueType).valid()) {
+                        return Optional.of(candidate);
+                    }
                 }
             }
         }
@@ -267,15 +280,16 @@ public class FieldExtractionService {
      * <p>The label must be followed by a separator or whitespace, otherwise {@code Frist} would match
      * inside {@code Fristverlängerung} and produce a value from the wrong place.</p>
      */
-    private Optional<Candidate> findAfterLabel(String text, String label, DocumentPage page) {
+    private List<Candidate> candidatesAfterLabel(String text, String label, DocumentPage page) {
         String lowered = text.toLowerCase(Locale.GERMAN);
         String needle = label.toLowerCase(Locale.GERMAN);
         int from = 0;
+        List<Candidate> candidates = new ArrayList<>();
 
-        while (true) {
+        while (candidates.size() < MAX_CANDIDATES_PER_LABEL) {
             int index = lowered.indexOf(needle, from);
             if (index < 0) {
-                return Optional.empty();
+                break;
             }
             int after = index + needle.length();
             boolean boundaryBefore = index == 0
@@ -288,12 +302,13 @@ public class FieldExtractionService {
                 // "Rechnung Nr. 2026-117": the full stop belongs to the label, not to the value.
                 String value = rest.replaceFirst("^\\s*[:\\-–—.]?\\s*", "").strip();
                 if (!value.isEmpty()) {
-                    return Optional.of(new Candidate(value, page.getPageNumber(),
+                    candidates.add(new Candidate(value, page.getPageNumber(),
                             snippet(text, index, after), page.isOcrUsed() ? "OCR" : "TEXT"));
                 }
             }
             from = index + 1;
         }
+        return candidates;
     }
 
     /** The line around the value, so a reviewer sees the same words the extractor did. */

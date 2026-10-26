@@ -50,19 +50,59 @@ public class DocumentController {
     private final de.buerokratiecopilot.documents.classification.DocumentResortService resorter;
     private final de.buerokratiecopilot.documents.UploaderNames uploaders;
     private final de.buerokratiecopilot.documents.integrity.DocumentIntegrityService integrity;
+    private final de.buerokratiecopilot.expenses.ExpenseCategoryRepository expenseCategories;
+    private final de.buerokratiecopilot.expenses.ExpenseCategorizationService expenseCategorization;
 
     public DocumentController(DocumentService documentService,
                               de.buerokratiecopilot.documents.pipeline.DocumentProcessingPipeline pipeline,
                               de.buerokratiecopilot.documents.DocumentTypeRepository documentTypes,
                               de.buerokratiecopilot.documents.classification.DocumentResortService resorter,
                               de.buerokratiecopilot.documents.UploaderNames uploaders,
-                              de.buerokratiecopilot.documents.integrity.DocumentIntegrityService integrity) {
+                              de.buerokratiecopilot.documents.integrity.DocumentIntegrityService integrity,
+                              de.buerokratiecopilot.expenses.ExpenseCategoryRepository expenseCategories,
+                              de.buerokratiecopilot.expenses.ExpenseCategorizationService expenseCategorization) {
+        this.expenseCategories = expenseCategories;
+        this.expenseCategorization = expenseCategorization;
         this.uploaders = uploaders;
         this.resorter = resorter;
         this.documentService = documentService;
         this.pipeline = pipeline;
         this.documentTypes = documentTypes;
         this.integrity = integrity;
+    }
+
+    /**
+     * The expense category of a document, with the names and the DATEV accounts a screen needs.
+     *
+     * <p>Kept as a nested object in the document answer: a list of documents must not have to ask again per
+     * row, and the folder is only meaningful together with the category it came from.</p>
+     */
+    public record ExpenseCategorySummary(UUID id, String code, java.util.Map<String, String> names,
+                                         java.util.Map<String, String> descriptions,
+                                         java.util.Map<String, String> warnings,
+                                         String datevSkr03, String datevSkr04, String folderTemplate,
+                                         boolean businessExpense, boolean requiresReview) {
+
+        static ExpenseCategorySummary of(de.buerokratiecopilot.expenses.domain.ExpenseCategory category) {
+            if (category == null) {
+                return null;
+            }
+            return new ExpenseCategorySummary(category.getId(), category.getCode(),
+                    localized(category, category::nameIn), localized(category, category::descriptionIn),
+                    localized(category, category::warningIn), category.getDatevSkr03(),
+                    category.getDatevSkr04(), category.getFolderPath(), category.isBusinessExpense(),
+                    category.isRequiresReview());
+        }
+
+        private static java.util.Map<String, String> localized(
+                de.buerokratiecopilot.expenses.domain.ExpenseCategory category,
+                java.util.function.Function<String, String> value) {
+            java.util.Map<String, String> answer = new java.util.LinkedHashMap<>();
+            for (String language : java.util.List.of("de", "en", "ru")) {
+                answer.put(language, value.apply(language));
+            }
+            return answer;
+        }
     }
 
     /** Summary of a document as returned by the API. */
@@ -93,15 +133,32 @@ public class DocumentController {
             UUID senderContactId,
             String senderSource,
             UUID uploadedBy,
-            String uploadedByName) {
+            String uploadedByName,
+            ExpenseCategorySummary expenseCategory,
+            String folderPath,
+            Double expenseCategoryConfidence,
+            String expenseCategorySource,
+            String expenseCategoryRationale) {
 
         static DocumentResponse from(Document document) {
-            return from(document, null);
+            return from(document, null, null);
         }
 
         /** With the type spelled out: the code, the category and the name in every language. */
         static DocumentResponse from(Document document,
                                      de.buerokratiecopilot.documents.domain.DocumentType type) {
+            return from(document, type, null);
+        }
+
+        /**
+         * The full answer: document type, expense category and the folder it lies in.
+         *
+         * <p>The category is passed instead of being read from the document, so a list can resolve all rows
+         * with one query instead of one per row.</p>
+         */
+        static DocumentResponse from(Document document,
+                                     de.buerokratiecopilot.documents.domain.DocumentType type,
+                                     de.buerokratiecopilot.expenses.domain.ExpenseCategory expenseCategory) {
             return new DocumentResponse(document.getId(), document.getOriginalFilename(),
                     document.getMimeType(), document.getSizeBytes(), document.getContentHash(),
                     document.getCurrentVersion(), document.getProcessingStatus().name(),
@@ -114,7 +171,11 @@ public class DocumentController {
                     type == null ? null : java.util.Map.of("de", type.nameIn("de"), "en", type.nameIn("en"),
                             "ru", type.nameIn("ru")),
                     document.getPartyId(), document.getSender(), document.getSenderDetails(),
-                    document.getSenderContactId(), document.getSenderSource(), document.getCreatedBy(), null);
+                    document.getSenderContactId(), document.getSenderSource(), document.getCreatedBy(), null,
+                    ExpenseCategorySummary.of(expenseCategory), document.getFolderPath(),
+                    document.getExpenseCategoryConfidence() == null ? null
+                            : document.getExpenseCategoryConfidence().doubleValue(),
+                    document.getExpenseCategorySource(), document.getExpenseCategoryRationale());
         }
 
         /** The same answer with the name of the person who uploaded the document. */
@@ -122,7 +183,9 @@ public class DocumentController {
             return new DocumentResponse(id, originalFilename, mimeType, sizeBytes, contentHash, version, processingStatus,
                     reviewStatus, confidentiality, source, documentNumber, documentDate, documentTypeId, duplicateOfDocumentId,
                     legalHold, receivedAt, updatedAt, documentTypeCode, category, documentTypeNames, partyId, sender,
-                    senderDetails, senderContactId, senderSource, uploadedBy, uploadedBy == null ? null : names.get(uploadedBy));
+                    senderDetails, senderContactId, senderSource, uploadedBy, uploadedBy == null ? null : names.get(uploadedBy),
+                    expenseCategory, folderPath, expenseCategoryConfidence, expenseCategorySource,
+                    expenseCategoryRationale);
         }
     }
 
@@ -148,8 +211,9 @@ public class DocumentController {
                 : "PROCESSING_PENDING";
 
         return ResponseEntity.status(HttpStatus.CREATED).body(new UploadResponse(
-                DocumentResponse.from(received.document()).withUploader(namesFor(received.document())), received.duplicate(),
-                received.duplicateOf(), nextStep));
+                DocumentResponse.from(received.document(), documentTypeOf(received.document()),
+                        expenseCategoryOf(received.document())).withUploader(namesFor(received.document())),
+                received.duplicate(), received.duplicateOf(), nextStep));
     }
 
     @GetMapping
@@ -168,11 +232,16 @@ public class DocumentController {
         java.util.Map<java.util.UUID, de.buerokratiecopilot.documents.domain.DocumentType> byId =
                 new java.util.HashMap<>();
         documentTypes.findAll().forEach(documentType -> byId.put(documentType.getId(), documentType));
+        java.util.Map<java.util.UUID, de.buerokratiecopilot.expenses.domain.ExpenseCategory> expenseById =
+                new java.util.HashMap<>();
+        expenseCategories.findAll().forEach(expenseCategory -> expenseById.put(expenseCategory.getId(), expenseCategory));
         Page<Document> documents = documentService.list(q, status, source, category, type, party, pageable);
         java.util.Map<UUID, String> names = uploaders.namesOf(documents.getContent().stream().map(Document::getCreatedBy).toList());
         Page<DocumentResponse> page = documents
                 .map(document -> DocumentResponse.from(document,
-                        document.getDocumentTypeId() == null ? null : byId.get(document.getDocumentTypeId())).withUploader(names));
+                        document.getDocumentTypeId() == null ? null : byId.get(document.getDocumentTypeId()),
+                        document.getExpenseCategoryId() == null ? null : expenseById.get(document.getExpenseCategoryId()))
+                        .withUploader(names));
         return ResponseEntity.ok(page);
     }
 
@@ -234,7 +303,8 @@ public class DocumentController {
         Document document = documentService.require(id);
         // The type is named in the answer, as in the list: a screen that opens one document must not have to ask again.
         return ResponseEntity.ok(DocumentResponse.from(document,
-                document.getDocumentTypeId() == null ? null : documentTypes.findById(document.getDocumentTypeId()).orElse(null))
+                document.getDocumentTypeId() == null ? null : documentTypes.findById(document.getDocumentTypeId()).orElse(null),
+                expenseCategoryOf(document))
                 .withUploader(namesFor(document)));
     }
 
@@ -279,7 +349,9 @@ public class DocumentController {
     public ResponseEntity<DocumentResponse> changeStatus(@PathVariable UUID id,
                                                          @RequestParam Document.ProcessingStatus status,
                                                          @RequestParam(required = false) String reason) {
-        return ResponseEntity.ok(DocumentResponse.from(documentService.changeStatus(id, status, reason)));
+        Document updated = documentService.changeStatus(id, status, reason);
+        return ResponseEntity.ok(DocumentResponse.from(updated, documentTypeOf(updated),
+                expenseCategoryOf(updated)));
     }
 
 
@@ -351,7 +423,51 @@ public class DocumentController {
         // The person answered the question about the type: processing goes on from where it waited, and a document with
         // no other open question becomes ready. Without this it stayed "in processing" for ever.
         pipeline.advance(id);
-        return ResponseEntity.ok(DocumentResponse.from(documentService.require(id), type));
+        Document fresh = documentService.require(id);
+        return ResponseEntity.ok(DocumentResponse.from(fresh, type, expenseCategoryOf(fresh)));
+    }
+
+    /** What a caller sends to catalogue a document by hand. An empty body re-runs the rules. */
+    public record CategorizeRequest(String categoryCode) {
+    }
+
+    public record CategorizeResponse(DocumentResponse document, boolean applied, boolean suggested,
+                                     boolean manual, String message, String folderPath,
+                                     java.util.List<String> evidence) {
+    }
+
+    /**
+     * Catalogues a document immediately: either with the category the caller chose, or by re-running the
+     * rules. The explicit call applies the best match even below the automatic threshold — the caller asked
+     * for a decision now — but never invents a category when no rule matches.
+     */
+    @PostMapping("/{id}/categorize")
+    @PreAuthorize("hasAuthority('documents.review')")
+    @Operation(summary = "Catalogue a document as an expense: by the rules, or with the category the caller chose")
+    public ResponseEntity<CategorizeResponse> categorize(
+            @PathVariable UUID id,
+            @org.springframework.web.bind.annotation.RequestBody(required = false) CategorizeRequest request) {
+        var outcome = expenseCategorization.categorizeNow(id, request == null ? null : request.categoryCode(),
+                de.buerokratiecopilot.shared.context.CurrentUser.required());
+        Document fresh = documentService.require(id);
+        var decision = outcome.decision();
+        return ResponseEntity.ok(new CategorizeResponse(
+                DocumentResponse.from(fresh,
+                        fresh.getDocumentTypeId() == null ? null : documentTypes.findById(fresh.getDocumentTypeId()).orElse(null),
+                        expenseCategoryOf(fresh)),
+                outcome.applied(), outcome.suggested(), outcome.manual(), outcome.message(),
+                decision == null ? null : decision.folderPath(),
+                decision == null ? java.util.List.of() : decision.evidence()));
+    }
+
+    private de.buerokratiecopilot.expenses.domain.ExpenseCategory expenseCategoryOf(Document document) {
+        return document.getExpenseCategoryId() == null ? null
+                : expenseCategories.findById(document.getExpenseCategoryId()).orElse(null);
+    }
+
+    private de.buerokratiecopilot.documents.domain.DocumentType documentTypeOf(Document document) {
+        return document.getDocumentTypeId() == null ? null
+                : documentTypes.findById(document.getDocumentTypeId()).orElse(null);
     }
 
     @PostMapping("/resort")
@@ -373,6 +489,7 @@ public class DocumentController {
             }
         }
         pipeline.advance(id);
-        return ResponseEntity.ok(DocumentResponse.from(documentService.require(id)));
+        Document after = documentService.require(id);
+        return ResponseEntity.ok(DocumentResponse.from(after, documentTypeOf(after), expenseCategoryOf(after)));
     }
 }
