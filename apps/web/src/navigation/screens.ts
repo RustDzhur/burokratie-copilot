@@ -56,6 +56,7 @@ export type ScreenId =
   | 'templates'
   | 'automations'
   | 'integrations'
+  | 'agents'
   | 'scan'
   | 'reports'
   | 'exports'

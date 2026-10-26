@@ -34,6 +34,14 @@ const apiOrigin = (process.env.BC_API_ORIGIN ?? 'http://localhost:8080').replace
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Next 15.5 runs webpack inside a separate build worker by default (no custom `webpack`
+  // config here, so `experimental.webpackBuildWorker` defaults to true). On this machine
+  // that worker deadlocks at the compile stage: the parent and the jest-worker child both
+  // sit idle and `next build` never finishes. The worker is a build-time parallelism
+  // optimisation only; compiling in the main process changes nothing at runtime.
+  experimental: {
+    webpackBuildWorker: false,
+  },
   // Required by infra/docker/web.Dockerfile and checked by infra/scripts/check-structure.sh:
   // the production image runs `.next/standalone/server.js` instead of the full node_modules tree.
   output: 'standalone',

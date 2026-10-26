@@ -1,0 +1,36 @@
+{
+  "id": "compliance-check",
+  "name": "Compliance-Prüfung",
+  "category": "compliance",
+  "description": "Prüft ein Dokument, ein Verfahren oder den Arbeitsbereich gegen dokumentierte Anforderungen (Einstellungen, Rechtsgrundlagen, Aufbewahrungsregeln) und meldet Abweichungen.",
+  "functions": [
+    "Anforderungsprüfung für Dokumente",
+    "Anforderungsprüfung für Verfahren",
+    "Prüfung des Arbeitsbereichs (Impressum § 5 DDG, Aufbewahrungsregeln)",
+    "Bericht über Abweichungen"
+  ],
+  "triggers": ["document.created", "case.created", "manual"],
+  "inputs": {
+    "documentId": "uuid (optional)",
+    "caseId": "uuid (optional)"
+  },
+  "config": {
+    "documentChecks": [
+      "RETENTION_POLICY",
+      "POLICY_VERIFIED",
+      "POLICY_LEGAL_BASIS",
+      "REVIEW_CONSISTENCY",
+      "LEGAL_HOLD"
+    ],
+    "caseChecks": [
+      "CASE_CLOSE_OUTCOME",
+      "CASE_COUNTERPARTY"
+    ],
+    "workspaceChecks": [
+      "WS_IMPRINT",
+      "WS_RETENTION_VERIFIED",
+      "WS_RADAR"
+    ],
+    "destructive": false
+  }
+}

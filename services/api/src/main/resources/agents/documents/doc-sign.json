@@ -1,0 +1,18 @@
+{
+  "id": "doc-sign",
+  "name": "Signatur-Prozess",
+  "category": "documents",
+  "description": "Bereitet Dokumente zur Unterschrift vor: legt je Dokument eine Signatur-Aufgabe an, ohne externe Anbieter.",
+  "functions": ["Signatur-Liste", "Aufgaben-Erzeugung", "Frist-Setzung"],
+  "triggers": ["manual"],
+  "inputs": {
+    "documentIds": "uuids, kommagetrennt (oder documentId)",
+    "signerUserId": "uuid (optional)",
+    "dueDays": "integer (optional)"
+  },
+  "config": {
+    "defaultDueDays": 5,
+    "tag": "signature",
+    "taskTitlePrefix": "Dokument zur Unterschrift"
+  }
+}

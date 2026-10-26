@@ -1,0 +1,16 @@
+{
+  "id": "doc-assign",
+  "name": "Zuordnung & Ablage",
+  "category": "documents",
+  "description": "Ordnet ein Dokument per Regeln einem Vorgang oder Kontakt zu und legt die Verbindung fest.",
+  "functions": ["Vorgangs-Zuordnung", "Kontakt-Zuordnung", "Ablage-Verknüpfung"],
+  "triggers": ["document.processing_completed", "manual"],
+  "inputs": {
+    "documentId": "uuid (erforderlich)",
+    "caseId": "uuid (optional: erzwingt die Verknüpfung mit diesem Vorgang)"
+  },
+  "config": {
+    "autoLinkThreshold": 0.95,
+    "floor": 0.60
+  }
+}

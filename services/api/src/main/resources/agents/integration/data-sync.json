@@ -1,0 +1,21 @@
+{
+  "id": "data-sync",
+  "name": "Daten-Synchronisation",
+  "category": "integration",
+  "description": "Vergleicht die Datenstände zwischen den Systemen, findet Abweichungen und erstellt einen Synchronisationsplan. Führt nichts Destruktives aus; gefahrlose Korrekturen nur nach ausdrücklicher Freigabe.",
+  "functions": [
+    "Abgleich der Datenstände",
+    "Abweichungen erkennen",
+    "Synchronisationsplan erstellen",
+    "Gefahrlose Korrekturen nach Freigabe"
+  ],
+  "triggers": ["manual", "integration.sync.failed", "scheduled"],
+  "inputs": {
+    "integrationId": "uuid (optional)",
+    "provider": "string (optional)",
+    "apply": "true|false (Standard: false — nur Plan erstellen)"
+  },
+  "config": {
+    "maxAgeHours": 24
+  }
+}

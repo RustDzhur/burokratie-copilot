@@ -1,0 +1,25 @@
+{
+  "id": "crm-followup",
+  "name": "Follow-up",
+  "category": "crm",
+  "description": "Plant Wiederholungskontakte regelbasiert und legt Erinnerungen als Aufgaben und Benachrichtigungen an.",
+  "functions": ["Regel-basierte Terminplanung", "Aufgaben-Erstellung", "Benachrichtigungen"],
+  "triggers": ["manual", "task.completed", "mail.received", "case.updated"],
+  "inputs": {
+    "caseId": "uuid (optional)",
+    "contactId": "uuid (optional; caseId oder contactId Pflicht)",
+    "rule": "lead_new | after_activity | stage_based | default",
+    "intervalDays": "int",
+    "dueAt": "ISO-8601 instant (optional, überschreibt die Regel)",
+    "assigneeUserId": "uuid (optional)",
+    "note": "string"
+  },
+  "config": {
+    "defaultIntervalDays": 7,
+    "rules": {
+      "lead_new": { "intervalDays": 2 },
+      "after_activity": { "intervalDays": 7 },
+      "stage_based": { "NEW": 2, "CONTACTED": 3, "QUALIFIED": 5, "PROPOSAL": 7, "NEGOTIATION": 3 }
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "id": "account-datev",
+  "name": "Buchhaltung & DATEV",
+  "category": "finance",
+  "description": "Bereitet geprüfte eingehende Rechnungen als DATEV-Buchungssätze vor: Kontierung nach Kostenkategorie-Regeln, Kontrollsummen Soll/Haben und Export-Markierung im Rechnungsmodul. Keine externe Übertragung.",
+  "functions": ["Kontierung nach Kostenkategorie", "Kontrollsummen (Soll = Haben)", "DATEV-Export-Markierung"],
+  "triggers": ["invoice.imported", "deadline.hit", "manual"],
+  "inputs": {
+    "invoiceIds": "string — kommagetrennte UUIDs (optional; leer = alle geprüften Rechnungen)"
+  },
+  "config": {
+    "maxInvoices": 200,
+    "accounts": {
+      "material": "3400",
+      "marketing": "4600",
+      "travel": "4663",
+      "it": "4920",
+      "office": "4930",
+      "fees": "4950",
+      "rent": "4210",
+      "utilities": "4240",
+      "insurance": "4360",
+      "accounting": "4955",
+      "personnel": "4120"
+    },
+    "defaultAccount": "5900",
+    "inputTaxAccount": "1576",
+    "creditorAccount": "1600",
+    "settingPrefix": "finance.datev.account.",
+    "toleranceEur": 0.01
+  }
+}

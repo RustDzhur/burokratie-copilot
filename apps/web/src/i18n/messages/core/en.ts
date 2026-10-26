@@ -189,6 +189,7 @@ export const enCore: CoreMessages = {
     'items.assistant': 'AI assistant',
     'items.automations': 'Automations',
     'items.integrations': 'Integrations',
+    'items.agents': 'Agents',
     'items.scan': 'Scanning and import',
     'items.parties': 'People and profile',
     'items.reports': 'Reports',

@@ -1,0 +1,26 @@
+{
+  "id": "task-dispatch",
+  "name": "Aufgaben-Verteilung",
+  "category": "processes",
+  "description": "Erzeugt Aufgaben aus Ereignissen und weist sie nach den Rollenregeln des Mandanten zu.",
+  "functions": ["Aufgabe anlegen", "Regelbasierte Zuweisung", "Verteilungs-Queue"],
+  "triggers": ["document.processed", "case.created", "manual"],
+  "inputs": {
+    "title": "string (erforderlich)",
+    "description": "string (optional)",
+    "caseId": "uuid (optional)",
+    "priority": "CRITICAL|HIGH|NORMAL|LOW|INFORMATIONAL (optional)",
+    "dueAt": "iso-8601 (optional)",
+    "source": "MANUAL|DOCUMENT|WORKFLOW|AI|EMAIL|SYSTEM|IMPORT (optional)",
+    "sourceDocumentId": "uuid (optional)",
+    "eventType": "string (optional)",
+    "tags": "string, kommagetrennt (optional)",
+    "assigneeUserId": "uuid (optional, direkte Zuweisung)",
+    "autoAssign": "true|false (default true)"
+  },
+  "config": {
+    "defaultSource": "SYSTEM",
+    "defaultPriority": "NORMAL",
+    "autoAssign": true
+  }
+}

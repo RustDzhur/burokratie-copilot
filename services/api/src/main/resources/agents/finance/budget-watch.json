@@ -1,0 +1,28 @@
+{
+  "id": "budget-watch",
+  "name": "Budget-Überwachung",
+  "category": "finance",
+  "description": "Vergleicht die laufenden Ausgaben je Kostenkategorie (aus Rechnungspositionen) mit den Monatsbudgets aus den Einstellungen und meldet Abweichungen als Bericht.",
+  "functions": ["Budgets aus Einstellungen lesen", "Ist-Ausgaben je Kostenkategorie", "Abweichungsbericht"],
+  "triggers": ["deadline.hit", "invoice.imported", "manual"],
+  "inputs": {
+    "month": "YYYY-MM (optional; Standard = aktueller Monat)"
+  },
+  "config": {
+    "settingPrefix": "finance.budget.",
+    "settingSuffix": ".monthly_eur",
+    "categories": [
+      { "key": "material", "label": "Material" },
+      { "key": "marketing", "label": "Marketing" },
+      { "key": "travel", "label": "Reisekosten" },
+      { "key": "it", "label": "IT & Software" },
+      { "key": "office", "label": "Büro" },
+      { "key": "fees", "label": "Honorare & Gebühren" },
+      { "key": "rent", "label": "Miete" },
+      { "key": "utilities", "label": "Nebenkosten" },
+      { "key": "insurance", "label": "Versicherungen" },
+      { "key": "accounting", "label": "Steuer & Buchhaltung" },
+      { "key": "personnel", "label": "Personal" }
+    ]
+  }
+}

@@ -1462,3 +1462,68 @@ export interface DatevExportBatch {
   readonly filename: string;
   readonly skippedCount: number;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Agents (docs/agents/RUNTIME.md)                                             */
+/* -------------------------------------------------------------------------- */
+
+/** One entry of the agent catalogue (GET /api/v1/agents). */
+export interface AgentCatalogEntry {
+  readonly id: string;
+  readonly name: string;
+  readonly category: string;
+  readonly description: string;
+  readonly functions: readonly string[];
+  readonly triggers: readonly string[];
+  readonly implemented: boolean;
+  readonly runCount: number;
+}
+
+/** The declarative manifest shipped with the backend; `inputs` maps an input key to a type hint. */
+export interface AgentManifest {
+  readonly id: string;
+  readonly name: string;
+  readonly category: string;
+  readonly description: string;
+  readonly functions: readonly string[];
+  readonly triggers: readonly string[];
+  readonly inputs: Readonly<Record<string, string>>;
+  readonly config?: Readonly<Record<string, unknown>> | null;
+}
+
+/** One journal row: what ran, when, with which inputs and what it answered. */
+export interface AgentRunRow {
+  readonly id: string;
+  readonly agentId: string;
+  readonly trigger: string;
+  readonly inputs: Readonly<Record<string, string>>;
+  readonly ok: boolean;
+  readonly summary: string;
+  readonly startedAt: IsoDateTime;
+  readonly finishedAt: IsoDateTime | null;
+}
+
+/** GET /api/v1/agents/{id}: manifest, implementation state and the recent run journal. */
+export interface AgentDetail {
+  readonly manifest: AgentManifest;
+  readonly implemented: boolean;
+  readonly runCount: number;
+  readonly runs: readonly AgentRunRow[];
+}
+
+/** One thing a run created or changed; surfaced in the journal and the audit trail. */
+export interface AgentProduced {
+  readonly kind: string;
+  readonly ref: string;
+  readonly label: string;
+}
+
+/** POST /api/v1/agents/{id}/run: the honest answer of one run. */
+export interface AgentRunResponse {
+  readonly runId: string;
+  readonly agentId: string;
+  readonly ok: boolean;
+  readonly summary: string;
+  readonly produced: readonly AgentProduced[];
+  readonly meta?: Readonly<Record<string, string>> | null;
+}

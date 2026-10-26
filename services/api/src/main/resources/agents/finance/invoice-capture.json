@@ -1,0 +1,32 @@
+{
+  "id": "invoice-capture",
+  "name": "Rechnungserfassung",
+  "category": "finance",
+  "description": "Liest die Buchhaltungsfelder aus eingehenden Rechnungen (Nummer, Daten, Netto-, Steuer- und Bruttobetrag, Gegenpartei) nach festen Regeln aus dem Rechnungstext und legt die Rechnung im Rechnungsmodul an.",
+  "functions": ["Feldextraktion aus Rechnungstext", "Erfassung als eingehende Rechnung", "Duplikatschutz über Nummer und Lieferant"],
+  "triggers": ["invoice.imported", "document.created", "manual"],
+  "inputs": {
+    "rawText": "string — OCR-/Rohtext der Rechnung",
+    "documentId": "uuid (optional, Herkunftsdokument)",
+    "supplierId": "uuid (optional, Lieferant)",
+    "invoiceNumber": "string (optional, überschreibt Extraktion)",
+    "record": "true|false — Rechnung anlegen, wenn alle Pflichtfelder erkannt sind (Standard true)"
+  },
+  "config": {
+    "recordByDefault": true,
+    "labels": {
+      "number": ["Rechnungsnummer", "Rechnungs-Nr", "Rechnung Nr."],
+      "dates": {
+        "issue": ["Rechnungsdatum"],
+        "delivery": ["Leistungsdatum", "Lieferdatum"],
+        "due": ["Fällig", "Zahlbar bis", "Zahlungsziel"]
+      },
+      "amounts": {
+        "net": ["Netto"],
+        "tax": ["Umsatzsteuer", "Mehrwertsteuer", "MwSt"],
+        "gross": ["Brutto", "Bruttobetrag", "Gesamtbetrag", "Summe", "Endbetrag"]
+      },
+      "supplier": ["Lieferant", "Absender"]
+    }
+  }
+}

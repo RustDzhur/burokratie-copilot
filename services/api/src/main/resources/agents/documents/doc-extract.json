@@ -1,0 +1,16 @@
+{
+  "id": "doc-extract",
+  "name": "Daten-Extraktion",
+  "category": "documents",
+  "description": "Extrahiert Nummer, Daten, Beträge und Parteien aus Dokumenten nach festen Regeln, ohne externe KI.",
+  "functions": ["Feld-Extraktion", "Nummern-Erkennung", "Datums-Erkennung", "Betrags-Erkennung", "Parteien-Erkennung"],
+  "triggers": ["document.received", "manual"],
+  "inputs": {
+    "documentId": "uuid (erforderlich)"
+  },
+  "config": {
+    "numberLabels": ["Rechnungsnummer", "Rechnungs-Nr.", "Rechnungsnr.", "Vorgangsnummer", "Aktenzeichen", "Belegnummer"],
+    "partyLabels": ["Absender", "An", "Empfänger"],
+    "fillOnlyWhenEmpty": true
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "risk-flag",
+  "name": "Risiko-Hinweise",
+  "category": "compliance",
+  "description": "Sucht nach anomalen Mustern mit den Radar-Regeln und den aktuellen Schwellen der Einstellungen, legt Befunde ab und benachrichtigt die Verantwortlichen.",
+  "functions": [
+    "Radar-Prüfung eines Dokuments",
+    "Radar-Prüfung des gesamten Arbeitsbereichs",
+    "Befunde ablegen und Verantwortliche benachrichtigen"
+  ],
+  "triggers": ["document.created", "manual"],
+  "inputs": {
+    "documentId": "uuid (optional)",
+    "sweep": "boolean (optional, Standard true ohne documentId)"
+  },
+  "config": {
+    "destructive": false,
+    "defaultSweep": true,
+    "usesRadarRules": true
+  }
+}

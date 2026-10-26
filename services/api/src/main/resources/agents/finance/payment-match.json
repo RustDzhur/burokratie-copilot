@@ -1,0 +1,14 @@
+{
+  "id": "payment-match",
+  "name": "Zahlungsabgleich",
+  "category": "finance",
+  "description": "Sucht für unzugeordnete Bankeingänge passende offene Ausgangsrechnungen (Rechnungsnummer im Verwendungszweck oder exakt offener Betrag) und markiert Kandidaten zur Bestätigung durch eine Person.",
+  "functions": ["Kandidaten nach Rechnungsnummer und Betrag", "Eindeutigkeitsregel des Zahlungsmoduls", "Kandidaten markieren (keine automatische Zuordnung)"],
+  "triggers": ["payment.matched", "manual"],
+  "inputs": {
+    "accountId": "uuid (optional; leer = alle Konten)"
+  },
+  "config": {
+    "maxTransactions": 200
+  }
+}

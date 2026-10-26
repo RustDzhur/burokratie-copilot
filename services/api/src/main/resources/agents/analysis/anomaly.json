@@ -1,0 +1,22 @@
+{
+  "id": "anomaly",
+  "name": "Anomalie-Erkennung",
+  "category": "analysis",
+  "description": "Erkennt Abweichungen vom gewohnten Verlauf mit einfachen Statistiken: je Tagesreihe (Dokumente, Aufgaben, Rechnungen, Zahlungen, Kontovolumen) werden Mittelwert und Standardabweichung berechnet und Tage außerhalb von Mittelwert ± k·Sigma gemeldet.",
+  "functions": [
+    "Tagesreihen aus den Moduldaten",
+    "Mittelwert und Standardabweichung je Reihe",
+    "Abweichungsbericht mit z-Werten"
+  ],
+  "triggers": ["manual", "payment.matched", "invoice.imported"],
+  "inputs": {
+    "windowDays": "integer (optional; Standard: 30)",
+    "sigma": "float (optional; Standard: 2.0)",
+    "series": "documents|tasks|invoices|payments|bank (optional; Standard: alle)"
+  },
+  "config": {
+    "windowDays": 30,
+    "sigma": 2.0,
+    "minPoints": 7
+  }
+}

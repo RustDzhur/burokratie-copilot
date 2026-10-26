@@ -198,6 +198,7 @@ export const deCore = {
     'items.assistant': 'KI-Assistent',
     'items.automations': 'Automatisierungen',
     'items.integrations': 'Integrationen',
+    'items.agents': 'Agenten',
     'items.scan': 'Scannen und Import',
     'items.parties': 'Personen und Profil',
     'items.reports': 'Berichte',

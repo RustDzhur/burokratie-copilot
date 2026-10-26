@@ -1,0 +1,14 @@
+{
+  "id": "doc-ocr",
+  "name": "OCR-Texterkennung",
+  "category": "documents",
+  "description": "Bereitet den Text gescannter Seiten auf; wenn OCR deaktiviert ist (BC_ALLOW_NO_OCR), wird ehrlich abgelehnt.",
+  "functions": ["OCR-Bereitschaft", "Text-Aufbereitung"],
+  "triggers": ["document.received", "manual"],
+  "inputs": {
+    "documentId": "uuid (erforderlich)"
+  },
+  "config": {
+    "allowNoOcrEnv": "BC_ALLOW_NO_OCR"
+  }
+}

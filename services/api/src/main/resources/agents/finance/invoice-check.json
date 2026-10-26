@@ -1,0 +1,18 @@
+{
+  "id": "invoice-check",
+  "name": "Rechnungsprüfung",
+  "category": "finance",
+  "description": "Prüft eingehende Rechnungen gegen die Regeln des Rechnungsmoduls: Dublette über Nummer und Lieferant, Betragsgrenzen aus den Einstellungen, Vorhandensein der Gegenpartei, und berichtet alle Abweichungen.",
+  "functions": ["Duplikatprüfung (Nummer + Lieferant)", "Betragsgrenzen aus Einstellungen", "Gegenpartei-Prüfung", "Neuvalidierung und Abweichungsbericht"],
+  "triggers": ["invoice.imported", "manual"],
+  "inputs": {
+    "invoiceId": "uuid (optional; fehlt der Wert oder ist er \"all\", werden alle offenen eingehenden Rechnungen geprüft)"
+  },
+  "config": {
+    "maxInvoices": 100,
+    "limits": {
+      "settingKey": "finance.invoice_check.max_gross_eur",
+      "defaultGrossEur": 5000
+    }
+  }
+}

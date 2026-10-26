@@ -26,8 +26,8 @@ describe('screen registry', () => {
     // The count is asserted on purpose: a screen added to the registry without appearing here is a screen the
     // product claims and does not have.
     expect(screens).toHaveLength(41);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(41);
-    expect(new Set(screens.map((screen) => screen.href)).size).toBe(41);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(42);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(42);
     const ids = screens.map((screen) => screen.id);
     expect(ids).not.toContain('family');
     expect(ids).not.toContain('company');

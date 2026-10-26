@@ -1,0 +1,21 @@
+{
+  "id": "report-daily",
+  "name": "Tagesberichte",
+  "category": "analysis",
+  "description": "Erstellt den Tagesbericht eines Tages: neue Dokumente und Aufgaben, Fristen, fällige Rechnungen, ausgeführte Zahlungen und Kontobewegungen, ergänzt um Ausgaben und offene Forderungen aus dem Berichtsmodul.",
+  "functions": [
+    "Tagesübersicht Dokumente und Aufgaben",
+    "Tagesübersicht Fristen und Rechnungen",
+    "Tagesübersicht Zahlungen und Kontobewegungen",
+    "Kontext aus dem Berichtsmodul (30 Tage)"
+  ],
+  "triggers": ["manual", "deadline.hit"],
+  "inputs": {
+    "date": "yyyy-MM-dd (optional; Standard: heute in Europe/Berlin)"
+  },
+  "config": {
+    "timezone": "Europe/Berlin",
+    "contextDays": 30,
+    "writes": "none (read-only, idempotent)"
+  }
+}

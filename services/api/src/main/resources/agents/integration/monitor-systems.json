@@ -1,0 +1,21 @@
+{
+  "id": "monitor-systems",
+  "name": "System-Monitoring",
+  "category": "integration",
+  "description": "Prüft die Verfügbarkeit verbundener Anbindungen und Webhooks anhand des letzten Erfolgs und der Fehler, erstellt einen Bericht und benachrichtigt bei Problemen.",
+  "functions": [
+    "Verfügbarkeit prüfen",
+    "Bericht erstellen",
+    "Benachrichtigungen"
+  ],
+  "triggers": ["manual", "scheduled", "integration.sync.failed", "webhook.delivery.failed"],
+  "inputs": {
+    "scope": "integrations|webhooks|all (Standard: all)",
+    "notify": "true|false (Standard: true)"
+  },
+  "config": {
+    "failureThreshold": 3,
+    "staleHours": 24,
+    "notifyLevels": ["DOWN", "DEGRADED"]
+  }
+}
