@@ -198,6 +198,10 @@ import type {
   WorkspaceList,
   TaskDetail,
   ExplanationOutcome,
+  AgentCatalogEntry,
+  AgentDetail,
+  AgentRunResponse,
+  AgentRunRow,
 } from './types';
 
 /**
@@ -713,6 +717,20 @@ export interface ApiResources {
       readonly name: string;
       readonly trigger: string;
     }) => Promise<AutomationSummary>;
+  };
+  /**
+   * Agent catalogue (docs/agents/RUNTIME.md): what every agent promises, what triggers it,
+   * running it by hand and its journal. Read calls need `agents.view`, running needs `agents.run`;
+   * the backend enforces both.
+   */
+  readonly agents: {
+    list: (signal?: AbortSignal) => Promise<readonly AgentCatalogEntry[]>;
+    detail: (id: string, signal?: AbortSignal) => Promise<AgentDetail>;
+    run: (
+      id: string,
+      payload: { readonly trigger: string; readonly inputs: Readonly<Record<string, string>> },
+    ) => Promise<AgentRunResponse>;
+    runs: (id: string, limit?: number, signal?: AbortSignal) => Promise<readonly AgentRunRow[]>;
   };
   readonly integrations: {
     list: (params?: ListParams, signal?: AbortSignal) => Promise<Page<IntegrationSummary>>;
@@ -1843,6 +1861,29 @@ export function createResources(client: ApiClient): ApiResources {
           lastRunResult: null,
           runsLast30Days: 0,
         };
+      },
+    },
+    agents: {
+      list: async (signal) => {
+        return await client.get<readonly AgentCatalogEntry[]>('/agents', withSignal(signal));
+      },
+      detail: async (id, signal) => {
+        return await client.get<AgentDetail>(`/agents/${encodeURIComponent(id)}`, withSignal(signal));
+      },
+      run: async (id, payload) => {
+        // Manual runs are journaled and audited server-side; the idempotency key stops a
+        // double-click or a retry from running the agent twice.
+        return await client.post<AgentRunResponse>(
+          `/agents/${encodeURIComponent(id)}/run`,
+          payload,
+          { idempotencyKey: true },
+        );
+      },
+      runs: async (id, limit, signal) => {
+        return await client.get<readonly AgentRunRow[]>(`/agents/${encodeURIComponent(id)}/runs`, {
+          ...withSignal(signal),
+          query: typeof limit === 'number' && limit > 0 ? { limit } : undefined,
+        });
       },
     },
     integrations: {

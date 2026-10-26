@@ -25,9 +25,9 @@ describe('screen registry', () => {
     // and their pages stay on disk only until they are removed. The count is asserted on purpose:
     // a screen added to the registry without appearing here is a screen the product claims and
     // does not have.
-    expect(screens).toHaveLength(42);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(42);
-    expect(new Set(screens.map((screen) => screen.href)).size).toBe(42);
+    expect(screens).toHaveLength(43);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(43);
+    expect(new Set(screens.map((screen) => screen.href)).size).toBe(43);
   });
 
   it('puts every workspace screen into a sidebar section', () => {
@@ -37,7 +37,7 @@ describe('screen registry', () => {
         expect(sectionIds.has(screen.section)).toBe(true);
       }
     }
-    expect(sidebarScreens).toHaveLength(32);
+    expect(sidebarScreens).toHaveLength(33);
   });
 
   it('has a German, English and Russian title for every screen', () => {

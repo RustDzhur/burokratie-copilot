@@ -60,6 +60,7 @@ export type ScreenId =
   | 'assistant'
   | 'automations'
   | 'integrations'
+  | 'agents'
   | 'scan'
   | 'parties'
   | 'family'
@@ -193,6 +194,9 @@ export const screens: readonly ScreenDefinition[] = [
   // and their pages stay on disk only so nothing else breaks while they are being removed.
   // §5.2.20 — integrations
   screen('integrations', '/integrations', 'plug', 'automation', { minTier: 1 }),
+  // agent catalogue (docs/agents/RUNTIME.md): what every agent promises, its triggers and its
+  // journal. The backend owns agents.view/agents.run; the menu follows it like the server does.
+  screen('agents', '/agents', 'zap', 'automation', { requiredPermission: 'agents.view' }),
   // whom the cabinet belongs to: the person, the household members, the company
   screen('parties', '/parties', 'users', 'organisation'),
   // §5.2.22 — family cockpit

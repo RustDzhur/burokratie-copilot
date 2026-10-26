@@ -195,6 +195,7 @@ export const ruCore: CoreMessages = {
     'items.assistant': 'ИИ-ассистент',
     'items.automations': 'Автоматизации',
     'items.integrations': 'Интеграции',
+    'items.agents': 'Агенты',
     'items.scan': 'Сканирование и импорт',
     'items.parties': 'Люди и профиль',
     'items.family': 'Семейный кабинет',
