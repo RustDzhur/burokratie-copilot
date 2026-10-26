@@ -10,11 +10,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import de.buerokratiecopilot.shared.context.RequestContext;
 import de.buerokratiecopilot.shared.error.ApiException;
 
 /**
@@ -29,57 +31,75 @@ public class AgentRunner {
     private final AgentRegistry registry;
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
+    private final TransactionTemplate transactions;
 
-    public AgentRunner(AgentRegistry registry, JdbcTemplate jdbc, ObjectMapper mapper) {
+    public AgentRunner(AgentRegistry registry, JdbcTemplate jdbc, ObjectMapper mapper,
+                       PlatformTransactionManager transactionManager) {
         this.registry = registry;
         this.jdbc = jdbc;
         this.mapper = mapper;
+        this.transactions = new TransactionTemplate(transactionManager);
     }
 
     public record RunResponse(UUID runId, String agentId, boolean ok, String summary,
                               List<AgentResult.Produced> produced, Map<String, String> meta) {
     }
 
-    @Transactional
+    /**
+     * Runs one agent. The tenant scope wraps the <em>transaction</em>, not the other way round: the
+     * data source binds {@code app.tenant_id} to a connection when it is checked out, which happens
+     * when the transaction begins — so the context must already be set by then. Starting the
+     * transaction inside {@link RequestContext#runAs} is what makes the agent's reads and writes
+     * see the tenant's rows under row-level security, however the run was triggered (HTTP, test,
+     * dispatcher).
+     */
     public RunResponse run(UUID tenantId, UUID actorUserId, String agentId, String trigger,
                            Map<String, String> inputs) {
+        return RequestContext.runAs(tenantId, () -> transactions.execute(status ->
+                doRun(tenantId, actorUserId, agentId, trigger, inputs)));
+    }
+
+    private RunResponse doRun(UUID tenantId, UUID actorUserId, String agentId, String trigger,
+                              Map<String, String> inputs) {
         AgentManifest manifest = registry.manifest(agentId)
-                .orElseThrow(() -> ApiException.notFound("Unknown agent: " + agentId));
-        Agent implementation = registry.implementation(agentId)
-                .orElseThrow(() -> ApiException.conflict(
-                        "Agent " + agentId + " has no implementation yet"));
+                    .orElseThrow(() -> ApiException.notFound("Unknown agent: " + agentId));
+            Agent implementation = registry.implementation(agentId)
+                    .orElseThrow(() -> ApiException.conflict(
+                            "Agent " + agentId + " has no implementation yet"));
 
-        UUID runId = UUID.randomUUID();
-        Instant started = Instant.now();
-        Map<String, String> safeInputs = inputs == null ? Map.of() : inputs;
-        jdbc.update("""
-                INSERT INTO agent_runs (id, tenant_id, actor_user_id, agent_id, trigger, inputs, ok, summary, meta, started_at)
-                VALUES (?, ?, ?, ?, ?, ?::jsonb, false, '', '{}'::jsonb, ?)
-                """, runId, tenantId, actorUserId, agentId,
-                trigger == null ? "manual" : trigger, toJson(safeInputs), started);
+            UUID runId = UUID.randomUUID();
+            Instant started = Instant.now();
+            Map<String, String> safeInputs = inputs == null ? Map.of() : inputs;
+            jdbc.update("""
+                    INSERT INTO agent_runs (id, tenant_id, actor_user_id, agent_id, trigger, inputs, ok, summary, meta, started_at)
+                    VALUES (?, ?, ?, ?, ?, ?::jsonb, false, '', '{}'::jsonb, ?)
+                    """, runId, tenantId, actorUserId, agentId,
+                    trigger == null ? "manual" : trigger, toJson(safeInputs),
+                    java.sql.Timestamp.from(started));
 
-        AgentContext context = new AgentContext(tenantId, actorUserId, trigger, started, safeInputs);
-        AgentResult result;
-        try {
-            result = implementation.run(context);
-            if (result == null) {
-                result = AgentResult.failed("Agent returned nothing");
+            AgentContext context = new AgentContext(tenantId, actorUserId, trigger, started, safeInputs);
+            AgentResult result;
+            try {
+                result = implementation.run(context);
+                if (result == null) {
+                    result = AgentResult.failed("Agent returned nothing");
+                }
+            } catch (Exception e) {
+                log.error("agents: run of {} failed", agentId, e);
+                result = AgentResult.failed("Agent failed: " + e.getMessage());
             }
-        } catch (Exception e) {
-            log.error("agents: run of {} failed", agentId, e);
-            result = AgentResult.failed("Agent failed: " + e.getMessage());
-        }
 
-        Map<String, Object> meta = new java.util.HashMap<>(result.meta());
-        meta.put("produced", result.produced().stream()
-                .map(p -> Map.of("kind", p.kind(), "ref", p.ref() == null ? "" : p.ref(),
-                        "label", p.label() == null ? "" : p.label()))
-                .toList());
+            Map<String, Object> meta = new java.util.HashMap<>(result.meta());
+            meta.put("produced", result.produced().stream()
+                    .map(p -> Map.of("kind", p.kind(), "ref", p.ref() == null ? "" : p.ref(),
+                            "label", p.label() == null ? "" : p.label()))
+                    .toList());
 
-        jdbc.update("""
-                UPDATE agent_runs SET ok = ?, summary = ?, meta = ?::jsonb, finished_at = ?
-                WHERE id = ?
-                """, result.ok(), result.summary(), toJson(meta), Instant.now(), runId);
+            jdbc.update("""
+                    UPDATE agent_runs SET ok = ?, summary = ?, meta = ?::jsonb, finished_at = ?
+                    WHERE id = ?
+                    """, result.ok(), result.summary(), toJson(meta),
+                    java.sql.Timestamp.from(Instant.now()), runId);
 
         return new RunResponse(runId, agentId, result.ok(), result.summary(),
                 result.produced(), result.meta());

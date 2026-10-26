@@ -1,0 +1,30 @@
+{
+  "id": "mail-sort",
+  "name": "E-Mail-Sortierung",
+  "category": "communication",
+  "description": "Klassifiziert eingehende E-Mails nach Regeln (Betreff, Absender, Anhänge) und schlägt Kanal und Vorgang vor.",
+  "functions": ["Kategorie-Erkennung", "Kanal-Vorschlag", "Vorgangs-Vorschlag", "Verdachts-Prüfung"],
+  "triggers": ["mail.received", "manual"],
+  "inputs": {
+    "mailId": "uuid (optional)",
+    "subject": "string",
+    "bodyText": "string",
+    "from": "string",
+    "attachmentNames": "string (kommagetrennt)",
+    "isReply": "boolean (true/false)",
+    "caseId": "uuid (optional)"
+  },
+  "config": {
+    "channels": {
+      "SUSPICIOUS": "security",
+      "INVOICES": "finance",
+      "CONTRACTS": "legal",
+      "RESPONSES": "cases",
+      "INCOMING_DOCUMENTS": "documents",
+      "NOTIFICATIONS": "info",
+      "ADVERTISEMENT": "ignore",
+      "OTHER": "manual"
+    },
+    "caseReferencePattern": "V-[0-9]{4}-[0-9]+"
+  }
+}

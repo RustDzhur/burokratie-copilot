@@ -1,0 +1,16 @@
+{
+  "id": "cashflow",
+  "name": "Liquiditätsplanung",
+  "category": "finance",
+  "description": "Stellt erwartete Zuflüsse (offene Ausgangsrechnungen) und Abflüsse (offene Eingangsrechnungen) zusammen mit dem letzten Bankbestand zu einer rollierenden Liquiditätsprognose.",
+  "functions": ["Zuflüsse aus Ausgangsrechnungen", "Abflüsse aus Eingangsrechnungen", "Rollierende Prognose mit Mindestbestand"],
+  "triggers": ["deadline.hit", "payment.matched", "manual"],
+  "inputs": {
+    "horizonDays": "number (Standard 30)",
+    "bucketDays": "number (Standard 7)"
+  },
+  "config": {
+    "defaultHorizonDays": 30,
+    "defaultBucketDays": 7
+  }
+}

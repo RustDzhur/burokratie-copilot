@@ -1,0 +1,17 @@
+{
+  "id": "metric-collect",
+  "name": "Kennzahlen-Sammlung",
+  "category": "analysis",
+  "description": "Sammelt Kennzahlen aus den verbundenen Systemen (aktivierte Integrationen sowie die Module Dokumente, Aufgaben, Rechnungen, Banking) und führt sie zu einem einheitlichen Set mit Quelle, Kennzahl, Wert und Einheit zusammen.",
+  "functions": [
+    "Kennzahlen aus Integrationen",
+    "Kennzahlen aus Dokumenten, Aufgaben, Rechnungen und Banking",
+    "Einheitliches Kennzahlenset als JSON"
+  ],
+  "triggers": ["manual", "invoice.imported", "payment.matched"],
+  "inputs": {},
+  "config": {
+    "staleSyncAfterDays": 1,
+    "writes": "none (read-only, idempotent)"
+  }
+}

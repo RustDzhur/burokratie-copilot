@@ -1,0 +1,16 @@
+{
+  "id": "doc-archive",
+  "name": "Dokument-Archivierung",
+  "category": "documents",
+  "description": "Bestätigt die Archivreife eines Dokuments (alle Prüfungen bestanden) und setzt das Archivierungsdatum.",
+  "functions": ["Archivreife-Prüfung", "Archiv-Markierung"],
+  "triggers": ["manual"],
+  "inputs": {
+    "documentId": "uuid (erforderlich)"
+  },
+  "config": {
+    "allowedStatuses": ["READY", "ACTION_PENDING", "COMPLETED"],
+    "requireNoPendingReview": true,
+    "requireRequiredFields": true
+  }
+}

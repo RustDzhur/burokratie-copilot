@@ -1,0 +1,32 @@
+{
+  "id": "api-bridge",
+  "name": "API-Brücke",
+  "category": "integration",
+  "description": "Überträgt Daten zwischen Systemen über bestehende Anbindungen: Routing nach Regeln, jede Übertragung wird protokolliert.",
+  "functions": [
+    "Routing nach Regeln",
+    "Übertragung über aktive Webhook-Endpunkte",
+    "Protokoll jeder Übertragung",
+    "Idempotenz über Übertragungsschlüssel"
+  ],
+  "triggers": ["manual", "document.processed", "invoice.imported"],
+  "inputs": {
+    "sourceSystem": "string (optional)",
+    "targetSystem": "webhook | Provider-Schlüssel (optional)",
+    "endpointId": "uuid (optional)",
+    "endpointName": "string (optional)",
+    "entityType": "string",
+    "entityId": "uuid (optional)",
+    "eventType": "string (optional)",
+    "payload": "json string",
+    "idempotencyKey": "string (optional)"
+  },
+  "config": {
+    "routing": {
+      "invoice": "webhook",
+      "document": "webhook",
+      "payment.matched": "BANK_FINTS"
+    },
+    "defaultTarget": "webhook"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "doc-redact",
+  "name": "Anonymisierung",
+  "category": "documents",
+  "description": "Findet personenbezogene Daten per Muster (IBAN, E-Mail, Telefon, Adresse) und liefert einen Schwärzungs-Plan; schneidet nichts ohne Bestätigung heraus.",
+  "functions": ["Muster-Erkennung", "Schwärzungs-Plan"],
+  "triggers": ["document.received", "manual"],
+  "inputs": {
+    "documentId": "uuid (erforderlich)"
+  },
+  "config": {
+    "patterns": ["IBAN", "EMAIL", "PHONE", "ADDRESS"],
+    "mode": "PLAN_ONLY"
+  }
+}

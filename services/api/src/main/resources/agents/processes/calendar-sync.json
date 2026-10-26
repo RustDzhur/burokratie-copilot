@@ -1,0 +1,16 @@
+{
+  "id": "calendar-sync",
+  "name": "Kalender-Sync",
+  "category": "processes",
+  "description": "Vergleicht Fristen und Termine des internen Kalenders mit dem externen Kalender (CalDAV) und meldet Abweichungen, ohne etwas zu verändern.",
+  "functions": ["Intern-Extern-Abgleich", "Abweichungsbericht", "Keine Änderung ohne Bestätigung"],
+  "triggers": ["calendar.synced", "manual"],
+  "inputs": {
+    "scope": "all|caldav|internal (optional, default all)",
+    "daysAhead": "int (optional, default 30)"
+  },
+  "config": {
+    "daysAhead": 30,
+    "maxReported": 20
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "doc-scan",
+  "name": "Scan-Eingang",
+  "category": "documents",
+  "description": "Nimmt Scan-Aufträge an: ordnet Geräte oder Ordner zu (devices/ingest) und erzeugt Verarbeitungsaufträge.",
+  "functions": ["Geräte-Zuordnung", "Ordner-Zuordnung", "Auftragserzeugung"],
+  "triggers": ["manual"],
+  "inputs": {
+    "deviceId": "uuid (optional)",
+    "folderPath": "string (optional)",
+    "sourceKey": "string (Idempotenz-Schlüssel)",
+    "label": "string"
+  },
+  "config": {
+    "jobType": "SCAN",
+    "priority": 5
+  }
+}

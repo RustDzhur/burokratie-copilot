@@ -1,0 +1,26 @@
+{
+  "id": "insight",
+  "name": "Auswertungen",
+  "category": "analysis",
+  "description": "Wertet die gesammelten Kennzahlen nach festen Regeln aus und formuliert verständliche Schlussfolgerungen mit Schweregrad (info/warning/critical) und konkreten Empfehlungen — ohne externes KI-System.",
+  "functions": [
+    "Regelbasierte Auswertung der Modul-Kennzahlen",
+    "Auffälligkeiten mit Schweregrad",
+    "Konkrete Empfehlungen je Auffälligkeit"
+  ],
+  "triggers": ["manual", "task.due", "payment.matched"],
+  "inputs": {},
+  "config": {
+    "thresholds": {
+      "receivablesWarning": 1000,
+      "receivablesCritical": 10000,
+      "payablesWarning": 1000,
+      "payablesCritical": 10000,
+      "overdueTasksCritical": 10,
+      "pendingDocumentsInfo": 5,
+      "deadlinesNext7Info": 10,
+      "unmatchedTransactionsCritical": 20,
+      "staleSyncAfterDays": 1
+    }
+  }
+}

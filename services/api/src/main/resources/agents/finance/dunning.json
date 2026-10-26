@@ -1,0 +1,19 @@
+{
+  "id": "dunning",
+  "name": "Mahnwesen",
+  "category": "finance",
+  "description": "Findet überfällige Ausgangsrechnungen und bereitet Mahnschreiben als E-Mail-Entwürfe vor. Versendet wird nie automatisch — nur eine Person gibt den Entwurf frei.",
+  "functions": ["Überfällige Ausgangsrechnungen erkennen", "Mahnstufen nach Überfälligkeit", "Mahnungsentwürfe ohne Versand"],
+  "triggers": ["deadline.hit", "manual"],
+  "inputs": {
+    "customerId": "uuid (optional; leer = alle Kunden)"
+  },
+  "config": {
+    "levels": [
+      { "minDays": 7, "label": "Zahlungserinnerung", "feeEur": 0 },
+      { "minDays": 21, "label": "1. Mahnung", "feeEur": 5 },
+      { "minDays": 42, "label": "2. Mahnung", "feeEur": 10 }
+    ],
+    "channel": "EMAIL"
+  }
+}

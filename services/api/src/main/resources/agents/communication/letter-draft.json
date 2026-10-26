@@ -1,0 +1,19 @@
+{
+  "id": "letter-draft",
+  "name": "Briefentwurf",
+  "category": "communication",
+  "description": "Erzeugt Standard-Schreiben aus einer veröffentlichten Vorlage mit den Daten von Kontakt/Vorgang und legt das erzeugte Dokument ab.",
+  "functions": ["Vorlagen-Auswahl", "Platzhalter-Befüllung", "Dokument-Erzeugung", "Ablage am Vorgang"],
+  "triggers": ["manual", "case.created"],
+  "inputs": {
+    "templateCode": "string (Pflicht)",
+    "caseId": "uuid (optional)",
+    "contactId": "uuid (optional)",
+    "title": "string (optional)",
+    "field.*": "string (Werte für Vorlagen-Platzhalter)"
+  },
+  "config": {
+    "outputFormat": "PDF",
+    "idempotentPerTemplateAndCaseAndTitle": true
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "workflow-route",
+  "name": "Workflow-Steuerung",
+  "category": "processes",
+  "description": "Ermittelt aus dem Zustand von Vorgang und Dokumenten den nächsten Prozessschritt und an wen der Vorgang übergeben wird.",
+  "functions": ["Zustands-Analyse", "Nächster-Schritt-Bestimmung", "Übergabe an die zuständige Stelle"],
+  "triggers": ["case.status_changed", "document.processed", "task.due", "manual"],
+  "inputs": {
+    "caseId": "uuid (optional)",
+    "documentId": "uuid (optional)",
+    "workflowRunId": "uuid (optional)"
+  },
+  "config": {
+    "caseTypeToPreset": {
+      "rechnung": "incoming_invoice",
+      "behoerde": "authority_letter",
+      "bescheid": "authority_letter",
+      "amt": "authority_letter",
+      "vertrag": "contract_review",
+      "kuendigung": "contract_review"
+    },
+    "maxRunsToResume": 50
+  }
+}

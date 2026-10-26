@@ -1,0 +1,28 @@
+{
+  "id": "mail-reply",
+  "name": "Antwort-Assistenz",
+  "category": "communication",
+  "description": "Bereitet Antwort-Entwürfe auf eingehende E-Mails vor — aus Vorlagen (templates) oder als regelbasierte Eingangsbestätigung. Es wird nichts versendet.",
+  "functions": ["Vorlagen-Auswahl", "Platzhalter-Befüllung", "Entwurf anlegen", "Idempotenter Entwurf je E-Mail"],
+  "triggers": ["mail.received", "manual"],
+  "inputs": {
+    "mailId": "uuid (Pflicht)",
+    "templateCode": "string (optional)",
+    "caseId": "uuid (optional)",
+    "to": "string (optional, sonst Absender der E-Mail)",
+    "draftText": "string (optional, Freitext-Antwort)",
+    "field.*": "string (Werte für Vorlagen-Platzhalter)"
+  },
+  "config": {
+    "templateTerms": {
+      "INVOICES": "Mahnung",
+      "CONTRACTS": "Vertrag",
+      "RESPONSES": "Antwort",
+      "NOTIFICATIONS": "Eingang",
+      "INCOMING_DOCUMENTS": "Eingang",
+      "OTHER": "Antwort"
+    },
+    "sendsNothing": true,
+    "idempotencyKeyPrefix": "mail-reply"
+  }
+}

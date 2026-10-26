@@ -1,0 +1,23 @@
+{
+  "id": "audit-trail",
+  "name": "Prüfprotokoll",
+  "category": "compliance",
+  "description": "Sammelt den vollständigen Prüfpfad zu einem Objekt — wer hat wann was getan — und bereitet ihn als strukturierte Ausgabe (JSON) im Laufprotokoll auf.",
+  "functions": [
+    "Prüfpfad eines Objekts zusammenstellen",
+    "Statistik: Wer, Wann, Was",
+    "Strukturierte Ausgabe für die Archivierung"
+  ],
+  "triggers": ["manual"],
+  "inputs": {
+    "entityType": "string (erforderlich, z. B. document, case, contact)",
+    "entityId": "uuid (erforderlich)",
+    "from": "ISO-8601 instant (optional)",
+    "to": "ISO-8601 instant (optional)",
+    "limit": "int (optional, Standard 200)"
+  },
+  "config": {
+    "destructive": false,
+    "maxEvents": 200
+  }
+}

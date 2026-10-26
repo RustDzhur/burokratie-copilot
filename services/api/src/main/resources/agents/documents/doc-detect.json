@@ -1,0 +1,26 @@
+{
+  "id": "doc-detect",
+  "name": "Dokument-Erkennung",
+  "category": "documents",
+  "description": "Erkennt Dokumenttypen und steuert die weitere Verarbeitung an.",
+  "functions": ["Typ-Erkennung", "Kanal-Zuordnung", "Übergabe an Fach-Agenten"],
+  "triggers": ["document.created", "manual"],
+  "inputs": {
+    "documentId": "uuid (optional)",
+    "fileName": "string",
+    "mimeType": "string",
+    "textHint": "string"
+  },
+  "config": {
+    "channels": {
+      "invoice": "finance",
+      "dunning": "finance",
+      "payslip": "finance",
+      "insurance": "finance",
+      "contract": "legal",
+      "termination": "legal",
+      "authorization": "legal",
+      "notice": "legal"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "doc-validate",
+  "name": "Dokument-Validierung",
+  "category": "documents",
+  "description": "Prüft Pflichtfelder, Plausibilität (Zukunfts-Daten, negative Beträge) und Vollständigkeit; liefert die Liste der Probleme.",
+  "functions": ["Pflichtfeld-Prüfung", "Plausibilitäts-Prüfung", "Vollständigkeits-Prüfung"],
+  "triggers": ["document.received", "document.processing_completed", "manual"],
+  "inputs": {
+    "documentId": "uuid (erforderlich)"
+  },
+  "config": {
+    "futureDateToleranceDays": 0,
+    "checks": ["requiredFields", "plausibility", "completeness"]
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "crm-deal",
+  "name": "Deal-Pipeline",
+  "category": "crm",
+  "description": "Bewegt Deals regelbasiert durch die Stufen und markiert Stillstand.",
+  "functions": ["Stufen-Übergänge", "Stillstands-Erkennung", "Timeline-Protokoll"],
+  "triggers": ["manual", "case.updated", "mail.received"],
+  "inputs": {
+    "caseId": "uuid (optional; ohne Angabe werden alle Deals des Tenants geprüft)",
+    "event": "CONTACTED | RESPONDED | MEETING_HELD | PROPOSAL_SENT | CONTRACT_SIGNED | REJECTED | LOST",
+    "stage": "NEW | CONTACTED | QUALIFIED | PROPOSAL | NEGOTIATION | WON | LOST (manueller Zielschritt)"
+  },
+  "config": {
+    "stages": ["NEW", "CONTACTED", "QUALIFIED", "PROPOSAL", "NEGOTIATION", "WON", "LOST"],
+    "stallDays": 14,
+    "rules": {
+      "CONTACTED": { "NEW": "CONTACTED" },
+      "RESPONDED": { "CONTACTED": "QUALIFIED", "PROPOSAL": "NEGOTIATION" },
+      "MEETING_HELD": { "CONTACTED": "QUALIFIED" },
+      "PROPOSAL_SENT": { "QUALIFIED": "PROPOSAL" },
+      "CONTRACT_SIGNED": { "PROPOSAL": "WON", "NEGOTIATION": "WON" },
+      "REJECTED": { "*": "LOST" },
+      "LOST": { "*": "LOST" }
+    }
+  }
+}
