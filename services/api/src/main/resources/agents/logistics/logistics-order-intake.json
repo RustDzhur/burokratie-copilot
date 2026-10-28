@@ -1,0 +1,35 @@
+{
+  "id": "logistics-order-intake",
+  "name": "Auftragserfassung",
+  "category": "logistics",
+  "description": "Erfasst eingehende Bestellungen aus E-Mail, Portal oder Datei und prüft Artikel, Mengen, Lieferadresse und Termin. Unklare Positionen werden zur Klärung zurückgegeben statt geschätzt. Aus der Bestellung entstehen Auftrag, Aufgaben und Dokumentenverknüpfung.",
+  "functions": [
+    "Bestell-Erfassung",
+    "Positions-Prüfung",
+    "Termin-Prüfung",
+    "Auftrags-Anlage"
+  ],
+  "triggers": [
+    "manual",
+    "mail.received",
+    "webhook"
+  ],
+  "inputs": {
+    "source": "EMAIL | PORTAL | FILE",
+    "orderText": "string (erforderlich)",
+    "customerId": "uuid (optional)",
+    "deliveryDate": "date (optional)",
+    "items": "string (JSON, optional)",
+    "orderNumber": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "E-Mail",
+      "ERP",
+      "Dokumente",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "sales-pipeline-review",
+  "name": "Vertriebs-Pipeline-Review",
+  "category": "sales",
+  "description": "Prüft die offenen Verkaufschancen auf Stillstand, fehlende nächste Schritte und unrealistische Abschlussdaten. Je Deal entsteht eine Empfehlung: nachfassen, verschieben, eskalieren oder schließen. Der Review-Bericht ist die Grundlage für das wöchentliche Vertriebsgespräch.",
+  "functions": [
+    "Stillstands-Erkennung",
+    "Nächster-Schritt-Prüfung",
+    "Termin-Plausibilität",
+    "Review-Bericht"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "periodWeeks": "integer (Standard 4)",
+    "ownerUserId": "uuid (optional)",
+    "minAmount": "decimal (optional)",
+    "stages": "string (kommagetrennt, optional)"
+  },
+  "config": {
+    "systems": [
+      "CRM",
+      "Kalender",
+      "Reporting"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

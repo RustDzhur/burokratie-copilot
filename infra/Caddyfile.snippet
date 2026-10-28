@@ -1,0 +1,6 @@
+# Add to the host's Caddyfile (usually /etc/caddy/Caddyfile), then:  sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
+# The web container serves the site and forwards /api/v1/* to the API itself, so one upstream is all that is needed.
+copilot.firmspace.eu, www.copilot.firmspace.eu {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3500
+}

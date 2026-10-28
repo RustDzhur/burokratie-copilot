@@ -1,0 +1,32 @@
+{
+  "id": "hr-leave-request",
+  "name": "Urlaubsanträge",
+  "category": "hr",
+  "description": "Prüft Urlaubsanträge gegen Restanspruch, Teamkalender und Sperrzeiten und bereitet die Entscheidung vor. Fehlende Vertretung oder Überschneidungen werden sichtbar gemacht. Genehmigt wird durch die zuständige Führungskraft, nicht durch den Agenten.",
+  "functions": [
+    "Anspruchs-Prüfung",
+    "Überschneidungs-Prüfung",
+    "Vertretungs-Check",
+    "Entscheidungsvorlage"
+  ],
+  "triggers": [
+    "manual",
+    "hr.leave.requested"
+  ],
+  "inputs": {
+    "employeeId": "uuid (erforderlich)",
+    "from": "date (erforderlich)",
+    "to": "date (erforderlich)",
+    "substituteUserId": "uuid (optional)",
+    "leaveType": "URLAUB | GLEITZEIT | UNBEZAHLT"
+  },
+  "config": {
+    "systems": [
+      "Personalakte",
+      "Kalender",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

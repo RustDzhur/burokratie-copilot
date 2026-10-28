@@ -1,0 +1,83 @@
+{
+  "id": "handwerk-scheduling",
+  "name": {
+    "de": "Handwerk-Terminplanung",
+    "ru": "Планирование работ Handwerk"
+  },
+  "description": {
+    "de": "Plant Fertigungs- und Montageaufträge auf Termine, Material und Personal. Engpässe werden sichtbar, bevor der Kunde anruft; der Plan bleibt ein Vorschlag für die Leitung.",
+    "ru": "Планирует заказы на сроки, материалы и персонал. Узкие места видны до звонка клиента, а план остаётся предложением для руководителя."
+  },
+  "industries": [
+    "handwerk",
+    "construction",
+    "manufacturing"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "production-scheduling",
+      "title": "Termine planen",
+      "purpose": "Aufträge auf Kapazität und Termine verteilen",
+      "input": "offene Aufträge",
+      "output": "Terminplan"
+    },
+    {
+      "order": 2,
+      "agentId": "production-work-order",
+      "title": "Aufträge anlegen",
+      "purpose": "Arbeitsfolgen und Prüfpunkte erzeugen",
+      "input": "bestätigte Aufträge",
+      "output": "Fertigungsaufträge"
+    },
+    {
+      "order": 3,
+      "agentId": "production-material-plan",
+      "title": "Material sichern",
+      "purpose": "Fehlmengen und Bestellvorschläge",
+      "input": "Fertigungsaufträge",
+      "output": "Materialliste mit Fehlmengen"
+    },
+    {
+      "order": 4,
+      "agentId": "calendar-sync",
+      "title": "Kunden terminen",
+      "purpose": "Montagetermine mit Kunden abstimmen",
+      "input": "Terminplan",
+      "output": "Kalendereinträge"
+    },
+    {
+      "order": 5,
+      "agentId": "task-dispatch",
+      "title": "Trupps einteilen",
+      "purpose": "Aufgaben und Zuständigkeiten verteilen",
+      "input": "Terminplan und Personal",
+      "output": "zugewiesene Aufträge"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Terminplan",
+      "ru": "План сроков"
+    },
+    {
+      "de": "Fertigungsaufträge",
+      "ru": "Заказы"
+    },
+    {
+      "de": "Materialliste",
+      "ru": "Список материалов"
+    },
+    {
+      "de": "Kundentermine",
+      "ru": "Встречи с клиентами"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 180,
+    "label": {
+      "de": "ca. 3 Std./Woche",
+      "ru": "≈3 ч/нед."
+    }
+  }
+}

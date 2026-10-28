@@ -1,0 +1,16 @@
+{
+  "id": "chat-assist",
+  "name": "Chat-Assistenz",
+  "category": "communication",
+  "description": "Liefert zu typischen Kundenanfragen regelbasierte Antwort-Bausteine (ohne externe KI, ohne Netz).",
+  "functions": ["Anliegen-Erkennung", "Antwort-Bausteine", "Nächste-Schritte-Vorschlag"],
+  "triggers": ["manual"],
+  "inputs": {
+    "text": "string (Pflicht, Anfrage des Kunden)"
+  },
+  "config": {
+    "rules": "deklarative Dokumentation; die Regeln selbst stehen in der Java-Implementierung",
+    "noExternalAi": true,
+    "maxBlocks": 3
+  }
+}

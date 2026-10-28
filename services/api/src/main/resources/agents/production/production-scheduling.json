@@ -1,0 +1,34 @@
+{
+  "id": "production-scheduling",
+  "name": "Terminplanung",
+  "category": "production",
+  "description": "Plant Fertigungsaufträge auf Maschinen und Mitarbeitende unter Berücksichtigung von Terminen, Rüstzeiten und Abwesenheiten. Engpässe und Überlastungen werden sichtbar gemacht. Der Plan ist ein Vorschlag für die Produktionsleitung.",
+  "functions": [
+    "Kapazitäts-Planung",
+    "Engpass-Erkennung",
+    "Rüstzeiten",
+    "Plan-Vorschlag"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "workOrderIds": "string (optional)",
+    "horizonDays": "integer (Standard 14)",
+    "machineCapacities": "string (JSON, optional)",
+    "shiftModel": "string (optional)",
+    "maintenanceWindows": "string (optional)",
+    "workOrders": "string (JSON, optional)"
+  },
+  "config": {
+    "systems": [
+      "Fertigung",
+      "Kalender",
+      "Personal",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "id": "banking-statement-import",
+  "name": "Kontoauszug-Import",
+  "category": "banking",
+  "description": "Nimmt Kontoauszüge im CAMT- oder CSV-Format an, prüft Format und Zeitraum und bereitet den Import vor. Dubletten werden über Kontonummer, Datum und Betrag erkannt, bevor gebucht wird. Der Agent bucht nichts ohne Freigabe und meldet nicht zuordenbare Zeilen zurück.",
+  "functions": [
+    "Format-Prüfung",
+    "Dubletten-Erkennung",
+    "Zeitraum-Abgleich",
+    "Import-Vorbereitung"
+  ],
+  "triggers": [
+    "manual",
+    "folder",
+    "schedule"
+  ],
+  "inputs": {
+    "accountId": "uuid (erforderlich)",
+    "file": "binary (erforderlich)",
+    "format": "CAMT053 | CAMT052 | CSV",
+    "periodFrom": "date (optional)",
+    "periodTo": "date (optional)",
+    "content": "string (optional, XML/CSV/Base64)"
+  },
+  "config": {
+    "systems": [
+      "Bank",
+      "Kontoauszug",
+      "DATEV"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApproval": true,
+    "dedupeBy": [
+      "account",
+      "bookingDate",
+      "amount",
+      "reference"
+    ]
+  }
+}

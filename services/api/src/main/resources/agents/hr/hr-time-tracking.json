@@ -1,0 +1,35 @@
+{
+  "id": "hr-time-tracking",
+  "name": "Zeiterfassungs-Prüfung",
+  "category": "hr",
+  "description": "Prüft erfasste Arbeitszeiten auf fehlende Tage, unplausible Pausen und Überschreitungen der gesetzlichen Grenzen. Die Prüfung liefert eine Liste zur Korrektur durch die Beschäftigten, keine automatische Änderung. Monatsabschlüsse werden als Bericht vorbereitet.",
+  "functions": [
+    "Vollständigkeits-Prüfung",
+    "Pausen-Prüfung",
+    "Grenzwert-Prüfung",
+    "Monatsbericht"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "periodFrom": "date (erforderlich)",
+    "periodTo": "date (erforderlich)",
+    "employeeIds": "string (UUID-Liste, optional)",
+    "dailyMaxHours": "decimal (Standard 10)",
+    "breakRules": "string (optional)",
+    "timeEntries": "string (JSON, optional)"
+  },
+  "config": {
+    "systems": [
+      "Zeiterfassung",
+      "Lohn",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "maxDailyHours": 10,
+    "minBreakMinutes": 30
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "healthcare-billing",
+  "name": "Leistungsabrechnung",
+  "category": "healthcare",
+  "description": "Bereitet die Abrechnung von Leistungen anhand der hinterlegten Gebührenordnung und erbrachten Positionen vor. Unklare oder nicht dokumentierte Leistungen werden zurückgewiesen statt geschätzt. Die Abrechnung wird vor Versand fachlich geprüft.",
+  "functions": [
+    "Positions-Prüfung",
+    "Gebührenordnung",
+    "Dokumentations-Abgleich",
+    "Abrechnungs-Entwurf"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "patientContactId": "uuid (erforderlich)",
+    "treatmentDate": "date (erforderlich)",
+    "serviceCodes": "string (erforderlich)",
+    "feeSchedule": "GOÄ | EBM | PRIVATE",
+    "insurer": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "Praxissoftware",
+      "Abrechnung",
+      "Versicherung",
+      "Dokumente"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "noMedicalAdvice": true,
+    "requiresReview": true
+  }
+}

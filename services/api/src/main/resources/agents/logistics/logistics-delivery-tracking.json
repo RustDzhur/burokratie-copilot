@@ -1,0 +1,36 @@
+{
+  "id": "logistics-delivery-tracking",
+  "name": "Lieferverfolgung",
+  "category": "logistics",
+  "description": "Überwacht offene Bestellungen und Liefertermine und meldet Überschreitungen mit Verzugstagen. Je Vorgang werden Lieferant, Bestellnummer und nächster Schritt ausgewiesen. Der Agent ändert keine Bestellungen und versendet keine Mahnungen.",
+  "functions": [
+    "Termin-Überwachung",
+    "Verzugs-Berechnung",
+    "Lieferanten-Zuordnung",
+    "Handlungs-Hinweis"
+  ],
+  "triggers": [
+    "manual",
+    "schedule",
+    "logistics.delivery.due"
+  ],
+  "inputs": {
+    "horizonDays": "integer (Standard 14)",
+    "supplierId": "uuid (optional)",
+    "includePartial": "boolean (Standard true)",
+    "minDelayDays": "integer (Standard 1)"
+  },
+  "config": {
+    "systems": [
+      "Bestellungen",
+      "Lieferanten",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "statuses": [
+      "OPEN",
+      "PARTIALLY_DELIVERED"
+    ]
+  }
+}

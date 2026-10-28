@@ -1,0 +1,80 @@
+{
+  "id": "customs-clearance",
+  "name": {
+    "de": "Zollabwicklung",
+    "ru": "Таможенное оформление"
+  },
+  "description": {
+    "de": "Prüft Sendungsdaten auf Vollständigkeit, bereitet die Zollanmeldung vor und dokumentiert die Belege. Fehlende Tarifnummern oder Widersprüche stoppen den Ablauf vor der Anmeldung.",
+    "ru": "Проверяет полноту данных отправки, готовит таможенную декларацию и документирует основания. Отсутствующие коды или противоречия останавливают процесс до подачи."
+  },
+  "industries": [
+    "logistics",
+    "manufacturing",
+    "ecommerce",
+    "transport"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "logistics-customs",
+      "title": "Sendung prüfen",
+      "purpose": "Warenwert, Ursprung und Tarif kontrollieren",
+      "input": "Sendungsdaten",
+      "output": "Anmeldeentwurf mit Lücken"
+    },
+    {
+      "order": 2,
+      "agentId": "logistics-delivery-tracking",
+      "title": "Termine abstimmen",
+      "purpose": "Liefertermin und Verzollung verbinden",
+      "input": "offene Sendungen",
+      "output": "Terminübersicht"
+    },
+    {
+      "order": 3,
+      "agentId": "doc-detect",
+      "title": "Dokumente erkennen",
+      "purpose": "Handelsrechnung und Ursprungsnachweis zuordnen",
+      "input": "Sendungsdokumente",
+      "output": "Dokumente mit Typ"
+    },
+    {
+      "order": 4,
+      "agentId": "doc-extract",
+      "title": "Angaben auslesen",
+      "purpose": "Werte aus Rechnung und Packliste",
+      "input": "Sendungsdokumente",
+      "output": "strukturierte Zollangaben"
+    },
+    {
+      "order": 5,
+      "agentId": "doc-archive",
+      "title": "Belege archivieren",
+      "purpose": "Zollunterlagen revisionssicher ablegen",
+      "input": "Anmeldung",
+      "output": "archivierter Zollvorgang"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Zollanmelde-Entwurf",
+      "ru": "Черновик декларации"
+    },
+    {
+      "de": "Terminübersicht",
+      "ru": "Обзор сроков"
+    },
+    {
+      "de": "Archivierte Zollbelege",
+      "ru": "Архив таможенных документов"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 120,
+    "label": {
+      "de": "ca. 2 Std./Woche",
+      "ru": "≈2 ч/нед."
+    }
+  }
+}

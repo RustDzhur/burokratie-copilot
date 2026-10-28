@@ -1,0 +1,13 @@
+/* Small inline cell helpers shared by the generated list screens. */
+
+.inline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.note {
+  font-size: var(--font-size-xs);
+  color: var(--color-warning-text);
+}

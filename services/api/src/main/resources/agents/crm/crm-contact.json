@@ -1,0 +1,27 @@
+{
+  "id": "crm-contact",
+  "name": "Kontaktpflege",
+  "category": "crm",
+  "description": "Ergänzt einen Kontakt mit Daten aus Korrespondenz und Dokumenten, ohne Dubletten.",
+  "functions": ["Kontakt-Anreicherung", "Identifikatoren-Pflege", "Dubletten-Schutz"],
+  "triggers": ["manual", "mail.received", "document.created"],
+  "inputs": {
+    "contactId": "uuid (optional)",
+    "email": "string (alternativer Lookup)",
+    "firstName": "string",
+    "lastName": "string",
+    "organizationName": "string",
+    "phone": "string",
+    "mobile": "string",
+    "website": "string",
+    "language": "string (ISO-Code)",
+    "customer": "boolean (true = als Kunde markieren)",
+    "facts": "string (key=value Paare, getrennt durch ; oder Zeilenumbruch)",
+    "note": "string",
+    "overwrite": "boolean (gefüllte Felder ersetzen)"
+  },
+  "config": {
+    "overwriteByDefault": false,
+    "fillPolicy": "nur leere Felder, außer overwrite=true"
+  }
+}

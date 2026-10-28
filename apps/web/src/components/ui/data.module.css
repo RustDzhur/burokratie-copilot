@@ -1,0 +1,622 @@
+/* Data display: card, badge, status pill, avatar, table, pagination, breadcrumbs. */
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Card --------------------------------------------------------------- */
+/* Glass panel like the firmspace site: translucent surface, blur, a bright edge
+   and an inner highlight. Tables and dense content stay legible because the
+   text tokens are chosen for the composited surface. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border: 1px solid var(--color-border-glass);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface-glass);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-glass);
+}
+
+.card-glass {
+  background-color: var(--color-surface-glass);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+
+.card-accent {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-neon);
+}
+
+.card-danger {
+  border-color: var(--color-danger);
+}
+
+.cardPadding-none {
+  padding: 0;
+  gap: 0;
+}
+
+.cardPadding-sm {
+  padding: var(--space-3);
+}
+
+.cardPadding-md {
+  padding: var(--space-5);
+}
+
+.cardPadding-lg {
+  padding: var(--space-6);
+}
+
+.cardInteractive {
+  /* A card that holds a stretched link (a ::after with position: absolute; inset: 0) must be its own positioning
+     context, otherwise that invisible overlay covers the nearest positioned ancestor - on the dashboard, the whole
+     page - and every card's hover state fights with the others. */
+  position: relative;
+  transition:
+    transform var(--motion-duration-base) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-base) var(--motion-ease-standard),
+    border-color var(--motion-duration-base) var(--motion-ease-standard);
+}
+
+.cardInteractive:hover {
+  /* No lift: a card that moves out from under a resting pointer loses :hover, drops back, gains it again - a flicker. */
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-border-strong);
+}
+
+.cardInteractive:focus-within {
+  border-color: var(--color-focus-ring);
+  box-shadow: var(--shadow-focus);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.cardHeaderMain {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.cardHeaderText {
+  min-width: 0;
+}
+
+.cardIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: var(--radius-md);
+  background-color: var(--color-accent-subtle);
+  color: var(--color-accent-text);
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.cardBadgeSlot {
+  display: inline-flex;
+}
+
+.cardDescription {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+
+.cardBody {
+  min-width: 0;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* ---- Badge -------------------------------------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-pill);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.badgeSize-sm {
+  padding: 3px var(--space-2);
+  font-size: var(--font-size-2xs);
+}
+
+.badgeSize-md {
+  padding: 5px var(--space-3);
+  font-size: var(--font-size-xs);
+}
+
+.badge-neutral-subtle {
+  background-color: var(--color-neutral-subtle);
+  color: var(--color-neutral-text);
+}
+
+.badge-info-subtle,
+.badge-accent-subtle {
+  background-color: var(--color-info-subtle);
+  color: var(--color-info-text);
+}
+
+.badge-success-subtle {
+  background-color: var(--color-success-subtle);
+  color: var(--color-success-text);
+}
+
+.badge-warning-subtle {
+  background-color: var(--color-warning-subtle);
+  color: var(--color-warning-text);
+}
+
+.badge-danger-subtle {
+  background-color: var(--color-danger-subtle);
+  color: var(--color-danger-text);
+}
+
+.badge-neutral-solid {
+  background-color: var(--color-text-subtle);
+  color: var(--color-surface);
+}
+
+.badge-info-solid,
+.badge-accent-solid {
+  background-color: var(--color-accent);
+  color: var(--color-text-on-accent);
+}
+
+.badge-success-solid {
+  background-color: var(--color-success);
+  color: var(--color-text-inverse);
+}
+
+.badge-warning-solid {
+  background-color: var(--color-warning);
+  color: var(--color-text-inverse);
+}
+
+.badge-danger-solid {
+  background-color: var(--color-danger);
+  color: var(--color-text-inverse);
+}
+
+.badge-neutral-outline {
+  border-color: var(--color-border-strong);
+  color: var(--color-text-muted);
+}
+
+.badge-info-outline,
+.badge-accent-outline {
+  border-color: var(--color-info);
+  color: var(--color-info-text);
+}
+
+.badge-success-outline {
+  border-color: var(--color-success);
+  color: var(--color-success-text);
+}
+
+.badge-warning-outline {
+  border-color: var(--color-warning);
+  color: var(--color-warning-text);
+}
+
+.badge-danger-outline {
+  border-color: var(--color-danger);
+  color: var(--color-danger-text);
+}
+
+/* ---- StatusPill --------------------------------------------------------- */
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px var(--space-3) 4px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.statusPill-neutral {
+  background-color: var(--color-neutral-subtle);
+  color: var(--color-neutral-text);
+  border-color: var(--color-border);
+}
+
+.statusPill-neutral .statusDot {
+  background-color: var(--color-neutral-text);
+}
+
+.statusPill-info,
+.statusPill-accent {
+  background-color: var(--color-info-subtle);
+  color: var(--color-info-text);
+  border-color: var(--color-info);
+}
+
+.statusPill-info .statusDot,
+.statusPill-accent .statusDot {
+  background-color: var(--color-info);
+}
+
+.statusPill-success {
+  background-color: var(--color-success-subtle);
+  color: var(--color-success-text);
+  border-color: var(--color-success);
+}
+
+.statusPill-success .statusDot {
+  background-color: var(--color-success);
+}
+
+.statusPill-warning {
+  background-color: var(--color-warning-subtle);
+  color: var(--color-warning-text);
+  border-color: var(--color-warning);
+}
+
+.statusPill-warning .statusDot {
+  background-color: var(--color-warning);
+}
+
+.statusPill-danger {
+  background-color: var(--color-danger-subtle);
+  color: var(--color-danger-text);
+  border-color: var(--color-danger);
+}
+
+.statusPill-danger .statusDot {
+  background-color: var(--color-danger);
+}
+
+/* Colour-vision-friendly mode: distinct dot shapes instead of colour only. */
+[data-color-cues='patterns'] .statusPill-info .statusDot,
+[data-color-cues='patterns'] .statusPill-accent .statusDot {
+  border-radius: 1px;
+}
+
+[data-color-cues='patterns'] .statusPill-warning .statusDot {
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
+[data-color-cues='patterns'] .statusPill-danger .statusDot {
+  border-radius: 0;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+[data-color-cues='patterns'] .statusPill-success .statusDot {
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--color-surface);
+}
+
+/* ---- Avatar ------------------------------------------------------------- */
+.avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 50%;
+  background-image: var(--gradient-brand);
+  color: var(--color-text-on-accent);
+  font-weight: var(--font-weight-semibold);
+  overflow: visible;
+  user-select: none;
+}
+
+.avatar-sm {
+  width: 28px;
+  height: 28px;
+  font-size: var(--font-size-2xs);
+}
+
+.avatar-md {
+  width: 36px;
+  height: 36px;
+  font-size: var(--font-size-xs);
+}
+
+.avatar-lg {
+  width: 48px;
+  height: 48px;
+  font-size: var(--font-size-md);
+}
+
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatarStatus {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--color-surface);
+}
+
+.avatarStatus-online {
+  background-color: var(--color-success);
+}
+
+.avatarStatus-away {
+  background-color: var(--color-warning);
+}
+
+.avatarStatus-offline {
+  background-color: var(--color-text-subtle);
+}
+
+/* ---- Table -------------------------------------------------------------- */
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-md);
+}
+
+.th {
+  text-align: start;
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-surface-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.tableDense .th {
+  padding: var(--space-2) var(--space-3);
+}
+
+.sortButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  border-radius: var(--radius-xs);
+}
+
+.sortButton:hover {
+  color: var(--color-text);
+}
+
+.sortIcon {
+  display: inline-flex;
+  opacity: 0.6;
+}
+
+.sortIconActive {
+  opacity: 1;
+  color: var(--color-accent-text);
+}
+
+.td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  color: var(--color-text);
+  vertical-align: middle;
+}
+
+.tableDense .td {
+  padding: var(--space-2) var(--space-3);
+}
+
+.tr:last-child .td {
+  border-bottom: none;
+}
+
+.tr:hover .td {
+  background-color: var(--color-bg-subtle);
+}
+
+.align-start {
+  text-align: start;
+}
+
+.align-center {
+  text-align: center;
+}
+
+.align-end {
+  text-align: end;
+}
+
+.actionsCell {
+  white-space: nowrap;
+}
+
+.cellLink {
+  color: var(--color-accent-text);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+.cellLink:hover {
+  text-decoration: underline;
+}
+
+.stateCell {
+  padding: var(--space-4);
+}
+
+/* ---- Pagination --------------------------------------------------------- */
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+}
+
+.paginationSummary {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.paginationControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.pageButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  transition: background-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.pageButton:hover:not(:disabled) {
+  background-color: var(--color-bg-subtle);
+  border-color: var(--color-border-strong);
+}
+
+.pageButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pageButtonActive {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-weight: var(--font-weight-semibold);
+}
+
+.pageButtonActive:hover:not(:disabled) {
+  background-color: var(--color-accent-hover);
+}
+
+.pageGap {
+  padding-inline: var(--space-1);
+  color: var(--color-text-subtle);
+}
+
+/* ---- Breadcrumbs -------------------------------------------------------- */
+.breadcrumbs {
+  font-size: var(--font-size-sm);
+}
+
+.breadcrumbList {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.breadcrumbItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.breadcrumbLink {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border-radius: var(--radius-xs);
+  padding: 2px 4px;
+}
+
+.breadcrumbLink:hover {
+  color: var(--color-accent-text);
+  text-decoration: underline;
+}
+
+.breadcrumbCurrent {
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+  padding: 2px 4px;
+}
+
+.breadcrumbSeparator {
+  color: var(--color-text-subtle);
+}

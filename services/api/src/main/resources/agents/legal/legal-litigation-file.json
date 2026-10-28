@@ -1,0 +1,33 @@
+{
+  "id": "legal-litigation-file",
+  "name": "Streitfall-Akte",
+  "category": "legal",
+  "description": "Baut aus Vorgang, Korrespondenz, Rechnungen und Fristen eine Streitfall-Akte mit Chronologie auf. Zuständigkeiten, offene Fristen und fehlende Belege werden hervorgehoben. Die Akte dient der Vorbereitung und ersetzt keine anwaltliche Bewertung.",
+  "functions": [
+    "Chronologie",
+    "Beleg-Zuordnung",
+    "Fristen-Übersicht",
+    "Lücken-Ausweis"
+  ],
+  "triggers": [
+    "manual",
+    "case.created"
+  ],
+  "inputs": {
+    "caseId": "uuid (erforderlich)",
+    "counterpartyContactId": "uuid (optional)",
+    "disputeAmount": "decimal (optional)",
+    "jurisdiction": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "Vorgänge",
+      "Dokumente",
+      "E-Mail",
+      "Fristen"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresLegalReview": true
+  }
+}

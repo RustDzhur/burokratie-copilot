@@ -1,0 +1,32 @@
+{
+  "id": "logistics-supplier-scorecard",
+  "name": "Lieferantenbewertung",
+  "category": "logistics",
+  "description": "Bewertet Lieferanten nach Termintreue, Vollständigkeit, Reklamationsquote und Reaktionszeit aus den vorhandenen Belegen. Jede Kennzahl nennt Datenbasis und Zeitraum. Die Bewertung ist eine Entscheidungshilfe und kein automatisches Ausschlusskriterium.",
+  "functions": [
+    "Termintreue",
+    "Reklamationsquote",
+    "Reaktionszeit",
+    "Scorecard"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "supplierIds": "string (optional)",
+    "periodFrom": "date (erforderlich)",
+    "periodTo": "date (erforderlich)",
+    "weights": "string (JSON, optional)"
+  },
+  "config": {
+    "systems": [
+      "Bestellungen",
+      "Rechnungen",
+      "Reklamationen",
+      "Reporting"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

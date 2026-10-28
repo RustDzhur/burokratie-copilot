@@ -1,0 +1,23 @@
+{
+  "id": "gdpr-guard",
+  "name": "DSGVO-Schutz",
+  "category": "compliance",
+  "description": "Findet personenbezogene Daten zu einem Kontakt, bewertet die Löschreife verknüpfter Dokumente und erstellt einen Löschplan. Löschungen führt dieser Agent nie selbst aus.",
+  "functions": [
+    "Bestandsaufnahme personenbezogener Daten",
+    "Suche nach Kontakten",
+    "Löschreife-Bewertung für Dokumente",
+    "Löschplan mit Bestätigungsvorbehalt"
+  ],
+  "triggers": ["contact.created", "manual"],
+  "inputs": {
+    "contactId": "uuid (optional)",
+    "documentId": "uuid (optional)",
+    "query": "string (optional, min. 2 Zeichen)"
+  },
+  "config": {
+    "destructive": false,
+    "confirmRequired": true,
+    "searchLimit": 25
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "support-faq-suggest",
+  "name": "FAQ-Vorschläge",
+  "category": "support",
+  "description": "Findet wiederkehrende Fragen in Support-Anfragen und schlägt daraus FAQ-Einträge mit Antwortentwurf vor. Jeder Vorschlag nennt Häufigkeit, betroffene Kanäle und Beispieltickets. Veröffentlicht wird erst nach redaktioneller Freigabe.",
+  "functions": [
+    "Themen-Cluster",
+    "Häufigkeits-Zählung",
+    "Antwort-Entwurf",
+    "Beispiel-Zuordnung"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "periodFrom": "date (erforderlich)",
+    "periodTo": "date (erforderlich)",
+    "minOccurrences": "integer (Standard 3)",
+    "categories": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "Support",
+      "Wissensbasis",
+      "Website"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

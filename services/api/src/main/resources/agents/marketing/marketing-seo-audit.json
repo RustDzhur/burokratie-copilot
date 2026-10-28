@@ -1,0 +1,37 @@
+{
+  "id": "marketing-seo-audit",
+  "name": "SEO-Audit",
+  "category": "marketing",
+  "description": "Prüft die wichtigsten SEO-Signale einer Website anhand der übergebenen Seitenliste: Seitentitel, Meta-Beschreibungen, Überschriftenstruktur und interne Verlinkung. Die Befunde werden nach Wirkung und Aufwand priorisiert. Der Agent ändert nichts an der Website, sondern liefert eine Maßnahmenliste zur Freigabe.",
+  "functions": [
+    "Technik-Check",
+    "Inhalts-Check",
+    "Maßnahmen-Priorisierung",
+    "Wettbewerbsvergleich"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "siteUrl": "string (erforderlich)",
+    "pageUrls": "string (kommagetrennt, optional)",
+    "targetKeywords": "string (optional)",
+    "locale": "string (de-DE)",
+    "pages": "string (JSON, optional)"
+  },
+  "config": {
+    "systems": [
+      "Website",
+      "Google Search Console",
+      "Sitemap"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "maxPages": 200,
+    "priorityMatrix": {
+      "highImpactLowEffort": "SOFORT",
+      "highImpactHighEffort": "PLANEN"
+    }
+  }
+}

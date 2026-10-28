@@ -1,0 +1,34 @@
+{
+  "id": "ecommerce-marketplace-feed",
+  "name": "Marketplace-Feed",
+  "category": "ecommerce",
+  "description": "Erzeugt und prüft Produktfeeds für Marktplätze: Pflichtfelder, Kategoriezuordnung, Bilder und Lagerstatus. Fehler werden vor der Übermittlung mit Fundstelle gemeldet. Der Feed wird erst nach Freigabe veröffentlicht.",
+  "functions": [
+    "Pflichtfeld-Prüfung",
+    "Kategorie-Zuordnung",
+    "Feed-Erzeugung",
+    "Fehler-Liste"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "marketplace": "string (erforderlich)",
+    "productIds": "string (optional)",
+    "currency": "char(3) (Standard EUR)",
+    "language": "string (Standard de)",
+    "feedFormat": "CSV | XML | JSON"
+  },
+  "config": {
+    "systems": [
+      "Marktplatz",
+      "PIM",
+      "Shop",
+      "FTP"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApproval": true
+  }
+}

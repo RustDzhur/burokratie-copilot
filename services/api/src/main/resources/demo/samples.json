@@ -1,0 +1,180 @@
+[
+ {
+  "id": "strom-rechnung",
+  "filename": "Rechnung_Stadtwerke.txt",
+  "text": "Stadtwerke Musterstadt GmbH\nHauptstraße 12, 12345 Musterstadt\nTelefon: 0123 / 456 789-0\nE-Mail: service@stadtwerke-musterstadt.example\nUSt-IdNr.: DE123456789\n\nRechnung\nRechnungsnummer: RE-2026-0412\nRechnungsdatum: {{-3}}\nLeistungszeitraum: 01.09.2026 bis 30.09.2026\n\nStrom Abschlag September                     80,67 EUR\nNettobetrag:                                 80,67 EUR\nUmsatzsteuer 19 %:                           15,33 EUR\nBruttobetrag:                                96,00 EUR\n\nZahlbar bis {{+9}} auf das Konto IBAN DE89 3704 0044 0532 0130 00.\nBitte geben Sie bei der Überweisung die Rechnungsnummer an.",
+  "personas": [
+   "PERSON",
+   "FAMILY",
+   "FREELANCER",
+   "COMPANY",
+   "ADVISOR"
+  ]
+ },
+ {
+  "id": "software-rechnung",
+  "filename": "Rechnung_Software.txt",
+  "text": "Beispiel Software AG\nIndustriestraße 4, 80331 München\nTelefon: 089 / 123 456-0\nE-Mail: rechnung@beispiel-software.example\nwww.beispiel-software.example\nInvoice / Rechnung 88-2026-33\nRechnungsdatum {{-5}}\nLizenz Jahresabo Büro-Suite (12 Monate)       1.200,00 EUR\nUmsatzsteuer 19 %                               228,00 EUR\nRechnungsbetrag                               1.428,00 EUR\nFällig am {{+11}}",
+  "personas": [
+   "FREELANCER",
+   "COMPANY",
+   "ADVISOR"
+  ]
+ },
+ {
+  "id": "handwerker-rechnung",
+  "filename": "Rechnung_Handwerker.txt",
+  "text": "Elektro Schneider e.K.\nWerkstattweg 8, 12345 Musterstadt\nTelefon: 0123 / 777 888\nE-Mail: info@elektro-schneider.example\nSteuernummer: 21/815/08150\nRechnung Nr. 2026-117\nDatum: {{-8}}\nFür Ihren Auftrag vom {{-30}}\nMaterial und Arbeitszeit                      840,00 EUR\nUmsatzsteuer 19 %                             159,60 EUR\nRechnungsbetrag                               999,60 EUR\nZahlbar bis {{+6}} ohne Abzug\nIBAN DE75 5121 0800 1245 1261 99",
+  "personas": [
+   "COMPANY",
+   "FREELANCER"
+  ]
+ },
+ {
+  "id": "zahlungserinnerung",
+  "filename": "Zahlungserinnerung.txt",
+  "text": "Stadtwerke Musterstadt GmbH\nHauptstraße 12, 12345 Musterstadt\nTelefon: 0123 / 456 789-0\nE-Mail: service@stadtwerke-musterstadt.example\nZahlungserinnerung\nSehr geehrte Damen und Herren,\nsicherlich ist es Ihrer Aufmerksamkeit entgangen, dass unsere Rechnung RE-2026-0388 vom {{-40}}\nüber 96,00 EUR noch nicht beglichen ist. Bitte überweisen Sie den Betrag bis zum {{+4}}.\nSollte sich Ihre Zahlung mit diesem Schreiben überschnitten haben, betrachten Sie es als gegenstandslos.",
+  "personas": [
+   "PERSON",
+   "FAMILY",
+   "FREELANCER"
+  ]
+ },
+ {
+  "id": "mahnung",
+  "filename": "Mahnung.txt",
+  "text": "Stadtwerke Musterstadt GmbH\nHauptstraße 12, 12345 Musterstadt\nTelefon: 0123 / 456 789-0\nE-Mail: forderung@stadtwerke-musterstadt.example\n1. Mahnung\nRechnungsnummer: RE-2026-0388\nTrotz unserer Zahlungserinnerung ist der Rechnungsbetrag von 96,00 EUR nicht bei uns eingegangen.\nWir mahnen die Zahlung an und berechnen eine Mahngebühr von 5,00 EUR.\nOffener Betrag: 101,00 EUR\nZahlen Sie bitte bis zum {{+3}}.",
+  "personas": [
+   "COMPANY",
+   "ADVISOR"
+  ]
+ },
+ {
+  "id": "inkasso",
+  "filename": "Inkasso.txt",
+  "text": "Inkasso Beispiel GmbH\nForderungsschreiben im Auftrag der Muster Handels GmbH\nAktenzeichen INK-2026-7781\nTrotz mehrfacher Mahnung ist die Forderung von 842,50 EUR nicht beglichen. Wir fordern Sie auf, den Betrag\nzuzüglich Inkassokosten bis zum {{+7}} zu zahlen. Andernfalls leiten wir weitere Schritte ein.",
+  "personas": [
+   "COMPANY"
+  ]
+ },
+ {
+  "id": "vertrag-internet",
+  "filename": "Vertrag_Internet.txt",
+  "text": "Internetvertrag\nzwischen Beispiel Telekom GmbH (Anbieter) und Erika Mustermann (Kundin)\n§ 1 Vertragsgegenstand: Bereitstellung eines DSL-Anschlusses mit 100 Mbit/s.\n§ 2 Laufzeit: Der Vertrag beginnt am 01.01.2025 und hat eine Mindestlaufzeit von 24 Monaten.\n§ 3 Verlängerung: Der Vertrag verlängert sich automatisch um 12 Monate, wenn er nicht mit einer Frist von drei Monaten zum Laufzeitende gekündigt wird.\n§ 4 Preis: Das monatliche Entgelt beträgt 39,95 EUR.\n§ 5 Preisanpassung: Der Anbieter darf das Entgelt mit einer Ankündigung von sechs Wochen anpassen.\nOrt, Datum, Unterschrift",
+  "personas": [
+   "PERSON",
+   "FAMILY",
+   "FREELANCER",
+   "COMPANY",
+   "ADVISOR"
+  ]
+ },
+ {
+  "id": "preiserhoehung",
+  "filename": "Preiserhoehung.txt",
+  "text": "Beispiel Telekom GmbH\nNetzstraße 1, 50667 Köln\nTelefon: 0221 / 555 100\nE-Mail: kundenservice@beispiel-telekom.example\nwww.beispiel-telekom.example\nInformation über die Anpassung Ihres Entgelts\nSehr geehrte Frau Mustermann,\nzum {{+25}} erhöht sich das monatliche Entgelt für Ihren Internetanschluss von 39,95 EUR auf 44,95 EUR.\nSie haben das Recht, den Vertrag innerhalb von sechs Wochen nach Zugang dieses Schreibens außerordentlich zu kündigen.",
+  "personas": [
+   "PERSON",
+   "FAMILY",
+   "FREELANCER",
+   "COMPANY"
+  ]
+ },
+ {
+  "id": "mieterhoehung",
+  "filename": "Mieterhoehung.txt",
+  "text": "Hausverwaltung Beispiel GmbH\nParkallee 3, 10115 Berlin\nTelefon: 030 / 987 654\nE-Mail: verwaltung@hausverwaltung-beispiel.example\nMieterhöhungsverlangen gemäß § 558 BGB\nSehr geehrte Frau Mustermann,\nwir bitten Sie um Zustimmung zur Erhöhung der Kaltmiete für die Wohnung Musterstraße 5 von 850,00 EUR auf 905,00 EUR ab dem {{+60}}.\nBitte erklären Sie Ihre Zustimmung bis zum Ablauf des zweiten Kalendermonats nach Zugang dieses Schreibens.",
+  "personas": [
+   "PERSON",
+   "FAMILY"
+  ]
+ },
+ {
+  "id": "einkommensteuerbescheid",
+  "filename": "Bescheid_Finanzamt.txt",
+  "text": "Finanzamt Musterstadt\nAmtsstraße 7, 12345 Musterstadt\nTelefon: 0123 / 400 400\nE-Mail: poststelle@finanzamt-musterstadt.example\nSteuernummer 21/815/08150\nEinkommensteuerbescheid 2025 vom {{-12}}\nFestgesetzte Einkommensteuer: 4.215,00 EUR. Bereits entrichtet: 3.800,00 EUR.\nAbschlusszahlung: 415,00 EUR, fällig bis zum {{+18}}.\nRechtsbehelfsbelehrung: Gegen diesen Bescheid kann innerhalb eines Monats nach Bekanntgabe Einspruch eingelegt werden.",
+  "personas": [
+   "PERSON",
+   "FAMILY",
+   "FREELANCER"
+  ]
+ },
+ {
+  "id": "krankenkasse",
+  "filename": "Krankenkasse.txt",
+  "text": "Beispiel Krankenkasse\nGesundheitsplatz 2, 20095 Hamburg\nTelefon: 040 / 300 200\nE-Mail: service@beispiel-krankenkasse.example\nVersichertennummer A123456789\nBescheid über die Beitragsfestsetzung ab {{+70}}\nIhr monatlicher Beitrag beträgt 214,30 EUR.\nGegen diesen Bescheid können Sie innerhalb eines Monats Widerspruch erheben.",
+  "personas": [
+   "PERSON",
+   "FAMILY"
+  ]
+ },
+ {
+  "id": "familienkasse",
+  "filename": "Familienkasse.txt",
+  "text": "Familienkasse Musterstadt\nKindergeldstraße 3, 12345 Musterstadt\nTelefon: 0800 / 4 5555 30\nE-Mail: info@familienkasse-musterstadt.example\nKindergeld, Kindergeldnummer 123FK456789\nWir benötigen für die Weiterzahlung des Kindergeldes eine Schulbescheinigung Ihres Kindes bis zum {{+16}}.",
+  "personas": [
+   "FAMILY"
+  ]
+ },
+ {
+  "id": "elternbrief",
+  "filename": "Elternbrief.txt",
+  "text": "Grundschule am Park\nElterninformation zum neuen Schuljahr\nFür die Nachmittagsbetreuung liegt der Betreuungsvertrag bei. Bitte bis Freitag zurückgeben.\nElternabend am {{+8}}",
+  "personas": [
+   "FAMILY"
+  ]
+ },
+ {
+  "id": "arztbrief",
+  "filename": "Arztbrief.txt",
+  "text": "Arztbrief\nSehr geehrte Frau Kollegin, wir berichten über die Behandlung von Frau Beispiel.\nDiagnose: Bronchitis\nTherapieempfehlung: Inhalation, Kontrolle in zwei Wochen",
+  "personas": [
+   "FAMILY"
+  ]
+ },
+ {
+  "id": "unterlagen",
+  "filename": "Unterlagen_anfordern.txt",
+  "text": "Wohngeldstelle Musterstadt\nAktenzeichen WG-2026-5521\nZur Bearbeitung Ihres Antrags auf Wohngeld fehlen uns noch folgende Unterlagen: Mietvertrag, Einkommensnachweise.\nBitte senden Sie diese bis zum {{+13}} an uns.",
+  "personas": [
+   "PERSON",
+   "FAMILY"
+  ]
+ },
+ {
+  "id": "angebot",
+  "filename": "Angebot.txt",
+  "text": "Beispiel Druck GmbH\nDruckerweg 6, 70173 Stuttgart\nTelefon: 0711 / 222 333\nE-Mail: vertrieb@beispiel-druck.example\nAngebot Nr. A-2026-044\nWir bieten Ihnen 500 Visitenkarten und 2 Rollups zum Gesamtpreis von 640,00 EUR netto an.\nDieses Angebot gilt bis {{+14}}.",
+  "personas": [
+   "FREELANCER",
+   "COMPANY"
+  ]
+ },
+ {
+  "id": "ihk",
+  "filename": "IHK.txt",
+  "text": "Industrie- und Handelskammer\nKammerplatz 1, 12345 Musterstadt\nTelefon: 0123 / 500 500\nE-Mail: beitrag@ihk-musterstadt.example\nBeitragsbescheid 2026\nIHK-Beitrag Grundbeitrag und Umlage\nZahlbar bis {{+21}}",
+  "personas": [
+   "FREELANCER",
+   "COMPANY"
+  ]
+ },
+ {
+  "id": "widerspruch",
+  "filename": "Widerspruch.txt",
+  "text": "Erika Mustermann\nAn das Finanzamt Musterstadt\nWiderspruch gegen den Bescheid vom {{-12}}, Steuernummer 21/815/08150\nHiermit lege ich Einspruch gegen den oben genannten Einkommensteuerbescheid ein und bitte um Überprüfung.",
+  "personas": [
+   "COMPANY"
+  ]
+ },
+ {
+  "id": "kuendigungsbestaetigung",
+  "filename": "Kuendigungsbestaetigung.txt",
+  "text": "Beispiel Versicherungs AG\nBestätigung Ihrer Kündigung\nWir bestätigen den Eingang Ihrer Kündigung und beenden den Vertrag zum {{+45}}.",
+  "personas": [
+   "PERSON",
+   "FREELANCER",
+   "COMPANY"
+  ]
+ }
+]

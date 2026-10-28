@@ -1,0 +1,34 @@
+{
+  "id": "realestate-maintenance",
+  "name": "Objektwartung",
+  "category": "realestate",
+  "description": "Nimmt Schadensmeldungen und Wartungsbedarf auf, ordnet sie der Gewerkeart zu und bereitet Aufträge an Dienstleister vor. Dringlichkeit und Zuständigkeit werden nach festen Regeln bestimmt. Der Agent beauftragt nichts ohne Freigabe.",
+  "functions": [
+    "Schadens-Erfassung",
+    "Gewerke-Zuordnung",
+    "Dringlichkeits-Regel",
+    "Auftrags-Entwurf"
+  ],
+  "triggers": [
+    "manual",
+    "mail.received"
+  ],
+  "inputs": {
+    "propertyId": "uuid (erforderlich)",
+    "issueDescription": "string (erforderlich)",
+    "urgency": "LOW | NORMAL | HIGH | EMERGENCY",
+    "preferredContractor": "uuid (optional)",
+    "accessInstructions": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "Objekte",
+      "Dienstleister",
+      "Aufgaben",
+      "Dokumente"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApproval": true
+  }
+}

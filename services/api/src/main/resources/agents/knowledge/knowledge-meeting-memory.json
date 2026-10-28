@@ -1,0 +1,32 @@
+{
+  "id": "knowledge-meeting-memory",
+  "name": "Besprechungsgedächtnis",
+  "category": "knowledge",
+  "description": "Hält Entscheidungen, offene Punkte und Zuständigkeiten aus Besprechungsnotizen fest und verknüpft sie mit Vorgängen und Aufgaben. Wiederkehrende Themen werden sichtbar. Der Agent erfindet keine Entscheidungen, die nicht belegt sind.",
+  "functions": [
+    "Entscheidungs-Erfassung",
+    "Offene Punkte",
+    "Aufgaben-Verknüpfung",
+    "Themen-Wiederholung"
+  ],
+  "triggers": [
+    "manual",
+    "document.received"
+  ],
+  "inputs": {
+    "meetingId": "uuid (optional)",
+    "notes": "string (erforderlich)",
+    "participants": "string (optional)",
+    "caseId": "uuid (optional)"
+  },
+  "config": {
+    "systems": [
+      "Kalender",
+      "Notizen",
+      "Aufgaben",
+      "Wissensbasis"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

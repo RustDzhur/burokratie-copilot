@@ -1,0 +1,81 @@
+{
+  "id": "lead-to-cash",
+  "name": {
+    "de": "Vom Lead zum Auftrag",
+    "ru": "От лида до заказа"
+  },
+  "description": {
+    "de": "Begleitet einen Lead durch Qualifizierung, Angebot und Nachfassen bis zum Auftrag. Jeder Schritt hat einen Besitzer und einen nächsten Termin, damit Chancen nicht an Stillstand sterben.",
+    "ru": "Проводит лид через квалификацию, предложение и напоминания до заказа. У каждого шага есть владелец и следующая дата."
+  },
+  "industries": [
+    "services",
+    "agency",
+    "it",
+    "handwerk",
+    "consulting"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "marketing-lead-nurture",
+      "title": "Lead qualifizieren",
+      "purpose": "Phase und nächste Maßnahme bestimmen",
+      "input": "neuer Kontakt",
+      "output": "qualifizierter Lead"
+    },
+    {
+      "order": 2,
+      "agentId": "crm-lead",
+      "title": "Lead anlegen",
+      "purpose": "Kontakt mit Quelle und Notiz erfassen",
+      "input": "Anfrage",
+      "output": "Lead im CRM"
+    },
+    {
+      "order": 3,
+      "agentId": "crm-deal",
+      "title": "Deal eröffnen",
+      "purpose": "Wert und Phase festhalten",
+      "input": "qualifizierter Lead",
+      "output": "offener Deal"
+    },
+    {
+      "order": 4,
+      "agentId": "sales-offer-draft",
+      "title": "Angebot erstellen",
+      "purpose": "Positionen und Gültigkeit vorbereiten",
+      "input": "Deal und Preisliste",
+      "output": "Angebotsentwurf"
+    },
+    {
+      "order": 5,
+      "agentId": "sales-followup-cadence",
+      "title": "Nachfassen planen",
+      "purpose": "Kadenz mit Stopp-Regeln anlegen",
+      "input": "Angebot",
+      "output": "Follow-up-Aufgaben"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Qualifizierter Lead",
+      "ru": "Квалифицированный лид"
+    },
+    {
+      "de": "Angebotsentwurf",
+      "ru": "Черновик предложения"
+    },
+    {
+      "de": "Follow-up-Plan",
+      "ru": "План напоминаний"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 180,
+    "label": {
+      "de": "ca. 3 Std./Woche",
+      "ru": "≈3 ч/нед."
+    }
+  }
+}

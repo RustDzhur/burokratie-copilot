@@ -1,0 +1,85 @@
+{
+  "id": "content-plan",
+  "name": {
+    "de": "Marketing-Redaktionsplan",
+    "ru": "Контент-план маркетинга"
+  },
+  "description": {
+    "de": "Verbindet SEO-Befunde, Content-Briefings und den Redaktionsplan zu einem Monatsablauf. Newsletter und Social-Media-Beiträge greifen dieselben Themen auf, statt nebeneinander zu laufen. Der KPI-Bericht zeigt am Monatsende, was gewirkt hat.",
+    "ru": "Связывает SEO-находки, брифинги и редакционный план в месячный цикл. Рассылка и соцсети используют одни темы, а KPI-отчёт показывает результат."
+  },
+  "industries": [
+    "agency",
+    "ecommerce",
+    "services",
+    "handwerk",
+    "retail"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "marketing-seo-audit",
+      "title": "SEO prüfen",
+      "purpose": "Technische und inhaltliche Lücken finden",
+      "input": "Website und Keywords",
+      "output": "priorisierte Maßnahmenliste"
+    },
+    {
+      "order": 2,
+      "agentId": "marketing-content-brief",
+      "title": "Briefings schreiben",
+      "purpose": "Themen in prüfbare Briefings übersetzen",
+      "input": "Maßnahmenliste",
+      "output": "Content-Briefings"
+    },
+    {
+      "order": 3,
+      "agentId": "marketing-social-calendar",
+      "title": "Redaktionsplan bauen",
+      "purpose": "Beiträge mit Kanal und Termin planen",
+      "input": "Briefings und Anlässe",
+      "output": "Redaktionsplan"
+    },
+    {
+      "order": 4,
+      "agentId": "marketing-newsletter",
+      "title": "Newsletter planen",
+      "purpose": "Ausgabe aus den Themen zusammenstellen",
+      "input": "Redaktionsplan",
+      "output": "versandfertige Newsletter-Ausgabe"
+    },
+    {
+      "order": 5,
+      "agentId": "knowledge-kpi-report",
+      "title": "Wirkung messen",
+      "purpose": "Kennzahlen für den Monat berichten",
+      "input": "Kampagnen- und Kanaldaten",
+      "output": "KPI-Bericht"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Redaktionsplan",
+      "ru": "Редакционный план"
+    },
+    {
+      "de": "Content-Briefings",
+      "ru": "Брифинги"
+    },
+    {
+      "de": "Newsletter-Entwurf",
+      "ru": "Черновик рассылки"
+    },
+    {
+      "de": "KPI-Bericht",
+      "ru": "KPI-отчёт"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 240,
+    "label": {
+      "de": "ca. 4 Std./Woche",
+      "ru": "≈4 ч/нед."
+    }
+  }
+}

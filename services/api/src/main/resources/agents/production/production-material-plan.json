@@ -1,0 +1,35 @@
+{
+  "id": "production-material-plan",
+  "name": "Materialplanung",
+  "category": "production",
+  "description": "Ermittelt den Materialbedarf je Auftrag, vergleicht ihn mit Lagerbestand und offenen Bestellungen und meldet Fehlmengen. Bestellvorschläge nennen Lieferzeit und Mindestbestellmenge. Bestellt wird erst nach Freigabe.",
+  "functions": [
+    "Bedarfs-Rechnung",
+    "Bestands-Abgleich",
+    "Fehlmengen-Liste",
+    "Bestellvorschlag"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "workOrderIds": "string (optional)",
+    "billOfMaterials": "string (JSON, optional)",
+    "warehouseId": "uuid (optional)",
+    "leadTimeDays": "integer (Standard 14)",
+    "stock": "string (JSON, optional)",
+    "openOrders": "string (JSON, optional)"
+  },
+  "config": {
+    "systems": [
+      "ERP",
+      "Lager",
+      "Bestellungen",
+      "Lieferanten"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApproval": true
+  }
+}

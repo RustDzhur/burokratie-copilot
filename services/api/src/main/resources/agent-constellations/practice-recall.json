@@ -1,0 +1,79 @@
+{
+  "id": "practice-recall",
+  "name": {
+    "de": "Praxis-Recall",
+    "ru": "Напоминания в практике"
+  },
+  "description": {
+    "de": "Ermittelt aus Fristen und Einwilligungen, wer eine Kontroll- oder Impferinnerung erhalten soll, und bereitet Termine sowie Dokumentation vor. Der Agent stellt keine Diagnosen und versendet nichts ohne Freigabe.",
+    "ru": "Определяет по срокам и согласиям, кому нужно напоминание о контроле или вакцинации, готовит записи и документацию. Агент не ставит диагнозов и не отправляет без подтверждения."
+  },
+  "industries": [
+    "healthcare",
+    "therapy",
+    "care"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "healthcare-recall",
+      "title": "Recall ermitteln",
+      "purpose": "Fristen und Einwilligungen prüfen",
+      "input": "Patientendaten",
+      "output": "Recall-Liste"
+    },
+    {
+      "order": 2,
+      "agentId": "healthcare-appointment",
+      "title": "Termine vergeben",
+      "purpose": "Freie Slots vorschlagen",
+      "input": "Recall-Liste",
+      "output": "Terminvorschläge"
+    },
+    {
+      "order": 3,
+      "agentId": "healthcare-documentation",
+      "title": "Dokumentation vorbereiten",
+      "purpose": "Strukturierte Vorlage je Terminart",
+      "input": "Terminvorschläge",
+      "output": "Dokumentationsentwurf"
+    },
+    {
+      "order": 4,
+      "agentId": "calendar-sync",
+      "title": "Termine eintragen",
+      "purpose": "Praxis- und Patiententermin abstimmen",
+      "input": "bestätigte Termine",
+      "output": "Kalendereinträge"
+    },
+    {
+      "order": 5,
+      "agentId": "task-dispatch",
+      "title": "Nachverfolgung",
+      "purpose": "Offene Rückmeldungen zuweisen",
+      "input": "Recall-Liste",
+      "output": "Aufgaben"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Recall-Liste",
+      "ru": "Список напоминаний"
+    },
+    {
+      "de": "Terminvorschläge",
+      "ru": "Предложения по записи"
+    },
+    {
+      "de": "Dokumentationsentwürfe",
+      "ru": "Черновики документации"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 90,
+    "label": {
+      "de": "ca. 1 Std./Woche",
+      "ru": "≈1 ч/нед."
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "id": "production-quote-calc",
+  "name": "Fertigungskalkulation",
+  "category": "production",
+  "description": "Kalkuliert Fertigungsangebote aus Materialkosten, Arbeitszeit, Maschinenstunden und Gemeinkostenzuschlag. Jede Position nennt ihre Annahme und Datenquelle; fehlende Werte werden nicht geschätzt. Das Ergebnis ist ein prüfbarer Kalkulationsnachweis.",
+  "functions": [
+    "Material-Kalkulation",
+    "Zeit-Kalkulation",
+    "Zuschlags-Rechnung",
+    "Kalkulationsnachweis"
+  ],
+  "triggers": [
+    "manual",
+    "deal.stage_changed"
+  ],
+  "inputs": {
+    "productId": "uuid (erforderlich)",
+    "quantity": "decimal (erforderlich)",
+    "materialCosts": "decimal (optional)",
+    "hourlyRate": "decimal (optional)",
+    "laborHours": "decimal (optional)",
+    "machineRate": "decimal (optional)",
+    "machineHours": "decimal (optional)",
+    "overheadPercent": "decimal (Standard 12)",
+    "marginPercent": "decimal (Standard 10)",
+    "discountPercent": "decimal (optional)"
+  },
+  "config": {
+    "systems": [
+      "ERP",
+      "Preisliste",
+      "Controlling",
+      "Dokumente"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "noGuessing": true
+  }
+}

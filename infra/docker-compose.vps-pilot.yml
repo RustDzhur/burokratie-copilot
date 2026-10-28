@@ -1,0 +1,32 @@
+# VPS pilot overlay: ports/volumes/tags live in infra/.env; this file pins restarts, disables
+# the services the pilot does not run (object storage, virus scanner, background worker),
+# and carries the pilot's guard and Flyway baseline settings.
+services:
+  api:
+    restart: unless-stopped
+    environment:
+      BC_ALLOW_NO_OCR: "true"
+      BC_ALLOW_UNSCANNED: "true"
+      BC_MALWARE_SCANNER: "none"
+      BC_OCR_ENABLED: "true"
+      BC_OCR_LANGUAGES: "deu+eng+rus+ukr"
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+      SPRING_FLYWAY_BASELINE_VERSION: "72"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health/readiness >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 300s
+  web:
+    restart: unless-stopped
+  postgres:
+    restart: unless-stopped
+  minio:
+    profiles: ["disabled"]
+  minio-init:
+    profiles: ["disabled"]
+  clamav:
+    profiles: ["disabled"]
+  worker:
+    profiles: ["disabled"]

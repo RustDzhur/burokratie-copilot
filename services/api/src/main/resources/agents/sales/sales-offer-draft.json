@@ -1,0 +1,37 @@
+{
+  "id": "sales-offer-draft",
+  "name": "Angebotserstellung",
+  "category": "sales",
+  "description": "Erstellt aus Anfrage, Preisliste und Leistungsumfang einen Angebotsentwurf mit Positionen, Rabatten und Gültigkeit. Fehlende Angaben werden als offene Punkte ausgewiesen statt erfunden. Das Angebot wird als Dokument vorbereitet und erst nach Freigabe versendet.",
+  "functions": [
+    "Positions-Erstellung",
+    "Preis-Prüfung",
+    "Rabatt-Grenzen",
+    "Angebotsdokument"
+  ],
+  "triggers": [
+    "manual",
+    "webhook"
+  ],
+  "inputs": {
+    "contactId": "uuid (erforderlich)",
+    "dealId": "uuid (optional)",
+    "items": "string (JSON)",
+    "discountPercent": "decimal (optional)",
+    "validUntil": "date (optional)",
+    "paymentTerms": "string (optional)",
+    "taxRatePercent": "decimal (optional)"
+  },
+  "config": {
+    "systems": [
+      "CRM",
+      "Preisliste",
+      "Dokumente",
+      "E-Mail"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "maxDiscountPercent": 15,
+    "requiresApproval": true
+  }
+}

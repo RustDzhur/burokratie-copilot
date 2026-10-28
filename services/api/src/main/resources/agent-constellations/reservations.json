@@ -1,0 +1,79 @@
+{
+  "id": "reservations",
+  "name": {
+    "de": "Reservierungen",
+    "ru": "Бронирования"
+  },
+  "description": {
+    "de": "Nimmt Reservierungen an, prüft Verfügbarkeit und bereitet die Nachfassung bei No-Shows vor. Besondere Anlässe landen direkt am Gastprofil, damit der Service beim nächsten Besuch Bescheid weiß.",
+    "ru": "Принимает брони, проверяет доступность и готовит напоминания при неявке. Особые поводы сохраняются в профиле гостя."
+  },
+  "industries": [
+    "gastronomy",
+    "hospitality",
+    "services"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "hospitality-reservation",
+      "title": "Reservierung aufnehmen",
+      "purpose": "Kapazität und Zeitfenster prüfen",
+      "input": "Anfrage",
+      "output": "bestätigte Reservierung oder Alternative"
+    },
+    {
+      "order": 2,
+      "agentId": "hospitality-no-show",
+      "title": "No-Show nachfassen",
+      "purpose": "Nicht wahrgenommene Termine bearbeiten",
+      "input": "Reservierungsliste",
+      "output": "Nachfass-Entwurf"
+    },
+    {
+      "order": 3,
+      "agentId": "calendar-sync",
+      "title": "Kalender pflegen",
+      "purpose": "Reservierungen im Teamkalender sichtbar",
+      "input": "Reservierung",
+      "output": "Kalendereintrag"
+    },
+    {
+      "order": 4,
+      "agentId": "mail-reply",
+      "title": "Gast informieren",
+      "purpose": "Bestätigung und Änderung formulieren",
+      "input": "Reservierung",
+      "output": "Antwortentwurf"
+    },
+    {
+      "order": 5,
+      "agentId": "crm-contact",
+      "title": "Gastprofil pflegen",
+      "purpose": "Anlässe und Vorlieben festhalten",
+      "input": "Reservierung",
+      "output": "aktualisiertes Profil"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Reservierungsliste",
+      "ru": "Список брони"
+    },
+    {
+      "de": "Bestätigungen",
+      "ru": "Подтверждения"
+    },
+    {
+      "de": "Gastprofile",
+      "ru": "Профили гостей"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 90,
+    "label": {
+      "de": "ca. 1 Std./Woche",
+      "ru": "≈1 ч/нед."
+    }
+  }
+}

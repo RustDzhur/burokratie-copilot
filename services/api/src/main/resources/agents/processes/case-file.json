@@ -1,0 +1,15 @@
+{
+  "id": "case-file",
+  "name": "Vorgangsakte",
+  "category": "processes",
+  "description": "Stellt die Akte eines Vorgangs zusammen: Dokumente, Schritte, offene Aufgaben — ein einziger Überblick.",
+  "functions": ["Dokumenten-Übersicht", "Schritte und Ereignisse", "Offene Aufgaben und Fristen"],
+  "triggers": ["case.updated", "manual"],
+  "inputs": {
+    "caseId": "uuid (erforderlich)"
+  },
+  "config": {
+    "maxEvents": 20,
+    "maxOpenTasks": 20
+  }
+}

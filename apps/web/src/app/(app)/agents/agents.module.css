@@ -1,0 +1,281 @@
+/* Agent catalogue — the pilot's lime accent (#c6ff4d) marks what is really running. */
+
+.stats {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-subtle);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4);
+  margin: var(--space-4) 0 var(--space-5);
+}
+
+.toolbar > * {
+  min-width: 14rem;
+}
+
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.card:hover {
+  border-color: rgba(198, 255, 77, 0.45);
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: 1;
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.cardName {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+}
+
+.cardNameLink {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.cardNameLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.cardDescription {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-subtle);
+}
+
+.cardSectionLabel {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-subtle);
+}
+
+.cardList {
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--font-size-sm);
+  display: grid;
+  gap: var(--space-1);
+}
+
+.cardTriggers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.cardFooter {
+  margin-top: auto;
+  padding-top: var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.runCount {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-subtle);
+}
+
+/* The Live pill: the pilot accent. Dark ink on lime keeps AA contrast in both themes. */
+.livePill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-pill);
+  padding: 0.125rem 0.625rem;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  background: #c6ff4d;
+  color: #0b1120;
+  white-space: nowrap;
+}
+
+.konzeptPill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-pill);
+  padding: 0.125rem 0.625rem;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  background: var(--color-bg);
+  color: var(--color-text-subtle);
+  border: 1px solid var(--color-border-subtle);
+  white-space: nowrap;
+}
+
+.pillHint {
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-sm);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Detail page                                                                */
+/* -------------------------------------------------------------------------- */
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+@media (min-width: 60rem) {
+  .detailGrid {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.detailColumn {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.description {
+  margin: 0;
+  font-size: var(--font-size-md);
+}
+
+.sectionList {
+  margin: 0;
+  padding-left: var(--space-4);
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+}
+
+.triggerList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+/* The run button: the pilot's lime. */
+.runButton {
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.625rem 1.25rem;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-md);
+  background: #c6ff4d;
+  color: #0b1120;
+  cursor: pointer;
+  box-shadow: 0 0 18px rgba(198, 255, 77, 0.25);
+}
+
+.runButton:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow: 0 0 26px rgba(198, 255, 77, 0.4);
+}
+
+.runButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.inputsGrid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.resultBox {
+  border: 1px solid var(--color-border, rgba(128, 128, 128, 0.35));
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.resultHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.producedList {
+  margin: 0;
+  padding-left: var(--space-4);
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+}
+
+.producedKind {
+  font-weight: var(--font-weight-medium);
+}
+
+.journalList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.journalRow {
+  display: grid;
+  gap: var(--space-1);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle, rgba(128, 128, 128, 0.25));
+}
+
+.journalRow:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.journalMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-subtle);
+}
+
+.journalSummary {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}

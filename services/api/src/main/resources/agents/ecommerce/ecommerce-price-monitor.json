@@ -1,0 +1,32 @@
+{
+  "id": "ecommerce-price-monitor",
+  "name": "Preis-Monitor",
+  "category": "ecommerce",
+  "description": "Beobachtet Wettbewerbspreise und die eigene Marge je Artikel und schlägt Preisanpassungen innerhalb der hinterlegten Grenzen vor. Untergrenzen und MAP-Vorgaben werden nie unterschritten. Änderungen werden erst nach Freigabe in den Shop übertragen.",
+  "functions": [
+    "Wettbewerbs-Vergleich",
+    "Margen-Prüfung",
+    "Preis-Vorschlag",
+    "Grenzwerte"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "productIds": "string (optional)",
+    "competitorSources": "string (optional)",
+    "marginFloorPercent": "decimal (erforderlich)",
+    "maxChangePercent": "decimal (Standard 10)"
+  },
+  "config": {
+    "systems": [
+      "Shop",
+      "Wettbewerbsdaten",
+      "Controlling"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApproval": true
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "logistics-route-planning",
+  "name": "Tourenplanung",
+  "category": "logistics",
+  "description": "Schlägt aus Lieferadressen, Zeitfenstern und Fahrzeugkapazitäten eine Tourenfolge vor. Konflikte wie enge Zeitfenster oder Überladung werden sichtbar gemacht. Die Planung ist ein Vorschlag, der von der Disposition bestätigt wird.",
+  "functions": [
+    "Touren-Bildung",
+    "Zeitfenster-Prüfung",
+    "Kapazitäts-Prüfung",
+    "Konflikt-Liste"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "deliveryDate": "date (erforderlich)",
+    "stops": "string (JSON, erforderlich)",
+    "vehicleCapacity": "string (optional)",
+    "driverQualifications": "string (optional)",
+    "depotAddress": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "Versand",
+      "Kalender",
+      "Karte",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

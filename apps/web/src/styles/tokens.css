@@ -1,0 +1,427 @@
+/* =============================================================================
+ * Bürokratie-Copilot — Design tokens
+ * -----------------------------------------------------------------------------
+ * Single source of truth for colour, typography, spacing, radii, elevation,
+ * motion and stacking. Components never hard-code visual values; they only
+ * reference these custom properties (see docs in apps/web/README.md).
+ *
+ * Themes:
+ *   :root                     -> light theme (default)
+ *   [data-theme='dark']       -> dark theme
+ *   [data-contrast='high']    -> high contrast overlay (works on both themes)
+ *   [data-text-scale='112']   -> larger text (112%)
+ *   [data-text-scale='125']   -> largest text (125%)
+ *   [data-motion='reduced']   -> manual "reduce motion" setting
+ *   [data-effects='reduced']  -> "simple mode": fewer decorative surfaces
+ *
+ * All text/background pairs used by text are verified by
+ * src/design-system/__tests__/contrast.test.ts (WCAG 2.2 AA, >= 4.5:1).
+ * ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* ---- Typography ------------------------------------------------------ */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --font-size-2xs: 0.6875rem; /* 11px */
+  --font-size-xs: 0.75rem; /* 12px */
+  --font-size-sm: 0.8125rem; /* 13px */
+  --font-size-md: 0.875rem; /* 14px — base UI size */
+  --font-size-lg: 1rem; /* 16px — body copy */
+  --font-size-xl: 1.125rem; /* 18px */
+  --font-size-2xl: 1.375rem; /* 22px */
+  --font-size-3xl: 1.75rem; /* 28px */
+  --font-size-4xl: 2.25rem; /* 36px */
+  --font-size-5xl: 3rem; /* 48px */
+
+  --line-height-tight: 1.2;
+  --line-height-snug: 1.35;
+  --line-height-normal: 1.55;
+  --line-height-relaxed: 1.7;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.04em;
+  --letter-spacing-caps: 0.08em;
+
+  /* ---- Spacing (4px base) --------------------------------------------- */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+
+  /* ---- Radii ----------------------------------------------------------- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+  --radius-pill: 999px;
+
+  /* ---- Layout ---------------------------------------------------------- */
+  --layout-sidebar-width: 272px;
+  --layout-sidebar-collapsed-width: 76px;
+  --layout-topbar-height: 64px;
+  --layout-content-max: 1440px;
+  --layout-reading-max: 72ch;
+  --control-height-sm: 32px;
+  --control-height-md: 40px;
+  --control-height-lg: 48px;
+
+  /* ---- Motion ---------------------------------------------------------- */
+  --motion-duration-instant: 60ms;
+  --motion-duration-fast: 120ms;
+  --motion-duration-base: 200ms;
+  --motion-duration-slow: 320ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0.2, 1);
+  --motion-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* ---- Z-index --------------------------------------------------------- */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-sticky: 100;
+  --z-sidebar: 200;
+  --z-topbar: 300;
+  --z-drawer: 400;
+  --z-dialog: 500;
+  --z-popover: 600;
+  --z-toast: 700;
+  --z-skip-link: 800;
+
+  /* ---- Colour primitives (light) --------------------------------------- */
+  --palette-white: #ffffff;
+  --palette-slate-25: #f8fafc;
+  --palette-slate-50: #f4f6fb;
+  --palette-slate-100: #eceff7;
+  --palette-slate-200: #dde2ee;
+  --palette-slate-300: #c5ccdd;
+  --palette-slate-400: #8b95ab;
+  --palette-slate-500: #646d80;
+  --palette-slate-600: #4b5464;
+  --palette-slate-700: #363e4d;
+  --palette-slate-800: #232a37;
+  --palette-slate-900: #131824;
+  --palette-blue-500: #2563eb;
+  --palette-blue-600: #1d4ed8;
+  --palette-blue-700: #1b3fb0;
+  --palette-teal-500: #0d7d8c;
+  --palette-green-600: #067647;
+  --palette-amber-600: #9a3412;
+  --palette-amber-700: #b54708;
+  --palette-red-600: #b42318;
+  --palette-red-700: #a3160c;
+  --palette-violet-600: #6941c6;
+
+  /* ---- Semantic surface & text (light) --------------------------------- */
+  --color-bg: #f7f9fc;
+  --color-bg-subtle: #f2f5fa;
+  --color-surface: #ffffff;
+  --color-surface-2: #f7f9fc;
+  --color-surface-inset: #f2f5fa;
+  --color-surface-glass: rgba(255, 255, 255, 0.72);
+  --color-surface-glass-strong: rgba(255, 255, 255, 0.88);
+  --color-overlay: rgba(16, 24, 40, 0.45);
+
+  --color-text: #182230;
+  --color-text-muted: #667085;
+  --color-text-subtle: #556173;
+  --color-text-inverse: #ffffff;
+  --color-text-on-accent: #ffffff;
+
+  --color-border: #e4e7ec;
+  --color-border-strong: #767f94;
+  --color-border-subtle: #eef1f6;
+  /* The glass edge the firmspace panels use: bright in the dark, soft in the light. */
+  --color-border-glass: rgba(16, 24, 40, 0.1);
+  --color-focus-ring: #3a55c6;
+  --color-focus-ring-contrast: #ffffff;
+
+  --color-accent: #4a5ef0;
+  --color-accent-hover: #3f51d4;
+  --color-accent-active: #33449f;
+  --color-accent-subtle: #eef1fe;
+  --color-accent-text: #3a55c6;
+  --color-accent-neon: #4f6bed;
+
+  --color-success: #067647;
+  --color-success-subtle: #e7f6ee;
+  --color-success-text: #05603a;
+  --color-warning: #b45309;
+  --color-warning-subtle: #fef3e2;
+  --color-warning-text: #8a3606;
+  --color-danger: #b42318;
+  --color-danger-hover: #a3160c;
+  --color-danger-subtle: #feeceb;
+  --color-danger-text: #a3160c;
+  --color-info: #2563eb;
+  --color-info-subtle: #e9effd;
+  --color-info-text: #1d4ed8;
+  --color-neutral-subtle: #eceff7;
+  --color-neutral-text: #363e4d;
+  --color-violet: #6941c6;
+  --color-violet-subtle: #f1ebfd;
+  --color-violet-text: #5527ab;
+
+  /* The neon range of the firmspace site: cyan → indigo → violet. */
+  --color-cyan: #0891b2;
+  --color-cyan-subtle: #e0f7fb;
+  --color-glow-accent: rgba(74, 94, 240, 0.32);
+  --color-glow-cyan: rgba(14, 116, 144, 0.25);
+
+  --color-chart-1: #4a5ef0;
+  --color-chart-2: #36cfc9;
+  --color-chart-3: #8b5cf6;
+  --color-chart-4: #f59e0b;
+  --color-chart-5: #0d9488;
+
+  /* ---- Elevation (light) ----------------------------------------------- */
+  --shadow-xs: 0 1px 2px rgba(19, 24, 36, 0.06);
+  --shadow-sm: 0 1px 3px rgba(19, 24, 36, 0.09), 0 1px 2px rgba(19, 24, 36, 0.05);
+  --shadow-md: 0 6px 16px rgba(19, 24, 36, 0.1), 0 2px 6px rgba(19, 24, 36, 0.06);
+  --shadow-lg: 0 16px 40px rgba(19, 24, 36, 0.14), 0 4px 12px rgba(19, 24, 36, 0.07);
+  --shadow-xl: 0 28px 64px rgba(19, 24, 36, 0.2), 0 8px 20px rgba(19, 24, 36, 0.1);
+  --shadow-neon: 0 0 0 1px rgba(74, 94, 240, 0.28), 0 0 24px -6px rgba(74, 94, 240, 0.35);
+  --shadow-glass:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 10px 30px -12px rgba(16, 24, 40, 0.12);
+  --shadow-focus: 0 0 0 3px rgba(58, 85, 198, 0.35);
+
+  /* ---- Background decoration ------------------------------------------ */
+  --gradient-brand: linear-gradient(100deg, #4f6bed 0%, #3a55c6 100%);
+  /* The neon pill of the site: cyan → indigo → violet; decorative only, text never sits on it. */
+  --gradient-neon: linear-gradient(100deg, #0891b2 0%, #4a5ef0 55%, #6941c6 100%);
+  --gradient-surface: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(236, 239, 247, 0.75) 100%
+  );
+  --gradient-halo: radial-gradient(
+    60% 60% at 50% 0%,
+    rgba(74, 94, 240, 0.1) 0%,
+    rgba(74, 94, 240, 0) 70%
+  );
+  --glass-blur: 14px;
+  --glass-saturate: 140%;
+}
+
+/* =============================================================================
+ * Dark theme — the firmspace site's "Glas + Neon" space theme
+ * ========================================================================== */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: #0b1120;
+  --color-bg-subtle: #070d1a;
+  --color-surface: #131c31;
+  --color-surface-2: #18233c;
+  --color-surface-inset: #0a0f1e;
+  --color-surface-glass: rgba(19, 28, 49, 0.62);
+  --color-surface-glass-strong: rgba(19, 28, 49, 0.85);
+  --color-overlay: rgba(2, 6, 20, 0.68);
+
+  --color-text: #edf2ff;
+  --color-text-muted: #9aa7c9;
+  --color-text-subtle: #b7c3e2;
+  --color-text-inverse: #0b1120;
+  --color-text-on-accent: #0b1120;
+
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-border-strong: #5f74a6;
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-glass: rgba(255, 255, 255, 0.12);
+  --color-focus-ring: #67e8f9;
+  --color-focus-ring-contrast: #06121c;
+
+  --color-accent: #7c93ff;
+  --color-accent-hover: #93a5ff;
+  --color-accent-active: #a2b3ff;
+  --color-accent-subtle: #1c2441;
+  --color-accent-text: #a2b3ff;
+  --color-accent-neon: #a2b3ff;
+
+  --color-success: #55d6a4;
+  --color-success-subtle: #12302a;
+  --color-success-text: #7fe6bd;
+  --color-warning: #f2b34c;
+  --color-warning-subtle: #2c2110;
+  --color-warning-text: #f9d391;
+  --color-danger: #ff8f88;
+  --color-danger-hover: #ffa8a2;
+  --color-danger-subtle: #2d1517;
+  --color-danger-text: #ffa8a2;
+  --color-info: #7c93ff;
+  --color-info-subtle: #1c2441;
+  --color-info-text: #a2b3ff;
+  --color-neutral-subtle: #1a2334;
+  --color-neutral-text: #cdd6e6;
+  --color-violet: #a78bfa;
+  --color-violet-subtle: #221a3a;
+  --color-violet-text: #c4b5fd;
+
+  /* The neon range of the firmspace site: cyan → indigo → violet. */
+  --color-cyan: #22d3ee;
+  --color-cyan-subtle: rgba(34, 211, 238, 0.14);
+  --color-glow-accent: rgba(124, 147, 255, 0.45);
+  --color-glow-cyan: rgba(34, 211, 238, 0.35);
+
+  --color-chart-1: #22d3ee;
+  --color-chart-2: #7c93ff;
+  --color-chart-3: #a78bfa;
+  --color-chart-4: #2fe3dc;
+  --color-chart-5: #f2b34c;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.55), 0 6px 16px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 32px 72px rgba(0, 0, 0, 0.62), 0 10px 24px rgba(0, 0, 0, 0.45);
+  --shadow-neon: 0 0 0 1px rgba(124, 147, 255, 0.35), 0 0 24px -6px rgba(124, 147, 255, 0.5);
+  --shadow-glass:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 14px 34px -14px rgba(0, 0, 0, 0.55);
+  --shadow-focus: 0 0 0 3px rgba(103, 232, 249, 0.45);
+
+  --gradient-brand: linear-gradient(100deg, #22d3ee 0%, #7c93ff 55%, #a78bfa 100%);
+  --gradient-neon: linear-gradient(100deg, #22d3ee 0%, #6366f1 55%, #8b5cf6 100%);
+  --gradient-surface: linear-gradient(
+    160deg,
+    rgba(38, 49, 73, 0.55) 0%,
+    rgba(14, 20, 32, 0.75) 100%
+  );
+  --gradient-halo: radial-gradient(
+    60% 60% at 50% 0%,
+    rgba(124, 147, 255, 0.14) 0%,
+    rgba(124, 147, 255, 0) 70%
+  );
+}
+
+/* =============================================================================
+ * High contrast overlay — increases separation, removes translucency
+ * ========================================================================== */
+[data-contrast='high'] {
+  --color-surface-glass: var(--color-surface);
+  --color-surface-glass-strong: var(--color-surface);
+  --glass-blur: 0px;
+  --glass-saturate: 100%;
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-xl: none;
+  --shadow-neon: none;
+  --gradient-surface: none;
+  --gradient-halo: none;
+  --gradient-brand: linear-gradient(
+    135deg,
+    var(--color-accent-active) 0%,
+    var(--color-accent-active) 100%
+  );
+}
+
+[data-contrast='high']:not([data-theme='dark']) {
+  --color-bg: #ffffff;
+  --color-bg-subtle: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-2: #ffffff;
+  --color-surface-inset: #ffffff;
+  --color-text: #000000;
+  --color-text-muted: #1f2430;
+  --color-text-subtle: #2b313d;
+  --color-border: #4b5464;
+  --color-border-strong: #131824;
+  --color-border-subtle: #4b5464;
+  --color-focus-ring: #0b2ea8;
+  --color-accent: #12339c;
+  --color-accent-hover: #0b2472;
+  --color-accent-active: #071a55;
+  --color-accent-subtle: #ffffff;
+  --color-accent-text: #0b2472;
+  --color-success-text: #054d2e;
+  --color-warning-text: #6d2b04;
+  --color-danger-text: #7d1008;
+  --color-info-text: #12339c;
+  --color-neutral-text: #1f2430;
+  --color-violet-text: #431d94;
+}
+
+[data-contrast='high'][data-theme='dark'] {
+  --color-bg: #000000;
+  --color-bg-subtle: #000000;
+  --color-surface: #000000;
+  --color-surface-2: #0a0f18;
+  --color-surface-inset: #000000;
+  --color-text: #ffffff;
+  --color-text-muted: #e3e8f2;
+  --color-text-subtle: #d7dded;
+  --color-border: #8f9cb5;
+  --color-border-strong: #ffffff;
+  --color-border-subtle: #8f9cb5;
+  --color-focus-ring: #a5e8ff;
+  --color-accent: #7fe0ff;
+  --color-accent-hover: #a5e8ff;
+  --color-accent-active: #5cd0f5;
+  --color-accent-subtle: #06121c;
+  --color-accent-text: #b7ecff;
+}
+
+/* =============================================================================
+ * Text scaling (larger text setting) — scales every rem-based token
+ * ========================================================================== */
+[data-text-scale='112'] {
+  font-size: 112%;
+}
+
+[data-text-scale='125'] {
+  font-size: 125%;
+}
+
+/* =============================================================================
+ * Motion control — manual setting and OS preference
+ * ========================================================================== */
+[data-motion='reduced'] {
+  --motion-duration-instant: 0ms;
+  --motion-duration-fast: 0ms;
+  --motion-duration-base: 0ms;
+  --motion-duration-slow: 0ms;
+}
+
+/* "Simple mode" (cognitive accessibility): fewer decorative surfaces */
+[data-effects='reduced'] {
+  --glass-blur: 0px;
+  --glass-saturate: 100%;
+  --color-surface-glass: var(--color-surface);
+  --color-surface-glass-strong: var(--color-surface);
+  --gradient-halo: none;
+  --shadow-neon: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-instant: 0ms;
+    --motion-duration-fast: 0ms;
+    --motion-duration-base: 0ms;
+    --motion-duration-slow: 0ms;
+  }
+}

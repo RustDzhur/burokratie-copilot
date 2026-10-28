@@ -1,0 +1,26 @@
+{
+  "id": "approval",
+  "name": "Freigaben",
+  "category": "processes",
+  "description": "Legt Freigabekreise an und führt sie: wer entscheidet, was entschieden wurde und wie die Entscheidung dokumentiert ist.",
+  "functions": ["Freigabe-Anfrage", "Entscheidung dokumentieren", "Status und Historie"],
+  "triggers": ["manual"],
+  "inputs": {
+    "action": "request|decide|status",
+    "subjectType": "string",
+    "subjectId": "uuid",
+    "approvalType": "string (optional)",
+    "title": "string (optional)",
+    "justification": "string (optional)",
+    "amount": "decimal (optional)",
+    "direction": "INCOMING|OUTGOING|ANY (optional)",
+    "expiresAt": "iso-8601 (optional)",
+    "approvalId": "uuid (nur decide/status)",
+    "deciderUserId": "uuid (nur decide)",
+    "approved": "true|false (nur decide)",
+    "note": "string (nur decide)"
+  },
+  "config": {
+    "defaultDirection": "ANY"
+  }
+}

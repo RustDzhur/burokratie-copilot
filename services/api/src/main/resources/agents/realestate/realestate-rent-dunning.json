@@ -1,0 +1,34 @@
+{
+  "id": "realestate-rent-dunning",
+  "name": "Mietrückstände",
+  "category": "realestate",
+  "description": "Erkennt offene Mietzahlungen und bereitet gestaffelte Zahlungserinnerungen vor. Jede Stufe nennt Frist, Betrag und bisherige Korrespondenz. Der Agent versendet nichts ohne Freigabe und leitet rechtliche Schritte nicht ein.",
+  "functions": [
+    "Rückstands-Erkennung",
+    "Mahnstufen",
+    "Korrespondenz-Übersicht",
+    "Entwurf"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "propertyId": "uuid (optional)",
+    "periodFrom": "date (erforderlich)",
+    "periodTo": "date (erforderlich)",
+    "dunningLevels": "integer (Standard 3)",
+    "graceDays": "integer (Standard 5)"
+  },
+  "config": {
+    "systems": [
+      "Objekte",
+      "Bank",
+      "E-Mail",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApproval": true
+  }
+}

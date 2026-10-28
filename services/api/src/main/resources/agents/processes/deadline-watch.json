@@ -1,0 +1,15 @@
+{
+  "id": "deadline-watch",
+  "name": "Fristen-Überwachung",
+  "category": "processes",
+  "description": "Beobachtet die Fristen aller Vorgänge, eskaliert überfällige und meldet nahende Fristen.",
+  "functions": ["Überfällige Fristen eskalieren", "Nahende Fristen melden", "Ungeprüfte Fristen melden"],
+  "triggers": ["deadline.hit", "manual"],
+  "inputs": {
+    "leadDays": "int (optional, Standard aus Einstellung deadline_watch.lead_days)",
+    "includeVerification": "true|false (optional, default true)"
+  },
+  "config": {
+    "leadDays": 7
+  }
+}

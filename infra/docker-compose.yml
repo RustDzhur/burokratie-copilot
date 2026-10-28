@@ -1,0 +1,281 @@
+# =============================================================================
+#  Bürokratie-Copilot — development stack (Docker Compose)
+# =============================================================================
+#  Usage:
+#      cp infra/.env.example infra/.env      # then edit the placeholders
+#      docker compose --env-file infra/.env -f infra/docker-compose.yml up -d
+#      docker compose --env-file infra/.env -f infra/docker-compose.yml ps
+#      docker compose --env-file infra/.env -f infra/docker-compose.yml logs -f api
+#
+#  Requirements: Docker Engine 24+ with Compose v2.20+ (`docker compose`, not the
+#  retired `docker-compose` v1 — this file relies on `depends_on.condition`,
+#  `!reset`/`!override` tags in the production override and healthcheck gating).
+#
+#  Security posture of THIS file (development only):
+#    * every published port is bound to ${BC_BIND_ADDRESS:-127.0.0.1}, so nothing
+#      is reachable from the LAN by default;
+#    * the database and object-storage credentials are placeholder values taken
+#      from infra/.env — never reused for production;
+#    * secrets are passed as environment variables, never baked into images.
+#  Production uses the override file:
+#      docker compose --env-file infra/.env \
+#        -f infra/docker-compose.yml -f infra/docker-compose.prod.yml up -d
+#  See docs/deployment.md and docs/runbook.md.
+#
+#  NOT EXECUTED IN THE AUTHORING ENVIRONMENT: Docker is not installed on the
+#  machine where this file was written. It is validated statically (YAML parse
+#  plus `docker compose config` in CI when a Docker daemon is available) — see
+#  docs/runbook.md → "Verification status".
+# =============================================================================
+
+name: ${COMPOSE_PROJECT_NAME:-burokratie-copilot}
+
+# -----------------------------------------------------------------------------
+# Reusable fragments
+# -----------------------------------------------------------------------------
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-api-image: &api-image
+  build:
+    # Build context is the REPOSITORY ROOT (not infra/) so that the backend
+    # sources and the Maven wrapper can be copied into the build stage.
+    context: ..
+    dockerfile: infra/docker/api.Dockerfile
+    args:
+      # Recorded in the image as an OCI label; used for release traceability.
+      BUILD_REVISION: ${BC_BUILD_REVISION:-unknown}
+
+# Environment shared by `api` and `worker` — they run the SAME artifact, only
+# the Spring profile differs (spec §2.1: worker components of the modular
+# monolith, scaled independently).
+x-api-environment: &api-environment
+  # --- database ---
+  BC_DB_HOST: postgres
+  BC_DB_PORT: "5432"
+  BC_DB_NAME: ${POSTGRES_DB:-burokratie}
+  BC_DB_USER: ${POSTGRES_USER:-burokratie}
+  BC_DB_PASSWORD: ${BC_DB_PASSWORD:?BC_DB_PASSWORD must be set in infra/.env}
+  BC_DB_POOL_SIZE: ${BC_DB_POOL_SIZE:-10}
+  # Controlled migrations: keep true in dev, gate in production (docs/runbook.md).
+  BC_FLYWAY_ENABLED: ${BC_FLYWAY_ENABLED:-true}
+  # --- object storage ---
+  BC_STORAGE_TYPE: ${BC_STORAGE_TYPE:-s3}
+  BC_STORAGE_PATH: ${BC_STORAGE_PATH:-/app/data/blobs}
+  BC_S3_ENDPOINT: ${BC_S3_ENDPOINT:-http://minio:9000}
+  BC_S3_REGION: ${BC_S3_REGION:-eu-central-1}
+  BC_S3_BUCKET: ${BC_S3_BUCKET:-burokratie}
+  BC_S3_ACCESS_KEY: ${BC_S3_ACCESS_KEY:?BC_S3_ACCESS_KEY must be set in infra/.env}
+  BC_S3_SECRET_KEY: ${BC_S3_SECRET_KEY:?BC_S3_SECRET_KEY must be set in infra/.env}
+  # --- security ---
+  # Must be base64 of exactly 32 bytes. The `prod` profile refuses to start
+  # without it; in dev a placeholder keeps the boot path identical.
+  BC_ENCRYPTION_KEY: ${BC_ENCRYPTION_KEY:?BC_ENCRYPTION_KEY must be set in infra/.env}
+  BC_PUBLIC_BASE_URL: ${BC_PUBLIC_BASE_URL:-http://localhost:3000}
+  BC_COOKIE_SECURE: ${BC_COOKIE_SECURE:-false}
+  # --- limits / runtime ---
+  BC_MAX_UPLOAD_SIZE: ${BC_MAX_UPLOAD_SIZE:-100MB}
+  BC_MAX_REQUEST_SIZE: ${BC_MAX_REQUEST_SIZE:-250MB}
+  # --- optional features: DISABLED unless credentials exist (spec §9.2, §10.1) ---
+  BC_AI_ENABLED: ${BC_AI_ENABLED:-false}
+  BC_AI_PROVIDER: ${BC_AI_PROVIDER:-none}
+  BC_AI_BASE_URL: ${BC_AI_BASE_URL:-}
+  BC_AI_API_KEY: ${BC_AI_API_KEY:-}
+  BC_AI_MONTHLY_BUDGET_EUR: ${BC_AI_MONTHLY_BUDGET_EUR:-0}
+  BC_AI_MODEL: ${BC_AI_MODEL:-}
+  BC_AI_GUIDE_DAILY_LIMIT: ${BC_AI_GUIDE_DAILY_LIMIT:-100}
+  # --- Telegram informer: the bot token from @BotFather; empty = the informer is off ---
+  BC_TELEGRAM_BOT_TOKEN: ${BC_TELEGRAM_BOT_TOKEN:-}
+  BC_TELEGRAM_BOT_USERNAME: ${BC_TELEGRAM_BOT_USERNAME:-}
+  BC_AI_AUTO_READ: ${BC_AI_AUTO_READ:-true}
+  BC_AI_AUTO_READ_DAILY_LIMIT: ${BC_AI_AUTO_READ_DAILY_LIMIT:-20}
+  BC_AI_PRICE_INPUT_PER_MILLION: ${BC_AI_PRICE_INPUT_PER_MILLION:-0}
+  BC_AI_PRICE_OUTPUT_PER_MILLION: ${BC_AI_PRICE_OUTPUT_PER_MILLION:-0}
+  BC_REGISTRATION_OPEN: ${BC_REGISTRATION_OPEN:-true}
+  BC_PLATFORM_ADMINS: ${BC_PLATFORM_ADMINS:-}
+  BC_OCR_ENABLED: ${BC_OCR_ENABLED:-true}
+  BC_MALWARE_SCANNER: ${BC_MALWARE_SCANNER:-clamav-cli}
+  BC_CLAMAV_PATH: ${BC_CLAMAV_PATH:-/usr/local/bin/clamd-remote-scan}
+  BC_MALWARE_SCAN_SPOOL: ${BC_MALWARE_SCAN_SPOOL:-/app/data/scan-spool}
+  BC_MALWARE_SCAN_TIMEOUT: ${BC_MALWARE_SCAN_TIMEOUT:-PT2M}
+  BC_OCR_ENGINE: ${BC_OCR_ENGINE:-tesseract}
+  BC_OCR_LANGUAGES: ${BC_OCR_LANGUAGES:-deu+eng}
+  BC_TESSERACT_PATH: ${BC_TESSERACT_PATH:-tesseract}
+  # --- outbound mail ---
+  # Spring Boot's own namespace: this is what DefaultEmailSender actually reads.
+  # Without SPRING_MAIL_HOST no mail is sent at all (the body is logged instead)
+  # and e-mail verification — required for registration — cannot complete.
+  SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-}
+  SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+  SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+  SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+  # Without these the connection is plain text and Gmail and most relays refuse it (530 Must issue a STARTTLS).
+  SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:-true}
+  SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:-true}
+  BC_MAIL_FROM: ${BC_MAIL_FROM:-no-reply@buerokratie-copilot.local}
+  # --- observability ---
+  BC_LOG_LEVEL: ${BC_LOG_LEVEL:-INFO}
+  # --- logging / timezone ---
+  TZ: ${TZ:-Europe/Berlin}
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 17 — primary datastore (spec §2.1)
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:17
+    container_name: bc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-burokratie}
+      POSTGRES_USER: ${POSTGRES_USER:-burokratie}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in infra/.env}
+      # Sensible defaults for a containerised instance; the server timezone is
+      # pinned so that `timestamp with time zone` handling is reproducible.
+      POSTGRES_INITDB_ARGS: "--data-checksums --encoding=UTF8 --locale=C.UTF-8"
+      TZ: ${TZ:-Europe/Berlin}
+    command:
+      - postgres
+      - -c
+      - max_connections=${BC_DB_MAX_CONNECTIONS:-100}
+      - -c
+      - shared_buffers=${BC_DB_SHARED_BUFFERS:-256MB}
+      - -c
+      - timezone=UTC
+      - -c
+      - log_min_duration_statement=${BC_DB_LOG_SLOW_MS:-1000}
+    ports:
+      # Development convenience only (psql/backup scripts from the host).
+      - "${BC_BIND_ADDRESS:-127.0.0.1}:${BC_DB_PORT_PUBLISHED:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # `-U` must be the superuser defined above; `-d` explicitly selects the app DB.
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" -h 127.0.0.1 -p 5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    stop_grace_period: 60s
+    networks:
+      - internal
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # MinIO — S3-compatible object storage for blobs (spec §2.1, §30)
+  # ---------------------------------------------------------------------------
+
+
+
+  api:
+    <<: *api-image
+    image: ${BC_REGISTRY:-burokratie-local}/api:${BC_IMAGE_TAG:-local}
+    container_name: bc-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *api-environment
+      SPRING_PROFILES_ACTIVE: ${BC_SPRING_PROFILE_API:-dev}
+      BC_PORT: "8080"
+      # Container-aware heap sizing; override BC_JAVA_OPTS for tuning.
+      JAVA_OPTS: ${BC_JAVA_OPTS:--XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -XX:+UseContainerSupport -Djava.security.egd=file:/dev/./urandom}
+    ports:
+      - "${BC_BIND_ADDRESS:-127.0.0.1}:${BC_API_PORT:-8080}:8080"
+    volumes:
+      # Only needed for BC_STORAGE_TYPE=local-fs; harmless with S3/MinIO.
+      - api-data:/app/data
+    tmpfs:
+      # The application writes temp files while streaming uploads. With a
+      # read-only root filesystem (prod) this must be a tmpfs, not image storage.
+      - /tmp:mode=1777,size=256m
+    healthcheck:
+      # Uses the readiness probe, which includes the database and disk checks.
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health/readiness >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    stop_grace_period: 45s
+    networks:
+      - internal
+      - edge
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # worker — same image, background profile (no HTTP API)
+  # ---------------------------------------------------------------------------
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        # NEXT_PUBLIC_* values are inlined into the client bundle at BUILD time,
+        # which is why this is a build arg and not only a runtime variable.
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api/v1}
+        BC_API_ORIGIN: ${BC_API_ORIGIN:-http://api:8080}
+        BUILD_REVISION: ${BC_BUILD_REVISION:-unknown}
+    image: ${BC_REGISTRY:-burokratie-local}/web:${BC_IMAGE_TAG:-local}
+    container_name: bc-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      # The image contains a PRODUCTION build of the Next.js app, so NODE_ENV
+      # must stay `production` even in the dev stack — `development` would make
+      # Next.js refuse to serve the optimised output. Use `pnpm dev` on the host
+      # (see README.md) when you need hot reload.
+      NODE_ENV: production
+      PORT: "3000"
+      # Bind to all interfaces INSIDE the container; the published mapping below
+      # is what restricts host exposure.
+      HOSTNAME: "0.0.0.0"
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api/v1}
+      NEXT_TELEMETRY_DISABLED: "1"
+      TZ: ${TZ:-Europe/Berlin}
+    ports:
+      - "${BC_BIND_ADDRESS:-127.0.0.1}:${BC_WEB_PORT:-3000}:3000"
+    tmpfs:
+      - /tmp:mode=1777,size=128m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/ || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    stop_grace_period: 20s
+    networks:
+      - edge
+    logging: *default-logging
+
+# -----------------------------------------------------------------------------
+# Networks — the frontend is the only service on `edge`; the datastore, object
+# storage and worker stay on the private `internal` network (spec §21).
+# -----------------------------------------------------------------------------
+networks:
+  internal:
+    name: ${COMPOSE_PROJECT_NAME:-burokratie-copilot}-internal
+    driver: bridge
+  edge:
+    name: ${COMPOSE_PROJECT_NAME:-burokratie-copilot}-edge
+    driver: bridge
+
+# -----------------------------------------------------------------------------
+# Named volumes — data survives `docker compose down`; `down -v` removes it.
+# -----------------------------------------------------------------------------
+volumes:
+  clamav-db:
+    name: ${COMPOSE_PROJECT_NAME:-burokratie-copilot}-clamav-db
+  postgres-data:
+    name: ${COMPOSE_PROJECT_NAME:-burokratie-copilot}-postgres-data
+  minio-data:
+    name: ${COMPOSE_PROJECT_NAME:-burokratie-copilot}-minio-data
+  api-data:
+    name: ${COMPOSE_PROJECT_NAME:-burokratie-copilot}-api-data

@@ -1,0 +1,33 @@
+{
+  "id": "hospitality-shift-plan",
+  "name": "Dienstplan",
+  "category": "hospitality",
+  "description": "Erstellt Dienstpläne aus Öffnungszeiten, Reservierungslage und Verfügbarkeiten der Mitarbeitenden. Ruhezeiten und genehmigte Abwesenheiten werden berücksichtigt und Konflikte gemeldet. Der Plan wird von der Leitung bestätigt.",
+  "functions": [
+    "Dienstplan-Erstellung",
+    "Abwesenheits-Abgleich",
+    "Ruhezeit-Prüfung",
+    "Konflikt-Liste"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "week": "string (YYYY-Www, erforderlich)",
+    "locationId": "uuid (optional)",
+    "staffAvailability": "string (JSON, optional)",
+    "openingHours": "string (optional)",
+    "expectedCovers": "integer (optional)"
+  },
+  "config": {
+    "systems": [
+      "Personal",
+      "Kalender",
+      "Kasse",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

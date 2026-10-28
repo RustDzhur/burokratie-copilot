@@ -1,0 +1,34 @@
+{
+  "id": "healthcare-documentation",
+  "name": "Dokumentations-Assistenz",
+  "category": "healthcare",
+  "description": "Strukturiert Praxis- und Pflegedokumentation nach den hinterlegten Feldern und macht fehlende Angaben sichtbar. Der Agent formuliert keine Diagnosen, Therapien oder Pflegemaßnahmen und ersetzt keine fachliche Dokumentation. Änderungen werden als Entwurf zur Prüfung vorgelegt.",
+  "functions": [
+    "Feld-Strukturierung",
+    "Lücken-Ausweis",
+    "Entwurfs-Erzeugung",
+    "Prüf-Vorlage"
+  ],
+  "triggers": [
+    "manual",
+    "document.received"
+  ],
+  "inputs": {
+    "patientContactId": "uuid (erforderlich)",
+    "encounterDate": "date (erforderlich)",
+    "documentType": "string (erforderlich)",
+    "text": "string (optional)",
+    "fields": "string (JSON, optional)"
+  },
+  "config": {
+    "systems": [
+      "Praxissoftware",
+      "Dokumente",
+      "Akte"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "noDiagnosis": true,
+    "requiresHumanReview": true
+  }
+}

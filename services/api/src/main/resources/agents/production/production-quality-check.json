@@ -1,0 +1,33 @@
+{
+  "id": "production-quality-check",
+  "name": "Qualitätsprüfung",
+  "category": "production",
+  "description": "Prüft Qualitätsmeldungen und Messwerte gegen die hinterlegten Toleranzen und leitet daraus Prüf- und Nacharbeitsaufgaben ab. Abweichungen werden mit Charge und Messstelle dokumentiert. Der Agent trifft keine Freigabeentscheidung für den Versand.",
+  "functions": [
+    "Toleranz-Prüfung",
+    "Abweichungs-Dokumentation",
+    "Nacharbeit",
+    "Prüfaufgabe"
+  ],
+  "triggers": [
+    "manual",
+    "quality.measurement.received"
+  ],
+  "inputs": {
+    "workOrderId": "uuid (erforderlich)",
+    "measurements": "string (JSON, erforderlich)",
+    "tolerances": "string (JSON, optional)",
+    "defectCodes": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "Fertigung",
+      "Qualität",
+      "Dokumente",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "noReleaseDecision": true
+  }
+}

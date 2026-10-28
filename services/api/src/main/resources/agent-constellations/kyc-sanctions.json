@@ -1,0 +1,81 @@
+{
+  "id": "kyc-sanctions",
+  "name": {
+    "de": "KYC- und Sanktionsprüfung",
+    "ru": "KYC и проверка санкций"
+  },
+  "description": {
+    "de": "Prüft neue Geschäftspartner gegen Sanktions- und PEP-Listen und gleicht die KYC-Unterlagen ab. Treffer werden mit Ähnlichkeitsgrad vorgelegt, nicht automatisch abgelehnt. Die Entscheidung bleibt bei der verantwortlichen Person.",
+    "ru": "Проверяет новых партнёров по спискам санкций и PEP, сверяет документы KYC. Совпадения передаются со степенью сходства, а не блокируются автоматически."
+  },
+  "industries": [
+    "banking",
+    "finance",
+    "legal",
+    "realestate",
+    "consulting"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "legal-sanctions-kyc",
+      "title": "Listen abgleichen",
+      "purpose": "Name und Land gegen Sanktionslisten prüfen",
+      "input": "Geschäftspartner",
+      "output": "Trefferliste mit Ähnlichkeitsgrad"
+    },
+    {
+      "order": 2,
+      "agentId": "crm-contact",
+      "title": "Stammdaten prüfen",
+      "purpose": "Kontakt und Identifikatoren vervollständigen",
+      "input": "Trefferliste",
+      "output": "vollständiger Kontakt"
+    },
+    {
+      "order": 3,
+      "agentId": "compliance-check",
+      "title": "Unterlagen prüfen",
+      "purpose": "KYC-Nachweise und Pflichtangaben kontrollieren",
+      "input": "Kontakt",
+      "output": "Lückenliste"
+    },
+    {
+      "order": 4,
+      "agentId": "risk-flag",
+      "title": "Risiko markieren",
+      "purpose": "Befund mit Schweregrad am Vorgang vermerken",
+      "input": "Treffer und Lücken",
+      "output": "Risiko-Hinweis"
+    },
+    {
+      "order": 5,
+      "agentId": "approval",
+      "title": "Entscheidung einholen",
+      "purpose": "Freigabe durch die verantwortliche Person",
+      "input": "Risiko-Hinweis",
+      "output": "dokumentierte Entscheidung"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "KYC-Prüfprotokoll",
+      "ru": "Протокол KYC"
+    },
+    {
+      "de": "Risiko-Hinweis",
+      "ru": "Отметка о риске"
+    },
+    {
+      "de": "Dokumentierte Entscheidung",
+      "ru": "Зафиксированное решение"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 90,
+    "label": {
+      "de": "ca. 1 Std./Woche",
+      "ru": "≈1 ч/нед."
+    }
+  }
+}

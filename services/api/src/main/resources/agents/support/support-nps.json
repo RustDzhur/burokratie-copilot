@@ -1,0 +1,34 @@
+{
+  "id": "support-nps",
+  "name": "NPS-Umfragen",
+  "category": "support",
+  "description": "Bereitet NPS-Umfragen vor, wertet Rückläufe aus und gruppiert Freitextantworten nach Themen. Die Auswertung trennt Promotoren, Passive und Kritiker und zeigt die häufigsten Gründe. Es werden keine Kundendaten außerhalb des Zwecks verarbeitet.",
+  "functions": [
+    "Umfrage-Vorbereitung",
+    "NPS-Berechnung",
+    "Freitext-Cluster",
+    "Themen-Ranking"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "surveyPeriod": "string (YYYY-MM)",
+    "customerSegment": "string (optional)",
+    "questionText": "string (optional)",
+    "minResponses": "integer (Standard 10)",
+    "responses": "string (JSON, optional)"
+  },
+  "config": {
+    "systems": [
+      "CRM",
+      "E-Mail",
+      "Umfrage",
+      "Reporting"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "noExternalProfiling": true
+  }
+}

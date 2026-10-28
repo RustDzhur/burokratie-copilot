@@ -1,0 +1,34 @@
+{
+  "id": "production-work-order",
+  "name": "Fertigungsauftrag",
+  "category": "production",
+  "description": "Erzeugt aus einem Auftrag einen Fertigungsauftrag mit Arbeitsfolgen, Materialbedarf und Prüfpunkten. Kapazität und Termin werden gegen den vorhandenen Plan geprüft und Konflikte gemeldet. Der Agent startet keine Maschine und bucht keinen Verbrauch.",
+  "functions": [
+    "Auftrags-Anlage",
+    "Arbeitsfolgen",
+    "Materialbedarf",
+    "Kapazitäts-Prüfung"
+  ],
+  "triggers": [
+    "manual",
+    "order.confirmed"
+  ],
+  "inputs": {
+    "orderId": "uuid (erforderlich)",
+    "productId": "uuid (erforderlich)",
+    "quantity": "decimal (erforderlich)",
+    "dueDate": "date (erforderlich)",
+    "workSteps": "string (JSON, optional)",
+    "materials": "string (JSON, optional)"
+  },
+  "config": {
+    "systems": [
+      "ERP",
+      "Fertigung",
+      "Lager",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

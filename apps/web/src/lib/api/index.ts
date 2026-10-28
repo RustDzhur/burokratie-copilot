@@ -1,0 +1,54 @@
+import { createApiClient, type ApiClient } from './client';
+import type { ApiError } from './errors';
+import { createResources, type ApiResources } from './resources';
+
+export * from './client';
+export * from './errors';
+export * from './types';
+export type {
+  ApiResources,
+  NavigationPreferences,
+  NavigationPreferencesInput,
+} from './resources';
+
+type UnauthorizedListener = (error: ApiError) => void;
+const unauthorizedListeners = new Set<UnauthorizedListener>();
+
+/**
+ * Subscribes to "the session is no longer valid" (a 401 from any call). The app shell uses it to send the
+ * person to the sign-in screen, so the transport layer does not need to know about routing. Returns the
+ * function that unsubscribes.
+ */
+export function onUnauthorized(listener: UnauthorizedListener): () => void {
+  unauthorizedListeners.add(listener);
+  return () => {
+    unauthorizedListeners.delete(listener);
+  };
+}
+
+/** Shared API client instance used by the application. */
+const paymentRequiredListeners = new Set<UnauthorizedListener>();
+
+/** Subscribes to "the access of this workspace ended" (a 402 from any call); returns the unsubscribe function. */
+export function onPaymentRequired(listener: UnauthorizedListener): () => void {
+  paymentRequiredListeners.add(listener);
+  return () => {
+    paymentRequiredListeners.delete(listener);
+  };
+}
+
+export const apiClient: ApiClient = createApiClient({
+  onUnauthorized: (error) => unauthorizedListeners.forEach((listener) => listener(error)),
+  onPaymentRequired: (error) => paymentRequiredListeners.forEach((listener) => listener(error)),
+});
+
+export const api: ApiResources = createResources(apiClient);
+
+/** Test/DI helper: an isolated client + resource set. */
+export function createApi(options?: Parameters<typeof createApiClient>[0]): {
+  client: ApiClient;
+  resources: ApiResources;
+} {
+  const client = createApiClient(options);
+  return { client, resources: createResources(client) };
+}

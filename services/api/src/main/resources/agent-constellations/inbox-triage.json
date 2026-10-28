@@ -1,0 +1,80 @@
+{
+  "id": "inbox-triage",
+  "name": {
+    "de": "Postfach-Triage",
+    "ru": "Разбор почты и распределение"
+  },
+  "description": {
+    "de": "Sortiert das gemeinsame Postfach nach Thema und Kanal, übernimmt Anhänge als Dokumente und verteilt sie an den richtigen Vorgang. Jede Nachricht bekommt einen nachvollziehbaren Bearbeitungsweg, statt in einem geteilten Postfach liegen zu bleiben.",
+    "ru": "Сортирует общий почтовый ящик по темам и каналам, принимает вложения как документы и распределяет их по нужным делам. У каждого письма появляется прослеживаемый путь обработки."
+  },
+  "industries": [
+    "handwerk",
+    "services",
+    "logistics",
+    "realestate"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "mail-sort",
+      "title": "Postfach sortieren",
+      "purpose": "Thema und Kanal jeder Nachricht erkennen",
+      "input": "E-Mail-Eingang",
+      "output": "sortierte Nachrichten mit Vorschlag"
+    },
+    {
+      "order": 2,
+      "agentId": "mail-accept",
+      "title": "Anhänge übernehmen",
+      "purpose": "Anhänge als Dokumente anlegen und verknüpfen",
+      "input": "Nachricht mit Anhang",
+      "output": "Dokumente im Arbeitsbereich"
+    },
+    {
+      "order": 3,
+      "agentId": "doc-detect",
+      "title": "Dokumenttyp erkennen",
+      "purpose": "Typ und Fachkanal bestimmen",
+      "input": "neue Dokumente",
+      "output": "Dokumente mit Typ und Kanal"
+    },
+    {
+      "order": 4,
+      "agentId": "doc-extract",
+      "title": "Daten extrahieren",
+      "purpose": "Nummer, Datum, Betrag und Parteien auslesen",
+      "input": "erkannte Dokumente",
+      "output": "strukturierte Felder"
+    },
+    {
+      "order": 5,
+      "agentId": "doc-assign",
+      "title": "Zuordnen und ablegen",
+      "purpose": "Dokumente dem passenden Vorgang zuordnen",
+      "input": "extrahierte Dokumente",
+      "output": "Vorgänge mit vollständiger Ablage"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Sortiertes Postfach",
+      "ru": "Отсортированный ящик"
+    },
+    {
+      "de": "Dokumente mit extrahierten Feldern",
+      "ru": "Документы с извлечёнными полями"
+    },
+    {
+      "de": "Zugeordnete Vorgänge",
+      "ru": "Распределённые дела"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 180,
+    "label": {
+      "de": "ca. 3 Std./Woche",
+      "ru": "≈3 ч/нед."
+    }
+  }
+}

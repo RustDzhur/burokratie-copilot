@@ -1,0 +1,78 @@
+{
+  "id": "returns-handling",
+  "name": {
+    "de": "Retourenbearbeitung",
+    "ru": "Обработка возвратов"
+  },
+  "description": {
+    "de": "Nimmt Retourenanmeldungen an, prüft Fristen und Gründe und bereitet Erstattung oder Umtausch vor. Der Lagerstatus wird erst nach Wareneingang fortgeschrieben, damit die Buchhaltung nicht auf Annahmen sitzt.",
+    "ru": "Принимает заявки на возврат, проверяет сроки и причины, готовит возврат средств или обмен. Склад обновляется только после фактического поступления товара."
+  },
+  "industries": [
+    "ecommerce",
+    "retail"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "ecommerce-order-sync",
+      "title": "Bestellung prüfen",
+      "purpose": "Bestell- und Zahlungsdaten abgleichen",
+      "input": "Retourenanmeldung",
+      "output": "Bestellung mit Zahlungsstatus"
+    },
+    {
+      "order": 2,
+      "agentId": "ecommerce-returns",
+      "title": "Retoure vorbereiten",
+      "purpose": "Frist, Grund und Erstattungsweg prüfen",
+      "input": "Bestellung",
+      "output": "Retourenfall mit Vorschlag"
+    },
+    {
+      "order": 3,
+      "agentId": "support-ticket",
+      "title": "Kundenkontakt anlegen",
+      "purpose": "Anliegen als bearbeitbare Aufgabe",
+      "input": "Retourenfall",
+      "output": "Ticket für den Support"
+    },
+    {
+      "order": 4,
+      "agentId": "ecommerce-payment-check",
+      "title": "Erstattung prüfen",
+      "purpose": "Zahlweg und offene Beträge kontrollieren",
+      "input": "Retourenfall",
+      "output": "Erstattungsvorschlag"
+    },
+    {
+      "order": 5,
+      "agentId": "mail-reply",
+      "title": "Antwort entwerfen",
+      "purpose": "Kunden über Entscheidung und Ablauf informieren",
+      "input": "Retourenfall",
+      "output": "Antwortentwurf"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Retourenentscheidung",
+      "ru": "Решение по возврату"
+    },
+    {
+      "de": "Kundenantwort",
+      "ru": "Ответ клиенту"
+    },
+    {
+      "de": "Erstattungsvorschlag",
+      "ru": "Предложение по возврату средств"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 120,
+    "label": {
+      "de": "ca. 2 Std./Woche",
+      "ru": "≈2 ч/нед."
+    }
+  }
+}

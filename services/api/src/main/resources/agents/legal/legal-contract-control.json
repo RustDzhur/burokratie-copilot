@@ -1,0 +1,32 @@
+{
+  "id": "legal-contract-control",
+  "name": "Vertragskontrolle",
+  "category": "legal",
+  "description": "Überwacht Vertragslaufzeiten, Kündigungsfristen und offene Vertragspflichten im gewählten Zeitfenster. Je Vertrag entsteht eine Fristenübersicht mit Handlungsempfehlung und Zuständigkeit. Es werden keine Verträge geändert oder gekündigt.",
+  "functions": [
+    "Laufzeit-Überwachung",
+    "Fristen-Übersicht",
+    "Pflichten-Abgleich",
+    "Handlungsempfehlung"
+  ],
+  "triggers": [
+    "manual",
+    "schedule",
+    "contract.created"
+  ],
+  "inputs": {
+    "horizonDays": "integer (Standard 90)",
+    "includeObligations": "boolean (Standard true)",
+    "reminderDays": "integer (Standard 30)",
+    "contractTypes": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "Verträge",
+      "Fristen",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

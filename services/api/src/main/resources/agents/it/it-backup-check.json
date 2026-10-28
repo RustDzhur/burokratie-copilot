@@ -1,0 +1,33 @@
+{
+  "id": "it-backup-check",
+  "name": "Backup-Prüfung",
+  "category": "it",
+  "description": "Prüft die dokumentierten Backup-Läufe auf Ausfälle, Lücken und nicht getestete Wiederherstellungen. Fehlende Nachweise werden als Risiko ausgewiesen. Der Agent führt keine Wiederherstellung durch.",
+  "functions": [
+    "Lauf-Prüfung",
+    "Lücken-Analyse",
+    "Wiederherstellungs-Nachweis",
+    "Risiko-Liste"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "periodFrom": "date (erforderlich)",
+    "periodTo": "date (erforderlich)",
+    "systems": "string (optional)",
+    "requiredFrequencyHours": "integer (Standard 24)",
+    "backupRuns": "string (JSON, optional)"
+  },
+  "config": {
+    "systems": [
+      "Backup",
+      "Monitoring",
+      "Dokumente",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

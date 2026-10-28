@@ -1,0 +1,81 @@
+{
+  "id": "warehouse-count",
+  "name": {
+    "de": "Lager und Inventur",
+    "ru": "Склад и инвентаризация"
+  },
+  "description": {
+    "de": "Bereitet die Inventur aus offenen Bestellungen und Lieferterminen vor und erzeugt Zähllisten je Lagerort. Differenzen werden erst nach der zweiten Zählung als Buchungsvorschlag ausgewiesen.",
+    "ru": "Готовит инвентаризацию на основе открытых заказов и сроков, формирует листы подсчёта по складам. Расхождения становятся предложением к проводке только после повторного подсчёта."
+  },
+  "industries": [
+    "manufacturing",
+    "logistics",
+    "ecommerce",
+    "retail",
+    "handwerk"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "logistics-inventory-count",
+      "title": "Inventur planen",
+      "purpose": "Zähllisten und Stichtag festlegen",
+      "input": "Lager und Stichtag",
+      "output": "Zähllisten"
+    },
+    {
+      "order": 2,
+      "agentId": "logistics-delivery-tracking",
+      "title": "Wareneingang prüfen",
+      "purpose": "Erwartete Lieferungen einbeziehen",
+      "input": "offene Bestellungen",
+      "output": "Lieferliste"
+    },
+    {
+      "order": 3,
+      "agentId": "logistics-order-intake",
+      "title": "Bestellungen abgleichen",
+      "purpose": "Offene Aufträge gegen Bestand prüfen",
+      "input": "Aufträge",
+      "output": "Abgleichsliste"
+    },
+    {
+      "order": 4,
+      "agentId": "task-dispatch",
+      "title": "Zählung zuweisen",
+      "purpose": "Verantwortliche und Fristen verteilen",
+      "input": "Zähllisten",
+      "output": "zugewiesene Inventuraufgaben"
+    },
+    {
+      "order": 5,
+      "agentId": "knowledge-kpi-report",
+      "title": "Bestandsbericht",
+      "purpose": "Kennzahlen zur Inventur berichten",
+      "input": "Zählergebnisse",
+      "output": "Inventurbericht"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Zähllisten",
+      "ru": "Листы подсчёта"
+    },
+    {
+      "de": "Differenzprotokoll",
+      "ru": "Протокол расхождений"
+    },
+    {
+      "de": "Inventurbericht",
+      "ru": "Отчёт инвентаризации"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 180,
+    "label": {
+      "de": "ca. 3 Std./Woche",
+      "ru": "≈3 ч/нед."
+    }
+  }
+}

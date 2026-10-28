@@ -1,0 +1,22 @@
+{
+  "id": "crm-lead",
+  "name": "Lead-Erfassung",
+  "category": "crm",
+  "description": "Nimmt Anfragen (Text oder Formular) an und legt daraus einen Lead als Kontakt mit Quelle an.",
+  "functions": ["Anfrage-Erfassung", "Kontakt-Anlage mit Quelle", "Dubletten-Schutz"],
+  "triggers": ["manual", "mail.received"],
+  "inputs": {
+    "name": "string (Pflicht)",
+    "email": "string",
+    "phone": "string",
+    "kind": "PERSON | ORGANISATION | AUTHORITY",
+    "source": "string (z.B. website-form, email, phone)",
+    "externalKey": "string (Idempotenz-Schlüssel, z.B. Formular-Submission-Id)",
+    "note": "string (Text der Anfrage)"
+  },
+  "config": {
+    "defaultSource": "manual",
+    "leadStage": "NEW",
+    "dedupeBy": ["email", "externalKey"]
+  }
+}

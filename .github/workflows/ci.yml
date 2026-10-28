@@ -1,0 +1,851 @@
+# =============================================================================
+#  Bürokratie-Copilot — continuous integration
+# =============================================================================
+#  Spec §30 requires: automatic build, tests, static analysis, dependency
+#  scanning, secret scanning, container checks, build versioning and a rollback
+#  procedure. This pipeline implements the automated parts; the rollback procedure
+#  is documented in docs/runbook.md and docs/deployment.md.
+#
+#  Jobs
+#    backend            ./mvnw verify against a real PostgreSQL 17 (never H2),
+#                       surefire/failsafe reports + JaCoCo coverage uploaded
+#    frontend           pnpm install/typecheck/lint/test/build — skipped until
+#                       apps/web exists, so the pipeline is green during the
+#                       parallel frontend implementation
+#    compose-validation YAML parse of every infra/.github YAML file (real Python
+#                       parser) + `docker compose config` when a daemon exists
+#    security           gitleaks secret scan, dependency review, and the
+#                       "no .env is committed" guard
+#    docker-build       builds both images; SKIPS (successfully) on runners
+#                       without a usable Docker daemon — it never fails the
+#                       pipeline for an infrastructure reason
+#
+#  The compose-validation `docker compose config` step and the docker-build job
+#  degrade explicitly (SKIPPED, never a silent pass) when no Docker daemon exists.
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: ["main", "develop", "release/**"]
+  pull_request:
+    branches: ["main", "develop"]
+  workflow_dispatch:
+
+# A new push to the same ref cancels the previous run: CI minutes are finite and
+# results of a superseded commit are irrelevant.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Keep the log readable and the builds comparable between runs.
+  MAVEN_OPTS: "-Xmx2g -Dfile.encoding=UTF-8"
+  MAVEN_ARGS: "-B -ntp"
+  NODE_VERSION: "22"
+  PNPM_VERSION: "9"
+  JAVA_VERSION: "21"
+  POSTGRES_VERSION: "17"
+
+jobs:
+  # ===========================================================================
+  # 1. Backend — build, unit tests, integration tests, coverage
+  # ===========================================================================
+  backend:
+    name: Backend (Java 21, PostgreSQL 17)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    services:
+      postgres:
+        # The integration tests (*IT) require a REAL PostgreSQL (spec §28.1):
+        # the schema relies on extensions, RLS, triggers and jsonb, so H2 is not
+        # an option. Same major version as production (spec §2.1).
+        # The image tag is written out literally on purpose: the `env` context is NOT
+        # available inside `jobs.<job_id>.services.<service_id>.image`, and referencing it
+        # there makes GitHub reject the whole workflow with "workflow file issue" before a
+        # single job is scheduled (observed: run failed in 0s with no jobs). The version is
+        # kept in sync with POSTGRES_VERSION above manually.
+        image: pgvector/pgvector:pg17
+        env:
+          # The service user has to be the cluster superuser because the preparation step below
+          # creates the application role and the databases. The TESTS never use it: they connect
+          # as the unprivileged `burokratie` role, because a superuser bypasses Row Level Security
+          # and would silently invalidate the tenant isolation tests.
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create the unprivileged application role and the test databases
+        env:
+          PGPASSWORD: postgres
+        run: |
+          # The application must never run as a superuser: superusers bypass Row Level Security
+          # even when a table is FORCE ROW LEVEL SECURITY, which would make the tenant isolation
+          # tests pass vacuously. This step mirrors production, where the role owning the schema
+          # is a plain login role with CREATEDB (the migration tests create their own database).
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE burokratie LOGIN CREATEDB PASSWORD 'burokratie_ci_password';
+          CREATE DATABASE burokratie_test OWNER burokratie;
+          CREATE DATABASE burokratie_migration_test OWNER burokratie;
+          SQL
+          # pgvector is installed by an administrator in a real deployment (it is not a trusted
+          # extension). It is optional by design: migration V14 degrades to full text search when
+          # it is missing (see Q-06 in docs/implementation-plan.md). The image ships it, so the
+          # semantic search path is exercised here, but a failure to enable it must not break the
+          # preparation step and hide the real reason a later step fails.
+          psql -h localhost -U postgres -d burokratie_test -c 'CREATE EXTENSION IF NOT EXISTS vector' \
+            || echo "::warning::pgvector is unavailable in this environment; semantic search will be reported as unavailable"
+          psql -h localhost -U postgres -d burokratie_migration_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          CREATE EXTENSION IF NOT EXISTS citext;
+          CREATE EXTENSION IF NOT EXISTS pg_trgm;
+          SQL
+          psql -h localhost -U postgres -d burokratie_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          CREATE EXTENSION IF NOT EXISTS citext;
+          CREATE EXTENSION IF NOT EXISTS pg_trgm;
+          SQL
+
+      - name: Install Tesseract for the photo reading tests
+        run: |
+          # The photo tests (PhotoOcrIT) read real pictures; without the program they are skipped, and a skipped test proves nothing.
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-deu tesseract-ocr-eng tesseract-ocr-rus tesseract-ocr-ukr
+          tesseract --list-langs
+
+      - name: Allow enough connections for a full run (HD-TEST-01)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          # The suite keeps several Spring contexts alive, each with its own pool, and Flyway and the tenant-aware
+          # data source open more. The service container's default of 100 connections ran out in the last third of
+          # a full run ("remaining connection slots are reserved"). Raise it and restart the database.
+          psql -h localhost -U postgres -c "ALTER SYSTEM SET max_connections = 400"
+          docker restart "$(docker ps -q --filter ancestor=pgvector/pgvector:pg17 | head -1)"
+          for i in $(seq 1 30); do pg_isready -h localhost -U postgres && break; sleep 2; done
+          psql -h localhost -U postgres -tAc "show max_connections"
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          # Maven dependencies (~/.m2/repository) and the Maven wrapper
+          # distribution (~/.m2/wrapper) are both cached here.
+          cache: maven
+
+      - name: Make the Maven wrapper executable
+        working-directory: services/api
+        run: chmod +x mvnw
+
+      - name: Run unit and integration tests (./mvnw verify)
+        working-directory: services/api
+        env:
+          # application-test.yml reads exactly these variables.
+          BC_TEST_DB_HOST: localhost
+          BC_TEST_DB_PORT: "5432"
+          BC_TEST_DB_NAME: burokratie_test
+          BC_TEST_DB_USER: burokratie
+          BC_TEST_DB_PASSWORD: burokratie_ci_password
+          # Testcontainers cannot be used on a GitHub runner without Docker
+          # privileges; the service container above is the database.
+          BC_USE_TESTCONTAINERS: "false"
+        # `verify` runs surefire (unit) and failsafe (integration) and then
+        # generates the JaCoCo report.
+        run: ./mvnw -B -ntp verify
+
+      - name: Upload surefire report (unit tests)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: services/api/target/surefire-reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload failsafe report (integration tests)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failsafe-reports
+          path: services/api/target/failsafe-reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload JaCoCo coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: services/api/target/site/jacoco/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Backend build summary
+        if: always()
+        run: |
+          {
+            echo "### Backend build"
+            echo ""
+            echo "| Artifact | Result |"
+            echo "| --- | --- |"
+            if [ -d services/api/target/surefire-reports ]; then
+              tests=$(grep -ho 'tests="[0-9]*"' services/api/target/surefire-reports/*.xml 2>/dev/null | grep -o '[0-9]*' | paste -sd+ - | bc 2>/dev/null || echo 0)
+              failures=$(grep -ho 'failures="[0-9]*"' services/api/target/surefire-reports/*.xml 2>/dev/null | grep -o '[0-9]*' | paste -sd+ - | bc 2>/dev/null || echo 0)
+              echo "| Unit tests | ${tests:-0} run, ${failures:-0} failed |"
+            else
+              echo "| Unit tests | report not found |"
+            fi
+            if [ -d services/api/target/failsafe-reports ]; then
+              echo "| Integration tests | report uploaded |"
+            else
+              echo "| Integration tests | report not found |"
+            fi
+            if [ -f services/api/target/burokratie-copilot-api.jar ]; then
+              echo "| Boot jar | built ($(du -h services/api/target/burokratie-copilot-api.jar | cut -f1)) |"
+            else
+              echo "| Boot jar | NOT built |"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ===========================================================================
+  # 2. Frontend — install, typecheck, lint, test, build
+  # ===========================================================================
+  frontend:
+    name: Frontend (Node 22, pnpm)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # The frontend is implemented in parallel with this pipeline. Guarding the
+    # job keeps CI meaningful (and green) before apps/web exists, without
+    # pretending that the frontend was tested.
+    # No job-level `if` here on purpose: hashFiles() is NOT available in
+    # jobs.<job_id>.if (only github, needs, vars and inputs are), and using it there makes
+    # GitHub reject the whole workflow with "workflow file issue" before any job is
+    # scheduled - every push then fails in 0s with no jobs. The frontend directory exists
+    # in this repository, so the job simply runs; a missing directory fails loudly instead
+    # of being skipped silently.
+
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enable pnpm via corepack
+        run: |
+          corepack enable
+          corepack prepare "pnpm@${PNPM_VERSION}" --activate
+          pnpm --version
+
+      - name: Cache the pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-${{ runner.os }}-${{ hashFiles('apps/web/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
+
+      - name: Verify the lockfile exists
+        run: |
+          if [ ! -f pnpm-lock.yaml ]; then
+            echo "::error::apps/web/pnpm-lock.yaml is missing. Run 'pnpm install' in apps/web and commit the lockfile."
+            exit 1
+          fi
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm --if-present run typecheck
+
+      - name: Lint
+        run: pnpm --if-present run lint
+
+      - name: Unit tests
+        run: pnpm --if-present run test
+
+      - name: Build
+        env:
+          # Inlined into the client bundle at build time; CI only needs it to be
+          # defined so that a missing value cannot break the build.
+          NEXT_PUBLIC_API_BASE_URL: /api/v1
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: pnpm run build
+
+      - name: Verify the standalone output exists
+        # infra/docker/web.Dockerfile copies .next/standalone — fail here rather
+        # than in the image build.
+        run: |
+          if [ ! -f .next/standalone/server.js ]; then
+            echo "::error::.next/standalone/server.js was not produced. Set output: \"standalone\" in apps/web/next.config.*"
+            exit 1
+          fi
+
+  # ===========================================================================
+  # 3. Infrastructure — YAML and Compose validation
+  # ===========================================================================
+  compose-validation:
+    # The production Compose file deliberately marks eight values as mandatory ("${VAR:?}") so a
+    # deployment cannot start with empty credentials. Rendering it for validation therefore needs
+    # placeholders - the point is to prove the file is structurally valid and contains no secret,
+    # not to deploy anything.
+    env:
+      BC_REGISTRY: registry.invalid
+      BC_IMAGE_TAG: ci-check
+      BC_SERVER_NAMES: example.invalid
+      POSTGRES_DB: burokratie
+      POSTGRES_USER: burokratie
+      POSTGRES_PASSWORD: ci-placeholder-only
+      MINIO_ROOT_USER: ci-placeholder
+      MINIO_ROOT_PASSWORD: ci-placeholder-only
+    name: Compose & YAML validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyYAML
+        run: python3 -m pip install --disable-pip-version-check PyYAML
+
+      - name: Collect YAML files
+        id: files
+        run: |
+          # `find` instead of a glob so that a new directory is covered too.
+          find infra .github -type f \( -name '*.yml' -o -name '*.yaml' \) | sort > /tmp/yaml-files.txt
+          echo "Found $(wc -l < /tmp/yaml-files.txt) YAML file(s):"
+          cat /tmp/yaml-files.txt
+          {
+            echo "### YAML files checked"
+            echo '```'
+            cat /tmp/yaml-files.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Parse every YAML file with a real parser
+        run: |
+          set -euo pipefail
+          failed=0
+          while IFS= read -r file; do
+            [ -n "$file" ] || continue
+            # The Compose files use the Compose-specific !reset / !override tags,
+            # which yaml.safe_load cannot resolve. They are parsed (and their
+            # structure asserted) by infra/scripts/validate-compose.sh below.
+            case "$file" in
+              infra/docker-compose.yml|infra/docker-compose.prod.yml|infra/docker-compose.portable.yml) continue ;;
+            esac
+            if python3 -c 'import sys, yaml; yaml.safe_load(open(sys.argv[1], encoding="utf-8"))' "$file"; then
+              echo "OK    $file"
+            else
+              echo "::error file=$file::YAML parse error"
+              failed=1
+            fi
+          done < /tmp/yaml-files.txt
+          # The CI workflow itself is parsed too: a syntax error here would mean
+          # the pipeline silently never ran.
+          python3 -c 'import sys, yaml; yaml.safe_load(open(".github/workflows/ci.yml", encoding="utf-8"))'
+          echo "OK    .github/workflows/ci.yml"
+          exit "$failed"
+
+      - name: Assert the compose files declare no obsolete version key
+        run: |
+          set -euo pipefail
+          for f in infra/docker-compose.yml infra/docker-compose.prod.yml; do
+            if grep -qE '^version:' "$f"; then
+              echo "::error file=$f::obsolete top-level 'version:' key (Compose v2 ignores it)"
+              exit 1
+            fi
+          done
+          echo "OK — no obsolete version key"
+
+      - name: Static Compose and Dockerfile validation
+        # Works without a Docker daemon: parses the compose files with the
+        # Compose-specific !reset/!override tags registered and asserts the
+        # security-relevant structure (no datastore port in production,
+        # read-only root filesystems, healthcheck gating, immutable images,
+        # non-root users in the Dockerfiles).
+        run: |
+          chmod +x infra/scripts/validate-compose.sh
+          infra/scripts/validate-compose.sh
+
+      - name: Assert required services and hardening are present
+        # Cheap structural assertions that catch a deleted healthcheck or a
+        # database that suddenly publishes a port — the classes of mistake that a
+        # YAML parse alone would not notice.
+        run: |
+          set -euo pipefail
+          fail=0
+          for svc in postgres minio minio-init api worker web; do
+            if ! python3 - "$svc" <<'PY'
+          import sys, yaml
+          svc = sys.argv[1]
+          doc = yaml.safe_load(open("infra/docker-compose.yml", encoding="utf-8"))
+          services = doc.get("services") or {}
+          if svc not in services:
+              print(f"::error::service '{svc}' is missing from infra/docker-compose.yml")
+              sys.exit(1)
+          sys.exit(0)
+          PY
+            then fail=1; fi
+          done
+          # Every long-running service must declare a healthcheck.
+          for svc in postgres minio api worker web; do
+            if ! python3 - "$svc" <<'PY'
+          import sys, yaml
+          svc = sys.argv[1]
+          doc = yaml.safe_load(open("infra/docker-compose.yml", encoding="utf-8"))
+          service = (doc.get("services") or {}).get(svc) or {}
+          if "healthcheck" not in service:
+              print(f"::error::service '{svc}' has no healthcheck")
+              sys.exit(1)
+          sys.exit(0)
+          PY
+            then fail=1; fi
+          done
+          # The production override must not publish database/object-store ports.
+          python3 - <<'PY' || fail=1
+          import yaml, sys
+          # `!reset` / `!override` are Compose-specific tags; register no-op
+          # constructors so that PyYAML can parse the file at all.
+          class Loader(yaml.SafeLoader):
+              pass
+          def _ignore(loader, node):
+              if isinstance(node, yaml.SequenceNode):
+                  return loader.construct_sequence(node)
+              if isinstance(node, yaml.MappingNode):
+                  return loader.construct_mapping(node)
+              return loader.construct_scalar(node)
+          for tag in ("!reset", "!override"):
+              Loader.add_constructor(tag, _ignore)
+          doc = yaml.load(open("infra/docker-compose.prod.yml", encoding="utf-8"), Loader=Loader) or {}
+          services = doc.get("services") or {}
+          problems = []
+          for svc in ("postgres", "minio"):
+              ports = (services.get(svc) or {}).get("ports")
+              # `!reset []` clears the inherited list; anything else means the
+              # production stack would publish a datastore port.
+              if ports not in ([], None):
+                  problems.append(f"{svc}.ports is not reset to [] (got {ports!r})")
+          for svc in ("api", "worker", "web"):
+              if "read_only" not in (services.get(svc) or {}):
+                  problems.append(f"{svc} is missing read_only: true")
+          if problems:
+              for p in problems:
+                  print(f"::error::{p}")
+              sys.exit(1)
+          print("OK — production override keeps datastores private and containers read-only")
+          PY
+
+      - name: Check whether Docker is usable
+        id: docker
+        run: |
+          if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            docker version --format '{{.Server.Version}}'
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Docker is not available on this runner — 'docker compose config' is SKIPPED (the static checks above still ran)."
+          fi
+
+      - name: Generate throw-away secrets for the Compose render
+        id: secrets
+        run: echo "encryption_key=$(openssl rand -base64 32)" >> "$GITHUB_OUTPUT"
+
+      - name: Validate the resolved Compose configuration
+        if: steps.docker.outputs.available == 'true'
+        env:
+          # Compose interpolates ${VAR:?msg} and refuses to render without these. They exist so the
+          # file can be resolved; nothing is deployed from this render. The encryption key is
+          # generated for the run rather than stored, so the repository holds no key material.
+          BC_DB_PASSWORD: placeholder
+          POSTGRES_PASSWORD: placeholder
+          BC_ENCRYPTION_KEY: ${{ steps.secrets.outputs.encryption_key }}
+          BC_S3_ACCESS_KEY: ci-placeholder-access-key
+          BC_S3_SECRET_KEY: ci-placeholder-secret-key
+          MINIO_ROOT_USER: ci-placeholder-root
+          MINIO_ROOT_PASSWORD: ci-placeholder-root-password
+          BC_REGISTRY: ghcr.io/example-org
+          BC_IMAGE_TAG: ci
+          BC_SERVER_NAMES: ci.example.de
+        run: |
+          set -euo pipefail
+          # Dev stack: no profile flags needed (proxy is profile-gated).
+          docker compose -f infra/docker-compose.yml config > /tmp/compose-dev.yml
+          echo "OK — dev compose renders ($(wc -l < /tmp/compose-dev.yml) lines)"
+          # Production stack WITH the proxy profile, so the reverse proxy is
+          # validated too.
+          docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml \
+            --profile proxy config > /tmp/compose-prod.yml
+          echo "OK — prod compose renders ($(wc -l < /tmp/compose-prod.yml) lines)"
+          # The rendered prod config must not publish a database port.
+          if grep -qE '^\s+- "?0\.0\.0\.0:[0-9]+:5432' /tmp/compose-prod.yml; then
+            echo "::error::the production stack publishes PostgreSQL to the host"
+            exit 1
+          fi
+          echo "OK — no host port for PostgreSQL in the production rendering"
+
+      - name: Compose validation summary
+        if: always()
+        run: |
+          {
+            echo "### Compose validation"
+            echo ""
+            echo "- Static YAML/structural checks: **run**"
+            if [ "${{ steps.docker.outputs.available }}" = "true" ]; then
+              echo "- \`docker compose config\` (dev + prod with proxy): **run**"
+            else
+              echo "- \`docker compose config\`: **skipped — no Docker daemon on this runner**"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ===========================================================================
+  # 4. Security — secrets, dependencies, committed env files
+  # ===========================================================================
+  security:
+    name: Security scans
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout (full history for the secret scan)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Secret scan with gitleaks
+        env:
+          # Pinned, with the official checksum from the same release. The GitHub Action of the same
+          # project was replaced by the binary: the action decides whether it needs a licence by
+          # asking the GitHub API for the account type, and when that request fails it concludes it
+          # needs one and aborts the job. A secret scan that stops working because an unrelated API
+          # call failed is worse than no scan, because the pipeline reports failure and nobody can
+          # tell whether a secret was found.
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          set -euo pipefail
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          # -f: an error page must not be saved as the archive; retried, because the release host fails now and then
+          curl -fsSL --retry 5 --retry-delay 4 --retry-all-errors -o "/tmp/${archive}" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}"
+          echo "${GITLEAKS_SHA256}  /tmp/${archive}" | sha256sum --check --status \
+            || { echo "::error::the gitleaks archive does not match its published checksum"; exit 1; }
+          tar -xzf "/tmp/${archive}" -C /tmp gitleaks
+          # The whole history is scanned, not only the last commit: a secret committed once stays in
+          # the repository until it is rotated, whatever the working tree looks like today.
+          /tmp/gitleaks detect --source . --redact --exit-code 1 --verbose
+
+      - name: Fail if a .env file, private key or missing .gitignore rule is committed
+        run: |
+          chmod +x infra/scripts/check-no-env-committed.sh
+          infra/scripts/check-no-env-committed.sh
+
+      - name: Repository structure guard (spec §2.2)
+        run: |
+          chmod +x infra/scripts/*.sh
+          # --allow-web-pending reports a missing `output: "standalone"` as PENDING instead of
+          # failing. A RELEASE must run the plain form (and --strict also rejects pending
+          # paths) - see docs/deployment.md §7.2. The only PENDING items left are tests/e2e
+          # tests/load (no automated load suite yet).
+          infra/scripts/check-structure.sh --quiet --allow-web-pending
+
+      - name: Documents name only tests that exist
+        run: scripts/check-doc-references.sh
+
+      - name: Dependency review
+        # Only meaningful on a pull request: it needs a base/head diff.
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
+
+      - name: Maven dependency audit (OWASP dependency-check, blocking from CVSS 7)
+        working-directory: services/api
+        run: |
+          chmod +x mvnw
+          # Blocking: a dependency with a known vulnerability of CVSS 7.0 or higher (high/critical) fails the job.
+          # The first run downloads the NVD dataset; if the FEED fails (no report, no verdict) that is not a finding,
+          # so it is reported as a warning and the scan counts as NOT verified for this run. A finding always fails.
+          set +e
+          ./mvnw -B -ntp org.owasp:dependency-check-maven:check \
+            -DfailBuildOnCVSS=7 -Dformats=HTML -DskipTests 2>&1 | tee /tmp/dependency-check.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            if grep -q "One or more dependencies were identified with vulnerabilities" /tmp/dependency-check.log; then
+              echo "::error::dependency-check found a vulnerability of CVSS 7.0 or higher"
+              exit 1
+            fi
+            echo "::warning::dependency-check did not complete (feed or network) - dependency scanning is NOT verified for this run"
+          fi
+
+      - name: Upload dependency-check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: services/api/target/dependency-check-report.html
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Assert no secret material under infra/docker or infra/nginx
+        run: |
+          set -euo pipefail
+          # Compose files must reference variables, never inline values.
+          if grep -rInE '^\s*(BC_ENCRYPTION_KEY|BC_DB_PASSWORD|BC_S3_SECRET_KEY|BC_AI_API_KEY)\s*[:=]\s*[^$"{]' \
+               infra/docker-compose*.yml infra/docker-compose*.yaml 2>/dev/null; then
+            echo "::error::a compose file appears to inline a secret value instead of \${VAR}"
+            exit 1
+          fi
+          echo "OK — compose files reference secrets through variables only"
+
+      - name: Secrets in the Dockerfiles (build args must not carry credentials)
+        run: |
+          set -euo pipefail
+          if grep -rInE '^\s*(ARG|ENV)\s+(BC_[A-Z_]*KEY|BC_[A-Z_]*PASSWORD|BC_[A-Z_]*SECRET|AWS_SECRET[^ ]*)\s*=' \
+               infra/docker/*.Dockerfile 2>/dev/null; then
+            echo "::error::a Dockerfile passes a credential through ARG/ENV"
+            exit 1
+          fi
+          echo "OK — no credentials passed through Dockerfile ARG/ENV"
+
+  # ---------------------------------------------------------------------------
+  # e2e - the product in a real browser (spec §34: registration and sign-in work, no dead button, end-to-end
+  # tests pass). Builds the API jar and the web app, starts both against a real PostgreSQL and runs tests/e2e.
+  # ---------------------------------------------------------------------------
+  e2e:
+    name: Browser tests (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Application role and database (not a superuser, so RLS applies)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE burokratie LOGIN CREATEDB PASSWORD 'burokratie_ci_password';
+          CREATE DATABASE burokratie_e2e OWNER burokratie;
+          SQL
+          psql -h localhost -U postgres -d burokratie_e2e -c "CREATE EXTENSION IF NOT EXISTS vector" || true
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build the API jar
+        working-directory: services/api
+        run: ./mvnw -B -q -DskipTests package
+
+      - name: Start the API
+        working-directory: services/api
+        env:
+          BC_DB_NAME: burokratie_e2e
+          BC_DB_USER: burokratie
+          BC_DB_PASSWORD: burokratie_ci_password
+          BC_PUBLIC_BASE_URL: http://localhost:3000
+        run: |
+          export BC_ENCRYPTION_KEY="$(openssl rand -base64 32)"
+          nohup java -jar target/burokratie-copilot-api.jar --spring.profiles.active=dev --server.port=8081 > "$RUNNER_TEMP/api.log" 2>&1 &
+          for i in $(seq 1 60); do curl -fsS localhost:8081/actuator/health >/dev/null && exit 0; sleep 3; done
+          cat "$RUNNER_TEMP/api.log"; exit 1
+
+      - name: Build and start the web app
+        working-directory: apps/web
+        env:
+          BC_API_ORIGIN: http://localhost:8081
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm build
+          nohup pnpm start > "$RUNNER_TEMP/web.log" 2>&1 &
+          for i in $(seq 1 40); do curl -fsS localhost:3000/login >/dev/null && exit 0; sleep 2; done
+          cat "$RUNNER_TEMP/web.log"; exit 1
+
+      - name: Install the browser and run the tests
+        working-directory: tests/e2e
+        env:
+          E2E_BASE_URL: http://localhost:3000
+          E2E_DATABASE_URL: postgresql://burokratie:burokratie_ci_password@localhost:5432/burokratie_e2e
+          CI: "true"
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile=false
+          npx playwright install --with-deps chromium
+          npx playwright test
+
+      - name: Keep traces and logs of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure
+          path: |
+            tests/e2e/test-results
+            tests/e2e/playwright-report
+            ${{ runner.temp }}/api.log
+            ${{ runner.temp }}/web.log
+
+  # ===========================================================================
+  # 5. Container images — build only, never publish from CI
+  # ===========================================================================
+  docker-build:
+    name: Docker image build (skipped without a daemon)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check whether Docker is usable
+        id: docker
+        run: |
+          if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No usable Docker daemon — the image build is SKIPPED. The Dockerfiles are therefore NOT verified in this run; run this job on a Docker-enabled runner before a release."
+          fi
+
+      - name: Set up BuildKit
+        if: steps.docker.outputs.available == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build the backend image (api + worker)
+        if: steps.docker.outputs.available == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/api.Dockerfile
+          push: false
+          # The smoke test below runs the freshly built image. Without `load` the result stays in
+          # the BuildKit cache only, and `docker run` fails with "pull access denied" - which looks
+          # like a registry problem but is simply a missing local image.
+          load: true
+          tags: burokratie-copilot/api:ci-${{ github.sha }}
+          build-args: |
+            BUILD_REVISION=${{ github.sha }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Build the frontend image
+        if: steps.docker.outputs.available == 'true' && hashFiles('apps/web/package.json') != ''
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/web.Dockerfile
+          push: false
+          tags: burokratie-copilot/web:ci-${{ github.sha }}
+          build-args: |
+            BUILD_REVISION=${{ github.sha }}
+            NEXT_PUBLIC_API_BASE_URL=/api/v1
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+      - name: Smoke-test the built backend image
+        if: steps.docker.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+          # What this step can honestly prove about the RUNTIME image: it starts, it does not
+          # run as root, the artifact is there and readable, and the JVM inside the image works.
+          # The application needs a database, so starting it here would prove nothing that the
+          # backend job does not already prove on a real PostgreSQL.
+          #
+          # The manifest assertion deliberately lives in the build stage of the Dockerfile, where
+          # the JDK provides `jar`. It cannot be done here with grep: the manifest of a Spring Boot
+          # jar is deflated inside the archive, so a binary search for "Main-Class" finds nothing
+          # and fails silently - which is exactly how this step failed before.
+          docker run --rm --entrypoint sh burokratie-copilot/api:ci-${{ github.sha }} -c '
+            set -e
+            id -u | grep -qv "^0$"
+            test -s /app/app.jar
+            test -r /app/app.jar
+            java -version 2>&1 | grep -q "version"
+            echo "runtime image smoke test OK: non-root, artifact present, working JVM"
+          '
+
+      - name: Scan the backend image (Trivy, blocking on HIGH and CRITICAL with a fix available)
+        if: steps.docker.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+          # The scanner runs as a container of its own against the image just built; no third-party action is trusted
+          # with the Docker socket. Only findings that already have a fixed version block the build.
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/.trivyignore:/.trivyignore:ro" aquasec/trivy:0.57.1 image \
+            --severity HIGH,CRITICAL --ignore-unfixed --ignorefile /.trivyignore --exit-code 1 --no-progress \
+            burokratie-copilot/api:ci-${{ github.sha }}
+
+      - name: Build summary
+        if: always()
+        run: |
+          {
+            echo "### Docker image build"
+            echo ""
+            if [ "${{ steps.docker.outputs.available }}" = "true" ]; then
+              echo "- Backend image: built and smoke-tested"
+              if [ -n "${{ hashFiles('apps/web/package.json') }}" ]; then
+                echo "- Frontend image: build attempted (fails loudly if the standalone output is missing)"
+              else
+                echo "- Frontend image: skipped — apps/web/package.json does not exist"
+              fi
+            else
+              echo "**No Docker daemon on this runner — both image builds were SKIPPED.**"
+              echo "Run this workflow on a Docker-enabled runner (or locally with Docker installed)"
+              echo "before a release: the Dockerfiles are otherwise unverified."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

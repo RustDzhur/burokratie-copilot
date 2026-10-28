@@ -1,0 +1,214 @@
+spring:
+  application:
+    name: burokratie-copilot-api
+  profiles:
+    default: dev
+  autoconfigure:
+    # Sign-in is the platform's own (sessions, tokens, OIDC). Spring's default in-memory user would only print a
+    # generated password into the log.
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+
+  datasource:
+    url: jdbc:postgresql://${BC_DB_HOST:localhost}:${BC_DB_PORT:5432}/${BC_DB_NAME:burokratie_dev}
+    username: ${BC_DB_USER:burokratie}
+    password: ${BC_DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${BC_DB_POOL_SIZE:10}
+      minimum-idle: 2
+      connection-timeout: 10000
+      leak-detection-threshold: 20000
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+        query:
+          fail_on_pagination_over_collection_fetch: true
+          in_clause_parameter_padding: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    out-of-order: false
+
+  servlet:
+    multipart:
+      max-file-size: ${BC_MAX_UPLOAD_SIZE:100MB}
+      max-request-size: ${BC_MAX_REQUEST_SIZE:250MB}
+      file-size-threshold: 2MB
+
+  jackson:
+    default-property-inclusion: non_null
+    time-zone: UTC
+    serialization:
+      write-dates-as-timestamps: false
+
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+
+  task:
+    execution:
+      pool:
+        core-size: 4
+        max-size: 16
+        queue-capacity: 500
+      thread-name-prefix: bc-async-
+    scheduling:
+      pool:
+        size: 4
+      thread-name-prefix: bc-sched-
+
+server:
+  port: ${BC_PORT:8080}
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+  forward-headers-strategy: framework
+  tomcat:
+    max-swallow-size: 250MB
+    threads:
+      max: 200
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    mail:
+      # Mail is optional: a deployment may run without SMTP and say so (the notification channel already logs
+      # "No mail provider is configured"). The health indicator, however, dials a host - and with none configured
+      # it dials port 587 of no host at all and reports DOWN, which turns a deliberate choice into a permanent
+      # red mark and makes every real alarm indistinguishable from this one. Off unless a mail host is set.
+      enabled: ${BC_MAIL_HEALTH_ENABLED:false}
+  info:
+    env:
+      enabled: true
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+
+info:
+  app:
+    name: Bürokratie-Copilot
+    description: AI platform for administrative automation in Germany
+    # Filled by Maven resource filtering (spring-boot-starter-parent uses the @ delimiter).
+    # The runtime admin page shows it next to the instance id, so a support ticket can name the build.
+    version: @project.version@
+
+burokratie:
+  # E-mail addresses (comma separated) of the platform administrators: they get the /admin area.
+  platform-admins: ${BC_PLATFORM_ADMINS:}
+  security:
+    # Public base URL used in e-mails and links.
+    public-base-url: ${BC_PUBLIC_BASE_URL:http://localhost:3000}
+    # false closes POST /auth/register for everybody (set after the owner has registered).
+    registration-open: ${BC_REGISTRATION_OPEN:true}
+    session:
+      cookie-name: bc_session
+      # 12 hours idle timeout, 30 days absolute lifetime.
+      idle-timeout: PT12H
+      absolute-timeout: P30D
+      cookie-secure: ${BC_COOKIE_SECURE:false}
+      cookie-same-site: Lax
+    password:
+      min-length: 12
+      max-length: 128
+    login:
+      max-failed-attempts: 5
+      lockout-duration: PT15M
+    mfa:
+      issuer: Bürokratie-Copilot
+      allowed-clock-drift-seconds: 30
+      recovery-code-count: 10
+    encryption:
+      # Base64 32-byte AES key. MUST be provided in production.
+      key-base64: ${BC_ENCRYPTION_KEY:}
+    malware-scanner:
+      # none | clamav-cli
+      # Without a scanner every uploaded file is recorded as "not checked" - never as clean.
+      # With clamav-cli the scanner is verified at startup and the application refuses to start
+      # if it cannot be executed, so an unusable antivirus never turns into silent upload errors.
+      type: ${BC_MALWARE_SCANNER:none}
+      executable-path: ${BC_CLAMAV_PATH:clamscan}
+      timeout: ${BC_MALWARE_SCAN_TIMEOUT:PT2M}
+      spool-directory: ${BC_MALWARE_SCAN_SPOOL:}
+  storage:
+    # local-fs | s3
+    type: ${BC_STORAGE_TYPE:local-fs}
+    local:
+      base-path: ${BC_STORAGE_PATH:./data/blobs}
+    s3:
+      endpoint: ${BC_S3_ENDPOINT:}
+      region: ${BC_S3_REGION:eu-central-1}
+      bucket: ${BC_S3_BUCKET:burokratie}
+      access-key: ${BC_S3_ACCESS_KEY:}
+      secret-key: ${BC_S3_SECRET_KEY:}
+      path-style-access: true
+  mail:
+    from: ${BC_MAIL_FROM:no-reply@buerokratie-copilot.local}
+  ai:
+    enabled: ${BC_AI_ENABLED:false}
+    provider: ${BC_AI_PROVIDER:none}
+    base-url: ${BC_AI_BASE_URL:}
+    api-key: ${BC_AI_API_KEY:}
+    monthly-budget-eur: ${BC_AI_MONTHLY_BUDGET_EUR:0}
+    model: ${BC_AI_MODEL:}
+    guide-daily-limit: ${BC_AI_GUIDE_DAILY_LIMIT:100}
+    auto-read: ${BC_AI_AUTO_READ:true}
+    auto-read-daily-limit: ${BC_AI_AUTO_READ_DAILY_LIMIT:20}
+    price-input-per-million: ${BC_AI_PRICE_INPUT_PER_MILLION:0}
+    price-output-per-million: ${BC_AI_PRICE_OUTPUT_PER_MILLION:0}
+  telegram:
+    bot-token: ${BC_TELEGRAM_BOT_TOKEN:}
+    bot-username: ${BC_TELEGRAM_BOT_USERNAME:}
+    poll-enabled: ${BC_TELEGRAM_POLL:true}
+  ocr:
+    enabled: ${BC_OCR_ENABLED:false}
+    engine: ${BC_OCR_ENGINE:tesseract}
+    languages: ${BC_OCR_LANGUAGES:deu+eng}
+    tesseract-path: ${BC_TESSERACT_PATH:tesseract}
+    # Straightening a photographed sheet before recognition. On by default because it only acts when the page
+    # boundary is found with confidence; when it is not, the picture is handed on unchanged. An operator can
+    # switch it off without a build if a particular scanner or phone produces pages it misreads (spec §7.3).
+    perspective-correction: ${BC_OCR_PERSPECTIVE_CORRECTION:true}
+  outbox:
+    batch-size: 50
+    max-attempts: 8
+    poll-interval: PT5S
+  upload:
+    max-file-size-bytes: 104857600
+    allowed-mime-types:
+      - application/pdf
+      - image/jpeg
+      - image/png
+      - image/tiff
+      - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      - text/csv
+      - text/plain
+      - message/rfc822
+      - application/xml
+      - text/xml

@@ -1,0 +1,23 @@
+{
+  "id": "forecast",
+  "name": "Prognosen",
+  "category": "analysis",
+  "description": "Prognostiziert den Trend der Tagesreihen (Dokumente, Aufgaben, Rechnungen, Zahlungen, Kontovolumen) per linearer Näherung über die Historie und liefert für die nächsten Tage einen Wertebereich (Prognosewert ± 1σ der Residuen) samt Vorbehalten.",
+  "functions": [
+    "Lineare Trendberechnung aus der Historie",
+    "Prognose mit Wertebereich",
+    "Vorbehalte und Gütekennzahlen (r², Residuen-σ)"
+  ],
+  "triggers": ["manual", "task.due"],
+  "inputs": {
+    "windowDays": "integer (optional; Standard: 30)",
+    "horizonDays": "integer (optional; Standard: 7)",
+    "series": "documents|tasks|invoices|payments|bank (optional; Standard: alle)"
+  },
+  "config": {
+    "windowDays": 30,
+    "horizonDays": 7,
+    "minPoints": 5,
+    "bandSigmas": 1.0
+  }
+}

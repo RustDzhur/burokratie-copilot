@@ -1,0 +1,107 @@
+/* Toast host: fixed bottom-right stack, announced via live regions. */
+
+.region {
+  position: fixed;
+  inset-block-end: var(--space-5);
+  inset-inline-end: var(--space-5);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: min(420px, calc(100vw - var(--space-8)));
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-glass-strong);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-lg);
+  animation: bc-slide-in-right var(--motion-duration-base) var(--motion-ease-emphasized);
+}
+
+.icon {
+  display: inline-flex;
+  margin-top: 1px;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.description {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.action {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-accent-text);
+  text-decoration: underline;
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-pill);
+  color: var(--color-text-subtle);
+}
+
+.close:hover {
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text);
+}
+
+.toast-success {
+  border-inline-start: 3px solid var(--color-success);
+  color: var(--color-success-text);
+}
+
+.toast-danger {
+  border-inline-start: 3px solid var(--color-danger);
+  color: var(--color-danger-text);
+}
+
+.toast-warning {
+  border-inline-start: 3px solid var(--color-warning);
+  color: var(--color-warning-text);
+}
+
+.toast-info,
+.toast-accent {
+  border-inline-start: 3px solid var(--color-info);
+  color: var(--color-info-text);
+}
+
+.toast-neutral {
+  border-inline-start: 3px solid var(--color-border-strong);
+}
+
+.toast .title,
+.toast .description {
+  color: inherit;
+}
+
+.toast .description {
+  opacity: 0.9;
+}

@@ -1,0 +1,81 @@
+{
+  "id": "audit-prep",
+  "name": {
+    "de": "Audit-Vorbereitung",
+    "ru": "Подготовка к аудиту"
+  },
+  "description": {
+    "de": "Stellt Nachweise für ein internes oder externes Audit zusammen, prüft Compliance-Anforderungen und weist Lücken mit Verantwortlichkeit aus. Der Ordner ist prüfbar, weil jede Datei eine Quelle und einen Zeitraum hat.",
+    "ru": "Собирает доказательства для внутреннего или внешнего аудита, проверяет требования и выявляет пробелы с ответственными. Папка проверяема: у каждого файла есть источник и период."
+  },
+  "industries": [
+    "services",
+    "healthcare",
+    "manufacturing",
+    "finance",
+    "ngo"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "legal-audit-prep",
+      "title": "Nachweise sammeln",
+      "purpose": "Richtlinien, Freigaben und Protokolle",
+      "input": "Auditauftrag",
+      "output": "Nachweisordner"
+    },
+    {
+      "order": 2,
+      "agentId": "compliance-check",
+      "title": "Anforderungen prüfen",
+      "purpose": "Pflichtangaben und Verfahren kontrollieren",
+      "input": "Arbeitsbereich",
+      "output": "Abweichungsbericht"
+    },
+    {
+      "order": 3,
+      "agentId": "audit-trail",
+      "title": "Prüfpfad erzeugen",
+      "purpose": "Wer hat wann was geändert",
+      "input": "Objekte im Scope",
+      "output": "Prüfprotokoll"
+    },
+    {
+      "order": 4,
+      "agentId": "risk-flag",
+      "title": "Risiken markieren",
+      "purpose": "Befunde mit Schweregrad",
+      "input": "Abweichungen",
+      "output": "Risikoliste"
+    },
+    {
+      "order": 5,
+      "agentId": "retention",
+      "title": "Aufbewahrung prüfen",
+      "purpose": "Fristen und Legal Holds",
+      "input": "Nachweise",
+      "output": "Aufbewahrungsübersicht"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Audit-Ordner",
+      "ru": "Папка аудита"
+    },
+    {
+      "de": "Abweichungsbericht",
+      "ru": "Отчёт об отклонениях"
+    },
+    {
+      "de": "Risikoliste",
+      "ru": "Список рисков"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 240,
+    "label": {
+      "de": "ca. 4 Std./Woche",
+      "ru": "≈4 ч/нед."
+    }
+  }
+}

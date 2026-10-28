@@ -1,0 +1,33 @@
+{
+  "id": "logistics-inventory-count",
+  "name": "Inventur",
+  "category": "logistics",
+  "description": "Bereitet Inventuren vor: Zähllisten je Lagerort, Stichtag, Verantwortliche und Differenzprotokoll. Abweichungen werden erst nach zweiter Zählung als Buchungsvorschlag ausgewiesen. Der Agent bucht keine Bestandsänderungen.",
+  "functions": [
+    "Zähllisten-Erzeugung",
+    "Differenz-Protokoll",
+    "Zweit-Zählung",
+    "Buchungs-Vorschlag"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "warehouseId": "uuid (erforderlich)",
+    "countDate": "date (erforderlich)",
+    "itemGroups": "string (optional)",
+    "secondCountRequired": "boolean (Standard true)"
+  },
+  "config": {
+    "systems": [
+      "Lager",
+      "ERP",
+      "Aufgaben",
+      "Dokumente"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApprovalBeforePosting": true
+  }
+}

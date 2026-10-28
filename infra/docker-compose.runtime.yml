@@ -1,0 +1,192 @@
+# =============================================================================
+#  Firmspace Robots Runtime — API-only on-prem stack
+# =============================================================================
+#  PostgreSQL 17 + the API image built from this repository. There is no web UI,
+#  no worker split and no MinIO by default: the runtime is the agent API, its
+#  workflow engine, document ingest, exports, identity and settings.
+#
+#  Start:
+#      scripts/install-runtime.sh                 # interactive
+#      # or, once infra/runtime.env exists:
+#      docker compose --env-file infra/runtime.env \
+#        -f infra/docker-compose.runtime.yml up -d --build
+#
+#  Validate without starting anything:
+#      docker compose -f infra/docker-compose.runtime.yml config
+#
+#  Security posture:
+#    * the API port is published on 127.0.0.1 unless BC_BIND_ADDRESS is set to
+#      a LAN address (0.0.0.0 makes it reachable from the network);
+#    * PostgreSQL is not published at all — use docker compose exec for admin;
+#    * runtime.env is mode 600 and never committed (.gitignore);
+#    * the API container runs read-only with a private /tmp and the image's
+#      non-root UID 10001;
+#    * the optional MinIO service is behind the `minio` profile and is not
+#      started by a plain `up -d`.
+#
+#  MinIO profile (optional):
+#      docker compose --env-file infra/runtime.env \
+#        -f infra/docker-compose.runtime.yml --profile minio up -d
+#    Then set BC_STORAGE_TYPE=s3 and the BC_S3_* values in runtime.env, create
+#    the bucket (the full dev stack's minio-init can be copied or `mc mb`), and
+#    recreate the api service. With BC_STORAGE_TYPE=local-fs (the default) the
+#    service is not needed at all.
+# =============================================================================
+
+name: ${COMPOSE_PROJECT_NAME:-firmspace-robots-runtime}
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 17 — the only datastore.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:17
+    container_name: ${COMPOSE_PROJECT_NAME:-firmspace-robots-runtime}-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${BC_DB_NAME:-firmspace}
+      POSTGRES_USER: ${BC_DB_USER:-firmspace}
+      # No default password exists in this file. An empty value makes the
+      # official image refuse to initialise, which is the correct failure.
+      POSTGRES_PASSWORD: ${BC_DB_PASSWORD:-}
+      POSTGRES_INITDB_ARGS: "--data-checksums --encoding=UTF8 --locale=C.UTF-8"
+      TZ: ${TZ:-Europe/Berlin}
+    command:
+      - postgres
+      - -c
+      - max_connections=${BC_DB_MAX_CONNECTIONS:-100}
+      - -c
+      - shared_buffers=${BC_DB_SHARED_BUFFERS:-256MB}
+      - -c
+      - timezone=UTC
+    volumes:
+      - runtime-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" -h 127.0.0.1 -p 5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # API — the runtime itself.
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: ..
+      dockerfile: infra/docker/api.Dockerfile
+      args:
+        BUILD_REVISION: ${BC_BUILD_REVISION:-unknown}
+        BUILD_CREATED: ${BC_BUILD_CREATED:-unknown}
+    image: ${BC_API_IMAGE:-firmspace/robots-runtime-api:${BC_IMAGE_TAG:-local}}
+    container_name: ${COMPOSE_PROJECT_NAME:-firmspace-robots-runtime}-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      # 127.0.0.1 by default. For a LAN installation the installer writes
+      # BC_BIND_ADDRESS=0.0.0.0 (or the address of one interface).
+      - "${BC_BIND_ADDRESS:-127.0.0.1}:${BC_API_PORT:-8080}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: runtime
+      # --- database ---
+      BC_DB_HOST: postgres
+      BC_DB_PORT: "5432"
+      BC_DB_NAME: ${BC_DB_NAME:-firmspace}
+      BC_DB_USER: ${BC_DB_USER:-firmspace}
+      BC_DB_PASSWORD: ${BC_DB_PASSWORD:-}
+      BC_DB_POOL_SIZE: ${BC_DB_POOL_SIZE:-10}
+      BC_FLYWAY_ENABLED: ${BC_FLYWAY_ENABLED:-true}
+      # --- data / OCR ---
+      BC_STORAGE_TYPE: ${BC_STORAGE_TYPE:-local-fs}
+      BC_STORAGE_PATH: /app/data/blobs
+      BC_S3_ENDPOINT: ${BC_S3_ENDPOINT:-http://minio:9000}
+      BC_S3_REGION: ${BC_S3_REGION:-eu-central-1}
+      BC_S3_BUCKET: ${BC_S3_BUCKET:-firmspace}
+      BC_S3_ACCESS_KEY: ${BC_S3_ACCESS_KEY:-}
+      BC_S3_SECRET_KEY: ${BC_S3_SECRET_KEY:-}
+      BC_OCR_ENABLED: ${BC_OCR_ENABLED:-true}
+      BC_ALLOW_NO_OCR: ${BC_ALLOW_NO_OCR:-false}
+      BC_OCR_LANGUAGES: ${BC_OCR_LANGUAGES:-deu+eng}
+      # The runtime image ships tesseract; the wrapper is the image's own path.
+      BC_TESSERACT_PATH: ${BC_TESSERACT_PATH:-tesseract}
+      # No clamd daemon is part of this stack. The operator can point the
+      # scanner at an external clamd, or accept the gap explicitly.
+      BC_MALWARE_SCANNER: ${BC_MALWARE_SCANNER:-none}
+      BC_ALLOW_UNSCANNED: ${BC_ALLOW_UNSCANNED:-true}
+      # --- security / identity ---
+      BC_REGISTRATION_OPEN: "false"
+      BC_ENCRYPTION_KEY: ${BC_ENCRYPTION_KEY:-}
+      BC_PUBLIC_BASE_URL: ${BC_PUBLIC_BASE_URL:-http://localhost:8080}
+      BC_RUNTIME_ADMIN_TOKEN: ${BC_RUNTIME_ADMIN_TOKEN:-}
+      # --- licence ---
+      LICENSE_KEY: ${LICENSE_KEY:-}
+      # Optional alternative to the inline key. It defaults to the file the runtime
+      # admin page (/runtime-admin) installs a key into, so a key pasted into the
+      # browser survives a container restart. An inline LICENSE_KEY still wins;
+      # the admin page warns when that is the case.
+      LICENSE_KEY_FILE: ${LICENSE_KEY_FILE:-/app/data/license.key}
+      LICENSE_SECRET: ${LICENSE_SECRET:-}
+      # Cabinet revocation check: a perpetual licence stays valid until it is revoked there.
+      LICENSE_CHECK_URL: ${LICENSE_CHECK_URL:-https://agents.firmspace.de/api/license/status}
+      BC_LICENSE_ENFORCEMENT: ${BC_LICENSE_ENFORCEMENT:-true}
+      BC_INSTANCE_ID_FILE: /app/data/instance-id
+      LICENSE_GRACE_DAYS: ${LICENSE_GRACE_DAYS:-14}
+      # --- API documentation: off unless explicitly requested ---
+      BC_API_DOCS_ENABLED: ${BC_API_DOCS_ENABLED:-false}
+      BC_LOG_LEVEL: ${BC_LOG_LEVEL:-INFO}
+      TZ: ${TZ:-Europe/Berlin}
+    volumes:
+      - "${BC_DATA_DIR:-./runtime-data}:/app/data"
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health/readiness >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Optional S3-compatible object storage. Not started by default.
+  # ---------------------------------------------------------------------------
+  minio:
+    profiles: ["minio"]
+    image: ${BC_MINIO_IMAGE:-minio/minio:latest}
+    container_name: ${COMPOSE_PROJECT_NAME:-firmspace-robots-runtime}-minio
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-}
+      TZ: ${TZ:-Europe/Berlin}
+    ports:
+      - "${BC_BIND_ADDRESS:-127.0.0.1}:${BC_S3_PORT_PUBLISHED:-9000}:9000"
+      - "${BC_BIND_ADDRESS:-127.0.0.1}:${BC_MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - runtime-minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging: *default-logging
+
+volumes:
+  runtime-postgres-data:
+    name: ${COMPOSE_PROJECT_NAME:-firmspace-robots-runtime}-postgres-data
+  runtime-minio-data:
+    name: ${COMPOSE_PROJECT_NAME:-firmspace-robots-runtime}-minio-data

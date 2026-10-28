@@ -1,0 +1,33 @@
+{
+  "id": "it-access-review",
+  "name": "Zugriffsprüfung",
+  "category": "it",
+  "description": "Prüft aktive Konten und Rollen auf fehlende Nutzung, abgelaufene Befristungen und zu weit gehende Rechte. Jeder Befund nennt Konto, Rolle, letzten Login und Empfehlung. Der Agent entzieht keine Rechte, sondern legt eine Prüfliste vor.",
+  "functions": [
+    "Konten-Prüfung",
+    "Rollen-Prüfung",
+    "Letzter-Login",
+    "Prüfliste"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "staleDays": "integer (Standard 90)",
+    "includeInvitedUsers": "boolean (Standard true)",
+    "roleCodes": "string (optional)",
+    "requireMfa": "boolean (Standard false)"
+  },
+  "config": {
+    "systems": [
+      "Identität",
+      "Rollen",
+      "Audit",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "noAutoRevoke": true
+  }
+}

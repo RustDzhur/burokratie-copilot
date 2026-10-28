@@ -1,0 +1,82 @@
+{
+  "id": "contract-control",
+  "name": {
+    "de": "Vertragskontrolle",
+    "ru": "Контроль договоров"
+  },
+  "description": {
+    "de": "Überwacht Laufzeiten und Kündigungsfristen, prüft eingehende NDAs und legt Fristen als Aufgaben an. Verträge werden nicht automatisch gekündigt; der Ablauf stellt sicher, dass die Entscheidung rechtzeitig vorliegt.",
+    "ru": "Следит за сроками и уведомлениями, проверяет входящие NDA и создаёт задачи по срокам. Автоматического расторжения нет — решение появляется вовремя."
+  },
+  "industries": [
+    "services",
+    "realestate",
+    "manufacturing",
+    "consulting",
+    "handwerk"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "legal-contract-control",
+      "title": "Laufzeiten prüfen",
+      "purpose": "Endende Verträge und Pflichten ermitteln",
+      "input": "Vertragsregister",
+      "output": "Fristenübersicht"
+    },
+    {
+      "order": 2,
+      "agentId": "legal-nda-check",
+      "title": "NDA prüfen",
+      "purpose": "Abweichungen von der Musterklausel",
+      "input": "eingehendes NDA",
+      "output": "Abweichungsliste mit Risiko"
+    },
+    {
+      "order": 3,
+      "agentId": "deadline-watch",
+      "title": "Fristen überwachen",
+      "purpose": "Nahende und überfällige Fristen melden",
+      "input": "Fristenübersicht",
+      "output": "Eskalationsliste"
+    },
+    {
+      "order": 4,
+      "agentId": "task-dispatch",
+      "title": "Aufgaben anlegen",
+      "purpose": "Zuständigkeit für Entscheidung festlegen",
+      "input": "Fristen und Prüfbefunde",
+      "output": "zugewiesene Aufgaben"
+    },
+    {
+      "order": 5,
+      "agentId": "doc-sign",
+      "title": "Entscheidung dokumentieren",
+      "purpose": "Kündigung oder Verlängerung zur Signatur",
+      "input": "Aufgaben",
+      "output": "Signaturvorgang",
+      "optional": true
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Fristenübersicht",
+      "ru": "Обзор сроков"
+    },
+    {
+      "de": "NDA-Prüfbericht",
+      "ru": "Отчёт по NDA"
+    },
+    {
+      "de": "Aufgaben mit Zuständigkeit",
+      "ru": "Задачи с ответственными"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 120,
+    "label": {
+      "de": "ca. 2 Std./Woche",
+      "ru": "≈2 ч/нед."
+    }
+  }
+}

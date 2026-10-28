@@ -1,0 +1,20 @@
+{
+  "id": "reminder",
+  "name": "Erinnerungen",
+  "category": "communication",
+  "description": "Findet Fristen und Termine in Texten und Aufgaben und schlägt Erinnerungen vor (Aufgaben und Fristen über das deadlines-Modul).",
+  "functions": ["Datums-Erkennung", "Frist-Art-Klassifikation", "Aufgabe anlegen", "Frist erfassen"],
+  "triggers": ["manual", "task.due", "deadline.hit"],
+  "inputs": {
+    "text": "string (Pflicht)",
+    "caseId": "uuid (optional)",
+    "taskId": "uuid (optional, bestehende Aufgabe, an die Fristen gehängt werden)",
+    "sourceDocumentId": "uuid (optional)",
+    "autoCreate": "boolean (true/false, Standard true)"
+  },
+  "config": {
+    "dateKinds": ["PAYMENT_DEADLINE", "OBJECTION_DEADLINE", "APPOINTMENT", "VALIDITY_END", "DEADLINE"],
+    "taskSource": "SYSTEM",
+    "prioritySource": "RULE"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "id": "sales-price-book",
+  "name": "Preisbuch-Pflege",
+  "category": "sales",
+  "description": "Hält Preise, Staffelungen und Rabattgrenzen konsistent und prüft Änderungen gegen bestehende Angebote und Verträge. Abweichungen zwischen Preisliste und Rechnungen werden sichtbar gemacht. Der Agent ändert keine Preise, sondern liefert einen Änderungsvorschlag mit Auswirkungen.",
+  "functions": [
+    "Konsistenz-Prüfung",
+    "Staffel-Prüfung",
+    "Auswirkungs-Analyse",
+    "Änderungsvorschlag"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "priceListId": "uuid (optional)",
+    "effectiveFrom": "date (erforderlich)",
+    "categories": "string (optional)",
+    "currency": "char(3) (Standard EUR)",
+    "marginFloorPercent": "decimal (optional)"
+  },
+  "config": {
+    "systems": [
+      "Preisliste",
+      "Rechnungen",
+      "Controlling"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

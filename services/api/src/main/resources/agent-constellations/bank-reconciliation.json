@@ -1,0 +1,81 @@
+{
+  "id": "bank-reconciliation",
+  "name": {
+    "de": "Bankabgleich",
+    "ru": "Сверка с банком"
+  },
+  "description": {
+    "de": "Importiert Kontoauszüge, gleicht Zahlungen mit offenen Rechnungen ab und bereitet die Buchung vor. Mehrdeutige Fälle bleiben offen und werden mit Begründung gelistet, statt geraten zu werden.",
+    "ru": "Импортирует выписки, сверяет платежи с открытыми счетами и готовит проводку. Неоднозначные случаи остаются открытыми с обоснованием."
+  },
+  "industries": [
+    "services",
+    "handwerk",
+    "ecommerce",
+    "manufacturing",
+    "realestate"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "banking-statement-import",
+      "title": "Auszug importieren",
+      "purpose": "Format prüfen und Dubletten erkennen",
+      "input": "Kontoauszug",
+      "output": "importierte Umsätze"
+    },
+    {
+      "order": 2,
+      "agentId": "banking-reconcile",
+      "title": "Abgleichen",
+      "purpose": "Zahlungen und Rechnungen zuordnen",
+      "input": "Umsätze und Rechnungen",
+      "output": "Abgleichsliste"
+    },
+    {
+      "order": 3,
+      "agentId": "payment-match",
+      "title": "Treffer prüfen",
+      "purpose": "Eindeutige Zahlungen bestätigen",
+      "input": "Abgleichsliste",
+      "output": "bestätigte Zahlungen"
+    },
+    {
+      "order": 4,
+      "agentId": "invoice-check",
+      "title": "Abweichungen prüfen",
+      "purpose": "Betrag, Nummer und Lieferant kontrollieren",
+      "input": "offene Fälle",
+      "output": "Abweichungsbericht"
+    },
+    {
+      "order": 5,
+      "agentId": "account-datev",
+      "title": "Buchen vorbereiten",
+      "purpose": "Kontierung und Kontrollsumme",
+      "input": "bestätigte Zahlungen",
+      "output": "Buchungsstapel"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Abgleichsliste",
+      "ru": "Список сверки"
+    },
+    {
+      "de": "Buchungsstapel",
+      "ru": "Пакет проводок"
+    },
+    {
+      "de": "Abweichungsbericht",
+      "ru": "Отчёт об отклонениях"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 180,
+    "label": {
+      "de": "ca. 3 Std./Woche",
+      "ru": "≈3 ч/нед."
+    }
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "id": "incident-response",
+  "name": {
+    "de": "IT-Störung",
+    "ru": "ИТ-инцидент"
+  },
+  "description": {
+    "de": "Nimmt Störungsmeldungen an, erkennt bekannte Symptome und eskaliert nach Schweregrad. Die Dokumentation bleibt auch dann vollständig, wenn die Störung schnell behoben ist.",
+    "ru": "Принимает сообщения о сбоях, распознаёт известные симптомы и эскалирует по критичности. Документация остаётся полной даже при быстром устранении."
+  },
+  "industries": [
+    "it",
+    "agency",
+    "ecommerce",
+    "logistics",
+    "services"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "it-incident",
+      "title": "Störung aufnehmen",
+      "purpose": "Schweregrad und betroffene Systeme bestimmen",
+      "input": "Störungsmeldung",
+      "output": "Incident mit Priorität"
+    },
+    {
+      "order": 2,
+      "agentId": "monitor-systems",
+      "title": "Systemlage prüfen",
+      "purpose": "Verfügbarkeit der Integrationen bewerten",
+      "input": "Incident",
+      "output": "Systemstatus"
+    },
+    {
+      "order": 3,
+      "agentId": "support-escalation",
+      "title": "Eskalieren",
+      "purpose": "Nächste Stufe und Benachrichtigung festlegen",
+      "input": "Incident und Status",
+      "output": "Eskalation"
+    },
+    {
+      "order": 4,
+      "agentId": "task-dispatch",
+      "title": "Behebung zuweisen",
+      "purpose": "Aufgabe mit Frist an das IT-Team",
+      "input": "Eskalation",
+      "output": "zugewiesene Aufgabe"
+    },
+    {
+      "order": 5,
+      "agentId": "report-daily",
+      "title": "Nachbereiten",
+      "purpose": "Störung und Auswirkung im Tagesbericht",
+      "input": "Incident-Daten",
+      "output": "Tagesbericht"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Incident-Protokoll",
+      "ru": "Протокол инцидента"
+    },
+    {
+      "de": "Eskalationsliste",
+      "ru": "Список эскалаций"
+    },
+    {
+      "de": "Tagesbericht",
+      "ru": "Дневной отчёт"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 120,
+    "label": {
+      "de": "ca. 2 Std./Woche",
+      "ru": "≈2 ч/нед."
+    }
+  }
+}

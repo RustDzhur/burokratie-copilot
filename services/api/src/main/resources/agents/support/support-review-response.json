@@ -1,0 +1,33 @@
+{
+  "id": "support-review-response",
+  "name": "Bewertungsantworten",
+  "category": "support",
+  "description": "Entwirft Antworten auf öffentliche Bewertungen, getrennt nach Lob, sachlicher Kritik und berechtigtem Ärger. Der Entwurf nennt Fakten aus dem Vorgang, ohne Schuldzuweisungen oder Zugeständnisse ohne Prüfung. Veröffentlicht wird nach Freigabe.",
+  "functions": [
+    "Bewertungs-Analyse",
+    "Tonfall-Wahl",
+    "Antwort-Entwurf",
+    "Freigabe"
+  ],
+  "triggers": [
+    "manual",
+    "review.received"
+  ],
+  "inputs": {
+    "reviewText": "string (erforderlich)",
+    "rating": "integer (1-5)",
+    "platform": "string (erforderlich)",
+    "orderReference": "string (optional)",
+    "tone": "SACHLICH | FREUNDLICH | BESTIMMT"
+  },
+  "config": {
+    "systems": [
+      "Bewertungsportale",
+      "CRM",
+      "Freigaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApproval": true
+  }
+}

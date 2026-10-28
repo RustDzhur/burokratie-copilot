@@ -1,0 +1,34 @@
+{
+  "id": "logistics-customs",
+  "name": "Zollanmeldung",
+  "category": "logistics",
+  "description": "Prüft Sendungsdaten auf die für die Zollanmeldung nötigen Angaben: Warenbeschreibung, Warenwert, Ursprungsland, Zolltarifnummer und Incoterm. Fehlende oder widersprüchliche Angaben werden vor der Anmeldung zurückgemeldet. Die Anmeldung selbst bleibt ein freigabepflichtiger Schritt.",
+  "functions": [
+    "Daten-Vollständigkeit",
+    "Tarif-Prüfung",
+    "Incoterm-Prüfung",
+    "Anmelde-Entwurf"
+  ],
+  "triggers": [
+    "manual",
+    "shipment.created"
+  ],
+  "inputs": {
+    "shipmentId": "uuid (erforderlich)",
+    "items": "string (JSON, erforderlich)",
+    "countryOfOrigin": "string (erforderlich)",
+    "incoterm": "string (erforderlich)",
+    "customsValue": "decimal (erforderlich)"
+  },
+  "config": {
+    "systems": [
+      "Versand",
+      "Zoll",
+      "Dokumente",
+      "ERP"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApproval": true
+  }
+}

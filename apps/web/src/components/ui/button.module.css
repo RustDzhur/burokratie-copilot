@@ -1,0 +1,193 @@
+/* Button + IconButton. States: default, hover, focus-visible, active,
+   disabled, loading. Neon accents are reserved for the primary action. */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-normal);
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-ease-standard),
+    border-color var(--motion-duration-fast) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-standard),
+    color var(--motion-duration-fast) var(--motion-ease-standard),
+    transform var(--motion-duration-instant) var(--motion-ease-standard);
+}
+
+.button:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.size-sm {
+  min-height: var(--control-height-sm);
+  padding-inline: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.size-md {
+  min-height: var(--control-height-md);
+  padding-inline: var(--space-4);
+  font-size: var(--font-size-md);
+}
+
+.size-lg {
+  min-height: var(--control-height-lg);
+  padding-inline: var(--space-6);
+  font-size: var(--font-size-lg);
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.label {
+  display: inline-block;
+}
+
+.iconSlot,
+.spinnerSlot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---- Variants ----------------------------------------------------------- */
+/* The primary action: the neon pill of the firmspace site — a gradient with a
+   soft glow; the ink colour is chosen per theme so the label stays at AA
+   contrast on every stop of the gradient. */
+.variant-primary {
+  background-image: var(--gradient-brand);
+  background-color: var(--color-accent);
+  color: var(--color-text-on-accent);
+  border-color: transparent;
+  box-shadow: var(--shadow-neon);
+}
+
+.variant-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: var(--shadow-neon), 0 10px 28px -12px var(--color-glow-accent);
+  transform: translateY(-1px);
+}
+
+.variant-primary:active:not(:disabled) {
+  filter: brightness(0.96);
+  transform: translateY(0);
+}
+
+.variant-secondary {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-xs);
+}
+
+.variant-secondary:hover:not(:disabled) {
+  background-color: var(--color-bg-subtle);
+  border-color: var(--color-text-subtle);
+}
+
+.variant-secondary:active:not(:disabled) {
+  background-color: var(--color-surface-2);
+}
+
+.variant-ghost {
+  background-color: transparent;
+  color: var(--color-text-muted);
+  border-color: transparent;
+}
+
+.variant-ghost:hover:not(:disabled) {
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text);
+}
+
+.variant-danger {
+  background-color: var(--color-danger);
+  color: var(--color-text-inverse);
+  border-color: var(--color-danger);
+}
+
+.variant-danger:hover:not(:disabled) {
+  background-color: var(--color-danger-hover);
+  border-color: var(--color-danger-hover);
+}
+
+/* Subtle neon accent for the single most important action on a screen. */
+.variant-neon {
+  background-image: var(--gradient-brand);
+  color: var(--color-text-on-accent);
+  border-color: transparent;
+  box-shadow: var(--shadow-neon);
+}
+
+.variant-neon:hover:not(:disabled) {
+  box-shadow: var(--shadow-lg);
+}
+
+.button:disabled {
+  opacity: 0.55;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+[data-contrast='high'] .button:disabled {
+  opacity: 1;
+  border-style: dashed;
+}
+
+.loading .label {
+  opacity: 0.85;
+}
+
+/* ---- IconButton --------------------------------------------------------- */
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-ease-standard),
+    color var(--motion-duration-fast) var(--motion-ease-standard),
+    border-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.iconButton:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.iconSize-sm {
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
+}
+
+.iconSize-md {
+  width: var(--control-height-md);
+  height: var(--control-height-md);
+}
+
+.iconSize-lg {
+  width: var(--control-height-lg);
+  height: var(--control-height-lg);
+}
+
+.iconButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

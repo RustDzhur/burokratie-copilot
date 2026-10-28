@@ -1,0 +1,17 @@
+{
+  "id": "mail-accept",
+  "name": "E-Mail-Annahme",
+  "category": "communication",
+  "description": "Übernimmt Anhänge eingehender E-Mails in den Dokumentenumlauf (documents) und verknüpft sie mit dem Vorgang.",
+  "functions": ["Anhang-Übernahme", "Dokument-Anlage", "Vorgangs-Verknüpfung", "Nachricht als verarbeitet markieren"],
+  "triggers": ["mail.received", "manual"],
+  "inputs": {
+    "mailId": "uuid (Pflicht)",
+    "caseId": "uuid (optional)"
+  },
+  "config": {
+    "source": "EMAIL",
+    "linkOrigin": "IMPORT",
+    "idempotent": true
+  }
+}

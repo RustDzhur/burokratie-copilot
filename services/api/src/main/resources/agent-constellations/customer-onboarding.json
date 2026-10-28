@@ -1,0 +1,90 @@
+{
+  "id": "customer-onboarding",
+  "name": {
+    "de": "Kunden-Onboarding",
+    "ru": "Онбординг клиента"
+  },
+  "description": {
+    "de": "Führt von der ersten Anfrage bis zum ersten Termin: Lead erfassen, Kontakt und Deal anlegen, Aufgaben verteilen, Bestätigung schreiben und Termin eintragen. Der Kunde erhält einen klaren nächsten Schritt, das Team eine vollständige Akte.",
+    "ru": "Ведёт от первого запроса до первой встречи: лид, контакт и сделка, распределение задач, письмо-подтверждение и встреча в календаре. Клиент получает понятный следующий шаг."
+  },
+  "industries": [
+    "services",
+    "agency",
+    "it",
+    "consulting",
+    "handwerk"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "crm-lead",
+      "title": "Lead erfassen",
+      "purpose": "Anfrage als Kontakt mit Quelle anlegen",
+      "input": "Anfrage per E-Mail oder Formular",
+      "output": "Lead mit Quelle"
+    },
+    {
+      "order": 2,
+      "agentId": "crm-contact",
+      "title": "Kontakt anreichern",
+      "purpose": "Fehlende Angaben ergänzen und Dubletten prüfen",
+      "input": "Lead",
+      "output": "vollständiger Kontakt"
+    },
+    {
+      "order": 3,
+      "agentId": "crm-deal",
+      "title": "Deal anlegen",
+      "purpose": "Verkaufschance mit Phase und Wert erzeugen",
+      "input": "Kontakt und Anfrage",
+      "output": "offener Deal"
+    },
+    {
+      "order": 4,
+      "agentId": "task-dispatch",
+      "title": "Aufgaben verteilen",
+      "purpose": "Zuständigkeit und Frist festlegen",
+      "input": "Deal",
+      "output": "zugewiesene Aufgaben"
+    },
+    {
+      "order": 5,
+      "agentId": "letter-draft",
+      "title": "Bestätigung schreiben",
+      "purpose": "Willkommensschreiben mit nächstem Schritt",
+      "input": "Kontakt und Deal",
+      "output": "Bestätigungsentwurf"
+    },
+    {
+      "order": 6,
+      "agentId": "calendar-sync",
+      "title": "Termin eintragen",
+      "purpose": "Erstgespräch im Kalender abstimmen",
+      "input": "Kontakt und Team",
+      "output": "gebuchter Termin",
+      "optional": true
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Vollständiger Kundenkontakt",
+      "ru": "Полная карточка клиента"
+    },
+    {
+      "de": "Offener Deal mit Aufgaben",
+      "ru": "Открытая сделка с задачами"
+    },
+    {
+      "de": "Bestätigung und Termin",
+      "ru": "Подтверждение и встреча"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 120,
+    "label": {
+      "de": "ca. 2 Std./Woche",
+      "ru": "≈2 ч/нед."
+    }
+  }
+}

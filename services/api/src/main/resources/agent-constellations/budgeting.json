@@ -1,0 +1,81 @@
+{
+  "id": "budgeting",
+  "name": {
+    "de": "Budgetplanung",
+    "ru": "Бюджетирование"
+  },
+  "description": {
+    "de": "Vergleicht Ist-Ausgaben mit den Budgets, projiziert die Liquidität und bereitet Abweichungen für das Monatsgespräch auf. Der Bericht zeigt Ursachen je Kostenkategorie, keine globale Ampel.",
+    "ru": "Сравнивает фактические расходы с бюджетом, прогнозирует ликвидность и готовит отклонения к месячному обсуждению. Отчёт показывает причины по категориям."
+  },
+  "industries": [
+    "services",
+    "manufacturing",
+    "agency",
+    "handwerk",
+    "ngo"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "budget-watch",
+      "title": "Budgets prüfen",
+      "purpose": "Ist und Plan je Kostenkategorie",
+      "input": "Ausgaben und Budgets",
+      "output": "Abweichungsbericht"
+    },
+    {
+      "order": 2,
+      "agentId": "cashflow",
+      "title": "Liquidität planen",
+      "purpose": "Zu- und Abflüsse rollierend prognostizieren",
+      "input": "Rechnungen und Zahlungen",
+      "output": "Liquiditätsprognose"
+    },
+    {
+      "order": 3,
+      "agentId": "expense-sort",
+      "title": "Ausgaben ordnen",
+      "purpose": "Belege nach Kategorien sortieren",
+      "input": "offene Belege",
+      "output": "kategorisierte Ausgaben"
+    },
+    {
+      "order": 4,
+      "agentId": "report-daily",
+      "title": "Lage zusammenfassen",
+      "purpose": "Offene Posten und Fristen",
+      "input": "Buchungen und Aufgaben",
+      "output": "Tagesübersicht"
+    },
+    {
+      "order": 5,
+      "agentId": "insight",
+      "title": "Empfehlungen",
+      "purpose": "Abweichungen bewerten und Maßnahmen vorschlagen",
+      "input": "Berichte",
+      "output": "Maßnahmenliste"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Budgetabweichungen",
+      "ru": "Отклонения бюджета"
+    },
+    {
+      "de": "Liquiditätsprognose",
+      "ru": "Прогноз ликвидности"
+    },
+    {
+      "de": "Maßnahmenliste",
+      "ru": "Список мер"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 120,
+    "label": {
+      "de": "ca. 2 Std./Woche",
+      "ru": "≈2 ч/нед."
+    }
+  }
+}

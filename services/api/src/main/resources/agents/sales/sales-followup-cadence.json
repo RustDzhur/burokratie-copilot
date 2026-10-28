@@ -1,0 +1,33 @@
+{
+  "id": "sales-followup-cadence",
+  "name": "Vertriebs-Follow-up-Kadenz",
+  "category": "sales",
+  "description": "Legt für offene Angebote und Gespräche eine Nachfass-Kadenz mit Terminen und Kanal fest. Die Kadenz endet automatisch bei Antwort, Absage oder Vertragsabschluss. Jeder Schritt wird als Aufgabe mit Kontext und Vorlage angelegt, nicht als Massen-Mail.",
+  "functions": [
+    "Kadenz-Planung",
+    "Aufgaben-Erstellung",
+    "Stopp-Regeln",
+    "Vorlagen-Zuordnung"
+  ],
+  "triggers": [
+    "manual",
+    "deal.stage_changed"
+  ],
+  "inputs": {
+    "dealId": "uuid (erforderlich)",
+    "offerSentAt": "date (optional)",
+    "cadenceDays": "string (Standard 3,7,14,30)",
+    "channels": "string (E-Mail, Telefon)",
+    "stopOnReply": "boolean (Standard true)"
+  },
+  "config": {
+    "systems": [
+      "CRM",
+      "E-Mail",
+      "Kalender",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

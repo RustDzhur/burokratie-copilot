@@ -1,0 +1,65 @@
+# ---- macOS ----
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ---- Secrets / environment ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+secrets/
+!**/src/test/resources/**/*.pem
+
+# ---- Java / Maven ----
+target/
+*.class
+*.jar
+*.war
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+hs_err_pid*
+replay_pid*
+
+# ---- Node / Next.js ----
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+.pnpm-store/
+coverage/
+storybook-static/
+
+# ---- IDE ----
+.idea/
+*.iml
+.vscode/
+!.vscode/extensions.json
+*.swp
+
+# ---- Local runtime data ----
+infra/data/
+infra/backups/
+# Firmspace Robots Runtime: install secrets and the bind-mounted data directory
+infra/runtime.env
+infra/runtime-data/
+*.log
+logs/
+
+# ---- Test artifacts ----
+**/target/failsafe-reports/
+**/build/reports/
+test-results/
+playwright-report/
+data/
+images/
+deploy.log
+.deploy.lock
+.deploy-failed
+backups/
+Caddyfile.before-copilot.bak

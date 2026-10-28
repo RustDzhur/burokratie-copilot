@@ -1,0 +1,32 @@
+{
+  "id": "knowledge-kpi-report",
+  "name": "KPI-Bericht",
+  "category": "knowledge",
+  "description": "Erstellt einen monatlichen KPI-Bericht aus den vorhandenen Kennzahlen: Dokumente, Aufgaben, Fristen, Rechnungen und Zahlungen. Jede Zahl trägt Zeitraum, Datenquelle und Hinweis auf Ungenauigkeiten. Der Bericht ist als Management-Zusammenfassung und als Detailansicht verfügbar.",
+  "functions": [
+    "Kennzahlen-Sammlung",
+    "Zeitraum-Vergleich",
+    "Management-Zusammenfassung",
+    "Quellen-Angabe"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "periodFrom": "date (optional)",
+    "periodTo": "date (optional)",
+    "audience": "COMPANY | INDIVIDUAL",
+    "workspaceId": "uuid (optional)",
+    "metricCodes": "string (kommagetrennt, optional)"
+  },
+  "config": {
+    "systems": [
+      "Reporting",
+      "Dashboard",
+      "Dokumente"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

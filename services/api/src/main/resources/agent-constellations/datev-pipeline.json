@@ -1,0 +1,89 @@
+{
+  "id": "datev-pipeline",
+  "name": {
+    "de": "DATEV-Konveyor",
+    "ru": "Конвейер DATEV"
+  },
+  "description": {
+    "de": "Führt Eingangsbelege vom Scan bis zur DATEV-Übergabe: Text erkennen, Felder extrahieren, Rechnung erfassen, prüfen und kontieren. Der Konveyor stoppt bei fehlenden Pflichtangaben, statt unvollständige Buchungen weiterzureichen.",
+    "ru": "Проводит входящие документы от скана до передачи в DATEV: распознавание текста, извлечение полей, регистрация счёта, проверка и проводка. Конвейер останавливается при отсутствии обязательных реквизитов."
+  },
+  "industries": [
+    "handwerk",
+    "ecommerce",
+    "manufacturing",
+    "services",
+    "tax"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "doc-ocr",
+      "title": "Text erkennen",
+      "purpose": "OCR-Bereitschaft prüfen und Text aufbereiten",
+      "input": "Scan oder PDF",
+      "output": "durchsuchbarer Text"
+    },
+    {
+      "order": 2,
+      "agentId": "doc-extract",
+      "title": "Felder auslesen",
+      "purpose": "Nummer, Datum, Betrag und Parteien extrahieren",
+      "input": "Dokument mit Text",
+      "output": "strukturierte Rechnungsfelder"
+    },
+    {
+      "order": 3,
+      "agentId": "invoice-capture",
+      "title": "Rechnung erfassen",
+      "purpose": "Eingangsrechnung mit Duplikatschutz anlegen",
+      "input": "extrahierte Felder",
+      "output": "erfasste Rechnung"
+    },
+    {
+      "order": 4,
+      "agentId": "invoice-check",
+      "title": "Rechnung prüfen",
+      "purpose": "Duplikate, Betragsgrenzen und Gegenpartei prüfen",
+      "input": "erfasste Rechnung",
+      "output": "geprüfte Rechnung oder Abweichungsbericht"
+    },
+    {
+      "order": 5,
+      "agentId": "account-datev",
+      "title": "Kontieren",
+      "purpose": "Kostenkategorie und Kontrollsumme bilden",
+      "input": "geprüfte Rechnung",
+      "output": "kontierte Buchung"
+    },
+    {
+      "order": 6,
+      "agentId": "doc-datev",
+      "title": "DATEV-Paket",
+      "purpose": "Feldzuordnung und Exportmarkierung erzeugen",
+      "input": "kontierte Buchungen",
+      "output": "DATEV-Exportordner"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "DATEV-Exportordner",
+      "ru": "Папка экспорта DATEV"
+    },
+    {
+      "de": "Abweichungsbericht",
+      "ru": "Отчёт об отклонениях"
+    },
+    {
+      "de": "Prüfprotokoll",
+      "ru": "Протокол проверки"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 240,
+    "label": {
+      "de": "ca. 4 Std./Woche",
+      "ru": "≈4 ч/нед."
+    }
+  }
+}

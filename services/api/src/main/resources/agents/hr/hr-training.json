@@ -1,0 +1,34 @@
+{
+  "id": "hr-training",
+  "name": "Schulungsplanung",
+  "category": "hr",
+  "description": "Ermittelt aus Rollen, Pflichtschulungen und Fristen den Schulungsbedarf je Mitarbeitendem. Es entsteht ein Plan mit Terminen, Anbieter und Nachweisen. Abgeschlossene Schulungen werden nur mit vorhandenem Nachweis als erledigt geführt.",
+  "functions": [
+    "Bedarfs-Ermittlung",
+    "Termin-Planung",
+    "Nachweis-Prüfung",
+    "Fristen-Überwachung"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "employeeIds": "string (optional)",
+    "roleCodes": "string (optional)",
+    "requiredTrainings": "string (erforderlich)",
+    "dueWithinDays": "integer (Standard 90)",
+    "provider": "string (optional)",
+    "completedTrainings": "string (JSON, optional)"
+  },
+  "config": {
+    "systems": [
+      "Personalakte",
+      "Kalender",
+      "Schulungsanbieter",
+      "Dokumente"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

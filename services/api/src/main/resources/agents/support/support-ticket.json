@@ -1,0 +1,41 @@
+{
+  "id": "support-ticket",
+  "name": "Ticket-Erfassung",
+  "category": "support",
+  "description": "Nimmt Anfragen aus E-Mail, Formular oder Chat an, ordnet sie einem Thema und einer Dringlichkeit zu und legt daraus eine bearbeitbare Aufgabe an. Doppelte Meldungen zum selben Vorgang werden erkannt. Die Antwort erfolgt durch das Support-Team, nicht automatisch.",
+  "functions": [
+    "Annahme",
+    "Themen-Zuordnung",
+    "Dringlichkeits-Bewertung",
+    "Aufgaben-Anlage"
+  ],
+  "triggers": [
+    "manual",
+    "mail.received",
+    "support.ticket.created"
+  ],
+  "inputs": {
+    "subject": "string (erforderlich)",
+    "description": "string (optional)",
+    "channel": "EMAIL | FORM | CHAT | PHONE",
+    "customerEmail": "string (optional)",
+    "contactId": "uuid (optional)",
+    "externalKey": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "E-Mail",
+      "Formular",
+      "Chat",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "sla": {
+      "CRITICAL": 60,
+      "HIGH": 240,
+      "NORMAL": 1440,
+      "LOW": 4320
+    }
+  }
+}

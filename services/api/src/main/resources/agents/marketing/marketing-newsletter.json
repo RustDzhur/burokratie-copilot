@@ -1,0 +1,36 @@
+{
+  "id": "marketing-newsletter",
+  "name": "Newsletter-Kampagne",
+  "category": "marketing",
+  "description": "Plant und prüft Newsletter-Ausgaben: Zielgruppe, Betreffzeilen-Varianten, Inhaltsblöcke und Versandzeitpunkt. Empfängerlisten werden gegen Abmeldungen und Dubletten geprüft, der Versand bleibt ein freigabepflichtiger Schritt. Das Ergebnis ist eine versandfertige Ausgabe mit Dokumentation.",
+  "functions": [
+    "Zielgruppen-Prüfung",
+    "Betreff-Varianten",
+    "Inhaltsblöcke",
+    "Einwilligungs-Prüfung"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "campaignName": "string (erforderlich)",
+    "audienceSegment": "string (erforderlich)",
+    "subjectVariants": "string (optional)",
+    "contentBlocks": "string (optional)",
+    "sendAt": "datetime (optional)",
+    "consentConfirmed": "boolean (Standard false)"
+  },
+  "config": {
+    "systems": [
+      "E-Mail-Marketing",
+      "CRM",
+      "Einwilligungen"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "doubleOptInRequired": true,
+    "unsubscribeCheck": true,
+    "requiresApproval": true
+  }
+}

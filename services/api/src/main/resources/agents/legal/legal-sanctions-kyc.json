@@ -1,0 +1,37 @@
+{
+  "id": "legal-sanctions-kyc",
+  "name": "Sanktions- und KYC-Prüfung",
+  "category": "legal",
+  "description": "Prüft Geschäftspartner gegen hinterlegte Sanktions- und PEP-Listen sowie gegen die eigenen KYC-Unterlagen. Treffer werden mit Ähnlichkeitsgrad und Prüfhinweis ausgewiesen, nicht als automatische Ablehnung. Die Entscheidung über die Geschäftsbeziehung bleibt bei der verantwortlichen Person.",
+  "functions": [
+    "Listen-Abgleich",
+    "Ähnlichkeits-Bewertung",
+    "KYC-Unterlagen-Prüfung",
+    "Prüfhinweis"
+  ],
+  "triggers": [
+    "manual",
+    "contact.created"
+  ],
+  "inputs": {
+    "contactId": "uuid (erforderlich)",
+    "name": "string (optional)",
+    "country": "string (optional)",
+    "listSource": "string (optional)",
+    "threshold": "decimal (Standard 0.85)",
+    "candidates": "string (JSON, optional)"
+  },
+  "config": {
+    "systems": [
+      "Kontakte",
+      "Sanktionslisten",
+      "Compliance",
+      "Audit"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "threshold": 0.85,
+    "noAutoBlock": true,
+    "requiresHumanReview": true
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "id": "monthly-kpi",
+  "name": {
+    "de": "Monats-KPI-Bericht",
+    "ru": "Месячный KPI-отчёт"
+  },
+  "description": {
+    "de": "Sammelt die Kennzahlen des Monats aus allen Modulen, prüft sie auf Auffälligkeiten und leitet Empfehlungen ab. Der Bericht nennt zu jeder Zahl Zeitraum und Quelle, damit er im Management-Gespräch belastbar ist.",
+    "ru": "Собирает показатели месяца из всех модулей, проверяет аномалии и формирует рекомендации. У каждой цифры указаны период и источник."
+  },
+  "industries": [
+    "services",
+    "handwerk",
+    "ecommerce",
+    "manufacturing",
+    "agency"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "metric-collect",
+      "title": "Kennzahlen sammeln",
+      "purpose": "Werte aus Dokumenten, Aufgaben und Finanzen",
+      "input": "Monatsdaten",
+      "output": "einheitliches Kennzahlenset"
+    },
+    {
+      "order": 2,
+      "agentId": "report-daily",
+      "title": "Tageslage prüfen",
+      "purpose": "Verlauf und offene Punkte des Monats",
+      "input": "Kennzahlenset",
+      "output": "Tagesübersicht"
+    },
+    {
+      "order": 3,
+      "agentId": "knowledge-kpi-report",
+      "title": "Bericht erstellen",
+      "purpose": "Management-Zusammenfassung mit Quellen",
+      "input": "Kennzahlen",
+      "output": "KPI-Bericht"
+    },
+    {
+      "order": 4,
+      "agentId": "anomaly",
+      "title": "Auffälligkeiten finden",
+      "purpose": "Abweichungen statistisch prüfen",
+      "input": "Tagesreihen",
+      "output": "Abweichungsbericht"
+    },
+    {
+      "order": 5,
+      "agentId": "insight",
+      "title": "Empfehlungen ableiten",
+      "purpose": "Regelbasierte Auswertung der Befunde",
+      "input": "Bericht und Abweichungen",
+      "output": "Maßnahmenempfehlungen"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "KPI-Bericht",
+      "ru": "KPI-отчёт"
+    },
+    {
+      "de": "Abweichungsbericht",
+      "ru": "Отчёт об отклонениях"
+    },
+    {
+      "de": "Maßnahmenempfehlungen",
+      "ru": "Рекомендации"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 180,
+    "label": {
+      "de": "ca. 3 Std./Woche",
+      "ru": "≈3 ч/нед."
+    }
+  }
+}

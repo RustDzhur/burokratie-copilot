@@ -1,0 +1,81 @@
+{
+  "id": "shift-planning",
+  "name": {
+    "de": "Dienstplanung",
+    "ru": "Планирование смен"
+  },
+  "description": {
+    "de": "Erstellt den Dienstplan aus Öffnungszeiten und Verfügbarkeiten und gleicht Urlaube sowie Zeitkonten ab. Konflikte werden vor Veröffentlichung gemeldet, nicht danach.",
+    "ru": "Составляет график смен по часам работы и доступности, учитывает отпуска и баланс времени. Конфликты выявляются до публикации."
+  },
+  "industries": [
+    "gastronomy",
+    "hospitality",
+    "healthcare",
+    "retail",
+    "logistics"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "hospitality-shift-plan",
+      "title": "Dienstplan bauen",
+      "purpose": "Schichten aus Bedarf und Verfügbarkeit",
+      "input": "Woche und Bedarf",
+      "output": "Dienstplan-Entwurf"
+    },
+    {
+      "order": 2,
+      "agentId": "hr-leave-request",
+      "title": "Abwesenheiten prüfen",
+      "purpose": "Urlaube und Sperrzeiten abgleichen",
+      "input": "Dienstplan-Entwurf",
+      "output": "Konfliktliste"
+    },
+    {
+      "order": 3,
+      "agentId": "hr-time-tracking",
+      "title": "Zeitkonten prüfen",
+      "purpose": "Grenzwerte und Pausen kontrollieren",
+      "input": "erfasste Zeiten",
+      "output": "Korrekturliste"
+    },
+    {
+      "order": 4,
+      "agentId": "calendar-sync",
+      "title": "Plan veröffentlichen",
+      "purpose": "Schichten im Teamkalender eintragen",
+      "input": "freigegebener Plan",
+      "output": "Kalendereinträge"
+    },
+    {
+      "order": 5,
+      "agentId": "task-dispatch",
+      "title": "Vertretungen regeln",
+      "purpose": "Offene Schichten als Aufgaben",
+      "input": "Konfliktliste",
+      "output": "Vertretungsaufgaben"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Dienstplan",
+      "ru": "График смен"
+    },
+    {
+      "de": "Konfliktliste",
+      "ru": "Список конфликтов"
+    },
+    {
+      "de": "Vertretungsaufgaben",
+      "ru": "Задачи на замену"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 150,
+    "label": {
+      "de": "ca. 2 Std./Woche",
+      "ru": "≈2 ч/нед."
+    }
+  }
+}

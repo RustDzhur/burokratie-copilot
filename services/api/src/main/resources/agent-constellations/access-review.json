@@ -1,0 +1,81 @@
+{
+  "id": "access-review",
+  "name": {
+    "de": "IT-Zugriffsprüfung",
+    "ru": "Проверка ИТ-доступов"
+  },
+  "description": {
+    "de": "Prüft Konten und Rollen auf ungenutzte Zugänge, fehlende MFA und abgelaufene Befristungen. Die Prüfliste ist entscheidungsfertig, entzieht aber nichts automatisch.",
+    "ru": "Проверяет учётные записи и роли на неиспользуемые доступы, отсутствие MFA и истёкшие сроки. Список готов к решению, но ничего не отзывает автоматически."
+  },
+  "industries": [
+    "it",
+    "finance",
+    "healthcare",
+    "services",
+    "agency"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "it-access-review",
+      "title": "Zugriffe prüfen",
+      "purpose": "Konten, Rollen und letzte Anmeldung",
+      "input": "Mitgliedschaften",
+      "output": "Prüfliste mit Befunden"
+    },
+    {
+      "order": 2,
+      "agentId": "it-backup-check",
+      "title": "Backups prüfen",
+      "purpose": "Läufe und Wiederherstellungsnachweise",
+      "input": "Backup-Protokolle",
+      "output": "Lückenliste"
+    },
+    {
+      "order": 3,
+      "agentId": "it-patch-window",
+      "title": "Patches planen",
+      "purpose": "Schweregrad und Wartungsfenster",
+      "input": "Patchliste",
+      "output": "Patch-Plan"
+    },
+    {
+      "order": 4,
+      "agentId": "compliance-check",
+      "title": "Anforderungen prüfen",
+      "purpose": "Richtlinien und Pflichtnachweise",
+      "input": "Prüfliste",
+      "output": "Abweichungen"
+    },
+    {
+      "order": 5,
+      "agentId": "audit-trail",
+      "title": "Nachweis erzeugen",
+      "purpose": "Prüfung und Entscheidung dokumentieren",
+      "input": "Befunde",
+      "output": "Prüfprotokoll"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Prüfliste",
+      "ru": "Список проверки"
+    },
+    {
+      "de": "Patch-Plan",
+      "ru": "План патчей"
+    },
+    {
+      "de": "Prüfprotokoll",
+      "ru": "Протокол"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 120,
+    "label": {
+      "de": "ca. 2 Std./Woche",
+      "ru": "≈2 ч/нед."
+    }
+  }
+}

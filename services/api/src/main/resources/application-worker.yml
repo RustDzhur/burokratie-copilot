@@ -1,0 +1,22 @@
+# Background worker runtime.
+#
+# Started from the very same artifact:  java -jar burokratie-copilot-api.jar --spring.profiles.active=worker
+# It runs outbox dispatch, document processing, OCR/AI jobs and retention jobs without
+# serving HTTP traffic, so heavy processing can be scaled independently (spec §2.1).
+spring:
+  main:
+    web-application-type: none
+  jpa:
+    open-in-view: false
+
+server:
+  port: 0
+
+management:
+  server:
+    port: ${BC_WORKER_MANAGEMENT_PORT:8081}
+
+burokratie:
+  worker:
+    enabled: true
+    concurrency: ${BC_WORKER_CONCURRENCY:4}

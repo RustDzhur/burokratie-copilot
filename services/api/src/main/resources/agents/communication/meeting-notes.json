@@ -1,0 +1,23 @@
+{
+  "id": "meeting-notes",
+  "name": "Besprechungsnotizen",
+  "category": "communication",
+  "description": "Formt eine Besprechungsnotiz: Teilnehmer, Entscheidungen und Aufgaben. Die Notiz wird an Vorgang und Kontakte gehängt, Aufgaben werden angelegt.",
+  "functions": ["Notiz anlegen", "Teilnehmer verknüpfen", "Entscheidungen festhalten", "Aufgaben anlegen"],
+  "triggers": ["manual", "case.created"],
+  "inputs": {
+    "title": "string (Pflicht)",
+    "caseId": "uuid (optional)",
+    "participants": "string (kommagetrennte Kontakt-UUIDs)",
+    "minutes": "string (Protokolltext)",
+    "decisions": "string",
+    "actionItems": "string (eine Zeile je Aufgabe, optional '|JJJJ-MM-TT')",
+    "date": "string (JJJJ-MM-TT, Standard heute)",
+    "idempotencyKey": "string (optional)"
+  },
+  "config": {
+    "eventType": "NOTE_ADDED",
+    "taskSource": "SYSTEM",
+    "idempotencyKeyPrefix": "meeting-notes"
+  }
+}

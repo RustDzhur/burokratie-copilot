@@ -1,0 +1,34 @@
+{
+  "id": "production-warranty",
+  "name": "Garantiefall",
+  "category": "production",
+  "description": "Nimmt Garantiemeldungen auf, prüft Kaufdatum, Garantiefrist und bisherige Reparaturen und bereitet die Entscheidung vor. Kulanz und Gewährleistung werden getrennt ausgewiesen. Der Agent veranlasst keine Reparatur ohne Freigabe.",
+  "functions": [
+    "Fristen-Prüfung",
+    "Reparatur-Historie",
+    "Kulanz-Abgrenzung",
+    "Entscheidungsvorlage"
+  ],
+  "triggers": [
+    "manual",
+    "document.received"
+  ],
+  "inputs": {
+    "orderId": "string (erforderlich)",
+    "productId": "uuid (optional)",
+    "purchaseDate": "date (erforderlich)",
+    "defectDescription": "string (erforderlich)",
+    "warrantyMonths": "integer (Standard 24)"
+  },
+  "config": {
+    "systems": [
+      "Aufträge",
+      "Kontakte",
+      "Aufgaben",
+      "Dokumente"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApproval": true
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "sales-win-loss",
+  "name": "Gewonnen-Verloren-Analyse",
+  "category": "sales",
+  "description": "Wertet gewonnene und verlorene Verkaufschancen nach Grund, Branche, Größe und Verkaufsphase aus. Aus den Gründen werden Muster und konkrete Verbesserungen abgeleitet. Die Auswertung ist beschreibend und trifft keine Prognose ohne Datenbasis.",
+  "functions": [
+    "Ursachen-Auswertung",
+    "Segment-Vergleich",
+    "Muster-Erkennung",
+    "Verbesserungs-Vorschläge"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "periodFrom": "date (erforderlich)",
+    "periodTo": "date (erforderlich)",
+    "segment": "string (optional)",
+    "includeLostReasons": "boolean (Standard true)"
+  },
+  "config": {
+    "systems": [
+      "CRM",
+      "Rechnungen",
+      "Reporting"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

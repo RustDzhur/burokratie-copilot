@@ -1,0 +1,72 @@
+{
+  "id": "dunning-cycle",
+  "name": {
+    "de": "Mahnlauf",
+    "ru": "Цикл напоминаний об оплате"
+  },
+  "description": {
+    "de": "Erkennt überfällige Ausgangsrechnungen, legt die passende Mahnstufe fest und erstellt Mahnschreiben als Entwurf. Versendet wird erst nach Freigabe; jede Stufe wird am Vorgang dokumentiert.",
+    "ru": "Находит просроченные исходящие счета, определяет стадию напоминания и готовит письма как черновики. Отправка — только после подтверждения; каждая стадия фиксируется в деле."
+  },
+  "industries": [
+    "handwerk",
+    "services",
+    "ecommerce",
+    "manufacturing"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "dunning",
+      "title": "Mahnstufen bestimmen",
+      "purpose": "Überfällige Rechnungen und Stufe ermitteln",
+      "input": "Ausgangsrechnungen",
+      "output": "Mahnliste mit Stufe"
+    },
+    {
+      "order": 2,
+      "agentId": "letter-draft",
+      "title": "Mahnschreiben entwerfen",
+      "purpose": "Vorlage füllen und Dokument erzeugen",
+      "input": "Mahnliste",
+      "output": "Mahnschreiben als Entwurf"
+    },
+    {
+      "order": 3,
+      "agentId": "mail-reply",
+      "title": "Versand vorbereiten",
+      "purpose": "E-Mail-Entwurf je Empfänger anlegen",
+      "input": "Mahnschreiben",
+      "output": "versandfertige Entwürfe"
+    },
+    {
+      "order": 4,
+      "agentId": "crm-activity",
+      "title": "Historie festhalten",
+      "purpose": "Mahnstufe und Versand am Kontakt protokollieren",
+      "input": "versandte Mahnungen",
+      "output": "vollständige Kontakthistorie"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Mahnliste",
+      "ru": "Список напоминаний"
+    },
+    {
+      "de": "Mahnschreiben-Entwürfe",
+      "ru": "Черновики писем"
+    },
+    {
+      "de": "Aktualisierte Kontakthistorie",
+      "ru": "Обновлённая история контактов"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 90,
+    "label": {
+      "de": "ca. 1 Std./Woche",
+      "ru": "≈1 ч/нед."
+    }
+  }
+}

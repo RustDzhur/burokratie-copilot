@@ -1,0 +1,35 @@
+{
+  "id": "hr-payroll-data",
+  "name": "Lohndaten-Vorbereitung",
+  "category": "hr",
+  "description": "Stellt die Lohndaten für den Monat zusammen: Arbeitszeiten, Abwesenheiten, Zuschläge und Änderungen an Stammdaten. Auffälligkeiten werden vor der Übergabe an die Lohnabrechnung ausgewiesen. Der Agent ersetzt keine Lohnabrechnung und trifft keine steuerlichen Entscheidungen.",
+  "functions": [
+    "Daten-Zusammenstellung",
+    "Abwesenheits-Abgleich",
+    "Zuschlag-Prüfung",
+    "Auffälligkeits-Liste"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "month": "string (YYYY-MM, erforderlich)",
+    "employeeIds": "string (optional)",
+    "includeOvertime": "boolean (Standard true)",
+    "includeAbsences": "boolean (Standard true)",
+    "exportFormat": "CSV | DATEV_LODAS"
+  },
+  "config": {
+    "systems": [
+      "Personalakte",
+      "Zeiterfassung",
+      "Lohnbüro",
+      "DATEV Lohn"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "sensitive": true,
+    "requiresApprovalBeforeExport": true
+  }
+}

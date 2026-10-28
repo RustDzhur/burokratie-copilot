@@ -1,0 +1,33 @@
+{
+  "id": "ecommerce-payment-check",
+  "name": "Zahlungsprüfung",
+  "category": "ecommerce",
+  "description": "Prüft offene und fehlgeschlagene Zahlungen, ordnet sie Bestellungen zu und schlägt Zahlungserinnerung oder Storno vor. Betrugsverdacht wird nur mit nachvollziehbaren Kriterien gemeldet. Der Agent bucht keine Zahlungen und storniert nicht selbst.",
+  "functions": [
+    "Zahlungs-Abgleich",
+    "Fehlschlag-Analyse",
+    "Erinnerungs-Vorschlag",
+    "Risiko-Hinweis"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "orderIds": "string (optional)",
+    "paymentProvider": "string (optional)",
+    "since": "datetime (optional)",
+    "retryLimit": "integer (Standard 3)"
+  },
+  "config": {
+    "systems": [
+      "Shop",
+      "Zahlungsdienstleister",
+      "Rechnungen",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "noAutoCancel": true
+  }
+}

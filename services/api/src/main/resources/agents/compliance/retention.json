@@ -1,0 +1,22 @@
+{
+  "id": "retention",
+  "name": "Aufbewahrung",
+  "category": "compliance",
+  "description": "Berechnet Aufbewahrungs- und Löschfristen für Dokumente nach den bestätigten Aufbewahrungsregeln und stellt die Liste der Löschkandidaten zusammen. Löscht nie selbst.",
+  "functions": [
+    "Löschfrist eines Dokuments berechnen",
+    "Löschkandidaten ermitteln",
+    "Demnächst fällige Dokumente melden",
+    "Legal-Hold-Sperren ausweisen"
+  ],
+  "triggers": ["document.created", "manual"],
+  "inputs": {
+    "documentId": "uuid (optional)",
+    "upcomingDays": "int (optional, Standard 30)"
+  },
+  "config": {
+    "destructive": false,
+    "confirmRequired": true,
+    "defaultUpcomingDays": 30
+  }
+}

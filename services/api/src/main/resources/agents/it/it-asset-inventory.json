@@ -1,0 +1,32 @@
+{
+  "id": "it-asset-inventory",
+  "name": "Asset-Inventar",
+  "category": "it",
+  "description": "Führt Geräte, Lizenzen und Verantwortlichkeiten zusammen und erkennt Lücken bei Zuordnung, Garantie und Vertragslaufzeit. Doppelte oder verwaiste Einträge werden markiert. Der Agent beschafft nichts und ändert keine Verträge.",
+  "functions": [
+    "Bestands-Abgleich",
+    "Lizenz-Prüfung",
+    "Garantie-Überwachung",
+    "Lücken-Liste"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "inventorySource": "string (optional)",
+    "includeLicenses": "boolean (Standard true)",
+    "includeWarranty": "boolean (Standard true)",
+    "locationId": "uuid (optional)"
+  },
+  "config": {
+    "systems": [
+      "Inventar",
+      "Lizenzen",
+      "Verträge",
+      "Dokumente"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

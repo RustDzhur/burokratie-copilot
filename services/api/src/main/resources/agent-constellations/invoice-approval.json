@@ -1,0 +1,81 @@
+{
+  "id": "invoice-approval",
+  "name": {
+    "de": "Rechnungsfreigabe",
+    "ru": "Согласование счетов"
+  },
+  "description": {
+    "de": "Führt Eingangsrechnungen durch Prüfung und Freigabe bis zur Zahlungsvorbereitung. Jede Freigabe ist dokumentiert; Rechnungen mit geänderter Bankverbindung stoppen den Ablauf.",
+    "ru": "Проводит входящие счёта через проверку и согласование до подготовки платежа. Каждое согласование документировано; счета с изменёнными реквизитами останавливают процесс."
+  },
+  "industries": [
+    "services",
+    "handwerk",
+    "manufacturing",
+    "realestate",
+    "logistics"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "invoice-capture",
+      "title": "Rechnung erfassen",
+      "purpose": "Beleg mit Duplikatschutz anlegen",
+      "input": "Eingangsrechnung",
+      "output": "erfasste Rechnung"
+    },
+    {
+      "order": 2,
+      "agentId": "invoice-check",
+      "title": "Rechnung prüfen",
+      "purpose": "Betrag, Lieferant und Bankverbindung",
+      "input": "erfasste Rechnung",
+      "output": "Prüfergebnis"
+    },
+    {
+      "order": 3,
+      "agentId": "approval",
+      "title": "Freigabe einholen",
+      "purpose": "Entscheidung mit Begründung dokumentieren",
+      "input": "Prüfergebnis",
+      "output": "Freigabe oder Ablehnung"
+    },
+    {
+      "order": 4,
+      "agentId": "payment-match",
+      "title": "Zahlung vorbereiten",
+      "purpose": "Offene Posten und Zahlweg prüfen",
+      "input": "freigegebene Rechnung",
+      "output": "Zahlungsvorschlag"
+    },
+    {
+      "order": 5,
+      "agentId": "account-datev",
+      "title": "Buchung vorbereiten",
+      "purpose": "Kontierung und Kontrollsumme",
+      "input": "freigegebene Rechnung",
+      "output": "Buchungsstapel"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Freigabeprotokoll",
+      "ru": "Протокол согласования"
+    },
+    {
+      "de": "Zahlungsvorschlag",
+      "ru": "Предложение по оплате"
+    },
+    {
+      "de": "Buchungsstapel",
+      "ru": "Пакет проводок"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 150,
+    "label": {
+      "de": "ca. 2 Std./Woche",
+      "ru": "≈2 ч/нед."
+    }
+  }
+}

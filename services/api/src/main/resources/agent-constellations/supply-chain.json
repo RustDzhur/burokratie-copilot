@@ -1,0 +1,85 @@
+{
+  "id": "supply-chain",
+  "name": {
+    "de": "Lieferkette überwachen",
+    "ru": "Контроль цепочки поставок"
+  },
+  "description": {
+    "de": "Verfolgt offene Bestellungen und Liefertermine, bereitet die Inventur vor und bewertet Lieferanten nach Termintreue. Engpässe werden früh sichtbar, bevor die Produktion steht.",
+    "ru": "Отслеживает открытые заказы и сроки поставки, готовит инвентаризацию и оценивает поставщиков по соблюдению сроков. Узкие места видны заранее."
+  },
+  "industries": [
+    "manufacturing",
+    "logistics",
+    "handwerk",
+    "ecommerce",
+    "retail"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "logistics-order-intake",
+      "title": "Bestellungen erfassen",
+      "purpose": "Offene Bestellungen und Termine prüfen",
+      "input": "Bestellungen",
+      "output": "Auftragsliste"
+    },
+    {
+      "order": 2,
+      "agentId": "logistics-delivery-tracking",
+      "title": "Liefertermine überwachen",
+      "purpose": "Überfällige Lieferungen melden",
+      "input": "offene Bestellungen",
+      "output": "Verzugsliste"
+    },
+    {
+      "order": 3,
+      "agentId": "logistics-inventory-count",
+      "title": "Inventur vorbereiten",
+      "purpose": "Zähllisten und Differenzen planen",
+      "input": "Lager und Stichtag",
+      "output": "Zähllisten"
+    },
+    {
+      "order": 4,
+      "agentId": "logistics-supplier-scorecard",
+      "title": "Lieferanten bewerten",
+      "purpose": "Termintreue und Reklamationen",
+      "input": "Bestell- und Reklamationsdaten",
+      "output": "Lieferanten-Scorecard"
+    },
+    {
+      "order": 5,
+      "agentId": "task-dispatch",
+      "title": "Maßnahmen verteilen",
+      "purpose": "Engpässe als Aufgaben zuweisen",
+      "input": "Verzugsliste und Scorecard",
+      "output": "zugewiesene Maßnahmen"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Verzugsliste",
+      "ru": "Список просрочек"
+    },
+    {
+      "de": "Inventurunterlagen",
+      "ru": "Документы инвентаризации"
+    },
+    {
+      "de": "Lieferantenbewertung",
+      "ru": "Оценка поставщиков"
+    },
+    {
+      "de": "Maßnahmenliste",
+      "ru": "Список мер"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 180,
+    "label": {
+      "de": "ca. 3 Std./Woche",
+      "ru": "≈3 ч/нед."
+    }
+  }
+}

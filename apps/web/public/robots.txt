@@ -1,0 +1,31 @@
+# Bürokratie-Copilot
+#
+# The marketing pages may be indexed; every application area is behind a session and must not be
+# crawled — an indexed administrative page would leak the existence of a workspace even though its
+# content is protected.
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /inbox
+Disallow: /documents
+Disallow: /cases
+Disallow: /tasks
+Disallow: /contracts
+Disallow: /invoices
+Disallow: /payments
+Disallow: /contacts
+Disallow: /mail
+Disallow: /templates
+Disallow: /assistant
+Disallow: /automations
+Disallow: /integrations
+Disallow: /scan
+Disallow: /family
+Disallow: /company
+Disallow: /employees
+Disallow: /reports
+Disallow: /archive
+Disallow: /settings
+Disallow: /notifications
+Disallow: /audit
+Disallow: /design-system

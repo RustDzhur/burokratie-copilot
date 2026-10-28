@@ -1,0 +1,340 @@
+package de.buerokratiecopilot.documents.ocr;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import de.buerokratiecopilot.documents.DocumentPageRepository;
+import de.buerokratiecopilot.documents.DocumentRepository;
+import de.buerokratiecopilot.documents.domain.Document;
+import de.buerokratiecopilot.documents.domain.DocumentPage;
+import de.buerokratiecopilot.documents.domain.DocumentProcessingStep;
+import de.buerokratiecopilot.documents.pipeline.ProcessingStepHandler;
+import de.buerokratiecopilot.shared.config.BurokratieProperties;
+import de.buerokratiecopilot.shared.storage.BlobStore;
+
+/**
+ * Recognises the pages that carry no text layer (spec §9.1 step 6, §9.2).
+ *
+ * <p>Only the pages without text are rendered and recognised — in a digital letter with one scanned
+ * annex that is one page instead of fifty. Every page keeps its own engine, language and confidence,
+ * because a value taken from a mediocre scan must be distinguishable from one read from a text
+ * layer.</p>
+ *
+ * <p>A photographed page is straightened before it is read (spec §7.3, {@link PagePerspective}).
+ * That step refuses whenever the sheet's corners are not certain and returns the picture unchanged;
+ * its decision and the reason are kept in the step diagnostics, so "left alone" is never silent.</p>
+ *
+ * <p>When no engine is configured the step is reported as skipped with the reason and the document
+ * goes to human review. Claiming an empty result would turn an unread scan into a blank document,
+ * and the following classification stage would then classify it as "unknown" instead of "not read".</p>
+ */
+@Component
+public class OcrStepHandler implements ProcessingStepHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(OcrStepHandler.class);
+
+    /** The step keeps a few reasons for the diagnostics; a fifty-page scan needs no fifty lines there. */
+    private static final int MAX_LOGGED_PERSPECTIVE_DECISIONS = 5;
+
+    private final OcrEngine engine;
+    private final PdfPageRenderer renderer;
+    private final DocumentPageRepository pages;
+    private final DocumentRepository documents;
+    private final BlobStore blobStore;
+    private final BurokratieProperties properties;
+    private final boolean perspectiveCorrection;
+
+    public OcrStepHandler(OcrEngine engine, PdfPageRenderer renderer, DocumentPageRepository pages,
+                          DocumentRepository documents, BlobStore blobStore,
+                          BurokratieProperties properties,
+                          @Value("${burokratie.ocr.perspective-correction:true}") boolean perspectiveCorrection) {
+        this.engine = engine;
+        this.renderer = renderer;
+        this.pages = pages;
+        this.documents = documents;
+        this.blobStore = blobStore;
+        this.properties = properties;
+        this.perspectiveCorrection = perspectiveCorrection;
+    }
+
+    @Override
+    public DocumentProcessingStep.Step step() {
+        return DocumentProcessingStep.Step.OCR;
+    }
+
+    @Override
+    public StepResult handle(ProcessingContext context) {
+        Document document = context.document();
+        boolean imageDocument = isImage(document.getMimeType());
+
+        List<DocumentPage> stored = pages.findByVersionIdOrderByPageNumberAsc(context.version().getId());
+        List<DocumentPage> needingOcr = stored.stream().filter(DocumentPage::isEmpty).toList();
+
+        if (stored.isEmpty()) {
+            // No page at all. everything below reasons about pages, and with zero of them "every page carries
+            // a text layer" is true and useless: it says a document has text when the extraction produced
+            // nothing to look at. Saying so is the difference between "nothing to do" and "nothing worked".
+            return StepResult.skipped(
+                    "Die Textgewinnung hat keine Seite ergeben; es gibt nichts zu erkennen",
+                    Document.ProcessingStatus.REVIEW_REQUIRED);
+        }
+
+        if (!imageDocument && needingOcr.isEmpty()) {
+            // Nothing to recognise. Checking this BEFORE the engine availability matters: a digital
+            // letter must not be sent to human review just because the deployment has no OCR engine.
+            return StepResult.succeeded(Map.of("ocrPages", 0, "engine", engine.name(),
+                    "reason", "Every page carries a text layer"), Document.ProcessingStatus.EXTRACTING);
+        }
+
+        if (!engine.isAvailable()) {
+            return StepResult.skipped(
+                    "No OCR engine is available in this deployment; " + needingOcr.size()
+                            + " page(s) without a text layer were not examined",
+                    Document.ProcessingStatus.REVIEW_REQUIRED);
+        }
+
+        if (imageDocument && stored.isEmpty()) {
+            // An image document has no pages yet; it is recognised as a single page.
+            stored = List.of(new DocumentPage(java.util.UUID.randomUUID(), document.getId(),
+                    context.version().getId(), 1));
+            needingOcr = stored;
+        }
+
+        List<String> languages = languages();
+        byte[] content;
+        try (InputStream in = blobStore.retrieve(context.blob().getStorageKey())) {
+            content = in.readAllBytes();
+        }
+        catch (IOException ex) {
+            return StepResult.failed("The stored file could not be read for OCR: " + ex.getMessage());
+        }
+
+        // Only a PDF or an image can be turned into a picture for the engine. A DOCX or XLSX that arrived
+        // here has no text layer because it has no text - and rendering it as a PDF crashed, which turned an
+        // empty spreadsheet into a failed document instead of one that asks a person.
+        String mime = document.getMimeType() == null ? "" : document.getMimeType().toLowerCase();
+        boolean renderable = isImage(mime) || "application/pdf".equals(mime);
+        if (!renderable) {
+            return StepResult.skipped(
+                    "Dieses Format kann nicht als Bild für die Erkennung aufbereitet werden ("
+                            + mime + "); die Datei enthält keinen lesbaren Text",
+                    Document.ProcessingStatus.REVIEW_REQUIRED);
+        }
+
+        int recognised = 0;
+        int empty = 0;
+        int failed = 0;
+        int straightened = 0;
+        int leftAsItWas = 0;
+        List<String> perspectiveDecisions = new ArrayList<>();
+        List<Double> confidences = new ArrayList<>();
+        Map<String, Object> diagnostics = new LinkedHashMap<>();
+        diagnostics.put("engine", engine.name());
+        diagnostics.put("languages", String.join("+", languages));
+
+        for (DocumentPage page : needingOcr) {
+            byte[] image;
+            try {
+                // For an image the engine needs THIS frame, not the whole file: a multi-page TIFF was
+                // recognised as page one over and over. The helper falls back to the whole file when it
+                // cannot read a frame, so a single-page photo behaves exactly as before.
+                image = isImage(document.getMimeType())
+                        ? de.buerokratiecopilot.documents.extraction.ImageFrames.frame(
+                                content, page.getPageNumber())
+                        : renderer.renderPage(content, page.getPageNumber());
+            }
+            catch (IOException ex) {
+                page.setErrorMessage("The page could not be rendered: " + ex.getMessage());
+                pages.save(page);
+                failed++;
+                continue;
+            }
+
+            // Only a photograph of a sheet can have a perspective to remove. A rendered PDF page is
+            // already flat, and warping it would be a resampling of a picture that needs none.
+            byte[] forRecognition = image;
+            if (imageDocument && perspectiveCorrection) {
+                PagePerspective.Decision perspective = PagePerspective.decide(image);
+                if (perspective.corrected()) {
+                    forRecognition = perspective.bytes();
+                    straightened++;
+                }
+                else {
+                    leftAsItWas++;
+                }
+                if (perspectiveDecisions.size() < MAX_LOGGED_PERSPECTIVE_DECISIONS) {
+                    perspectiveDecisions.add("page " + page.getPageNumber() + ": " + perspective.summary());
+                }
+            }
+
+            OcrEngine.Result result = recogniseBest(forRecognition, languages);
+            page.setOcrUsed(true);
+            page.setOcrEngine(result.engine());
+            page.setOcrLanguage(result.language());
+
+            if (!result.recognised()) {
+                page.setErrorMessage(result.error());
+                pages.save(page);
+                failed++;
+                continue;
+            }
+
+            page.setTextContent(result.text() == null ? "" : result.text());
+            page.setOcrConfidence(result.confidence() == null
+                    ? null
+                    : java.math.BigDecimal.valueOf(result.confidence()));
+            page.setErrorMessage(null);
+            pages.save(page);
+
+            if (result.hasText()) {
+                recognised++;
+                if (result.confidence() != null) {
+                    confidences.add(result.confidence());
+                }
+            }
+            else {
+                empty++;
+            }
+        }
+
+        mergeIntoExtractedText(document);
+        diagnostics.put("pagesExamined", needingOcr.size());
+        diagnostics.put("pagesRecognised", recognised);
+        diagnostics.put("pagesWithoutText", empty);
+        diagnostics.put("pagesFailed", failed);
+        if (straightened + leftAsItWas > 0) {
+            // The decision is recorded, not only made: "not straightened" without a reason looks the
+            // same whether the page was already straight or the sheet could not be found.
+            diagnostics.put("perspectiveCorrectedPages", straightened);
+            diagnostics.put("perspectiveKeptPages", leftAsItWas);
+            diagnostics.put("perspectiveDecisions", String.join("; ", perspectiveDecisions)
+                    + (straightened + leftAsItWas > perspectiveDecisions.size() ? "; ..." : ""));
+        }
+        diagnostics.put("averageConfidence", confidences.isEmpty() ? null
+                : confidences.stream().mapToDouble(Double::doubleValue).average().orElse(0));
+
+        if (failed > 0 && recognised == 0 && empty == 0) {
+            return StepResult.failed("OCR failed on every page that needed it; see the page diagnostics");
+        }
+        if (recognised == 0 && empty > 0) {
+            // The engine ran and found nothing: that is a result, not a failure, but it means the
+            // document cannot be processed automatically.
+            return StepResult.succeeded(diagnostics, Document.ProcessingStatus.REVIEW_REQUIRED);
+        }
+        log.info("OCR recognised {} of {} page(s) for document {}", recognised, needingOcr.size(),
+                document.getId());
+        return StepResult.succeeded(diagnostics, Document.ProcessingStatus.EXTRACTING);
+    }
+
+    /** Below this a first reading is not trusted and the page is tried turned. */
+    private static final int ENOUGH_WORDS = 15;
+    private static final double GOOD_CONFIDENCE = 0.6;
+
+    /**
+     * Reads a page after preparing the picture; when that finds little (a photo lying on its side or upside down), the page
+     * is also read turned by 90, 180 and 270 degrees and the reading with the most trustworthy words wins.
+     */
+    OcrEngine.Result recogniseBest(byte[] original, List<String> languages) {
+        byte[] prepared = ImagePreparer.prepare(original);
+        OcrEngine.Result best = engine.recognise(prepared, languages);
+        if (!poor(best)) {
+            return best;
+        }
+        int bestDegrees = 0;
+        for (int degrees : new int[] { 90, 180, 270 }) {
+            OcrEngine.Result candidate = engine.recognise(ImagePreparer.rotated(prepared, degrees), languages);
+            if (score(candidate) > score(best)) {
+                best = candidate;
+                bestDegrees = degrees;
+            }
+        }
+        if (poor(best)) {
+            // A page in Cyrillic read with German models comes out as noise. Try the Slavic models on the best turn; the
+            // reading with more trustworthy words wins, and the language step then sees the script and can say so.
+            List<String> slavic = slavicLanguages(languages);
+            if (!slavic.isEmpty()) {
+                byte[] turned = bestDegrees == 0 ? prepared : ImagePreparer.rotated(prepared, bestDegrees);
+                OcrEngine.Result candidate = engine.recognise(turned, slavic);
+                if (score(candidate) > score(best)) {
+                    best = candidate;
+                }
+            }
+        }
+        return best;
+    }
+
+    /** Russian and Ukrainian (with English for the Latin parts) when the engine has them and they were not tried already. */
+    private List<String> slavicLanguages(List<String> tried) {
+        List<String> available = engine.availableLanguages();
+        List<String> slavic = new ArrayList<>();
+        for (String code : List.of("rus", "ukr")) {
+            if (available.contains(code) && !tried.contains(code)) {
+                slavic.add(code);
+            }
+        }
+        if (slavic.isEmpty()) {
+            return slavic;
+        }
+        if (available.contains("eng")) {
+            slavic.add("eng");
+        }
+        return slavic;
+    }
+
+    private static boolean poor(OcrEngine.Result result) {
+        return !result.recognised() || words(result) < ENOUGH_WORDS
+                || (result.confidence() != null && result.confidence() < GOOD_CONFIDENCE);
+    }
+
+    private static int words(OcrEngine.Result result) {
+        return result.text() == null || result.text().isBlank() ? 0 : result.text().strip().split("\\s+").length;
+    }
+
+    private static double score(OcrEngine.Result result) {
+        if (!result.recognised()) {
+            return -1;
+        }
+        return Math.min(words(result), 400) * (result.confidence() == null ? 0.5 : result.confidence());
+    }
+
+    /** Rebuilds the aggregated text from all pages of the document. */
+    private void mergeIntoExtractedText(Document document) {
+        List<DocumentPage> all = pages.findByDocumentIdOrderByPageNumberAsc(document.getId());
+        StringBuilder builder = new StringBuilder();
+        for (DocumentPage page : all) {
+            if (page.isEmpty()) {
+                continue;
+            }
+            if (!builder.isEmpty()) {
+                builder.append("\n\n");
+            }
+            builder.append(page.getTextContent().strip());
+        }
+        document.setExtractedText(builder.toString());
+        documents.save(document);
+    }
+
+    private List<String> languages() {
+        String configured = properties.getOcr().getLanguages();
+        if (configured == null || configured.isBlank()) {
+            return List.of("deu", "eng");
+        }
+        return List.of(configured.split("[+,]")).stream().map(String::strip)
+                .filter(value -> !value.isEmpty()).toList();
+    }
+
+    private static boolean isImage(String contentType) {
+        return "image/png".equals(contentType) || "image/jpeg".equals(contentType)
+                || "image/tiff".equals(contentType) || "image/webp".equals(contentType)
+                || "image/bmp".equals(contentType) || "image/gif".equals(contentType);
+    }
+}

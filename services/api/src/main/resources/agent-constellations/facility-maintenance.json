@@ -1,0 +1,81 @@
+{
+  "id": "facility-maintenance",
+  "name": {
+    "de": "Objektwartung",
+    "ru": "Обслуживание объектов"
+  },
+  "description": {
+    "de": "Nimmt Schadensmeldungen auf, ordnet Gewerke zu und bereitet Aufträge vor. Mieter und Dienstleister erhalten dieselbe nachvollziehbare Frist; der Auftrag startet erst nach Freigabe.",
+    "ru": "Принимает сообщения о повреждениях, распределяет по специальностям и готовит заказы. Арендатор и подрядчик получают один и тот же понятный срок; заказ стартует после подтверждения."
+  },
+  "industries": [
+    "realestate",
+    "handwerk",
+    "services",
+    "construction"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "realestate-maintenance",
+      "title": "Schaden aufnehmen",
+      "purpose": "Gewerk und Dringlichkeit bestimmen",
+      "input": "Schadensmeldung",
+      "output": "Auftragsentwurf"
+    },
+    {
+      "order": 2,
+      "agentId": "realestate-tenant-admin",
+      "title": "Mieter zuordnen",
+      "purpose": "Objekt, Mieter und Zugang prüfen",
+      "input": "Meldung",
+      "output": "Vorgang mit Beteiligten"
+    },
+    {
+      "order": 3,
+      "agentId": "task-dispatch",
+      "title": "Auftrag zuweisen",
+      "purpose": "Dienstleister und Frist festlegen",
+      "input": "Auftragsentwurf",
+      "output": "zugewiesener Auftrag"
+    },
+    {
+      "order": 4,
+      "agentId": "letter-draft",
+      "title": "Beteiligte informieren",
+      "purpose": "Bestätigung und Termin mitteilen",
+      "input": "Auftrag",
+      "output": "Schreiben als Entwurf"
+    },
+    {
+      "order": 5,
+      "agentId": "doc-sign",
+      "title": "Freigabe einholen",
+      "purpose": "Auftrag oder Vollmacht zur Signatur",
+      "input": "Auftrag",
+      "output": "Signaturvorgang",
+      "optional": true
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Auftragsentwurf",
+      "ru": "Черновик заказа"
+    },
+    {
+      "de": "Informationsschreiben",
+      "ru": "Письмо участникам"
+    },
+    {
+      "de": "Signierter Auftrag",
+      "ru": "Подписанный заказ"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 120,
+    "label": {
+      "de": "ca. 2 Std./Woche",
+      "ru": "≈2 ч/нед."
+    }
+  }
+}

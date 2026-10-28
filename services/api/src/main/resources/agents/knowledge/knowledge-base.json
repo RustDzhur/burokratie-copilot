@@ -1,0 +1,32 @@
+{
+  "id": "knowledge-base",
+  "name": "Wissensartikel",
+  "category": "knowledge",
+  "description": "Pflegt interne Wissensartikel mit Gültigkeitsdatum, Verantwortlichkeit und Quelle. Veraltete Artikel werden erkannt und zur Prüfung vorgelegt, statt stillschweigend weiterzuverlinken. Der Agent veröffentlicht nichts ohne Freigabe.",
+  "functions": [
+    "Artikel-Erstellung",
+    "Gültigkeits-Prüfung",
+    "Verantwortlichkeit",
+    "Quellen-Angabe"
+  ],
+  "triggers": [
+    "manual",
+    "webhook"
+  ],
+  "inputs": {
+    "query": "string (optional)",
+    "category": "string (optional)",
+    "ownerUserId": "uuid (optional)",
+    "reviewDueDays": "integer (Standard 180)"
+  },
+  "config": {
+    "systems": [
+      "Wissensbasis",
+      "Intranet",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApproval": true
+  }
+}

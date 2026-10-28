@@ -1,0 +1,81 @@
+{
+  "id": "nps-loop",
+  "name": {
+    "de": "Kundenstimmen und NPS",
+    "ru": "Голос клиента и NPS"
+  },
+  "description": {
+    "de": "Führt NPS-Umfragen durch, wertet Freitext aus und entwirft Antworten auf öffentliche Bewertungen. Themen mit häufiger Kritik fließen in den Redaktionsplan ein, statt nur in einer Statistik zu landen.",
+    "ru": "Проводит опросы NPS, анализирует свободные ответы и готовит ответы на публичные отзывы. Частые темы критики попадают в контент-план."
+  },
+  "industries": [
+    "services",
+    "ecommerce",
+    "gastronomy",
+    "handwerk",
+    "realestate"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "support-nps",
+      "title": "NPS erheben",
+      "purpose": "Umfrage auswerten und Themen gruppieren",
+      "input": "Umfragezeitraum",
+      "output": "NPS-Auswertung mit Themen"
+    },
+    {
+      "order": 2,
+      "agentId": "support-review-response",
+      "title": "Bewertungen beantworten",
+      "purpose": "Antwortentwürfe je Bewertung",
+      "input": "öffentliche Bewertungen",
+      "output": "Antwortentwürfe"
+    },
+    {
+      "order": 3,
+      "agentId": "crm-activity",
+      "title": "Kundenhistorie ergänzen",
+      "purpose": "Rückmeldung am Kontakt festhalten",
+      "input": "NPS und Antworten",
+      "output": "aktualisierte Historie"
+    },
+    {
+      "order": 4,
+      "agentId": "insight",
+      "title": "Muster ableiten",
+      "purpose": "Wiederkehrende Kritik und Ursachen",
+      "input": "NPS-Auswertung",
+      "output": "Empfehlungen"
+    },
+    {
+      "order": 5,
+      "agentId": "marketing-content-brief",
+      "title": "Inhalte ableiten",
+      "purpose": "Themen für Blog und FAQ briefen",
+      "input": "Empfehlungen",
+      "output": "Content-Briefings"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "NPS-Auswertung",
+      "ru": "Анализ NPS"
+    },
+    {
+      "de": "Antwortentwürfe",
+      "ru": "Черновики ответов"
+    },
+    {
+      "de": "Content-Briefings",
+      "ru": "Брифинги"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 90,
+    "label": {
+      "de": "ca. 1 Std./Woche",
+      "ru": "≈1 ч/нед."
+    }
+  }
+}

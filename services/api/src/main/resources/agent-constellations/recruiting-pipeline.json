@@ -1,0 +1,81 @@
+{
+  "id": "recruiting-pipeline",
+  "name": {
+    "de": "Recruiting-Pipeline",
+    "ru": "Рекрутинг"
+  },
+  "description": {
+    "de": "Prüft Bewerbungen gegen die Stellenanforderungen, bereitet Interviews vor und startet nach der Zusage das Onboarding. Menschen entscheiden; der Ablauf sorgt dafür, dass keine Bewerbung und kein Onboarding-Schritt verloren geht.",
+    "ru": "Сравнивает заявки с требованиями вакансии, готовит интервью и запускает онбординг после согласия. Решения принимают люди, а процесс не теряет ни заявки, ни шаги онбординга."
+  },
+  "industries": [
+    "handwerk",
+    "services",
+    "healthcare",
+    "it",
+    "gastronomy"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "hr-recruiting-screening",
+      "title": "Bewerbungen prüfen",
+      "purpose": "Muss- und Wunschkriterien abgleichen",
+      "input": "Stellenprofil und Bewerbungen",
+      "output": "Interview-Shortlist mit Begründung"
+    },
+    {
+      "order": 2,
+      "agentId": "calendar-sync",
+      "title": "Interviews planen",
+      "purpose": "Termine mit Kandidaten und Fachbereich abstimmen",
+      "input": "Shortlist",
+      "output": "Interviewtermine"
+    },
+    {
+      "order": 3,
+      "agentId": "task-dispatch",
+      "title": "Entscheidung vorbereiten",
+      "purpose": "Feedback und Entscheidung als Aufgabe",
+      "input": "Interviewnotizen",
+      "output": "Entscheidungsvorlage"
+    },
+    {
+      "order": 4,
+      "agentId": "letter-draft",
+      "title": "Zusage oder Absage",
+      "purpose": "Persönliches Schreiben aus Vorlage",
+      "input": "Entscheidung",
+      "output": "Schreiben als Entwurf"
+    },
+    {
+      "order": 5,
+      "agentId": "hr-onboarding",
+      "title": "Onboarding starten",
+      "purpose": "Aufgabenplan ab Startdatum anlegen",
+      "input": "Zusage und Startdatum",
+      "output": "Onboarding-Aufgaben"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Shortlist",
+      "ru": "Шортлист"
+    },
+    {
+      "de": "Interviewplan",
+      "ru": "План интервью"
+    },
+    {
+      "de": "Onboarding-Plan",
+      "ru": "План онбординга"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 300,
+    "label": {
+      "de": "ca. 5 Std./Woche",
+      "ru": "≈5 ч/нед."
+    }
+  }
+}

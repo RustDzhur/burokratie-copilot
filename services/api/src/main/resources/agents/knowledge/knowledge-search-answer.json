@@ -1,0 +1,32 @@
+{
+  "id": "knowledge-search-answer",
+  "name": "Wissenssuche",
+  "category": "knowledge",
+  "description": "Beantwortet interne Fragen mit belegten Fundstellen aus Dokumenten und Wissensartikeln. Wenn keine ausreichende Quelle vorliegt, sagt der Agent das ausdrücklich, statt zu raten. Jede Antwort nennt die verwendeten Dokumente.",
+  "functions": [
+    "Fragen-Analyse",
+    "Quellen-Suche",
+    "Belegte Antwort",
+    "Lücken-Hinweis"
+  ],
+  "triggers": [
+    "manual",
+    "webhook"
+  ],
+  "inputs": {
+    "question": "string (erforderlich)",
+    "scope": "string (optional)",
+    "maxSources": "integer (Standard 5)",
+    "language": "string (Standard de)"
+  },
+  "config": {
+    "systems": [
+      "Wissensbasis",
+      "Dokumente",
+      "Suche"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "noUncitedAnswer": true
+  }
+}

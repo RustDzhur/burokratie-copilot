@@ -1,0 +1,35 @@
+{
+  "id": "ecommerce-returns",
+  "name": "Retourenbearbeitung",
+  "category": "ecommerce",
+  "description": "Nimmt Retourenanmeldungen an, prüft Fristen und Gründe und bereitet Erstattung oder Umtausch vor. Der Lagerstatus wird erst nach Wareneingang fortgeschrieben. Der Agent erstattet nichts ohne Freigabe und dokumentiert jeden Schritt.",
+  "functions": [
+    "Retouren-Annahme",
+    "Fristen-Prüfung",
+    "Erstattungs-Vorschlag",
+    "Wareneingang"
+  ],
+  "triggers": [
+    "manual",
+    "return.requested"
+  ],
+  "inputs": {
+    "orderId": "string (erforderlich)",
+    "returnItems": "string (JSON, erforderlich)",
+    "reason": "string (optional)",
+    "receivedAt": "date (optional)",
+    "refundMethod": "ORIGINAL | CREDIT | EXCHANGE",
+    "returnWindowDays": "integer (Standard 14)"
+  },
+  "config": {
+    "systems": [
+      "Shop",
+      "Zahlungsdienstleister",
+      "Lager",
+      "E-Mail"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApprovalBeforeRefund": true
+  }
+}

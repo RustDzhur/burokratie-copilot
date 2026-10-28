@@ -1,0 +1,976 @@
+package de.buerokratiecopilot.workflow;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import de.buerokratiecopilot.agents.core.AgentRunner;
+import de.buerokratiecopilot.shared.context.RequestContext;
+import de.buerokratiecopilot.shared.error.ApiException;
+import de.buerokratiecopilot.shared.error.ErrorCode;
+import de.buerokratiecopilot.workflow.WorkflowDefinition.Definition;
+import de.buerokratiecopilot.workflow.WorkflowDefinition.Step;
+
+/**
+ * Runs a process (spec §16, F-002).
+ *
+ * <p>The engine is a small loop over data, and two properties are what make it worth having.</p>
+ *
+ * <p><strong>Restarting the server neither loses nor repeats a step.</strong> The state is the row, not
+ * the thread: {@code current_step_key} says where a run is, and the step record is claimed with a guarded
+ * update rather than by reading it and hoping. A second attempt finds the step no longer pending and does
+ * nothing — which is what makes it safe to call {@link #advance} again after a crash without knowing
+ * whether the previous call got anywhere.</p>
+ *
+ * <p><strong>A delivered event may arrive twice.</strong> Message queues repeat, webhooks retry, and an
+ * operator clicks twice. {@link #deliverEvent} therefore only acts when the run is actually waiting for
+ * that event: a second delivery finds the run elsewhere and changes nothing.</p>
+ *
+ * <p>Steps that wait record when they will continue, so nothing has to be scheduled in memory — a run
+ * waiting until Friday is a row with a date, not a timer that a restart would drop.</p>
+ */
+@Service
+public class WorkflowEngine {
+
+    private static final Logger log = LoggerFactory.getLogger(WorkflowEngine.class);
+
+    private final JdbcTemplate jdbc;
+    private final WorkflowService workflows;
+    private final de.buerokratiecopilot.notifications.NotificationService notifications;
+
+    /**
+     * Lazy because the agent catalogue asks the context for every agent bean and one agent drives this
+     * engine; a constructor dependency would be a cycle at startup. The agent is resolved when a run
+     * actually reaches an {@code AGENT} step.
+     */
+    private final ObjectProvider<AgentRunner> agents;
+    private final TransactionTemplate agentTransactions;
+
+    public WorkflowEngine(JdbcTemplate jdbc, WorkflowService workflows,
+                          de.buerokratiecopilot.notifications.NotificationService notifications,
+                          ObjectProvider<AgentRunner> agents,
+                          PlatformTransactionManager transactionManager) {
+        this.jdbc = jdbc;
+        this.workflows = workflows;
+        this.notifications = notifications;
+        this.agents = agents;
+        this.agentTransactions = new TransactionTemplate(transactionManager);
+        // A separate transaction on purpose: an agent that fails must not mark the step's transaction
+        // rollback-only. Its own journal entry (agent_runs) and its effects are then visible even when the
+        // process pauses, which is exactly what a person deciding about the failure needs to see.
+        this.agentTransactions.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
+
+    /** A run of a process. */
+    public record Run(UUID runId, String status, String currentStep, boolean created) {
+
+        public Map<String, Object> asMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("runId", runId.toString());
+            map.put("status", status);
+            map.put("currentStep", currentStep);
+            map.put("created", created);
+            return map;
+        }
+    }
+
+    /** What one advance did. */
+    public record StepResult(String stepKey, String stepType, String status, String nextStep, String note,
+                             Map<String, Object> output) {
+
+        public StepResult {
+            output = output == null ? Map.of() : new LinkedHashMap<>(output);
+        }
+
+        /** A step that produces no payload of its own; most steps. */
+        public StepResult(String stepKey, String stepType, String status, String nextStep, String note) {
+            this(stepKey, stepType, status, nextStep, note, Map.of());
+        }
+
+        public Map<String, Object> asMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("stepKey", stepKey);
+            map.put("stepType", stepType);
+            map.put("status", status);
+            map.put("nextStep", nextStep);
+            map.put("note", note);
+            map.putAll(output);
+            return map;
+        }
+    }
+
+    /** The answer to a human decision on a paused run. */
+    public record Resume(UUID runId, String decision, String status, String currentStep) {
+
+        public Map<String, Object> asMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("runId", runId.toString());
+            map.put("decision", decision);
+            map.put("status", status);
+            map.put("currentStep", currentStep);
+            return map;
+        }
+    }
+
+    /**
+     * Starts a run.
+     *
+     * <p>Idempotent by key: the same key returns the run that exists. A caller that retried after a
+     * timeout must not start a second instance of the same process — the second one would send the letter
+     * again.</p>
+     */
+    @Transactional
+    public Run start(UUID tenantId, UUID definitionId, String triggerType, Object triggerPayload,
+                     String subjectType, UUID subjectId, UUID caseId, String idempotencyKey,
+                     UUID requestedBy) {
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            List<Map<String, Object>> existing = jdbc.queryForList("""
+                    select id, status, current_step_key from workflow_runs
+                    where tenant_id = ? and idempotency_key = ?
+                    """, tenantId, idempotencyKey);
+            if (!existing.isEmpty()) {
+                Map<String, Object> row = existing.getFirst();
+                return new Run((UUID) row.get("id"), String.valueOf(row.get("status")),
+                        (String) row.get("current_step_key"), false);
+            }
+        }
+
+        Integer active = jdbc.queryForObject("""
+                select count(*) from workflow_definitions where id = ? and tenant_id = ? and is_active
+                """, Integer.class, definitionId, tenantId);
+        if (active == null || active == 0) {
+            throw ApiException.conflict("Dieser Prozess ist nicht aktiv und wird nicht gestartet");
+        }
+
+        WorkflowService.Version version = workflows.currentVersion(tenantId, definitionId);
+        if (!"PUBLISHED".equals(version.status())) {
+            throw ApiException.conflict("Für diesen Prozess ist keine veröffentlichte Version vorhanden");
+        }
+        Definition definition = workflows.definitionOf(version.versionId());
+
+        UUID runId = jdbc.queryForObject("""
+                insert into workflow_runs (id, tenant_id, definition_id, version_id, status, trigger_type,
+                                           trigger_payload, subject_type, subject_id, case_id,
+                                           current_step_key, attempt_count, idempotency_key, started_at,
+                                           context)
+                values (gen_random_uuid(), ?, ?, ?, 'RUNNING', ?, ?::jsonb, ?, ?, ?, ?, 0, ?, now(),
+                        '{}'::jsonb)
+                returning id
+                """, UUID.class, tenantId, definitionId, version.versionId(),
+                triggerType == null ? "MANUAL" : triggerType.toUpperCase(java.util.Locale.ROOT),
+                WorkflowService.toJson(triggerPayload), subjectType, subjectId, caseId,
+                definition.entryStep(), idempotencyKey);
+
+        journal(tenantId, runId, "RUN_STARTED", null, "Der Prozess wurde gestartet");
+        log.info("Workflow run {} started on version {} of definition {}", runId, version.version(),
+                definitionId);
+        return new Run(runId, "RUNNING", definition.entryStep(), true);
+    }
+
+    /**
+     * Executes the step a run is on and moves it along.
+     *
+     * <p>Safe to call again after a crash: the step is claimed by an update that only succeeds while the
+     * step is still pending, so an interrupted execution is finished rather than repeated.</p>
+     */
+    @Transactional
+    public StepResult advance(UUID tenantId, UUID runId) {
+        Map<String, Object> run = requireRun(tenantId, runId);
+        String status = String.valueOf(run.get("status"));
+        if (!"RUNNING".equals(status) && !"PENDING".equals(status)) {
+            throw ApiException.conflict("Dieser Lauf ist im Status " + status + " und läuft nicht weiter");
+        }
+
+        String stepKey = (String) run.get("current_step_key");
+        if (stepKey == null) {
+            return finish(tenantId, runId, "COMPLETED", "Der Prozess ist am Ende angekommen");
+        }
+
+        Definition definition = workflows.definitionOf((UUID) run.get("version_id"));
+        Step step = definition.step(stepKey);
+        if (step == null) {
+            // The version is fixed, so this cannot happen unless a definition was tampered with; failing
+            // loudly is better than a run that stands still forever.
+            return fail(tenantId, runId, "STEP_NOT_FOUND", "Der Schritt '" + stepKey + "' existiert in "
+                    + "dieser Version nicht");
+        }
+
+        UUID stepId = claimStep(tenantId, runId, step);
+        if (stepId == null) {
+            // Somebody else is executing it, or it is done. Doing nothing is the correct answer: the
+            // guarantee is that a step runs once, not that every call does something.
+            return new StepResult(step.key(), step.type(), "ALREADY_TAKEN", null,
+                    "Dieser Schritt wurde bereits begonnen");
+        }
+
+        long started = System.currentTimeMillis();
+        try {
+            StepResult result = execute(tenantId, runId, run, definition, step, stepId);
+            long duration = System.currentTimeMillis() - started;
+            jdbc.update("""
+                    update workflow_run_steps set status = ?, next_step_key = ?, finished_at = now(),
+                           duration_ms = ?, output = ?::jsonb
+                    where id = ?
+                    """, result.status(), result.nextStep(), duration,
+                    WorkflowService.toJson(result.asMap()), stepId);
+            jdbc.update("update workflow_runs set attempt_count = attempt_count + 1, updated_at = now() "
+                    + "where id = ?", runId);
+            return result;
+        }
+        catch (RuntimeException ex) {
+            jdbc.update("""
+                    update workflow_run_steps set status = 'FAILED', finished_at = now(),
+                           error_code = 'STEP_FAILED', error_message = ? where id = ?
+                    """, ex.getMessage(), stepId);
+            throw ex;
+        }
+    }
+
+    private StepResult execute(UUID tenantId, UUID runId, Map<String, Object> run, Definition definition,
+                               Step step, UUID stepId) {
+        switch (step.type()) {
+            case "TERMINATE" -> {
+                String outcome = step.config() != null && step.config().get("outcome") != null
+                        ? String.valueOf(step.config().get("outcome")) : "COMPLETED";
+                journal(tenantId, runId, "RUN_TERMINATED", step.key(), "Der Prozess endet hier");
+                finish(tenantId, runId, outcome, null);
+                return new StepResult(step.key(), step.type(), "SUCCEEDED", null,
+                        "Der Prozess wurde beendet");
+            }
+            case "AGENT" -> {
+                return executeAgent(tenantId, runId, run, step, stepId);
+            }
+            case "DELAY", "WAIT" -> {
+                return wait(tenantId, runId, step);
+            }
+            case "CONDITION" -> {
+                // The condition is evaluated against the run's trigger payload, because that is what the
+                // process was started with; a condition that needs more would be a decision, not a process.
+                boolean outcome = evaluate(step, run);
+                String next = outcome ? step.onTrue() : step.onFalse();
+                moveTo(tenantId, runId, next);
+                journal(tenantId, runId, "CONDITION_EVALUATED", step.key(),
+                        "Bedingung ergab " + outcome);
+                return new StepResult(step.key(), step.type(), "SUCCEEDED", next,
+                        "Bedingung ergab " + outcome);
+            }
+            case "APPROVAL" -> {
+                // An approval step stops the run and waits for a person; it does not decide anything.
+                jdbc.update("""
+                        update workflow_runs set status = 'WAITING_APPROVAL', updated_at = now()
+                        where id = ? and tenant_id = ?
+                        """, runId, tenantId);
+                journal(tenantId, runId, "APPROVAL_REQUESTED", step.key(),
+                        "Der Prozess wartet auf eine Freigabe");
+                return new StepResult(step.key(), step.type(), "WAITING", step.key(),
+                        "Wartet auf eine Freigabe durch eine Person");
+            }
+            case "TASK_CREATE" -> {
+                return taskCreate(tenantId, runId, step);
+            }
+            case "NOTIFICATION" -> {
+                return notifyStep(tenantId, runId, step);
+            }
+            default -> {
+                // ACTION, NOTIFICATION and the rest are carried out by whoever owns them; the engine
+                // records that the step was reached and moves on. Pretending to have done something here
+                // would be worse than saying it was reached.
+                String next = step.next();
+                moveTo(tenantId, runId, next);
+                journal(tenantId, runId, "STEP_REACHED", step.key(),
+                        "Schritt vom Typ " + step.type() + " erreicht");
+                return new StepResult(step.key(), step.type(), "SUCCEEDED", next,
+                        "Schritt erreicht");
+            }
+        }
+    }
+
+    /**
+     * A step that calls a catalogue agent.
+     *
+     * <p>This is what turned constellations from a picture into a process. The engine hands the agent the
+     * tenant of the run (through {@link RequestContext}, which is what the row-level security policies read),
+     * the fixed inputs the step carries plus whatever a human supplied on a retry, and records the agent's
+     * own run id, verdict, summary and produced references in the step row.</p>
+     *
+     * <p><strong>An agent that refuses is not a crash.</strong> Its verdict is data: {@code ok=false} with a
+     * summary is the normal way an agent says "there is nothing to do" or "the input is missing". What
+     * happens next is the step's {@code onFailure} policy — pause for a person (the default), fail the run,
+     * or continue. An exception is treated the same way, because a process that dies because one agent had a
+     * bad day is a process nobody can leave unattended.</p>
+     */
+    private StepResult executeAgent(UUID tenantId, UUID runId, Map<String, Object> run, Step step,
+                                    UUID stepId) {
+        String agentId = step.agentId();
+        String onFailure = step.onFailure();
+        Map<String, String> inputs = agentInputs(run, step);
+
+        // What the agent was actually given belongs in the record: a person deciding about a failed run has
+        // to see the inputs of that attempt, not the definition as it reads today.
+        jdbc.update("update workflow_run_steps set input = ?::jsonb where id = ?",
+                WorkflowService.toJson(inputs), stepId);
+
+        Map<String, Object> output = new LinkedHashMap<>();
+        output.put("agentId", agentId);
+        output.put("inputs", inputs);
+        output.put("onFailure", onFailure);
+
+        String failure = null;
+        String errorCode = "AGENT_FAILED";
+        try {
+            if (agentId == null || agentId.isBlank()) {
+                failure = "Der Agentenschritt '" + step.key() + "' nennt keinen Agenten";
+            }
+            else {
+                AgentRunner runner = agents.getObject();
+                UUID actor = RequestContext.userId().orElse(null);
+                // The tenant context is set before the transaction begins, because the data source binds
+                // app.tenant_id when the connection is checked out (see TenantAwareDataSource).
+                AgentRunner.RunResponse response = RequestContext.runAs(tenantId,
+                        () -> agentTransactions.execute(status ->
+                                runner.run(tenantId, actor, agentId, "workflow", inputs)));
+                if (response == null) {
+                    throw new IllegalStateException("Agent " + agentId + " returned no run report");
+                }
+                output.put("agentRunId", response.runId().toString());
+                output.put("ok", response.ok());
+                output.put("summary", response.summary());
+                output.put("produced", response.produced().stream().map(produced -> {
+                    Map<String, Object> ref = new LinkedHashMap<>();
+                    ref.put("kind", produced.kind());
+                    ref.put("ref", produced.ref());
+                    ref.put("label", produced.label());
+                    return ref;
+                }).toList());
+                if (!response.ok()) {
+                    failure = response.summary() == null || response.summary().isBlank()
+                            ? "Der Agent '" + agentId + "' hat den Schritt nicht ausgeführt"
+                            : response.summary();
+                }
+            }
+        }
+        catch (RuntimeException ex) {
+            // A throwing agent must not take the process down: "the agent failed" is a fact the next person
+            // has to see, and the run is the record of what happened.
+            log.error("Workflow run {}: agent {} could not be executed", runId, agentId, ex);
+            errorCode = "AGENT_ERROR";
+            failure = "Der Agent '" + agentId + "' konnte nicht ausgeführt werden: " + ex.getMessage();
+            output.put("ok", false);
+            output.put("summary", failure);
+            output.put("error", ex.getClass().getSimpleName());
+        }
+
+        if (failure == null) {
+            String next = step.next();
+            moveTo(tenantId, runId, next);
+            journal(tenantId, runId, "AGENT_COMPLETED", step.key(),
+                    "Agent " + agentId + ": " + output.get("summary"));
+            return new StepResult(step.key(), step.type(), "SUCCEEDED", next,
+                    output.get("summary") == null ? "" : String.valueOf(output.get("summary")), output);
+        }
+
+        jdbc.update("""
+                update workflow_run_steps set error_code = ?, error_message = ?
+                where id = ?
+                """, errorCode, failure, stepId);
+
+        switch (onFailure) {
+            case "FAIL" -> {
+                journal(tenantId, runId, "AGENT_FAILED", step.key(), failure);
+                fail(tenantId, runId, "AGENT_FAILED", failure);
+                return new StepResult(step.key(), step.type(), "FAILED", null, failure, output);
+            }
+            case "CONTINUE" -> {
+                // The process continues although the agent did nothing; the step still says FAILED, because
+                // a run that reports success for work nobody did is worse than one that reports the truth.
+                String next = step.next();
+                moveTo(tenantId, runId, next);
+                journal(tenantId, runId, "AGENT_FAILED_CONTINUED", step.key(), failure);
+                return new StepResult(step.key(), step.type(), "FAILED", next,
+                        failure + " (weitergeführt)", output);
+            }
+            default -> {
+                // PAUSE: the step stays current, the run leaves RUNNING, and only a person can move it.
+                jdbc.update("""
+                        update workflow_runs set status = 'PAUSED_FOR_HUMAN_REVIEW',
+                               failure_code = 'AGENT_FAILED', failure_message = ?, updated_at = now()
+                        where id = ? and tenant_id = ?
+                        """, failure, runId, tenantId);
+                journal(tenantId, runId, "RUN_PAUSED", step.key(),
+                        "Wartet auf eine menschliche Entscheidung: " + failure);
+                return new StepResult(step.key(), step.type(), "FAILED", step.key(),
+                        "Wartet auf eine menschliche Entscheidung: " + failure, output);
+            }
+        }
+    }
+
+    /**
+     * The inputs an agent gets: what the step defines, plus what a human supplied for a retry.
+     *
+     * <p>The override is per step and stored on the run, so a RETRY survives a restart and a second RETRY
+     * without new inputs repeats the last attempt rather than falling back to the definition.</p>
+     */
+    private Map<String, String> agentInputs(Map<String, Object> run, Step step) {
+        Map<String, String> inputs = new LinkedHashMap<>();
+        step.inputs().forEach((key, value) -> {
+            if (key != null && value != null) {
+                inputs.put(key, String.valueOf(value));
+            }
+        });
+        Object override = agentInputOverrides(run).get(step.key());
+        if (override instanceof Map<?, ?> map) {
+            map.forEach((key, value) -> {
+                if (key != null && value != null) {
+                    inputs.put(String.valueOf(key), String.valueOf(value));
+                }
+            });
+        }
+        return inputs;
+    }
+
+    /** The per-step retry inputs stored on the run, if a person has supplied any. */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> agentInputOverrides(Map<String, Object> run) {
+        Object raw = run.get("context");
+        Object context = raw;
+        if (raw instanceof String text) {
+            context = text.isBlank() ? Map.of() : WorkflowService.readJson(text);
+        }
+        if (context instanceof Map<?, ?> map) {
+            Object overrides = ((Map<String, Object>) map).get("agentInputOverrides");
+            if (overrides instanceof Map<?, ?> overridesMap) {
+                return (Map<String, Object>) overridesMap;
+            }
+        }
+        return Map.of();
+    }
+
+    /**
+     * A step that creates work.
+     *
+     * <p><strong>What changed.</strong> The engine used to record {@code TASK_CREATE} as "step reached" and
+     * move on. A process could be drawn, checked, published and run, and create no task at all — while the
+     * editor and the manual both said it would. That is the difference between a drawing tool and an
+     * automation, and it is the one gap a person would notice first.</p>
+     *
+     * <p>The step carries its own title ({@code config.title}) and, optionally, whom to assign
+     * ({@code config.assigneeUserId}). The task is linked to the case of the run, so the work appears where
+     * the case is, and it is marked as coming from a process rather than from a person.</p>
+     */
+    private StepResult taskCreate(UUID tenantId, UUID runId, Step step) {
+        String title = configString(step, "title");
+        if (title == null || title.isBlank()) {
+            // The definition is the better name when the step has none, and the step key is the last resort:
+            // a task called "task1" tells nobody anything.
+            String definition = jdbc.query("""
+                    select w.name from workflow_runs r join workflow_definitions w on w.id = r.definition_id
+                     where r.id = ?
+                    """, rs -> rs.next() ? rs.getString(1) : null, runId);
+            title = (definition == null ? "Prozess" : definition) + ": " + step.key();
+        }
+        Object caseIdRaw = jdbc.query("""
+                select case_id from workflow_runs where id = ?
+                """, rs -> rs.next() ? rs.getObject(1) : null, runId);
+        UUID caseId = caseIdRaw == null ? null : (UUID) caseIdRaw;
+
+        UUID taskId = jdbc.queryForObject("""
+                insert into tasks (id, tenant_id, title, status, priority, priority_source, case_id,
+                                   source, created_by_user_id)
+                values (gen_random_uuid(), ?, ?, 'NEW', 'NORMAL', 'RULE', ?, 'WORKFLOW', null)
+                returning id
+                """, UUID.class, tenantId, title, caseId);
+
+        String assignee = configString(step, "assigneeUserId");
+        if (assignee != null && !assignee.isBlank()) {
+            jdbc.update("""
+                    insert into task_assignees (id, task_id, tenant_id, user_id, role, assigned_at)
+                    values (gen_random_uuid(), ?, ?, cast(? as uuid), 'ASSIGNEE', now())
+                    """, taskId, tenantId, assignee);
+        }
+
+        String next = step.next();
+        moveTo(tenantId, runId, next);
+        journal(tenantId, runId, "TASK_CREATED", step.key(), "Aufgabe angelegt: " + title);
+        return new StepResult(step.key(), step.type(), "SUCCEEDED", next, "Aufgabe angelegt: " + title);
+    }
+
+    /**
+     * A step that tells somebody something.
+     *
+     * <p>Like {@code TASK_CREATE}, this used to be journalled as "step reached" and nothing was sent. A process
+     * whose whole point is "when this happens, tell the person responsible" did nothing of the kind.</p>
+     *
+     * <p>Who is told: the step's {@code config.notifyUserId} when it names somebody, otherwise everybody who
+     * takes part in the case of the run. With neither, the step says so in its result instead of silently
+     * succeeding, because a notification nobody receives is not a notification.</p>
+     */
+    private StepResult notifyStep(UUID tenantId, UUID runId, Step step) {
+        String message = configString(step, "message");
+        if (message == null || message.isBlank()) {
+            message = "Der Prozess hat einen Schritt erreicht, der Sie betrifft.";
+        }
+        Object explicit = configString(step, "notifyUserId");
+        java.util.List<UUID> recipients = new java.util.ArrayList<>();
+        if (explicit != null && !String.valueOf(explicit).isBlank()) {
+            recipients.add(UUID.fromString(String.valueOf(explicit)));
+        }
+        else {
+            // No named person: everybody on the case, which is who the message is about.
+            recipients.addAll(jdbc.query("""
+                    select p.user_id from case_participants p
+                      join workflow_runs r on r.case_id = p.case_id
+                     where r.id = ? and p.revoked_at is null
+                       and (p.expires_at is null or p.expires_at > now())
+                    """, (rs, i) -> (UUID) rs.getObject(1), runId));
+        }
+
+        String next = step.next();
+        if (recipients.isEmpty()) {
+            moveTo(tenantId, runId, next);
+            journal(tenantId, runId, "NOTIFICATION_SKIPPED", step.key(),
+                    "Niemand zu benachrichtigen: kein Empfänger am Schritt und kein Fall am Lauf");
+            return new StepResult(step.key(), step.type(), "SUCCEEDED", next,
+                    "Niemand zu benachrichtigen");
+        }
+
+        Object caseIdRaw = jdbc.query("select case_id from workflow_runs where id = ?",
+                rs -> rs.next() ? rs.getObject(1) : null, runId);
+        for (UUID recipient : recipients) {
+            notifications.notify(new de.buerokratiecopilot.notifications.NotificationService.Request(
+                    tenantId, recipient, null, "workflow.notification",
+                    de.buerokratiecopilot.notifications.domain.Notification.Category.AUTOMATION_RESULT,
+                    de.buerokratiecopilot.notifications.domain.Notification.Severity.NOTICE,
+                    "workflow.notification", "workflow.notification.body",
+                    java.util.Map.of("message", message),
+                    "workflow_run", runId,
+                    caseIdRaw == null ? null : "/cases/" + caseIdRaw,
+                    false,
+                    // One message per run and step: the engine may advance the same step again after a retry.
+                    "workflow-notify-" + runId + "-" + step.key()));
+        }
+
+        moveTo(tenantId, runId, next);
+        journal(tenantId, runId, "NOTIFICATION_SENT", step.key(),
+                "Benachrichtigt: " + recipients.size());
+        return new StepResult(step.key(), step.type(), "SUCCEEDED", next,
+                "Benachrichtigt: " + recipients.size());
+    }
+
+    /** A configuration value of a step, or null when the step does not carry it. */
+    private static String configString(Step step, String key) {
+        Object value = step.config() == null ? null : step.config().get(key);
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private StepResult wait(UUID tenantId, UUID runId, Step step) {
+        String waitsFor = step.waitsFor();
+        Instant until = Instant.now().plusSeconds(Math.max(0, step.seconds()));
+        jdbc.update("""
+                update workflow_runs set status = 'WAITING', wait_until = ?, waiting_for_event = ?,
+                       updated_at = now()
+                where id = ? and tenant_id = ?
+                """, java.sql.Timestamp.from(until), waitsFor, runId, tenantId);
+        journal(tenantId, runId, "WAITING", step.key(),
+                waitsFor == null ? "Wartet bis " + until : "Wartet auf das Ereignis '" + waitsFor + "'");
+        return new StepResult(step.key(), step.type(), "WAITING", step.key(),
+                waitsFor == null ? "Wartet bis " + until : "Wartet auf '" + waitsFor + "'");
+    }
+
+    /**
+     * Delivers an event to a run.
+     *
+     * <p>Only acts when the run is waiting for exactly that event. A second delivery, or a delivery to a
+     * run that has moved on, changes nothing — which is what makes a repeated webhook harmless.</p>
+     */
+    @Transactional
+    public boolean deliverEvent(UUID tenantId, UUID runId, String eventName, Object payload) {
+        Map<String, Object> run = requireRun(tenantId, runId);
+        if (!"WAITING".equals(String.valueOf(run.get("status")))) {
+            return false;
+        }
+        String waitingFor = (String) run.get("waiting_for_event");
+        if (waitingFor == null || !waitingFor.equals(eventName)) {
+            return false;
+        }
+
+        int moved = jdbc.update("""
+                update workflow_runs set status = 'RUNNING', waiting_for_event = null, wait_until = null,
+                       updated_at = now()
+                where id = ? and tenant_id = ? and status = 'WAITING' and waiting_for_event = ?
+                """, runId, tenantId, eventName);
+        if (moved == 0) {
+            return false;
+        }
+
+        Definition definition = workflows.definitionOf((UUID) run.get("version_id"));
+        Step step = definition.step((String) run.get("current_step_key"));
+        if (step != null) {
+            moveTo(tenantId, runId, step.next());
+        }
+        journal(tenantId, runId, "EVENT_RECEIVED", (String) run.get("current_step_key"),
+                "Ereignis '" + eventName + "' empfangen");
+        return true;
+    }
+
+    /**
+     * Continues the runs whose waiting time has passed.
+     *
+     * <p>Called by whatever wakes up periodically; the runs are found in the database, so a restart
+     * between two calls loses nothing.</p>
+     */
+    @Transactional
+    public List<UUID> resumeDue(UUID tenantId, int limit) {
+        List<UUID> due = jdbc.query("""
+                select id from workflow_runs
+                where tenant_id = ? and status = 'WAITING' and waiting_for_event is null
+                  and wait_until is not null and wait_until <= now()
+                order by wait_until limit ?
+                """, (rs, row) -> rs.getObject("id", UUID.class), tenantId, Math.max(1, limit));
+
+        for (UUID runId : due) {
+            Map<String, Object> run = requireRun(tenantId, runId);
+            Definition definition = workflows.definitionOf((UUID) run.get("version_id"));
+            Step step = definition.step((String) run.get("current_step_key"));
+            jdbc.update("""
+                    update workflow_runs set status = 'RUNNING', wait_until = null, updated_at = now()
+                    where id = ? and tenant_id = ?
+                    """, runId, tenantId);
+            if (step != null) {
+                moveTo(tenantId, runId, step.next());
+            }
+            journal(tenantId, runId, "WAIT_OVER", (String) run.get("current_step_key"),
+                    "Die Wartezeit ist abgelaufen");
+        }
+        return due;
+    }
+
+    /** Approves a run that is waiting for a person. */
+    @Transactional
+    public StepResult approve(UUID tenantId, UUID runId, UUID approverId, boolean accepted, String note) {
+        Map<String, Object> run = requireRun(tenantId, runId);
+        if (!"WAITING_APPROVAL".equals(String.valueOf(run.get("status")))) {
+            throw ApiException.conflict("Dieser Lauf wartet nicht auf eine Freigabe");
+        }
+        if (approverId == null) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST,
+                    "Eine Freigabe braucht eine Person; sonst gibt niemand frei");
+        }
+
+        Definition definition = workflows.definitionOf((UUID) run.get("version_id"));
+        Step step = definition.step((String) run.get("current_step_key"));
+
+        if (!accepted) {
+            journal(tenantId, runId, "APPROVAL_REJECTED", step == null ? null : step.key(), note);
+            return fail(tenantId, runId, "REJECTED",
+                    note == null ? "Die Freigabe wurde abgelehnt" : note);
+        }
+
+        String next = step == null ? null : step.next();
+        jdbc.update("""
+                update workflow_runs set status = 'RUNNING', updated_at = now()
+                where id = ? and tenant_id = ?
+                """, runId, tenantId);
+        moveTo(tenantId, runId, next);
+        journal(tenantId, runId, "APPROVAL_GRANTED", step == null ? null : step.key(), note);
+        return new StepResult(step == null ? null : step.key(), "APPROVAL", "SUCCEEDED", next,
+                "Freigegeben");
+    }
+
+    /** Cancels a run. */
+    @Transactional
+    public void cancel(UUID tenantId, UUID runId, String reason) {
+        int updated = jdbc.update("""
+                update workflow_runs set status = 'CANCELLED', finished_at = now(), failure_message = ?,
+                       updated_at = now()
+                where id = ? and tenant_id = ? and status not in ('COMPLETED', 'CANCELLED', 'FAILED')
+                """, reason, runId, tenantId);
+        if (updated == 0) {
+            throw ApiException.conflict("Dieser Lauf ist bereits beendet");
+        }
+        journal(tenantId, runId, "RUN_CANCELLED", null, reason);
+    }
+
+    /**
+     * Answers the pause of a run: {@code APPROVE}, {@code RETRY} or {@code SKIP}.
+     *
+     * <p>A paused run is one where an agent step reported failure and the definition asked for a person.
+     * The three answers are genuinely different:</p>
+     * <ul>
+     *   <li>{@code APPROVE} — the failure is acceptable; the process continues at the step's {@code next}.</li>
+     *   <li>{@code SKIP} — the step is written down as skipped and the process continues as above.</li>
+     *   <li>{@code RETRY} — the same step is attempted again, with the supplied inputs when there are any.
+     *       The inputs are stored on the run, so the retry survives a restart and a later retry without
+     *       inputs repeats the last attempt rather than the definition's values.</li>
+     * </ul>
+     *
+     * <p>The step itself is executed by {@link #advance}; this method only changes where the run stands and
+     * records the decision. That keeps the "a step runs once" guarantee in one place.</p>
+     */
+    @Transactional
+    public Resume resume(UUID tenantId, UUID runId, String decision, Map<String, Object> inputs,
+                         UUID actorUserId) {
+        Map<String, Object> run = requireRun(tenantId, runId);
+        String status = String.valueOf(run.get("status"));
+        if (!"PAUSED_FOR_HUMAN_REVIEW".equals(status)) {
+            throw ApiException.conflict("Dieser Lauf wartet nicht auf eine menschliche Entscheidung");
+        }
+
+        String choice = decision == null ? "" : decision.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!List.of("APPROVE", "RETRY", "SKIP").contains(choice)) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST,
+                    "Unbekannte Entscheidung '" + decision + "'; erlaubt sind APPROVE, RETRY und SKIP");
+        }
+
+        String stepKey = (String) run.get("current_step_key");
+        Definition definition = workflows.definitionOf((UUID) run.get("version_id"));
+        Step step = stepKey == null ? null : definition.step(stepKey);
+
+        if ("RETRY".equals(choice)) {
+            Map<String, String> supplied = new LinkedHashMap<>();
+            if (inputs != null) {
+                inputs.forEach((key, value) -> {
+                    if (key != null && value != null) {
+                        supplied.put(key, String.valueOf(value));
+                    }
+                });
+            }
+            if (!supplied.isEmpty() && stepKey != null) {
+                // jsonb_set only creates the *last* missing path element, so the first-level object is
+                // created here and the step's entry is merged into it; the overrides of other steps stay.
+                jdbc.update("""
+                        update workflow_runs
+                           set context = jsonb_set(
+                                   coalesce(context, '{}'::jsonb),
+                                   '{agentInputOverrides}',
+                                   coalesce(context -> 'agentInputOverrides', '{}'::jsonb)
+                                       || jsonb_build_object(?, ?::jsonb),
+                                   true)
+                         where id = ? and tenant_id = ?
+                        """, stepKey, WorkflowService.toJson(supplied), runId, tenantId);
+            }
+            jdbc.update("""
+                    update workflow_runs set status = 'RUNNING', failure_code = null,
+                           failure_message = null, updated_at = now()
+                    where id = ? and tenant_id = ?
+                    """, runId, tenantId);
+            journal(tenantId, runId, "RUN_RESUMED", stepKey,
+                    "Erneut versuchen" + (supplied.isEmpty() ? "" : " mit neuen Eingaben")
+                            + (actorUserId == null ? "" : " (entschieden von " + actorUserId + ")"));
+            return new Resume(runId, choice, "RUNNING", stepKey);
+        }
+
+        if (step != null && "SKIP".equals(choice)) {
+            // Only the last attempt of this step: earlier retries stay as they were.
+            jdbc.update("""
+                    update workflow_run_steps set status = 'SKIPPED',
+                           finished_at = coalesce(finished_at, now())
+                    where id = (select id from workflow_run_steps
+                                 where run_id = ? and step_key = ?
+                                 order by step_index desc, created_at desc limit 1)
+                    """, runId, step.key());
+        }
+
+        String next = step == null ? null : step.next();
+        jdbc.update("""
+                update workflow_runs set status = 'RUNNING', failure_code = null,
+                       failure_message = null, updated_at = now()
+                where id = ? and tenant_id = ?
+                """, runId, tenantId);
+        moveTo(tenantId, runId, next);
+        journal(tenantId, runId, "SKIP".equals(choice) ? "AGENT_SKIPPED" : "AGENT_APPROVED", stepKey,
+                ("SKIP".equals(choice) ? "Der Schritt wird übersprungen"
+                        : "Die Abweichung wurde freigegeben")
+                        + (actorUserId == null ? "" : " (entschieden von " + actorUserId + ")"));
+
+        String resultingStatus = next == null || next.isBlank() ? "COMPLETED" : "RUNNING";
+        return new Resume(runId, choice, resultingStatus, next);
+    }
+
+    /** A run with its steps and events, for a user asking what happened. */
+    @Transactional(readOnly = true)
+    public Map<String, Object> describe(UUID tenantId, UUID runId) {
+        Map<String, Object> run = new LinkedHashMap<>(requireRun(tenantId, runId));
+        run.put("steps", describeSteps(tenantId, runId));
+        run.put("events", jdbc.queryForList("""
+                select event_type, step_key, message, created_at from workflow_events
+                where run_id = ? and tenant_id = ? order by created_at
+                """, runId, tenantId));
+        return run;
+    }
+
+    /**
+     * The step records of a run, with the output of each step unpacked.
+     *
+     * <p>An agent step writes its verdict, summary and produced references into {@code output}; a caller
+     * asking what happened should not have to parse JSON to find out whether the step worked. The raw
+     * output stays available under {@code output}.</p>
+     */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> describeSteps(UUID tenantId, UUID runId) {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                select step_key, step_type, step_index, status, attempt, next_step_key, started_at,
+                       finished_at, duration_ms, error_code, error_message, output::text as output
+                from workflow_run_steps where run_id = ? and tenant_id = ?
+                order by step_index, created_at
+                """, runId, tenantId);
+
+        List<Map<String, Object>> steps = new ArrayList<>(rows.size());
+        for (Map<String, Object> row : rows) {
+            Map<String, Object> step = new LinkedHashMap<>(row);
+            Object raw = step.remove("output");
+            Map<String, Object> output = Map.of();
+            if (raw instanceof String text && !text.isBlank()) {
+                Object parsed = WorkflowService.readJson(text);
+                if (parsed instanceof Map<?, ?> map) {
+                    output = (Map<String, Object>) map;
+                }
+            }
+            step.put("note", output.get("note"));
+            step.put("ok", output.get("ok"));
+            step.put("summary", output.get("summary"));
+            step.put("agentRunId", output.get("agentRunId"));
+            step.put("produced", output.get("produced"));
+            step.put("output", output);
+            steps.add(step);
+        }
+        return steps;
+    }
+
+    /** The runs of a tenant in a given status. */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> runsInStatus(UUID tenantId, String status, int limit) {
+        return jdbc.queryForList("""
+                select id, definition_id, status, current_step_key, wait_until, waiting_for_event,
+                       case_id, started_at, finished_at
+                from workflow_runs where tenant_id = ? and status = ?
+                order by started_at desc limit ?
+                """, tenantId, status.toUpperCase(java.util.Locale.ROOT), Math.max(1, Math.min(limit, 200)));
+    }
+
+    // ------------------------------------------------------------------ internals
+
+    /**
+     * Claims a step for execution.
+     *
+     * <p>The insert happens first with the step marked {@code RUNNING}, and only succeeds if no step with
+     * that key and attempt exists yet. Two callers therefore cannot both execute the same step, and a
+     * caller that lost the race is told so by an empty result rather than by an exception.</p>
+     */
+    private UUID claimStep(UUID tenantId, UUID runId, Step step) {
+        int attempt = jdbc.queryForObject("""
+                select count(*) + 1 from workflow_run_steps where run_id = ? and step_key = ?
+                """, Integer.class, runId, step.key());
+        int index = jdbc.queryForObject("""
+                select count(*) + 1 from workflow_run_steps where run_id = ?
+                """, Integer.class, runId);
+
+        List<UUID> claimed = jdbc.query("""
+                insert into workflow_run_steps (id, run_id, tenant_id, step_key, step_type, step_index,
+                                                status, attempt, input, started_at)
+                values (gen_random_uuid(), ?, ?, ?, ?, ?, 'RUNNING', ?, '{}'::jsonb, now())
+                on conflict do nothing
+                returning id
+                """, (rs, row) -> rs.getObject("id", UUID.class), runId, tenantId, step.key(), step.type(),
+                index, attempt);
+        return claimed.isEmpty() ? null : claimed.getFirst();
+    }
+
+    private void moveTo(UUID tenantId, UUID runId, String nextStep) {
+        if (nextStep == null || nextStep.isBlank()) {
+            finish(tenantId, runId, "COMPLETED", null);
+            return;
+        }
+        jdbc.update("""
+                update workflow_runs set current_step_key = ?, updated_at = now()
+                where id = ? and tenant_id = ?
+                """, nextStep, runId, tenantId);
+    }
+
+    private StepResult finish(UUID tenantId, UUID runId, String outcome, String note) {
+        String status = "FAILED".equals(outcome) ? "FAILED" : outcome;
+        status = switch (outcome) {
+            case "COMPLETED", "FAILED", "CANCELLED", "COMPENSATED" -> outcome;
+            default -> "COMPLETED";
+        };
+        jdbc.update("""
+                update workflow_runs set status = ?, finished_at = now(), updated_at = now()
+                where id = ? and tenant_id = ?
+                """, status, runId, tenantId);
+        journal(tenantId, runId, "RUN_" + status, null, note);
+        return new StepResult(null, null, status, null, note);
+    }
+
+    private StepResult fail(UUID tenantId, UUID runId, String code, String message) {
+        jdbc.update("""
+                update workflow_runs set status = 'FAILED', finished_at = now(), failure_code = ?,
+                       failure_message = ?, updated_at = now()
+                where id = ? and tenant_id = ?
+                """, code, message, runId, tenantId);
+        journal(tenantId, runId, "RUN_FAILED", null, message);
+        return new StepResult(null, null, "FAILED", null, message);
+    }
+
+    /**
+     * Evaluates a condition against the run's trigger payload.
+     *
+     * <p>Deliberately limited to comparison of the values the process was started with. A condition that
+     * could do more would be a program, and a process nobody can read is a process nobody can approve.</p>
+     */
+    @SuppressWarnings("unchecked")
+    private boolean evaluate(Step step, Map<String, Object> run) {
+        Object field = step.config() == null ? null : step.config().get("field");
+        Object expected = step.config() == null ? null : step.config().get("equals");
+        if (field == null) {
+            return false;
+        }
+        Object payload = run.get("trigger_payload");
+        Object actual = null;
+        if (payload instanceof Map<?, ?> map) {
+            actual = ((Map<String, Object>) map).get(String.valueOf(field));
+        }
+        else if (payload instanceof String text && !text.isBlank()) {
+            // The column is jsonb and JDBC hands it over as text; without this the condition never saw
+            // the payload and always took the false branch.
+            Object parsed = WorkflowService.readJson(text);
+            if (parsed instanceof Map<?, ?> map) {
+                actual = ((Map<String, Object>) map).get(String.valueOf(field));
+            }
+        }
+        if (actual == null && run.containsKey(String.valueOf(field))) {
+            actual = run.get(String.valueOf(field));
+        }
+        return actual != null && String.valueOf(actual).equals(String.valueOf(expected));
+    }
+
+    private Map<String, Object> requireRun(UUID tenantId, UUID runId) {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                select id, status, current_step_key, version_id, trigger_payload::text as trigger_payload,
+                       context::text as context, waiting_for_event, case_id, definition_id
+                from workflow_runs where id = ? and tenant_id = ?
+                """, runId, tenantId);
+        if (rows.isEmpty()) {
+            throw ApiException.notFound("workflow run");
+        }
+        return rows.getFirst();
+    }
+
+    private void journal(UUID tenantId, UUID runId, String eventType, String stepKey, String message) {
+        jdbc.update("""
+                insert into workflow_events (id, run_id, tenant_id, event_type, step_key, payload, message)
+                values (gen_random_uuid(), ?, ?, ?, ?, '{}'::jsonb, ?)
+                """, runId, tenantId, eventType, stepKey, message);
+    }
+}

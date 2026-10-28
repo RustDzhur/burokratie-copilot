@@ -1,0 +1,33 @@
+{
+  "id": "healthcare-shift-handover",
+  "name": "Schichtübergabe",
+  "category": "healthcare",
+  "description": "Erstellt ein Übergabeprotokoll mit offenen Aufgaben, Besonderheiten und Zuständigkeiten für die nächste Schicht. Es werden keine Diagnosen erfunden; fehlende Angaben bleiben als offener Punkt stehen. Das Protokoll wird von beiden Seiten bestätigt.",
+  "functions": [
+    "Übergabe-Struktur",
+    "Offene Punkte",
+    "Zuständigkeiten",
+    "Protokoll"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "wardId": "uuid (erforderlich)",
+    "shiftDate": "date (erforderlich)",
+    "openItems": "string (JSON, optional)",
+    "handoverFrom": "uuid (optional)",
+    "handoverTo": "uuid (optional)"
+  },
+  "config": {
+    "systems": [
+      "Pflegeplanung",
+      "Aufgaben",
+      "Dokumente"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "noDiagnosis": true
+  }
+}

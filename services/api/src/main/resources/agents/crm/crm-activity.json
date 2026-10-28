@@ -1,0 +1,28 @@
+{
+  "id": "crm-activity",
+  "name": "Aktivitäten-Protokoll",
+  "category": "crm",
+  "description": "Protokolliert Aktivitäten (Anruf, Brief, E-Mail, Termin) automatisch im Vorgang und am Kontakt.",
+  "functions": ["Aktivitäts-Erfassung", "Vorgangs-Timeline", "Kontakt-Historie"],
+  "triggers": ["manual", "mail.sent", "mail.received", "case.updated"],
+  "inputs": {
+    "caseId": "uuid (optional)",
+    "contactId": "uuid (optional; caseId oder contactId Pflicht)",
+    "type": "CALL | EMAIL_OUT | EMAIL_IN | LETTER_OUT | LETTER_IN | MEETING | NOTE",
+    "subject": "string (Pflicht)",
+    "note": "string",
+    "occurredAt": "ISO-8601 instant (optional)",
+    "externalKey": "string (Idempotenz-Schlüssel, z.B. Mail-Message-Id)"
+  },
+  "config": {
+    "eventTypes": {
+      "CALL": "NOTE_ADDED",
+      "MEETING": "NOTE_ADDED",
+      "NOTE": "NOTE_ADDED",
+      "EMAIL_OUT": "CORRESPONDENCE_SENT",
+      "LETTER_OUT": "CORRESPONDENCE_SENT",
+      "EMAIL_IN": "CORRESPONDENCE_RECEIVED",
+      "LETTER_IN": "CORRESPONDENCE_RECEIVED"
+    }
+  }
+}

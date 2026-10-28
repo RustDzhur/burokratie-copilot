@@ -1,0 +1,34 @@
+{
+  "id": "ecommerce-catalog-sync",
+  "name": "Katalog-Synchronisation",
+  "category": "ecommerce",
+  "description": "Gleicht Produktstammdaten zwischen Shop, ERP und Marktplätzen ab: Artikelnummer, Titel, Varianten, Maße und Kategorien. Abweichungen werden vor der Übertragung als Konflikt gelistet. Der Agent überschreibt keine Preise oder Bestände ohne Regel.",
+  "functions": [
+    "Stammdaten-Abgleich",
+    "Konflikt-Liste",
+    "Feld-Zuordnung",
+    "Trockenlauf"
+  ],
+  "triggers": [
+    "manual",
+    "schedule",
+    "webhook"
+  ],
+  "inputs": {
+    "channel": "SHOP | MARKETPLACE | ERP",
+    "productIds": "string (optional)",
+    "fieldsToSync": "string (optional)",
+    "dryRun": "boolean (Standard true)"
+  },
+  "config": {
+    "systems": [
+      "Shop",
+      "ERP",
+      "Marktplatz",
+      "PIM"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "dryRunDefault": true
+  }
+}

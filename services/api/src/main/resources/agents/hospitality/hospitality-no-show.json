@@ -1,0 +1,32 @@
+{
+  "id": "hospitality-no-show",
+  "name": "No-Show-Nachfassung",
+  "category": "hospitality",
+  "description": "Erkennt nicht wahrgenommene Reservierungen und bereitet eine sachliche Nachfassnachricht mit Terminvorschlag vor. Wiederholte No-Shows werden markiert, ohne Personen öffentlich zu bewerten. Der Versand bleibt freigabepflichtig.",
+  "functions": [
+    "No-Show-Erkennung",
+    "Nachfass-Entwurf",
+    "Wiederholungs-Markierung",
+    "Termin-Vorschlag"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "reservationId": "uuid (erforderlich)",
+    "graceMinutes": "integer (Standard 20)",
+    "channel": "EMAIL | PHONE",
+    "repeatCount": "integer (optional)"
+  },
+  "config": {
+    "systems": [
+      "Reservierungssystem",
+      "E-Mail",
+      "CRM"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApproval": true
+  }
+}

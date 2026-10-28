@@ -1,0 +1,59 @@
+/* Public shell: header, content, footer. */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.skipLink {
+  position: absolute;
+  top: var(--space-2);
+  inset-inline-start: var(--space-2);
+  z-index: var(--z-skip-link);
+  transform: translateY(-200%);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-focus-ring);
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+.skipLink:focus {
+  transform: translateY(0);
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--layout-content-max);
+  margin-inline: auto;
+  padding: clamp(var(--space-8), 6vw, var(--space-16)) var(--space-6);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-5) var(--space-6);
+  border-top: 1px solid var(--color-border-subtle);
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-sm);
+}
+
+.footer p {
+  margin: 0;
+}
+
+.footerNav {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.footerNav a {
+  color: var(--color-text-muted);
+}

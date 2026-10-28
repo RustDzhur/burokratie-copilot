@@ -1,0 +1,128 @@
+/* Development-only design-system showcase. */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.code {
+  display: inline-block;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-xs);
+  background-color: var(--color-surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.swatch {
+  display: block;
+  height: 56px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.swatchLabel {
+  display: block;
+  margin-top: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  color: var(--color-text-subtle);
+}
+
+.iconGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.iconGrid li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-2xs);
+  color: var(--color-text-muted);
+}
+
+.nativeInput {
+  width: 100%;
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+/* State previews: rendered with real CSS classes instead of screenshots. */
+.hover {
+  filter: brightness(0.96);
+}
+
+.focus {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.active {
+  transform: translateY(1px);
+  filter: brightness(0.92);
+}
+
+/* Typography samples (visual only, no semantic headings) */
+.sample1,
+.sample2,
+.sample3,
+.sample4 {
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.sample1 {
+  font-size: var(--font-size-3xl);
+}
+
+.sample2 {
+  font-size: var(--font-size-2xl);
+}
+
+.sample3 {
+  font-size: var(--font-size-xl);
+}
+
+.sample4 {
+  font-size: var(--font-size-lg);
+}

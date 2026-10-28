@@ -1,0 +1,33 @@
+{
+  "id": "it-patch-window",
+  "name": "Patch-Fenster",
+  "category": "it",
+  "description": "Plant Patch-Fenster anhand von Schweregrad, Wartungsfenstern und betroffenen Systemen und bereitet die Kommunikation vor. Abhängigkeiten und Rollback-Punkte werden je System festgehalten. Die Installation bleibt freigabepflichtig.",
+  "functions": [
+    "Schweregrad-Bewertung",
+    "Fenster-Planung",
+    "Abhängigkeits-Prüfung",
+    "Kommunikations-Entwurf"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "patchIds": "string (erforderlich)",
+    "maintenanceWindow": "string (optional)",
+    "affectedSystems": "string (optional)",
+    "rollbackPlanRequired": "boolean (Standard true)"
+  },
+  "config": {
+    "systems": [
+      "Patchmanagement",
+      "Monitoring",
+      "Kalender",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApproval": true
+  }
+}

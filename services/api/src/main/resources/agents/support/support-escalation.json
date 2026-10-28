@@ -1,0 +1,33 @@
+{
+  "id": "support-escalation",
+  "name": "Eskalation",
+  "category": "support",
+  "description": "Erkennt aus Fristsignalen, Wiederholungen und Tonlage eskulationsbedürftige Vorgänge und schlägt die nächste Stufe vor. Je Fall werden Zuständigkeit, Frist und Kommunikationsweg festgehalten. Der Agent benachrichtigt, entscheidet aber nicht über Kulanz.",
+  "functions": [
+    "Signals-Erkennung",
+    "Eskalations-Stufe",
+    "Zuständigkeits-Prüfung",
+    "Benachrichtigung"
+  ],
+  "triggers": [
+    "manual",
+    "support.ticket.created",
+    "schedule"
+  ],
+  "inputs": {
+    "ticketId": "uuid (erforderlich)",
+    "slaDueAt": "datetime (optional)",
+    "repeatCount": "integer (optional)",
+    "tone": "NEUTRAL | UNZUFRIEDEN | ESKALIEREND",
+    "customerTier": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "Support",
+      "Aufgaben",
+      "Benachrichtigungen"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

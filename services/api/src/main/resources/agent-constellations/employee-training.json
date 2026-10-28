@@ -1,0 +1,81 @@
+{
+  "id": "employee-training",
+  "name": {
+    "de": "Schulungen und Nachweise",
+    "ru": "Обучение и подтверждения"
+  },
+  "description": {
+    "de": "Ermittelt Pflichtschulungen je Rolle, plant Termine und prüft Nachweise. Fehlende Nachweise bleiben sichtbar, statt als erledigt zu gelten; neue Mitarbeitende werden direkt in den Plan aufgenommen.",
+    "ru": "Определяет обязательное обучение по ролям, планирует сроки и проверяет подтверждения. Отсутствующие подтверждения остаются видимыми."
+  },
+  "industries": [
+    "handwerk",
+    "healthcare",
+    "it",
+    "manufacturing",
+    "services"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "hr-training",
+      "title": "Bedarf ermitteln",
+      "purpose": "Pflichtschulungen und Fristen je Rolle",
+      "input": "Rollen und Fristen",
+      "output": "Schulungsplan"
+    },
+    {
+      "order": 2,
+      "agentId": "hr-onboarding",
+      "title": "Neue einbeziehen",
+      "purpose": "Onboarding-Schritte mit Schulungen verknüpfen",
+      "input": "Startdaten",
+      "output": "ergänzter Plan"
+    },
+    {
+      "order": 3,
+      "agentId": "calendar-sync",
+      "title": "Termine planen",
+      "purpose": "Schulungstermine mit Anbietern abstimmen",
+      "input": "Schulungsplan",
+      "output": "Kalendereinträge"
+    },
+    {
+      "order": 4,
+      "agentId": "task-dispatch",
+      "title": "Nachweise anfordern",
+      "purpose": "Verantwortliche für Nachweise zuweisen",
+      "input": "Schulungsplan",
+      "output": "Aufgaben"
+    },
+    {
+      "order": 5,
+      "agentId": "knowledge-kpi-report",
+      "title": "Quote berichten",
+      "purpose": "Schulungsstand als Kennzahl",
+      "input": "Nachweise",
+      "output": "Weiterbildungsbericht"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Schulungsplan",
+      "ru": "План обучения"
+    },
+    {
+      "de": "Nachweisliste",
+      "ru": "Список подтверждений"
+    },
+    {
+      "de": "Weiterbildungsbericht",
+      "ru": "Отчёт по обучению"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 120,
+    "label": {
+      "de": "ca. 2 Std./Woche",
+      "ru": "≈2 ч/нед."
+    }
+  }
+}

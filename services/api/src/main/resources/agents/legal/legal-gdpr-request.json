@@ -1,0 +1,41 @@
+{
+  "id": "legal-gdpr-request",
+  "name": "DSGVO-Anfrage",
+  "category": "legal",
+  "description": "Nimmt Auskunfts-, Export-, Berichtigungs- und Löschbegehren zu einer Person auf und prüft den Vorgang anhand der vorhandenen Daten. Auskunft und Export werden als Kopie vorbereitet und im Anfragejournal dokumentiert; Löschung und Berichtigung werden nur als Plan mit Freigabe vorgelegt. Der Agent ersetzt keine rechtliche Prüfung.",
+  "functions": [
+    "Anfrage-Erfassung",
+    "Datenbestands-Auszug",
+    "Auskunftskopie",
+    "Freigabe-Plan"
+  ],
+  "triggers": [
+    "manual",
+    "mail.received",
+    "webhook"
+  ],
+  "inputs": {
+    "contactId": "uuid (erforderlich)",
+    "kind": "ACCESS | EXPORT | RECTIFICATION | ERASURE",
+    "reason": "string (bei Löschung erforderlich)",
+    "fields": "string (JSON bei Berichtigung)",
+    "requestDate": "date (optional)"
+  },
+  "config": {
+    "systems": [
+      "Kontakte",
+      "Dokumente",
+      "Datenschutz",
+      "Audit"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "kinds": [
+      "ACCESS",
+      "EXPORT",
+      "RECTIFICATION",
+      "ERASURE"
+    ],
+    "neverEraseWithoutApproval": true
+  }
+}

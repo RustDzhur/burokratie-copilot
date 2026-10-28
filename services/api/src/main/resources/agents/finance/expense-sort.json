@@ -1,0 +1,28 @@
+{
+  "id": "expense-sort",
+  "name": "Beleg-Sortierung",
+  "category": "finance",
+  "description": "Verteilt Ausgabenbelege (Positionen eingehender Rechnungen) nach Stichwort-Regeln auf Kostenkategorien, die Buchhaltung, DATEV-Kontierung und Budget-Überwachung weiterverwenden.",
+  "functions": ["Kategorie-Zuordnung nach Stichworten", "Bestehende Zuordnungen bleiben erhalten", "Nachvollziehbare, feste Regeln"],
+  "triggers": ["invoice.imported", "manual"],
+  "inputs": {
+    "invoiceId": "uuid (optional; leer = alle eingehenden Rechnungen)",
+    "overwrite": "true|false — bestehende Kategorien überschreiben (Standard false)"
+  },
+  "config": {
+    "maxInvoices": 50,
+    "categories": {
+      "travel": ["hotel", "übernachtung", "flug", "bahn", "taxi", "reise", "restaurant"],
+      "office": ["büro", "papier", "toner", "drucker", "ordner"],
+      "it": ["software", "lizenz", "hosting", "server", "laptop", "monitor"],
+      "marketing": ["werbung", "marketing", "anzeige", "flyer"],
+      "rent": ["miete", "pacht", "nebenkosten"],
+      "utilities": ["strom", "gas", "wasser", "heizung", "telefon", "internet"],
+      "insurance": ["versicherung"],
+      "accounting": ["steuerberatung", "buchhaltung", "lohnabrechnung"],
+      "fees": ["beratung", "honorar", "gutachten", "gebühr"],
+      "material": ["ware", "material", "lieferung", "rohstoff"],
+      "personnel": ["personal", "weiterbildung", "schulung"]
+    }
+  }
+}

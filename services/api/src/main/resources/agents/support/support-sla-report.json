@@ -1,0 +1,32 @@
+{
+  "id": "support-sla-report",
+  "name": "SLA-Bericht",
+  "category": "support",
+  "description": "Berichtet Erstreaktion, Lösungszeit und Verletzungen der Service-Level je Kanal und Team. Die Werte werden aus den Zeitstempeln der Vorgänge berechnet und mit dem Ziel verglichen. Der Bericht zeigt Ursachen, keine Schuldzuweisungen.",
+  "functions": [
+    "Reaktionszeit",
+    "Lösungszeit",
+    "SLA-Verletzungen",
+    "Kanal-Vergleich"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "periodFrom": "date (erforderlich)",
+    "periodTo": "date (erforderlich)",
+    "channels": "string (optional)",
+    "targetFirstResponseMinutes": "integer (Standard 240)",
+    "targetResolutionHours": "integer (Standard 48)"
+  },
+  "config": {
+    "systems": [
+      "Support",
+      "Reporting",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

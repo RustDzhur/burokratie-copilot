@@ -1,0 +1,33 @@
+{
+  "id": "healthcare-recall",
+  "name": "Recall-Erinnerungen",
+  "category": "healthcare",
+  "description": "Ermittelt aus hinterlegten Fristen und Einwilligungen, wer eine Kontroll- oder Impferinnerung erhalten soll. Die Liste wird vor dem Versand auf Widersprüche und falsche Kontaktdaten geprüft. Der Agent versendet nichts ohne Freigabe.",
+  "functions": [
+    "Fristen-Ermittlung",
+    "Einwilligungs-Prüfung",
+    "Kontaktdaten-Prüfung",
+    "Versandliste"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "recallType": "string (erforderlich)",
+    "dueWithinDays": "integer (Standard 30)",
+    "practitionerId": "uuid (optional)",
+    "consentRequired": "boolean (Standard true)"
+  },
+  "config": {
+    "systems": [
+      "Praxissoftware",
+      "Kontakte",
+      "E-Mail",
+      "Telefon"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApproval": true
+  }
+}

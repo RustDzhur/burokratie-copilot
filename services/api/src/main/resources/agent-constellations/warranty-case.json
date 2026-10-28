@@ -1,0 +1,80 @@
+{
+  "id": "warranty-case",
+  "name": {
+    "de": "Garantiefälle",
+    "ru": "Гарантийные случаи"
+  },
+  "description": {
+    "de": "Prüft Garantiefristen und Reparaturhistorie, bereitet die Entscheidung vor und hält die Kommunikation mit dem Kunden fest. Kulanz und Gewährleistung bleiben getrennt, damit die Entscheidung nachvollziehbar ist.",
+    "ru": "Проверяет гарантийные сроки и историю ремонта, готовит решение и фиксирует коммуникацию. Жест доброй воли и гарантия разделены."
+  },
+  "industries": [
+    "handwerk",
+    "manufacturing",
+    "retail",
+    "ecommerce"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "production-warranty",
+      "title": "Garantie prüfen",
+      "purpose": "Kaufdatum, Frist und Reparaturen abgleichen",
+      "input": "Garantiemeldung",
+      "output": "Entscheidungsvorlage"
+    },
+    {
+      "order": 2,
+      "agentId": "crm-contact",
+      "title": "Kunden zuordnen",
+      "purpose": "Kontakt und Historie vervollständigen",
+      "input": "Garantiemeldung",
+      "output": "Kontakt mit Historie"
+    },
+    {
+      "order": 3,
+      "agentId": "task-dispatch",
+      "title": "Bearbeitung zuweisen",
+      "purpose": "Zuständigkeit und Frist festlegen",
+      "input": "Entscheidungsvorlage",
+      "output": "zugewiesene Aufgabe"
+    },
+    {
+      "order": 4,
+      "agentId": "letter-draft",
+      "title": "Kunden informieren",
+      "purpose": "Entscheidung und nächster Schritt als Schreiben",
+      "input": "Entscheidung",
+      "output": "Schreiben als Entwurf"
+    },
+    {
+      "order": 5,
+      "agentId": "doc-archive",
+      "title": "Nachweis ablegen",
+      "purpose": "Fotos und Belege revisionssicher archivieren",
+      "input": "Garantiefall",
+      "output": "archivierter Vorgang"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Garantieentscheidung",
+      "ru": "Решение по гарантии"
+    },
+    {
+      "de": "Kundenschreiben",
+      "ru": "Письмо клиенту"
+    },
+    {
+      "de": "Archivierter Nachweis",
+      "ru": "Архивный документ"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 90,
+    "label": {
+      "de": "ca. 1 Std./Woche",
+      "ru": "≈1 ч/нед."
+    }
+  }
+}

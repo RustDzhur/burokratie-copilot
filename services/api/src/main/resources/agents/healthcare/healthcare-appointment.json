@@ -1,0 +1,35 @@
+{
+  "id": "healthcare-appointment",
+  "name": "Terminvergabe",
+  "category": "healthcare",
+  "description": "Nimmt Terminanfragen an, prüft Sprechzeiten, Terminart und Dauer und schlägt freie Slots vor. Notfälle werden nach einem hinterlegten Regelwerk sofort markiert. Die verbindliche Vergabe bestätigt die Praxis.",
+  "functions": [
+    "Termin-Annahme",
+    "Sprechzeiten-Prüfung",
+    "Slot-Vorschlag",
+    "Notfall-Markierung"
+  ],
+  "triggers": [
+    "manual",
+    "mail.received",
+    "phone.transcript"
+  ],
+  "inputs": {
+    "patientContactId": "uuid (optional)",
+    "appointmentType": "string (erforderlich)",
+    "preferredPeriod": "string (optional)",
+    "urgency": "NORMAL | URGENT | EMERGENCY",
+    "practitionerId": "uuid (optional)"
+  },
+  "config": {
+    "systems": [
+      "Praxissoftware",
+      "Kalender",
+      "Telefon",
+      "E-Mail"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "noMedicalAdvice": true
+  }
+}

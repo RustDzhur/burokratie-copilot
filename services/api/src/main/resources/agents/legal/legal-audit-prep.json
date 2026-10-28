@@ -1,0 +1,33 @@
+{
+  "id": "legal-audit-prep",
+  "name": "Audit-Vorbereitung",
+  "category": "legal",
+  "description": "Stellt für ein internes oder externes Audit die geforderten Nachweise zusammen: Richtlinien, Freigaben, Prüfprotokolle und offene Maßnahmen. Fehlende Nachweise werden als Lücken mit Verantwortlichkeit ausgewiesen. Der Agent bewertet nicht die Auditfähigkeit des Unternehmens.",
+  "functions": [
+    "Nachweis-Sammlung",
+    "Lücken-Analyse",
+    "Maßnahmen-Liste",
+    "Audit-Ordner"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "auditType": "INTERNAL | EXTERNAL | CERTIFICATION",
+    "periodFrom": "date (erforderlich)",
+    "periodTo": "date (erforderlich)",
+    "scope": "string (optional)",
+    "auditorName": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "Audit",
+      "Dokumente",
+      "Compliance",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

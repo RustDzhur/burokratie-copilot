@@ -1,0 +1,37 @@
+{
+  "id": "hospitality-reservation",
+  "name": "Reservierungen",
+  "category": "hospitality",
+  "description": "Nimmt Reservierungen an, prüft Verfügbarkeit, Öffnungszeiten und Kapazität und bestätigt oder schlägt Alternativen vor. Besondere Anlässe und Allergien werden am Vorgang vermerkt. Der Agent garantiert keine Tischvergabe ohne bestätigte Verfügbarkeit.",
+  "functions": [
+    "Reservierungs-Annahme",
+    "Verfügbarkeits-Prüfung",
+    "Alternativ-Vorschlag",
+    "Vorgangs-Notiz"
+  ],
+  "triggers": [
+    "manual",
+    "mail.received",
+    "webhook"
+  ],
+  "inputs": {
+    "guestName": "string (erforderlich)",
+    "guestEmail": "string (optional)",
+    "dateTime": "datetime (erforderlich)",
+    "partySize": "integer (erforderlich)",
+    "occasion": "string (optional)",
+    "notes": "string (optional)",
+    "openingHours": "string (optional)",
+    "capacity": "integer (optional)"
+  },
+  "config": {
+    "systems": [
+      "Reservierungssystem",
+      "Kalender",
+      "E-Mail",
+      "Telefon"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

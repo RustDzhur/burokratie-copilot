@@ -1,0 +1,33 @@
+{
+  "id": "banking-payment-order",
+  "name": "Zahlungsaufträge",
+  "category": "banking",
+  "description": "Bereitet Zahlungsaufträge aus freigegebenen Eingangsrechnungen vor: Empfänger, IBAN-Prüfung, Betrag, Fälligkeit und Verwendungszweck. Zahlungen an geänderte Bankverbindungen werden gesperrt und zur Prüfung vorgelegt. Der Auftrag wird erst nach Freigabe an die Bank übergeben.",
+  "functions": [
+    "Zahlungs-Vorbereitung",
+    "IBAN-Prüfung",
+    "Freigabe-Prüfung",
+    "Sammelauftrag"
+  ],
+  "triggers": [
+    "manual",
+    "invoice.approved"
+  ],
+  "inputs": {
+    "invoiceIds": "string (UUID-Liste, erforderlich)",
+    "executionDate": "date (erforderlich)",
+    "bankAccountId": "uuid (erforderlich)",
+    "batchName": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "Bank",
+      "Rechnungen",
+      "Freigaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "blockChangedBankDetails": true,
+    "requiresApproval": true
+  }
+}

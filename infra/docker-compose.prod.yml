@@ -1,0 +1,336 @@
+# =============================================================================
+#  Bürokratie-Copilot — PRODUCTION overrides
+# =============================================================================
+#  This file is NOT a standalone stack. It is an override that must be layered
+#  on top of the base file:
+#
+#      docker compose --env-file infra/.env \
+#        -f infra/docker-compose.yml \
+#        -f infra/docker-compose.prod.yml \
+#        up -d
+#
+#  What it changes (spec §21, §27, §30):
+#    * publish NO host ports except the reverse proxy — postgres, minio, api,
+#      worker and web are only reachable on the internal Compose networks;
+#    * start the API with the `prod` Spring profile (fail-fast configuration
+#      guard, secure cookies, forwarded-header handling);
+#    * read every secret from a file (Docker secrets / mounted secret store) when
+#      available, and only fall back to environment variables otherwise;
+#    * enforce CPU/memory limits per service;
+#    * make the container root filesystems read-only (tmpfs for the paths that
+#      must stay writable);
+#    * cap container log growth so a runaway service cannot fill the disk;
+#    * add the TLS-terminating reverse proxy (profile `proxy`).
+#
+#  REQUIREMENTS
+#    * Docker Compose v2.24.2 or newer: this file uses the `!reset` and
+#      `!override` YAML tags to *remove* inherited values. On an older Compose the
+#      file fails loudly instead of silently publishing a database to the
+#      internet — that is intentional.
+#    * `infra/.env` must NOT be world-readable (chmod 600) and must never be
+#      committed. See infra/.env.example.
+#
+#  NOT EXECUTED IN THE AUTHORING ENVIRONMENT — Docker is unavailable there. Only
+#  statically validated (YAML parse; `docker compose config` in CI when a Docker
+#  daemon exists). See docs/runbook.md → "Verification status".
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — no host port at all; reachable only from the internal network.
+  # ---------------------------------------------------------------------------
+  postgres:
+    # `!reset []` clears `ports` inherited from the base file. Publishing the
+    # database in production is a security defect, so this line is load-bearing.
+    ports: !reset []
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set in infra/.env}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set in infra/.env}
+      # Prefer a secret file when one is mounted; otherwise the env var is used.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in infra/.env}
+      POSTGRES_PASSWORD_FILE: ${POSTGRES_PASSWORD_FILE:-}
+      TZ: ${TZ:-Europe/Berlin}
+    command:
+      - postgres
+      - -c
+      - max_connections=${BC_DB_MAX_CONNECTIONS:-200}
+      - -c
+      - shared_buffers=${BC_DB_SHARED_BUFFERS:-512MB}
+      - -c
+      - effective_cache_size=${BC_DB_EFFECTIVE_CACHE:-1536MB}
+      - -c
+      - timezone=UTC
+      - -c
+      - log_min_duration_statement=${BC_DB_LOG_SLOW_MS:-1000}
+      - -c
+      - ssl=off  # in-cluster traffic stays on the private bridge network; enable
+                 # TLS here if postgres runs on a separate host (docs/deployment.md)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" -h 127.0.0.1 -p 5432"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: ${BC_POSTGRES_CPUS:-2}
+          memory: ${BC_POSTGRES_MEMORY_LIMIT:-2g}
+        reservations:
+          memory: ${BC_POSTGRES_MEMORY_RESERVATION:-1g}
+
+  # ---------------------------------------------------------------------------
+  # MinIO — replace with the managed S3 endpoint of your provider if available.
+  # ---------------------------------------------------------------------------
+  minio:
+    ports: !reset []
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set in infra/.env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in infra/.env}
+      # The web console is intentionally not published in production.
+      MINIO_BROWSER: "off"
+      TZ: ${TZ:-Europe/Berlin}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: ${BC_MINIO_CPUS:-2}
+          memory: ${BC_MINIO_MEMORY_LIMIT:-1g}
+
+  minio-init:
+    restart: "no"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256m
+
+  # ---------------------------------------------------------------------------
+  # api — HTTP backend, `prod` profile, immutable image from the registry
+  # ---------------------------------------------------------------------------
+  api:
+    # Drop anything inherited: no local build context, no published port list.
+    # The proxy service publishes 80/443 and forwards /api to this service.
+    build: !reset null
+    ports: !reset []
+    image: ${BC_REGISTRY:?BC_REGISTRY must be set in infra/.env}/api:${BC_IMAGE_TAG:?BC_IMAGE_TAG must be set in infra/.env}
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      BC_PORT: "8080"
+      BC_DB_POOL_SIZE: ${BC_DB_POOL_SIZE:-25}
+      BC_FLYWAY_ENABLED: ${BC_FLYWAY_ENABLED:-true}
+      BC_COOKIE_SECURE: "true"
+      BC_STORAGE_TYPE: ${BC_STORAGE_TYPE:-s3}
+      # Secret files take precedence in Spring Boot when the *_FILE convention is
+      # used, so a mounted secret is preferred over a plain environment variable.
+      # Both are provided here on purpose: the operator decides how secrets reach
+      # the container (Docker secrets, SOPS, cloud secret manager).
+      SPRING_DATASOURCE_PASSWORD_FILE: ${BC_DB_PASSWORD_FILE:-}
+      JAVA_OPTS: ${BC_JAVA_OPTS:--XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -XX:+UseContainerSupport -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/data/dumps -Djava.io.tmpdir=/tmp -Djava.security.egd=file:/dev/./urandom}
+    # read_only: the image contains everything the process needs; /tmp and the
+    # storage path are explicit writable mounts (tmpfs/volume).
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:mode=1777,size=256m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health/readiness >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: ${BC_API_CPUS:-2}
+          memory: ${BC_API_MEMORY_LIMIT:-2g}
+        reservations:
+          memory: ${BC_API_MEMORY_RESERVATION:-1g}
+
+  # ---------------------------------------------------------------------------
+  # worker — same image, background profile, scale horizontally first
+  # ---------------------------------------------------------------------------
+  worker:
+    build: !reset null
+    image: ${BC_REGISTRY:?BC_REGISTRY must be set in infra/.env}/api:${BC_IMAGE_TAG:?BC_IMAGE_TAG must be set in infra/.env}
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: worker
+      BC_WORKER_MANAGEMENT_PORT: "8081"
+      BC_WORKER_CONCURRENCY: ${BC_WORKER_CONCURRENCY:-4}
+      BC_FLYWAY_ENABLED: "false"  # migrations are a discrete release step (docs/runbook.md)
+      BC_STORAGE_TYPE: ${BC_STORAGE_TYPE:-s3}
+      SPRING_DATASOURCE_PASSWORD_FILE: ${BC_DB_PASSWORD_FILE:-}
+      JAVA_OPTS: ${BC_JAVA_OPTS:--XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -XX:+UseContainerSupport -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/data/dumps -Djava.io.tmpdir=/tmp -Djava.security.egd=file:/dev/./urandom}
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:mode=1777,size=512m
+    healthcheck:
+      test: ["CMD-SHELL", "test $$(( $$(date +%s) - $$(stat -c %Y /tmp/worker-heartbeat) )) -lt 60 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 150s
+    stop_grace_period: 120s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: ${BC_WORKER_CPUS:-2}
+          memory: ${BC_WORKER_MEMORY_LIMIT:-2g}
+        reservations:
+          memory: ${BC_WORKER_MEMORY_RESERVATION:-1g}
+
+  # ---------------------------------------------------------------------------
+  # web — Next.js standalone runtime, no published port
+  # ---------------------------------------------------------------------------
+  web:
+    build: !reset null
+    ports: !reset []
+    image: ${BC_REGISTRY:?BC_REGISTRY must be set in infra/.env}/web:${BC_IMAGE_TAG:?BC_IMAGE_TAG must be set in infra/.env}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Next.js writes its image-optimisation cache here; it must be writable
+      # although the root filesystem is not.
+      NEXT_SHARP_PATH: /app/node_modules/sharp
+      TZ: ${TZ:-Europe/Berlin}
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:mode=1777,size=128m
+      - /app/.next/cache:mode=1777,size=256m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/ || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: ${BC_WEB_CPUS:-1}
+          memory: ${BC_WEB_MEMORY_LIMIT:-512m}
+
+  # ---------------------------------------------------------------------------
+  # proxy — the ONLY service with published ports (spec §21: TLS termination)
+  # ---------------------------------------------------------------------------
+  # Enable with `--profile proxy`. Terminates TLS, forwards /api/* to the api
+  # service and everything else to the web service (same origin ⇒ first-party
+  # session cookies, no CORS).
+  # The server names are injected into the nginx configuration at container
+  # start by the official nginx image entrypoint (`envsubst` over
+  # infra/nginx/templates/*.template → /etc/nginx/conf.d/*.conf).
+  proxy:
+    image: nginx:1.27-alpine
+    container_name: bc-proxy
+    profiles: ["proxy"]
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    environment:
+      BC_SERVER_NAMES: ${BC_SERVER_NAMES:?BC_SERVER_NAMES must be set in infra/.env}
+      # Must be >= the backend multipart limit (BC_MAX_REQUEST_SIZE), otherwise
+      # nginx rejects large uploads before the application can stream them.
+      BC_NGINX_CLIENT_MAX_BODY: ${BC_NGINX_CLIENT_MAX_BODY:-250m}
+    ports:
+      - "${BC_BIND_ADDRESS_PROD:-0.0.0.0}:${BC_HTTP_PORT:-80}:80"
+      - "${BC_BIND_ADDRESS_PROD:-0.0.0.0}:${BC_HTTPS_PORT:-443}:443"
+    volumes:
+      # Read-only: the proxy never modifies its configuration on disk. The entrypoint renders *.template from
+      # /etc/nginx/templates into /etc/nginx/conf.d, which has to be mounted as tmpfs below - a read-only root
+      # filesystem is read-only for the image layer too, and the earlier note here claiming otherwise was wrong.
+      - ./nginx/templates:/etc/nginx/templates:ro
+      # Plain (non-templated) include used by every location block.
+      - ./nginx/conf/bc-proxy-params.conf:/etc/nginx/conf.d/bc-proxy-params.conf:ro
+      # TLS material comes from the host/secret store, never from the image.
+      - ${BC_TLS_DIR:-./nginx/certs}:/etc/nginx/certs:ro
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      # A non-root nginx cannot bind :80/:443 without these; alternatively bind
+      # unprivileged ports (8080/8443) and let a host-level LB forward to them.
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+    tmpfs:
+      - /var/cache/nginx:mode=1777,size=128m
+      - /var/run:mode=1777,size=8m
+      # The entrypoint renders /etc/nginx/templates/*.template into this directory with envsubst. With
+      # `read_only: true` the whole root filesystem is read-only - the image layer is not an exception - so
+      # without this the proxy cannot render its own configuration and restarts for ever:
+      #   "can't create /etc/nginx/conf.d/10-http-common: Read-only file system"
+      - /etc/nginx/conf.d:mode=1777,size=8m
+      - /tmp:mode=1777,size=32m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - edge
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: ${BC_PROXY_CPUS:-1}
+          memory: ${BC_PROXY_MEMORY_LIMIT:-256m}

@@ -1,0 +1,22 @@
+{
+  "id": "phone-transcript",
+  "name": "Anruf-Transkription",
+  "category": "communication",
+  "description": "Legt aus diktiertem oder getipptem Text eine Gesprächsnotiz an und hängt sie an Vorgang und Kontakt. Folgeaufgaben aus dem Gespräch werden als Aufgaben erfasst.",
+  "functions": ["Gesprächsnotiz anlegen", "Vorgang ermitteln", "Kontakt verknüpfen", "Folgeaufgaben anlegen"],
+  "triggers": ["manual", "case.created"],
+  "inputs": {
+    "text": "string (Pflicht, Gesprächsinhalt)",
+    "caseId": "uuid (optional)",
+    "contactId": "uuid (optional)",
+    "caller": "string (optional)",
+    "direction": "string (IN/OUT, Standard IN)",
+    "followUps": "string (eine Zeile je Aufgabe, optional '|JJJJ-MM-TT')",
+    "idempotencyKey": "string (optional)"
+  },
+  "config": {
+    "noExternalTranscription": true,
+    "defaultDirection": "IN",
+    "idempotencyKeyPrefix": "phone-transcript"
+  }
+}

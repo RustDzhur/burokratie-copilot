@@ -1,0 +1,33 @@
+{
+  "id": "marketing-lead-nurture",
+  "name": "Lead-Nurturing",
+  "category": "marketing",
+  "description": "Ordnet neue Kontakte einer Käuferphase zu und schlägt die nächste passende Maßnahme vor: Information, Fallbeispiel, Gesprächsangebot oder Pause. Die Zuordnung folgt festen Regeln aus Quelle, Branche und Verhalten. Der Agent versendet nichts eigenmächtig, sondern legt Aufgaben und Entwürfe an.",
+  "functions": [
+    "Phasen-Zuordnung",
+    "Maßnahmen-Vorschlag",
+    "Aufgaben-Erstellung",
+    "Entwurfs-Erzeugung"
+  ],
+  "triggers": [
+    "manual",
+    "contact.created",
+    "webhook"
+  ],
+  "inputs": {
+    "contactId": "uuid (erforderlich)",
+    "source": "string (optional)",
+    "industry": "string (optional)",
+    "interest": "string (optional)",
+    "lastActivityDays": "integer (optional)"
+  },
+  "config": {
+    "systems": [
+      "CRM",
+      "E-Mail",
+      "Website-Formular"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

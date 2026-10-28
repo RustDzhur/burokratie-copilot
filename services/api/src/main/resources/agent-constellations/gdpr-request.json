@@ -1,0 +1,81 @@
+{
+  "id": "gdpr-request",
+  "name": {
+    "de": "DSGVO-Anfrage",
+    "ru": "Запрос по GDPR"
+  },
+  "description": {
+    "de": "Bearbeitet Auskunfts- und Löschbegehren: Datenbestand ermitteln, Auskunftskopie erstellen, Aufbewahrungspflichten prüfen und Löschplan vorlegen. Gelöscht wird erst nach Freigabe und nicht, solange Legal Holds bestehen.",
+    "ru": "Обрабатывает запросы доступа и удаления: инвентаризация данных, копия, проверка сроков хранения и план удаления. Удаление — только после подтверждения и при отсутствии Legal Hold."
+  },
+  "industries": [
+    "services",
+    "healthcare",
+    "ecommerce",
+    "agency",
+    "ngo"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "legal-gdpr-request",
+      "title": "Anfrage aufnehmen",
+      "purpose": "Art bestimmen und Datenbestand erheben",
+      "input": "Anfrage einer Person",
+      "output": "Auskunft oder Plan mit Dateninventar"
+    },
+    {
+      "order": 2,
+      "agentId": "gdpr-guard",
+      "title": "Datenschutz prüfen",
+      "purpose": "Personenbezug und Löschreife bewerten",
+      "input": "Dateninventar",
+      "output": "Löschplan mit Vorbehalt"
+    },
+    {
+      "order": 3,
+      "agentId": "retention",
+      "title": "Aufbewahrung prüfen",
+      "purpose": "Fristen und Legal Holds abgleichen",
+      "input": "Löschplan",
+      "output": "freigabefähige Löschliste"
+    },
+    {
+      "order": 4,
+      "agentId": "doc-redact",
+      "title": "Schwärzen",
+      "purpose": "Nicht herauszugebende Daten entfernen",
+      "input": "Auszug oder Dokumente",
+      "output": "geschwärzte Kopie"
+    },
+    {
+      "order": 5,
+      "agentId": "audit-trail",
+      "title": "Nachweis zusammenstellen",
+      "purpose": "Wer, wann, was am Vorgang getan hat",
+      "input": "Anfrage und Entscheidung",
+      "output": "Prüfprotokoll"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Auskunftskopie",
+      "ru": "Копия данных"
+    },
+    {
+      "de": "Löschplan",
+      "ru": "План удаления"
+    },
+    {
+      "de": "Prüfprotokoll",
+      "ru": "Протокол проверки"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 120,
+    "label": {
+      "de": "ca. 2 Std./Woche",
+      "ru": "≈2 ч/нед."
+    }
+  }
+}

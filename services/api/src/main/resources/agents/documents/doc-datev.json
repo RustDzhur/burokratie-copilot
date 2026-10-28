@@ -1,0 +1,16 @@
+{
+  "id": "doc-datev",
+  "name": "DATEV-Aufbereitung",
+  "category": "documents",
+  "description": "Stellt ein Paket für den DATEV-Import zusammen: Feldzuordnung, Kontrollsumme und Warnungen.",
+  "functions": ["Feld-Zuordnung", "Kontrollsumme", "Warnungs-Generierung"],
+  "triggers": ["document.processing_completed", "manual"],
+  "inputs": {
+    "documentIds": "uuids, kommagetrennt (oder documentId)"
+  },
+  "config": {
+    "separator": ";",
+    "checksumAlgorithm": "SHA-256",
+    "accounts": { "invoice": "1600", "dunning": "1600", "payslip": "6020", "default": "1000" }
+  }
+}

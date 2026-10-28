@@ -1,0 +1,33 @@
+{
+  "id": "marketing-content-brief",
+  "name": "Content-Briefing",
+  "category": "marketing",
+  "description": "Schreibt aus einem Thema und einer Zielgruppe ein vollständiges Content-Briefing: Suchintention, Gliederung, Kernbegriffe, Quellen und Abnahmekriterien. Das Briefing ist die Grundlage für Texterstellung oder Agenturvergabe und verhindert Nachbesserungsschleifen.",
+  "functions": [
+    "Zielgruppen-Analyse",
+    "Suchintention",
+    "Gliederung",
+    "Abnahmekriterien"
+  ],
+  "triggers": [
+    "manual",
+    "webhook"
+  ],
+  "inputs": {
+    "topic": "string (erforderlich)",
+    "targetAudience": "string (erforderlich)",
+    "keyword": "string (optional)",
+    "format": "BLOG | LANDINGPAGE | WHITEPAPER",
+    "wordCount": "integer (optional)",
+    "toneOfVoice": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "Content-Management",
+      "Wissensbasis",
+      "Kalender"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

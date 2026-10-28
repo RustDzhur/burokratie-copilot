@@ -1,0 +1,34 @@
+{
+  "id": "ecommerce-order-sync",
+  "name": "Bestell-Synchronisation",
+  "category": "ecommerce",
+  "description": "Importiert Bestellungen aus Shop und Marktplätzen, prüft Zahlungsstatus, Lieferadresse und Verfügbarkeit und legt Fulfillment-Aufgaben an. Stornierungen und Teillieferungen werden als eigene Fälle geführt. Doppelte Bestellungen werden über die externe Bestellnummer erkannt.",
+  "functions": [
+    "Bestell-Import",
+    "Status-Prüfung",
+    "Fulfillment-Aufgaben",
+    "Dubletten-Schutz"
+  ],
+  "triggers": [
+    "manual",
+    "schedule",
+    "webhook"
+  ],
+  "inputs": {
+    "channel": "SHOP | MARKETPLACE",
+    "orderIds": "string (optional)",
+    "since": "datetime (optional)",
+    "includeCancelled": "boolean (Standard false)",
+    "orders": "string (JSON, optional)"
+  },
+  "config": {
+    "systems": [
+      "Shop",
+      "Marktplatz",
+      "ERP",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "id": "ecommerce-orders",
+  "name": {
+    "de": "Online-Bestellungen",
+    "ru": "Заказы интернет-магазина"
+  },
+  "description": {
+    "de": "Importiert Bestellungen, prüft Zahlungseingang und stößt Fulfillment an. Problematische Zahlungen werden zu Tickets, damit der Support nicht erst nach der Kundenbeschwerde davon erfährt.",
+    "ru": "Импортирует заказы, проверяет оплату и запускает сборку. Проблемные платежи превращаются в тикеты, чтобы поддержка узнавала о них заранее."
+  },
+  "industries": [
+    "ecommerce",
+    "retail"
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "agentId": "ecommerce-order-sync",
+      "title": "Bestellungen importieren",
+      "purpose": "Shop und Marktplätze abgleichen",
+      "input": "neue Bestellungen",
+      "output": "Bestellliste mit Status"
+    },
+    {
+      "order": 2,
+      "agentId": "ecommerce-payment-check",
+      "title": "Zahlung prüfen",
+      "purpose": "Offene und fehlgeschlagene Zahlungen",
+      "input": "Bestellliste",
+      "output": "Zahlungsstatus mit Vorschlag"
+    },
+    {
+      "order": 3,
+      "agentId": "logistics-order-intake",
+      "title": "Fulfillment anstoßen",
+      "purpose": "Auftrag und Lieferung vorbereiten",
+      "input": "bezahlte Bestellungen",
+      "output": "Fulfillment-Auftrag"
+    },
+    {
+      "order": 4,
+      "agentId": "support-ticket",
+      "title": "Problemfälle melden",
+      "purpose": "Zahlungs- und Lieferprobleme als Ticket",
+      "input": "auffällige Bestellungen",
+      "output": "Support-Tickets"
+    },
+    {
+      "order": 5,
+      "agentId": "report-daily",
+      "title": "Tagesbericht",
+      "purpose": "Bestelllage und offene Fälle zusammenfassen",
+      "input": "Bestell- und Ticketdaten",
+      "output": "Tagesbericht"
+    }
+  ],
+  "outputs": [
+    {
+      "de": "Bestellliste",
+      "ru": "Список заказов"
+    },
+    {
+      "de": "Fulfillment-Aufträge",
+      "ru": "Задания на сборку"
+    },
+    {
+      "de": "Tagesbericht",
+      "ru": "Дневной отчёт"
+    },
+    {
+      "de": "Support-Tickets",
+      "ru": "Тикеты"
+    }
+  ],
+  "estimatedTimeSaved": {
+    "minutesPerWeek": 240,
+    "label": {
+      "de": "ca. 4 Std./Woche",
+      "ru": "≈4 ч/нед."
+    }
+  }
+}

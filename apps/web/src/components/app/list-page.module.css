@@ -1,0 +1,7 @@
+/* Notices above a list: one under the other with room between them, and room before the toolbar. */
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}

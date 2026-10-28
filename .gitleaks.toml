@@ -1,0 +1,40 @@
+# =====================================================================================
+# gitleaks configuration
+#
+# The scan runs with the default rule set plus one narrow allowlist. The allowlist exists because
+# three findings are literals that were committed before this configuration was written:
+#
+#   Y2ktcGxhY2Vob2xkZXIta2V5LTMyLWJ5dGVzISE=   base64 of "ci-placeholder-key-32-bytes!!"
+#   ci-placeholder-password                   a password that exists only to satisfy Compose
+#
+# They were used to render `docker compose config` in CI and to configure the test database. Neither
+# is used by any deployment, and neither can reach a real system. The literals were removed from the
+# working tree so that no key material is committed again; the entries below only cover the history.
+#
+# Deliberately NOT allowlisted: the rule set, the file paths, or the variable names. A real key placed
+# in BC_ENCRYPTION_KEY tomorrow is a finding, and a scanner that is told to look away from a variable
+# name is a scanner nobody can trust.
+# =====================================================================================
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Documented CI placeholders that were committed before this file existed"
+regexTarget = "match"
+regexes = [
+  '''Y2ktcGxhY2Vob2xkZXIta2V5LTMyLWJ5dGVzISE=''',
+  '''ci-placeholder-password''',
+  '''ci-placeholder-access-key''',
+  '''ci-placeholder-secret-key''',
+  # Two commits of AiLogRedactionTest held credential-shaped test data for the redaction assertions.
+  # The values are not credentials - one test asserted that they get removed - and they were replaced
+  # by strings assembled at runtime. Only the history is covered here.
+  '''api_key=sk-abcdef1234567890''',
+  '''eyJhbGciOiJIUzI1NiJ9payload''',
+  '''Basic dXNlcjpwYXNz''',
+  # One commit of MailControllerIT held a mailbox password written as a literal. It was never a mailbox
+  # and the address is example.de, but a file with a password in it is a finding the next reader cannot
+  # tell from a real one - so the literal was removed from the working tree and replaced by a value built
+  # at runtime, and only the history is covered here.
+  '''streng-geheim-2026''',
+]

@@ -1,0 +1,33 @@
+{
+  "id": "banking-reconcile",
+  "name": "Bankabgleich",
+  "category": "banking",
+  "description": "Gleicht gebuchte Zahlungen mit offenen Rechnungen ab und schlägt Zuordnungen nur bei eindeutigem Treffer vor. Mehrdeutige Fälle bleiben offen und werden mit Begründung gelistet. Der Agent verbucht keine Zahlung eigenständig.",
+  "functions": [
+    "Kandidaten-Bildung",
+    "Eindeutigkeits-Prüfung",
+    "Offene Posten",
+    "Abweichungs-Bericht"
+  ],
+  "triggers": [
+    "manual",
+    "bank.statement.imported",
+    "schedule"
+  ],
+  "inputs": {
+    "accountId": "uuid (optional)",
+    "periodFrom": "date (erforderlich)",
+    "periodTo": "date (erforderlich)",
+    "minAmount": "decimal (optional)",
+    "toleranceCents": "integer (Standard 0)"
+  },
+  "config": {
+    "systems": [
+      "Bank",
+      "Rechnungen",
+      "Buchhaltung"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

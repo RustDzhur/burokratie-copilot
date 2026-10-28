@@ -1,0 +1,35 @@
+{
+  "id": "realestate-listing",
+  "name": "Objekt-Exposé",
+  "category": "realestate",
+  "description": "Erstellt aus Objektdaten ein Exposé mit Beschreibung, Ausstattung, Lage, Energieangaben und Preis. Fehlende Pflichtangaben werden als Lücke ausgewiesen statt ergänzt. Das Exposé wird als Dokument vorbereitet und erst nach Freigabe veröffentlicht.",
+  "functions": [
+    "Exposé-Erstellung",
+    "Pflichtangaben-Prüfung",
+    "Lage-Beschreibung",
+    "Dokument-Erzeugung"
+  ],
+  "triggers": [
+    "manual",
+    "property.changed"
+  ],
+  "inputs": {
+    "propertyId": "uuid (erforderlich)",
+    "address": "string (optional)",
+    "livingArea": "decimal (erforderlich)",
+    "rooms": "decimal (erforderlich)",
+    "energyClass": "string (optional)",
+    "price": "decimal (erforderlich)",
+    "highlights": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "Objekte",
+      "Dokumente",
+      "Portale"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApproval": true
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "id": "hr-onboarding",
+  "name": "Onboarding",
+  "category": "hr",
+  "description": "Erzeugt aus Startdatum und Rolle einen Onboarding-Plan mit Aufgaben für IT-Zugang, Vertragsunterlagen, Einarbeitung und Probezeitgespräch. Jede Aufgabe hat Frist, Verantwortlichen und Abschlusskriterium. Wiederholte Läufe legen keine doppelten Aufgaben an.",
+  "functions": [
+    "Onboarding-Plan",
+    "Aufgaben-Erstellung",
+    "Fristen-Berechnung",
+    "Dubletten-Schutz"
+  ],
+  "triggers": [
+    "manual",
+    "employee.hired"
+  ],
+  "inputs": {
+    "employeeName": "string (erforderlich)",
+    "startDate": "date (erforderlich)",
+    "role": "string (erforderlich)",
+    "buddyEmail": "string (optional)",
+    "externalKey": "string (Idempotenz-Schlüssel, optional)",
+    "department": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "Personalakte",
+      "IT",
+      "Aufgaben",
+      "Kalender"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "firstDayTasks": [
+      "Vertragsunterlagen",
+      "IT-Zugang",
+      "Arbeitsplatz",
+      "Sicherheitsunterweisung"
+    ],
+    "reviewAfterDays": 14,
+    "probationReviewDays": 90
+  }
+}

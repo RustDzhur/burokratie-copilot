@@ -1,0 +1,31 @@
+{
+  "id": "realestate-viewing",
+  "name": "Besichtigungstermine",
+  "category": "realestate",
+  "description": "Koordiniert Besichtigungstermine zwischen Interessenten, Makler und Mietern und schlägt Zeitfenster vor. Absagen und Wartelisten werden nachvollziehbar geführt. Bestätigt wird durch die zuständige Person.",
+  "functions": [
+    "Termin-Vorschlag",
+    "Interessenten-Zuordnung",
+    "Warteliste",
+    "Bestätigungs-Entwurf"
+  ],
+  "triggers": [
+    "manual",
+    "webhook"
+  ],
+  "inputs": {
+    "propertyId": "uuid (erforderlich)",
+    "interestedContacts": "string (erforderlich)",
+    "availableSlots": "string (JSON, erforderlich)",
+    "viewingDurationMinutes": "integer (Standard 45)"
+  },
+  "config": {
+    "systems": [
+      "Kalender",
+      "Kontakte",
+      "E-Mail"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

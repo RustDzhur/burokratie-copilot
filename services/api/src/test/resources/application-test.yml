@@ -1,0 +1,64 @@
+# Integration-test profile.
+#
+# IMPORTANT (see docs/implementation-plan.md, Q-01): Docker is not available in the
+# reference environment, therefore integration tests run against a *real* PostgreSQL
+# instance (never H2 / in-memory — spec §28.1). Point BC_TEST_DB_* at any reachable
+# PostgreSQL 16+ server. In Docker-enabled environments set BC_USE_TESTCONTAINERS=true
+# and Testcontainers will provide the database instead.
+spring:
+  datasource:
+    url: jdbc:postgresql://${BC_TEST_DB_HOST:localhost}:${BC_TEST_DB_PORT:5432}/${BC_TEST_DB_NAME:burokratie_test}
+    username: ${BC_TEST_DB_USER:burokratie}
+    password: ${BC_TEST_DB_PASSWORD:burokratie_dev_password}
+    hikari:
+      # HD-TEST-01: every cached Spring context keeps its own pool; with 8 per context and some 30 contexts the
+      # database ran out of connections in a full run (9 errors, all 'remaining connection slots are reserved').
+      maximum-pool-size: 4
+      minimum-idle: 1
+      idle-timeout: 30000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+    clean-disabled: false
+    locations: classpath:db/migration
+
+logging:
+  level:
+    root: WARN
+    de.buerokratiecopilot: INFO
+    org.flywaydb: INFO
+
+burokratie:
+  security:
+    public-base-url: http://localhost:3000
+    session:
+      cookie-secure: false
+    rate-limit:
+      # The tests share one address and fire registrations and sign-ins far faster than a person; RateLimitIT switches it on.
+      enabled: false
+    encryption:
+      # Test-only key. Never used outside the test profile.
+      key-base64: YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=
+  storage:
+    type: local-fs
+    local:
+      base-path: ${java.io.tmpdir}/burokratie-test-blobs
+  ai:
+    enabled: false
+  ocr:
+    enabled: false
+  orchestration:
+    # The watchdog is called explicitly by its own tests; it must not touch the other tests' documents.
+    watchdog-enabled: false
+  radar:
+    # The sweep is called explicitly by the Radar tests; it must not touch the other tests' data.
+    sweep-enabled: false
+  outbox:
+    # The dispatcher is invoked explicitly by tests; the schedule must not fire during them.
+    poll-interval-ms: 3600000
+    initial-delay-ms: 3600000
+    batch-size: 50
+    max-attempts: 2

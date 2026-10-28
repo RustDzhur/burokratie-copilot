@@ -1,0 +1,34 @@
+{
+  "id": "hospitality-event-plan",
+  "name": "Veranstaltungsplanung",
+  "category": "hospitality",
+  "description": "Plant Veranstaltungen von der Anfrage bis zur Nachbereitung: Raum, Technik, Menü, Personal und Zeitplan. Abhängigkeiten und kritische Termine werden als Aufgaben mit Verantwortlichen abgebildet. Der Agent bestätigt keine Kapazitäten ohne Prüfung.",
+  "functions": [
+    "Raum-Planung",
+    "Menü-Abstimmung",
+    "Personal-Bedarf",
+    "Zeitplan"
+  ],
+  "triggers": [
+    "manual",
+    "webhook"
+  ],
+  "inputs": {
+    "eventName": "string (erforderlich)",
+    "date": "date (erforderlich)",
+    "expectedGuests": "integer (erforderlich)",
+    "roomId": "uuid (optional)",
+    "cateringNeeds": "string (optional)",
+    "budget": "decimal (optional)"
+  },
+  "config": {
+    "systems": [
+      "Kalender",
+      "Reservierung",
+      "Lieferanten",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

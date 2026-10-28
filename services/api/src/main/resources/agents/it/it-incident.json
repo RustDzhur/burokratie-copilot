@@ -1,0 +1,34 @@
+{
+  "id": "it-incident",
+  "name": "Störungsmeldung",
+  "category": "it",
+  "description": "Nimmt Störungsmeldungen an, klassifiziert Schweregrad und betroffene Systeme und legt einen nachvollziehbaren Incident an. Bereits bekannte Störungen werden über Symptom und Zeitfenster erkannt. Behoben wird durch das IT-Team; der Agent dokumentiert und benachrichtigt.",
+  "functions": [
+    "Schweregrad-Bewertung",
+    "System-Zuordnung",
+    "Dubletten-Erkennung",
+    "Benachrichtigung"
+  ],
+  "triggers": [
+    "manual",
+    "webhook",
+    "monitoring.alert"
+  ],
+  "inputs": {
+    "title": "string (erforderlich)",
+    "description": "string (optional)",
+    "affectedSystems": "string (kommagetrennt)",
+    "reportedBy": "string (optional)",
+    "severityHint": "LOW | MEDIUM | HIGH | CRITICAL"
+  },
+  "config": {
+    "systems": [
+      "Monitoring",
+      "Ticketsystem",
+      "Benachrichtigungen",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

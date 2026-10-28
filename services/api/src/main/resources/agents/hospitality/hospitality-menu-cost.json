@@ -1,0 +1,34 @@
+{
+  "id": "hospitality-menu-cost",
+  "name": "Speisekalkulation",
+  "category": "hospitality",
+  "description": "Kalkuliert Speisen und Getränke aus Rezepturen, Einkaufspreisen und Schwund und zeigt Deckungsbeiträge je Gericht. Preisänderungen werden als Vorschlag innerhalb der hinterlegten Grenzen dargestellt. Der Agent ändert keine Kartenpreise.",
+  "functions": [
+    "Rezeptur-Kalkulation",
+    "Schwund-Rechnung",
+    "Deckungsbeitrag",
+    "Preis-Vorschlag"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "menuItems": "string (JSON, erforderlich)",
+    "recipeLines": "string (JSON, optional)",
+    "purchasePrices": "string (JSON, optional)",
+    "wastePercent": "decimal (Standard 5)",
+    "targetMarginPercent": "decimal (Standard 65)"
+  },
+  "config": {
+    "systems": [
+      "Kasse",
+      "Lieferanten",
+      "Controlling",
+      "Speisekarte"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresApproval": true
+  }
+}

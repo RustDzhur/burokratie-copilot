@@ -1,0 +1,33 @@
+{
+  "id": "realestate-tenant-admin",
+  "name": "Mieterverwaltung",
+  "category": "realestate",
+  "description": "Verwaltet Mieterwechsel und Stammdaten: Einzug, Auszug, Kaution, Nebenkostenvorauszahlung und Ansprechpartner. Änderungen werden mit Wirksamkeitsdatum und Nachweis dokumentiert. Der Agent bucht keine Zahlungen und erstellt keine Betriebskostenabrechnung.",
+  "functions": [
+    "Mieterwechsel",
+    "Stammdaten-Pflege",
+    "Kaution",
+    "Nachweis-Ablage"
+  ],
+  "triggers": [
+    "manual",
+    "contact.created"
+  ],
+  "inputs": {
+    "propertyId": "uuid (erforderlich)",
+    "tenantContactId": "uuid (erforderlich)",
+    "changeType": "MOVE_IN | MOVE_OUT | CHANGE",
+    "effectiveDate": "date (erforderlich)",
+    "depositAmount": "decimal (optional)"
+  },
+  "config": {
+    "systems": [
+      "Objekte",
+      "Kontakte",
+      "Dokumente",
+      "Aufgaben"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

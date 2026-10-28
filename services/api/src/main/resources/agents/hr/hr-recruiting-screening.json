@@ -1,0 +1,35 @@
+{
+  "id": "hr-recruiting-screening",
+  "name": "Bewerber-Screening",
+  "category": "hr",
+  "description": "Vergleicht eingegangene Bewerbungen strukturiert mit den Anforderungen der Stelle: Muss-Kriterien, Wunschkriterien und offene Fragen. Es findet keine automatisierte Ablehnung statt; der Agent erstellt eine Interview-Shortlist mit Begründung und Fragenvorschlägen. Personenbezogene Daten bleiben im Bewerberkontext.",
+  "functions": [
+    "Kriterien-Abgleich",
+    "Shortlist",
+    "Interview-Fragen",
+    "Lücken-Ausweis"
+  ],
+  "triggers": [
+    "manual",
+    "document.received"
+  ],
+  "inputs": {
+    "jobId": "uuid (erforderlich)",
+    "applicationDocuments": "string (Dokument-IDs)",
+    "mustHaveCriteria": "string (erforderlich)",
+    "niceToHaveCriteria": "string (optional)",
+    "maxCandidates": "integer (Standard 10)"
+  },
+  "config": {
+    "systems": [
+      "Bewerberportal",
+      "Dokumente",
+      "E-Mail"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "noAutoReject": true,
+    "gdprRetentionDays": 180,
+    "requiresHumanReview": true
+  }
+}

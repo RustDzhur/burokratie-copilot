@@ -1,0 +1,33 @@
+{
+  "id": "marketing-social-calendar",
+  "name": "Social-Media-Redaktionsplan",
+  "category": "marketing",
+  "description": "Erstellt aus Anlässen, Produkten und Zielgruppen einen Redaktionsplan für die nächsten Wochen. Jeder Beitrag bekommt Kanal, Format, Kernaussage und Freigabestatus. Der Plan wird als Dokument abgelegt und kann an den Kalender angebunden werden.",
+  "functions": [
+    "Themenplanung",
+    "Kanal-Zuordnung",
+    "Format-Vorschlag",
+    "Freigabe-Status"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "startDate": "date (erforderlich)",
+    "weeks": "integer (Standard 4)",
+    "channels": "string (kommagetrennt)",
+    "topics": "string (optional)",
+    "tone": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "Instagram",
+      "LinkedIn",
+      "Facebook",
+      "Kalender"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE"
+  }
+}

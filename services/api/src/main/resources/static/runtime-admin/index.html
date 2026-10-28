@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>Robots Runtime — Administration</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/runtime-admin/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main" data-i18n="app.skip">Skip to content</a>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">FS</span>
+    <div class="brand-text">
+      <h1 data-i18n="app.title">Robots Runtime</h1>
+      <p data-i18n="app.subtitle">Installation administration</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <div class="lang-switch" role="group" aria-label="Language" data-i18n-aria-label="nav.language">
+      <button type="button" class="lang" data-lang="de" lang="de">DE</button>
+      <button type="button" class="lang" data-lang="en" lang="en">EN</button>
+      <button type="button" class="lang" data-lang="ru" lang="ru">RU</button>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+
+  <section class="card auth-card" id="auth-card" aria-labelledby="auth-title">
+    <div class="card-head">
+      <div>
+        <h2 id="auth-title" data-i18n="auth.title">Administrator access</h2>
+        <p class="muted" data-i18n="auth.hint">The runtime admin token is issued by the installer (BC_RUNTIME_ADMIN_TOKEN).</p>
+      </div>
+      <span class="badge badge-neutral" id="auth-badge">not checked</span>
+    </div>
+    <form id="auth-form" class="auth-form" autocomplete="off">
+      <label class="field grow">
+        <span data-i18n="auth.tokenLabel">Admin token</span>
+        <input id="admin-token" name="runtime-admin-credential" type="password"
+               autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+               required data-i18n-placeholder="auth.tokenPlaceholder"
+               placeholder="X-Runtime-Admin-Token">
+      </label>
+      <button type="submit" class="btn primary" id="auth-check" data-i18n="auth.check">Check</button>
+      <button type="button" class="btn ghost" id="auth-forget" data-i18n="auth.forget" hidden>Forget</button>
+    </form>
+    <p class="hint" data-i18n="auth.security">The token is kept in this tab's session storage only. It is never written to localStorage and never logged.</p>
+  </section>
+
+  <div id="banner" class="banner" role="alert" aria-live="assertive" hidden></div>
+
+  <div id="dashboard" hidden>
+
+    <section class="card" id="status-card" aria-labelledby="status-title">
+      <div class="card-head">
+        <h2 id="status-title" data-i18n="status.title">Installation status</h2>
+        <button type="button" class="btn small ghost" id="refresh" data-i18n="common.refresh">Refresh</button>
+      </div>
+      <div class="status-grid" id="status-grid"></div>
+      <div class="license-summary" id="license-summary" aria-live="polite"></div>
+    </section>
+
+    <div class="grid-2">
+
+      <section class="card" id="license-card" aria-labelledby="license-title">
+        <h2 id="license-title" data-i18n="license.title">Licence</h2>
+        <p class="muted" data-i18n="license.hint">Paste the licence key the vendor sent you. It is verified before it replaces the current key.</p>
+        <form id="license-form" autocomplete="off">
+          <label class="field">
+            <span data-i18n="license.label">Licence key</span>
+            <textarea id="license-key" rows="4" autocomplete="off" spellcheck="false"
+                      autocapitalize="off" autocorrect="off"
+                      data-i18n-placeholder="license.placeholder"
+                      placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…"></textarea>
+          </label>
+          <div class="actions">
+            <button type="submit" class="btn primary" id="license-install" data-i18n="license.install">Install</button>
+          </div>
+        </form>
+        <p class="hint" data-i18n="license.storageHint">The key is stored at /app/data/license.key with owner-only permissions.</p>
+        <div id="license-result" class="result" aria-live="polite" hidden></div>
+      </section>
+
+      <section class="card" id="bootstrap-card" aria-labelledby="bootstrap-title">
+        <h2 id="bootstrap-title" data-i18n="bootstrap.title">First-time setup</h2>
+        <p class="muted" data-i18n="bootstrap.hint">Creates the enterprise, its workspace, the owner and the first bridge token. This happens once per installation.</p>
+        <div id="bootstrap-done" class="callout success" hidden>
+          <strong data-i18n="bootstrap.done">This installation is set up.</strong>
+          <p data-i18n="bootstrap.doneHint">Additional tokens can be issued below.</p>
+          <dl class="kv" id="bootstrap-done-kv"></dl>
+        </div>
+        <form id="bootstrap-form" autocomplete="off">
+          <label class="field">
+            <span data-i18n="bootstrap.tenantName">Enterprise name</span>
+            <input id="bootstrap-tenant" name="tenant-name" type="text" autocomplete="off"
+                   required maxlength="160" data-i18n-placeholder="bootstrap.tenantPlaceholder"
+                   placeholder="Muster GmbH">
+          </label>
+          <label class="field">
+            <span data-i18n="bootstrap.ownerEmail">Owner e-mail</span>
+            <input id="bootstrap-email" name="owner-email" type="email" autocomplete="off"
+                   required maxlength="200" data-i18n-placeholder="bootstrap.emailPlaceholder"
+                   placeholder="admin@example.de">
+          </label>
+          <label class="field">
+            <span data-i18n="bootstrap.ownerName">Owner name (optional)</span>
+            <input id="bootstrap-name" name="owner-name" type="text" autocomplete="off"
+                   maxlength="160" data-i18n-placeholder="bootstrap.namePlaceholder"
+                   placeholder="Admin Muster">
+          </label>
+          <div class="actions">
+            <button type="submit" class="btn primary" id="bootstrap-submit" data-i18n="bootstrap.submit">Create installation</button>
+          </div>
+        </form>
+        <div id="bootstrap-once" class="once" hidden></div>
+        <div id="bootstrap-result" class="result" aria-live="polite" hidden></div>
+      </section>
+
+    </div>
+
+    <section class="card" id="tokens-card" aria-labelledby="tokens-title">
+      <div class="card-head">
+        <div>
+          <h2 id="tokens-title" data-i18n="tokens.title">API tokens</h2>
+          <p class="muted" data-i18n="tokens.hint">Tokens authenticate the bridge and the customer's own integrations. The plaintext is shown exactly once.</p>
+        </div>
+      </div>
+
+      <div id="tokens-requires-bootstrap" class="callout warn" hidden>
+        <strong data-i18n="tokens.notBootstrapped">Set up the installation first.</strong>
+        <p data-i18n="tokens.notBootstrappedHint">Token administration needs a tenant, a workspace and an owner.</p>
+      </div>
+
+      <form id="token-form" class="token-form" autocomplete="off">
+        <label class="field">
+          <span data-i18n="tokens.name">Token name</span>
+          <input id="token-name" name="token-name" type="text" autocomplete="off" required maxlength="80"
+                 data-i18n-placeholder="tokens.namePlaceholder" placeholder="bridge-office-1">
+        </label>
+        <fieldset class="scopes">
+          <legend data-i18n="tokens.scopes">Scopes</legend>
+          <div id="scopes" class="scope-list"></div>
+          <p class="hint" data-i18n="tokens.scopesHint">Give documents:write for the bridge; agents.run for running agents; settings:write only to trusted integrations.</p>
+        </fieldset>
+        <div class="actions">
+          <button type="submit" class="btn primary" id="token-create" data-i18n="tokens.create">Create token</button>
+        </div>
+      </form>
+
+      <div id="token-once" class="once" hidden></div>
+
+      <h3 class="subhead" data-i18n="tokens.listTitle">Issued tokens</h3>
+      <div id="tokens-empty" class="empty" hidden data-i18n="tokens.empty">No tokens have been issued yet.</div>
+      <div class="table-wrap">
+        <table class="tokens-table" id="tokens-table" hidden>
+          <thead>
+            <tr>
+              <th scope="col" data-i18n="tokens.colName">Name</th>
+              <th scope="col" data-i18n="tokens.colScopes">Scopes</th>
+              <th scope="col" data-i18n="tokens.colCreated">Created</th>
+              <th scope="col" data-i18n="tokens.colLastUsed">Last used</th>
+              <th scope="col" data-i18n="tokens.colStatus">Status</th>
+              <th scope="col" data-i18n="tokens.colActions"><span class="visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="tokens-body"></tbody>
+        </table>
+      </div>
+      <div id="tokens-error" class="error-text" hidden></div>
+    </section>
+
+    <section class="card" id="bridge-card" aria-labelledby="bridge-title">
+      <h2 id="bridge-title" data-i18n="bridge.title">Connect the bridge</h2>
+      <p class="muted" data-i18n="bridge.hint">Add this block to bridge.config.json next to the console settings. The bridge posts captured documents to the runtime ingest endpoint.</p>
+      <label class="field">
+        <span data-i18n="bridge.url">Runtime base URL</span>
+        <input id="bridge-url" name="runtime-url" type="url" autocomplete="off" spellcheck="false"
+               inputmode="url" data-i18n-placeholder="bridge.urlPlaceholder">
+      </label>
+      <div class="snippet">
+        <div class="snippet-head">
+          <h3 data-i18n="bridge.jsonTitle">forward.copilot</h3>
+          <button type="button" class="btn small" data-copy-target="bridge-json" data-i18n="common.copy">Copy</button>
+        </div>
+        <pre><code id="bridge-json"></code></pre>
+      </div>
+      <p class="hint" data-i18n="bridge.tokenHint">Set RUNTIME_INGEST_TOKEN in the bridge's .env (mode 600). The token needs the documents:write scope.</p>
+      <div class="snippet">
+        <div class="snippet-head">
+          <h3 data-i18n="bridge.dockerTitle">Docker commands</h3>
+          <button type="button" class="btn small" data-copy-target="bridge-docker" data-i18n="common.copy">Copy</button>
+        </div>
+        <pre><code id="bridge-docker"></code></pre>
+      </div>
+      <p class="hint" data-i18n="bridge.dockerHint">Replace the image tag with the version your installation runs. Run the commands on the bridge machine, not on the runtime server.</p>
+    </section>
+
+  </div>
+</main>
+
+<footer class="footer">
+  <p data-i18n="footer.note">Robots Runtime administration. This page runs locally on your server; no data leaves the installation unless you enable an external channel.</p>
+</footer>
+
+<dialog id="revoke-dialog" class="dialog" aria-labelledby="revoke-title">
+  <form method="dialog" class="dialog-form">
+    <h2 id="revoke-title" data-i18n="tokens.revokeTitle">Revoke token?</h2>
+    <p><span data-i18n="tokens.revokeQuestion">The token</span> <code id="revoke-name"></code> <span data-i18n="tokens.revokeQuestionEnd">stops working immediately. This cannot be undone.</span></p>
+    <div class="actions end">
+      <button type="button" class="btn ghost" id="revoke-cancel" data-i18n="common.cancel">Cancel</button>
+      <button type="button" class="btn danger" id="revoke-confirm" data-i18n="tokens.revokeConfirm">Revoke</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="/runtime-admin/app.js"></script>
+</body>
+</html>

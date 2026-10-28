@@ -1,0 +1,35 @@
+{
+  "id": "marketing-sea-campaign",
+  "name": "SEA-Kampagnensteuerung",
+  "category": "marketing",
+  "description": "Plant und bewertet Google-Ads-Kampagnen: Budgets, Gebotsstrategien, Keyword-Sets und Anzeigentext-Varianten. Die Auswertung stützt sich auf importierte Kampagnendaten und berechnet Kosten pro Lead sowie Conversion-Rate. Änderungen an laufenden Kampagnen werden nur vorgeschlagen, nie automatisch geschaltet.",
+  "functions": [
+    "Budget-Planung",
+    "Keyword-Prüfung",
+    "Anzeigentext-Varianten",
+    "Kosten-pro-Lead-Auswertung"
+  ],
+  "triggers": [
+    "manual",
+    "schedule",
+    "webhook"
+  ],
+  "inputs": {
+    "campaignId": "string (optional)",
+    "periodFrom": "date (erforderlich)",
+    "periodTo": "date (erforderlich)",
+    "monthlyBudget": "decimal (EUR)",
+    "targetCpl": "decimal (EUR, optional)"
+  },
+  "config": {
+    "systems": [
+      "Google Ads",
+      "Analytics",
+      "E-Mail"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "maxDailyBudgetChangePercent": 20,
+    "requiresApproval": true
+  }
+}

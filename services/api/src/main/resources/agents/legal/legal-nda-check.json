@@ -1,0 +1,32 @@
+{
+  "id": "legal-nda-check",
+  "name": "NDA-Prüfung",
+  "category": "legal",
+  "description": "Prüft übermittelte Geheimhaltungsvereinbarungen gegen eine hinterlegte Musterklausel-Liste: Laufzeit, Vertragsstrafe, Ausnahmen und Gerichtsstand. Abweichungen werden mit Fundstelle und Risikostufe ausgewiesen. Der Agent gibt keine Rechtsberatung und ersetzt keine anwaltliche Prüfung.",
+  "functions": [
+    "Klausel-Abgleich",
+    "Abweichungs-Liste",
+    "Risiko-Einstufung",
+    "Fundstellen-Angabe"
+  ],
+  "triggers": [
+    "manual",
+    "document.received"
+  ],
+  "inputs": {
+    "documentId": "uuid (erforderlich)",
+    "templateId": "uuid (optional)",
+    "jurisdiction": "string (optional)",
+    "counterpartyType": "string (optional)"
+  },
+  "config": {
+    "systems": [
+      "Dokumente",
+      "Verträge",
+      "Rechtsabteilung"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "requiresLegalReview": true
+  }
+}

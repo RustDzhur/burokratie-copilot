@@ -1,0 +1,42 @@
+{
+  "id": "banking-fee-audit",
+  "name": "Kontogebühren-Audit",
+  "category": "banking",
+  "description": "Analysiert Kontobewegungen auf wiederkehrende Gebühren, Entgelte und ungewöhnliche Belastungen. Die Posten werden nach Empfänger und Monat zusammengefasst und mit den vereinbarten Konditionen verglichen. Der Bericht zeigt Erstattungspotenzial, bucht aber nichts.",
+  "functions": [
+    "Gebühren-Erkennung",
+    "Empfänger-Gruppierung",
+    "Konditionen-Abgleich",
+    "Erstattungs-Vorschlag"
+  ],
+  "triggers": [
+    "manual",
+    "schedule"
+  ],
+  "inputs": {
+    "periodFrom": "date (erforderlich)",
+    "periodTo": "date (erforderlich)",
+    "accountId": "uuid (optional)",
+    "toleranceAmount": "decimal (Standard 1.00)",
+    "keywords": "string (kommagetrennt, optional)"
+  },
+  "config": {
+    "systems": [
+      "Bank",
+      "Controlling",
+      "Verträge"
+    ],
+    "version": "1.0",
+    "status": "ACTIVE",
+    "defaultKeywords": [
+      "Entgelt",
+      "Gebühr",
+      "Kontoführung",
+      "Buchung",
+      "Auslandseinsatz",
+      "Dispo",
+      "SEPA",
+      "Rücklastschrift"
+    ]
+  }
+}

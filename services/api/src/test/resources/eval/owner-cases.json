@@ -1,0 +1,304 @@
+[
+ {
+  "id": "o-b-01",
+  "category": "business",
+  "filename": "IMG_2041.txt",
+  "text": "Businessplan 2027\nMustermann Consulting – Beratung für kleine Unternehmen\n1. Zusammenfassung des Vorhabens (Executive Summary)\n2. Marktanalyse und Zielgruppe\n3. Marketing und Vertrieb\n4. Finanzplan: Umsatzplanung für die ersten drei Jahre, Liquiditätsplan\n5. Kapitalbedarf und Finanzierung\nStand: Oktober 2026",
+  "expectedType": "businessplan",
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": "owner: business plan was filed under family/education/health"
+ },
+ {
+  "id": "o-b-02",
+  "category": "business",
+  "filename": "Konzept.txt",
+  "text": "Gründungskonzept\nGeschäftsidee: Online-Shop für Gartenzubehör\nKapitalbedarf 25.000 EUR, Finanzplan siehe Anlage, Marktanalyse folgt",
+  "expectedType": "businessplan",
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ },
+ {
+  "id": "o-b-03",
+  "category": "business",
+  "filename": "scan_0007.txt",
+  "text": "Stadt Musterstadt – Gewerbeamt\nGewerbeabmeldung\nHiermit melde ich mein Gewerbe ab.\nName: Erika Mustermann\nDatum der Betriebsaufgabe: 31.12.2026\nBetriebsstätte: Hauptstraße 5, 12345 Musterstadt",
+  "expectedType": "gewerbeanmeldung",
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": "owner: deregistration of the firm was filed under family/education/health"
+ },
+ {
+  "id": "o-b-04",
+  "category": "business",
+  "filename": "Gewerbe_Formular.txt",
+  "text": "Gewerbeanzeige nach § 14 GewO\nAnmeldung / Ummeldung / Abmeldung (Zutreffendes ankreuzen)\nAngaben zum Gewerbetreibenden\nAngaben zum Betrieb\nArt der Tätigkeit\nBeginn der Tätigkeit",
+  "expectedType": "gewerbeanmeldung",
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": "owner: trade form was filed under finance"
+ },
+ {
+  "id": "o-b-05",
+  "category": "business",
+  "filename": "Ummeldung_Firma.txt",
+  "text": "Gewerbeummeldung\nHiermit zeige ich die Verlegung der Betriebsstätte zum 01.11.2026 an.\nNeue Anschrift: Gartenweg 3, 80331 München\nGewerbetreibende: Erika Mustermann",
+  "expectedType": "gewerbeanmeldung",
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ },
+ {
+  "id": "o-b-06",
+  "category": "business",
+  "filename": "HR_Auszug.txt",
+  "text": "Amtsgericht München\nHandelsregisterauszug\nHRB 123456\nFirma: Mustermann GmbH\nGeschäftsführer: Erika Mustermann",
+  "expectedType": "handelsregisterauszug",
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ },
+ {
+  "id": "o-b-07",
+  "category": "business",
+  "filename": "IHK.txt",
+  "text": "Industrie- und Handelskammer\nBeitragsbescheid 2026\nIHK-Beitrag Grundbeitrag und Umlage\nZahlbar bis 30.11.2026",
+  "expectedType": "ihk_beitragsbescheid",
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ },
+ {
+  "id": "o-b-08",
+  "category": "business",
+  "filename": "Antrag.txt",
+  "text": "Förderantrag\nAntrag auf Förderung eines Gründungszuschusses\nAntragsteller: Erika Mustermann\nExistenzgründung im Bereich Beratung",
+  "expectedType": "foerdermittel_antrag",
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ },
+ {
+  "id": "o-m-01",
+  "category": "health",
+  "filename": "IMG_3302.txt",
+  "text": "Medizinische Kommission – Gutachten\nKind: Max Mustermann, geboren am 12.05.2018\nDie Kommission hat den Entwicklungsstand des Kindes untersucht.\nÄrztliche Stellungnahme und Empfehlung: Förderung in der Schule, logopädische Behandlung\nDiagnose und Befund siehe Anlage",
+  "expectedType": "aerztliches_gutachten",
+  "acceptableTypes": [
+   "medizinisches_dokument"
+  ],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": "owner: medical commission's conclusion on the child was filed under contracts"
+ },
+ {
+  "id": "o-m-02",
+  "category": "health",
+  "filename": "Attest.txt",
+  "text": "Ärztliches Attest\nHiermit bescheinige ich, dass Max Mustermann vom 12.10. bis 16.10.2026 nicht am Schulsport teilnehmen kann.\nDr. med. Anna Beispiel, Kinderärztin",
+  "expectedType": "aerztliches_attest",
+  "acceptableTypes": [
+   "medizinisches_dokument",
+   "krankmeldung"
+  ],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ },
+ {
+  "id": "o-m-03",
+  "category": "health",
+  "filename": "SBA.txt",
+  "text": "Versorgungsamt\nFeststellungsbescheid\nGrad der Behinderung: 50\nMerkzeichen G\nAusweis: Schwerbehindertenausweis wird ausgestellt",
+  "expectedType": "schwerbehinderung_bescheid",
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ },
+ {
+  "id": "o-m-04",
+  "category": "health",
+  "filename": "Foerderbedarf.txt",
+  "text": "Schulpsychologischer Dienst\nGutachten zur Feststellung eines sonderpädagogischen Förderbedarfs\nFörderschwerpunkt: Sprache\nFörderdiagnostik und Förderplan liegen bei",
+  "expectedType": "foerderbedarf_gutachten",
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ },
+ {
+  "id": "o-m-05",
+  "category": "health",
+  "filename": "U9.txt",
+  "text": "Kinderuntersuchungsheft\nU9 – Untersuchung im 5. Lebensjahr\nGelbes Heft, bitte zu jedem Termin mitbringen",
+  "expectedType": "vorsorge_impfung",
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ },
+ {
+  "id": "o-m-06",
+  "category": "health",
+  "filename": "Arztbrief.txt",
+  "text": "Arztbrief\nSehr geehrte Frau Kollegin, wir berichten über die Behandlung von Frau Beispiel.\nDiagnose: Bronchitis\nTherapieempfehlung: Inhalation, Kontrolle in zwei Wochen",
+  "expectedType": "arztbrief",
+  "acceptableTypes": [
+   "medizinisches_dokument"
+  ],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": "arztbrief and the general medical kind share one drawer"
+ },
+ {
+  "id": "o-d-01",
+  "category": "decoy",
+  "filename": "Befund.txt",
+  "text": "Arztbrief\nDie Patientin ist bei einem Vertragsarzt in Behandlung.\nDiagnose: Gastritis. Befund unauffällig. Therapie: Medikation wie besprochen.",
+  "expectedType": "arztbrief",
+  "acceptableTypes": [
+   "medizinisches_dokument"
+  ],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": "the word Vertrag must not decide"
+ },
+ {
+  "id": "o-d-02",
+  "category": "decoy",
+  "filename": "Elternbrief.txt",
+  "text": "Grundschule am Park\nElterninformation zum neuen Schuljahr\nFür die Nachmittagsbetreuung liegt der Betreuungsvertrag bei. Bitte bis Freitag zurückgeben.\nElternabend am 15.10.2026",
+  "expectedType": "schule",
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ },
+ {
+  "id": "o-d-03",
+  "category": "decoy",
+  "filename": "Rechnung.txt",
+  "text": "Rechnung Nr. 2026-0815\nMusterbau GmbH\nGewerbeanmeldung vom 03.04.2019, Handelsregister HRB 4711\nRechnungsbetrag 119,00 EUR\nZahlbar bis 20.10.2026",
+  "expectedType": "rechnung",
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ },
+ {
+  "id": "o-d-04",
+  "category": "decoy",
+  "filename": "Mahnung.txt",
+  "text": "Mahnung\nTrotz Zahlungserinnerung haben wir keinen Zahlungseingang festgestellt.\nOffener Betrag 280,00 EUR zuzüglich Mahngebühr 5,00 EUR.\nDie Kommission beträgt 3 %. Zahlen Sie bis 25.10.2026.",
+  "expectedType": "mahnung",
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ },
+ {
+  "id": "o-d-05",
+  "category": "decoy",
+  "filename": "Kuendigung.txt",
+  "text": "Kündigung meines Internetvertrags\nSehr geehrte Damen und Herren, hiermit kündige ich meinen Vertrag fristgerecht zum 31.12.2026.\nKundennummer 4711",
+  "expectedType": "kuendigung",
+  "acceptableTypes": [
+   "kuendigung_arbeitsverhaeltnis"
+  ],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ },
+ {
+  "id": "o-d-06",
+  "category": "decoy",
+  "filename": "Newsletter.txt",
+  "text": "Newsletter Oktober – Webinar: So schreiben Sie einen Businessplan\nJetzt anmelden und 20 % sparen. Abmelden vom Newsletter unter diesem Link.",
+  "expectedType": "newsletter",
+  "acceptableTypes": [
+   "reklame",
+   "businessplan"
+  ],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ },
+ {
+  "id": "o-f-01",
+  "category": "foreign",
+  "filename": "IMG_5120.txt",
+  "text": "ЗАКЛЮЧЕНИЕ МЕДИЦИНСКОЙ КОМИССИИ\nРебенок: Мустерман Макс, 12.05.2018\nКомиссия провела осмотр ребенка и изучила документы\nРекомендации: занятия с логопедом, обучение в обычной школе\nДиагноз и заключение врача прилагаются",
+  "expectedType": null,
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": "owner: a Russian-language report must not be sorted by German rules"
+ },
+ {
+  "id": "o-f-02",
+  "category": "foreign",
+  "filename": "Lyst.txt",
+  "text": "Шановний пане Мустерман, дякуємо за Ваше звернення. Цей договір діє до 31.12.2026. Просимо сплатити рахунок до 20.10.2026.",
+  "expectedType": null,
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ },
+ {
+  "id": "o-f-03",
+  "category": "foreign",
+  "filename": "Letter.txt",
+  "text": "Dear customer, thank you for your order. Your invoice for 119.00 EUR is attached. Please pay by 20 October 2026 and keep this document for your records.",
+  "expectedType": null,
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ },
+ {
+  "id": "o-f-04",
+  "category": "foreign",
+  "filename": "Spravka.txt",
+  "text": "СПРАВКА\nВыдана Мустерман Максу о том, что он находится на лечении в детской поликлинике с 12.10.2026.\nПечать и подпись врача",
+  "expectedType": null,
+  "acceptableTypes": [],
+  "expectedFields": {},
+  "expectedIdentifiers": {},
+  "injection": false,
+  "note": null
+ }
+]
